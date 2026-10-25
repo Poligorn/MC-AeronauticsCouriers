@@ -81,9 +81,11 @@ public final class CreateStyleButton extends Button {
 
     @Override
     protected void renderWidget(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        boolean pressed = (selected && !active) || (isHovered && Minecraft.getInstance().mouseHandler.isLeftPressed());
+        boolean pressed = selected
+                || (isHovered && Minecraft.getInstance().mouseHandler.isLeftPressed());
+        boolean useGreen = green && (active || selected);
         CreateGui.drawButton(graphics, getX(), getY(), getWidth(), getHeight(),
-                active || selected, isHoveredOrFocused(), pressed, green && active);
+                active, isHoveredOrFocused(), pressed, useGreen);
         Font font = Minecraft.getInstance().font;
         int textX = getX() + 4;
         int iconY = getY() + (getHeight() - 16) / 2;
@@ -94,7 +96,7 @@ public final class CreateStyleButton extends Button {
             atlasIcon.blit(graphics, getX() + 1, iconY);
             textX = getX() + 18;
         }
-        int color = active || selected ? CreateGui.TEXT_TITLE : CreateGui.TEXT_DISABLED;
+        int color = active ? CreateGui.TEXT_TITLE : CreateGui.TEXT_DISABLED;
         int textW = Math.max(8, getX() + getWidth() - 4 - textX);
         String raw = getMessage().getString();
         String shown = font.plainSubstrByWidth(raw, textW);

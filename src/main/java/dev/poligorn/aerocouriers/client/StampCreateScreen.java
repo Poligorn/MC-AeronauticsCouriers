@@ -241,6 +241,8 @@ public final class StampCreateScreen extends Screen {
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         hoverTip = null;
         super.render(graphics, mouseX, mouseY, partialTick);
+        CreateGui.drawParchmentStrip(graphics, layout.left + StampCreateLayout.PAD, layout.headerY - 2,
+                layout.innerW, layout.lineH + 4);
         int titleW = Math.max(32, layout.balanceX - layout.left - StampCreateLayout.PAD - 8);
         drawClipped(graphics, title, layout.left + StampCreateLayout.PAD, layout.headerY, titleW, CreateGui.TEXT_TITLE,
                 mouseX, mouseY);

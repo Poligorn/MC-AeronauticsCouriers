@@ -25,25 +25,21 @@ public final class CreateGui {
     private CreateGui() {
     }
 
+    /** Brass 9-slice from {@code value_settings.png} — same pieces as Create value panels; center is tiled fill. */
     public static void drawWindow(GuiGraphics graphics, int x, int y, int w, int h) {
-        int headerH = Math.min(CreateGuiTextures.STOCK_HEADER.height, Math.max(16, h / 8));
-        int footerH = Math.min(CreateGuiTextures.STOCK_FOOTER.height, Math.max(20, h / 5));
-        if (headerH + footerH >= h) {
-            headerH = Math.max(12, h / 4);
-            footerH = Math.max(12, h - headerH);
+        int inset = 4;
+        if (w > inset * 2 && h > inset * 2) {
+            tile(graphics, CreateGuiTextures.PARCHMENT_FILL, x + inset, y + inset, w - inset * 2, h - inset * 2);
         }
-        int bodyH = Math.max(0, h - headerH - footerH);
-        // Header/footer middles use a narrow cream column so the search-bar art is not repeated.
-        blitCapStrip(graphics, CreateGuiTextures.STOCK_HEADER, x, y, w, headerH, 48, false);
-        int bodyY = y + headerH;
-        CreateGuiTextures body = CreateGuiTextures.STOCK_BODY;
-        for (int yy = bodyY; yy < bodyY + bodyH; ) {
-            int slice = Math.min(body.height, bodyY + bodyH - yy);
-            blitHorizontal(graphics, body, x, yy, w, slice, 16, body.v);
-            yy += slice;
-        }
-        blitCapStrip(graphics, CreateGuiTextures.STOCK_FOOTER, x, y + h - footerH, w, footerH, 48, true);
         drawBrassFrame(graphics, x, y, w, h);
+    }
+
+    /** Readable band for title / balance over the brass fill (tiled parchment). */
+    public static void drawParchmentStrip(GuiGraphics graphics, int x, int y, int w, int h) {
+        if (w <= 0 || h <= 0) {
+            return;
+        }
+        tile(graphics, CreateGuiTextures.PARCHMENT_FILL, x, y, w, h);
     }
 
     public static void drawBrassFrame(GuiGraphics graphics, int x, int y, int w, int h) {

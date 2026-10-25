@@ -38,7 +38,9 @@ public enum CreateGuiTextures {
     BRASS_RIGHT("value_settings", 71, 14, 3, 4),
     BRASS_TOP("value_settings", 0, 24, 256, 3),
     BRASS_BOTTOM("value_settings", 0, 27, 256, 3),
+    /** Transparent in PNG; Create stretches it — we tile opaque parchment from the Stock Keeper header instead. */
     BRASS_FILL("value_settings", 80, 9, 1, 1),
+    PARCHMENT_FILL("stock_keeper", 64, 4, 8, 8),
 
     TEXTBOX_TOP("assemble", 1, 179, 150, 18),
     TEXTBOX_MIDDLE("assemble", 1, 198, 150, 1),

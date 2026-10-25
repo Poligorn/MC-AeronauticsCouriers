@@ -69,7 +69,7 @@ Data Components (`DeferredRegister.createDataComponents`), Data Attachments (`At
 | Что | Факт | Статус |
 |---|---|---|
 | `AllGuiTextures` | enum, `create:textures/gui/<file>.png`, `render` = blit фиксированного куска; `FONT_COLOR = 0x575F7A` | ✅ исходник тега `mc1.21.1-6.0.10` |
-| Адаптивное окно | `STOCK_KEEPER_REQUEST_HEADER/BODY/FOOTER` (256×36 / 256×20 / 256×80) — так стопкует `StockKeeperRequestScreen`; BODY тайлится по высоте. Ширину Create не растягивает — мы 9-slice'им, середину шапки берём узкой колонкой (иначе повторяется поиск) | ✅ |
+| Адаптивное окно | `StockKeeperRequestScreen` — фикс. ширина 226, HEADER/BODY/FOOTER без горизонтального растяжения. У нас большие панели: `BRASS_FRAME_*` + плитка `stock_keeper` (64,4, 8×8); `VALUE_SETTINGS_OUTER_BG` (80,9) в PNG прозрачен — не используем как заливку | ✅ |
 | Кнопки | `BUTTON/HOVER/DOWN/GREEN/DISABLED` 18×18 в `widgets.png`; `IconButton` не растягивает фон | ✅ |
 | Поля | `STATION_TEXTBOX_TOP/MIDDLE/BOTTOM` в `assemble.png` (150×18 / 1 / 4) | ✅ |
 | Иконки | `AllIcons`: `I_CONFIRM` (0,1), `I_TRASH` (1,0), `I_MTD_CLOSE` (1,9) в `icons.png` 16×16 | ✅ |

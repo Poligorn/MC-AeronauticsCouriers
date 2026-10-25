@@ -92,15 +92,14 @@ public final class CourierBoardScreen extends Screen {
 
     private void addTab(int x, int y, int w, Tab value, String key) {
         boolean on = tab == value;
-        CreateStyleButton button = CreateStyleButton.create(x, y, w, 18, Component.translatable(key), b -> {
+        addRenderableWidget(CreateStyleButton.create(x, y, w, 18, Component.translatable(key), b -> {
                     tab = value;
                     scroll = 0;
                     pendingAccept = null;
                     rebuildWidgets();
                 })
-                .selected(on);
-        button.active = !on;
-        addRenderableWidget(button);
+                .selected(on)
+                .green(on));
     }
 
     private void initListButtons(List<BoardSnapshotPayload.BoardEntry> all, boolean boardTab) {
@@ -199,6 +198,7 @@ public final class CourierBoardScreen extends Screen {
         super.render(graphics, mouseX, mouseY, partialTick);
         int left = left();
         int top = top();
+        CreateGui.drawParchmentStrip(graphics, left + 6, top + 26, panelW() - 12, 20);
         graphics.drawString(font, title, left + 8, top + 32, CreateGui.TEXT_TITLE, false);
         long balance = snapshot == null ? 0 : snapshot.balance();
         graphics.drawString(font, Component.translatable("ui.aerocouriers.balance", balance),
