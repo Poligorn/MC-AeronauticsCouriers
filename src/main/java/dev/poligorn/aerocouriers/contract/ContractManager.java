@@ -14,6 +14,8 @@ import dev.poligorn.aerocouriers.license.CourierProfile;
 import dev.poligorn.aerocouriers.license.LicenseRank;
 import dev.poligorn.aerocouriers.license.Licenses;
 import dev.poligorn.aerocouriers.net.ZoneSyncPayload;
+import dev.poligorn.aerocouriers.village.StationAtlas;
+import dev.poligorn.aerocouriers.village.StationContractSource;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -194,9 +196,10 @@ public final class ContractManager extends SavedData {
         return byIssuer(issuer).filter(c -> !c.state().isFinal()).count();
     }
 
-    /** What the courier loses on failure — shown before and on acceptance (owner's decision, GDD §7.2). */
+    /** What the courier loses on failure — shown before and on acceptance (owner's decision, GDD §7.2 / §6.3). */
     public static Component riskLine(Contract contract) {
-        return Component.translatable("contract.aerocouriers.risk", contract.collateral(), contract.reward());
+        String key = contract.type().isNpc() ? "contract.aerocouriers.risk.npc" : "contract.aerocouriers.risk";
+        return Component.translatable(key, contract.collateral(), contract.reward());
     }
 
     // ---- transitions ----
@@ -374,6 +377,38 @@ public final class ContractManager extends SavedData {
                 contract.requiredRank().displayName(), sourcePos.toShortString());
     }
 
+    /**
+     * NPC station order (GDD §6): reward is minted into escrow, cargo is generated, a physical crate stands
+     * next to the origin station. Issuer/recipient are station ids, not players.
+     */
+    public Optional<Contract> publishVillage(ServerLevel level, StationAtlas.Station from, StationAtlas.Station to,
+                                            BlockPos cratePos, List<ItemStack> manifest, CargoSize size,
+                                            double weight, long reward, long collateral, int deadlineMinutes) {
+        MinecraftServer server = level.getServer();
+        long now = now(server);
+        Destination origin = new Destination(from.dimension(), from.pos().immutable(), StationContractSource.ZONE_RADIUS);
+        Destination destination = new Destination(to.dimension(), to.pos().immutable(), StationContractSource.ZONE_RADIUS);
+        UUID id = UUID.randomUUID();
+        int fill = size.fillFor(weight);
+        CargoSpawner.Result spawned = CargoSpawner.spawn(level, cratePos, fill, id, false);
+        if (!(spawned instanceof CargoSpawner.Result.Spawned)) {
+            return Optional.empty();
+        }
+        double distance = origin.distanceTo(destination);
+        Contract contract = new Contract(id, ContractType.VILLAGE, from.id(), to.id(), Optional.empty(),
+                origin, destination, size, weight, reward, collateral,
+                RankRules.requiredRank(collateral, size, distance),
+                new Contract.Timing(now, now + deadlineMinutes * Pricing.TICKS_PER_MINUTE,
+                        deadlineMinutes * Pricing.TICKS_PER_MINUTE, -1, 0),
+                ContractState.OPEN, true);
+        Escrow.get(server).open(id, manifest, reward);
+        put(contract);
+        AeronauticsCouriers.LOGGER.info(
+                "[contract] {} NPC «{}» → «{}»: {} stacks, W={}, D={}, reward={}, collateral={}",
+                id, from.name(), to.name(), manifest.size(), weight, (long) distance, reward, collateral);
+        return Optional.of(contract);
+    }
+
     /** GDD §7.2: own contracts cannot be taken unless {@code debug.allow_self_accept}; collateral is atomic. */
     public Outcome accept(ServerPlayer courier, UUID id) {
         MinecraftServer server = courier.server;
@@ -401,11 +436,18 @@ public final class ContractManager extends SavedData {
             String ids = active.stream().map(Contract::shortId).collect(Collectors.joining(", "));
             return Outcome.error("too_many_active", maxActive, ids);
         }
-        Economy economy = Economies.get(server);
-        if (!economy.withdraw(courier.getUUID(), contract.collateral(), "collateral:" + id)) {
-            return Outcome.error("not_enough_money", contract.collateral(), economy.balance(courier.getUUID()));
+        long collateralDue = contract.collateral();
+        if (contract.type().isNpc()
+                && Licenses.profile(courier).villageDelivered() < CouriersServerConfig.TRAINEE_FREE_CONTRACTS.get()) {
+            collateralDue = 0;
         }
-        Escrow.get(server).addCollateral(id, contract.collateral());
+        Economy economy = Economies.get(server);
+        if (collateralDue > 0 && !economy.withdraw(courier.getUUID(), collateralDue, "collateral:" + id)) {
+            return Outcome.error("not_enough_money", collateralDue, economy.balance(courier.getUUID()));
+        }
+        if (collateralDue > 0) {
+            Escrow.get(server).addCollateral(id, collateralDue);
+        }
         Contract accepted = contract.accepted(courier.getUUID(), now(server));
         // Stamp / NPC crates already stand at pickup; leaving ACCEPTED until the next tick let a courier
         // fly the crate away and then never reach IN_TRANSIT, so the rank-1 slot stayed occupied.
@@ -584,13 +626,28 @@ public final class ContractManager extends SavedData {
         long paid = late ? Pricing.lateReward(reward) : reward;
         economy.deposit(courier.getUUID(), paid, (late ? "reward_late:" : "reward:") + id);
         economy.deposit(courier.getUUID(), escrow.takeCollateral(id), "collateral_back:" + id);
-        Mailbox.get(server).post(contract.recipient(), escrow.takeItems(id));
+        List<ItemStack> deliveredCargo = escrow.takeItems(id);
+        if (!contract.type().isNpc()) {
+            Mailbox.get(server).post(contract.recipient(), deliveredCargo);
+        }
 
-        int repeats = repeatsToday(courier.getUUID(), contract.issuer(), now);
+        int repeats = contract.type().isNpc() ? 0 : repeatsToday(courier.getUUID(), contract.issuer(), now);
         int xp = XpCalculator.xp(contract.distance(), contract.weight(), late, repeats);
         recentDeliveries.add(new Delivery(courier.getUUID(), contract.issuer(), now));
         CourierProfile profile = Licenses.profile(courier);
-        Licenses.setProfile(courier, profile.withDelivery(xp, Math.round(contract.distance()), late));
+        profile = contract.type().isNpc()
+                ? profile.withVillageDelivery(xp, Math.round(contract.distance()), late)
+                : profile.withDelivery(xp, Math.round(contract.distance()), late);
+        if (contract.type().isNpc() && !profile.traineeAdvancePaid()
+                && profile.villageDelivered() >= CouriersServerConfig.TRAINEE_FREE_CONTRACTS.get()) {
+            long bonus = CouriersServerConfig.TRAINEE_BONUS.get();
+            if (bonus > 0) {
+                economy.deposit(courier.getUUID(), bonus, "trainee_advance:" + id);
+                courier.sendSystemMessage(Component.translatable("contract.aerocouriers.trainee.advance", bonus));
+            }
+            profile = profile.withTraineeAdvancePaid();
+        }
+        Licenses.setProfile(courier, profile);
 
         Contract delivered = contract.withState(ContractState.DELIVERED);
         put(delivered);
@@ -693,9 +750,13 @@ public final class ContractManager extends SavedData {
         removePreplacedContainer(server, contract);
         Escrow escrow = Escrow.get(server);
         Economy economy = Economies.get(server);
-        economy.deposit(contract.issuer(), escrow.takeCollateral(id), "collateral_forfeit:" + id);
-        economy.deposit(contract.issuer(), escrow.takeReward(id), "reward_refund:" + id);
+        long seized = escrow.takeCollateral(id);
+        long refunded = escrow.takeReward(id);
         List<ItemStack> items = escrow.takeItems(id);
+        if (!contract.type().isNpc()) {
+            economy.deposit(contract.issuer(), seized, "collateral_forfeit:" + id);
+            economy.deposit(contract.issuer(), refunded, "reward_refund:" + id);
+        }
         Contract failed = contract.withState(ContractState.FAILED);
         put(failed);
         stillChecks.remove(id);
@@ -705,17 +766,19 @@ public final class ContractManager extends SavedData {
 
         boolean courierBroke = site != null && site.breaker() != null && site.breaker().getUUID().equals(courier);
         int dropped = 0;
-        switch (reason) {
-            case DAMAGED -> {
-                if (site != null && !courierBroke) {
-                    dropped = drop(site, items);
+        if (!contract.type().isNpc()) {
+            switch (reason) {
+                case DAMAGED -> {
+                    if (site != null && !courierBroke) {
+                        dropped = drop(site, items);
+                    }
                 }
-            }
-            case DESTROYED -> {
-            }
-            case ABANDONED, TIMED_OUT -> {
-                UUID cargoTo = contract.state() == ContractState.IN_TRANSIT ? courier : contract.issuer();
-                Mailbox.get(server).post(cargoTo, items);
+                case DESTROYED -> {
+                }
+                case ABANDONED, TIMED_OUT -> {
+                    UUID cargoTo = contract.state() == ContractState.IN_TRANSIT ? courier : contract.issuer();
+                    Mailbox.get(server).post(cargoTo, items);
+                }
             }
         }
 
@@ -764,8 +827,12 @@ public final class ContractManager extends SavedData {
         UUID id = contract.id();
         removePreplacedContainer(server, contract);
         Escrow escrow = Escrow.get(server);
-        Economies.get(server).deposit(contract.issuer(), escrow.takeReward(id), "reward_refund:" + id);
-        Mailbox.get(server).post(contract.issuer(), escrow.takeItems(id));
+        long refund = escrow.takeReward(id);
+        List<ItemStack> items = escrow.takeItems(id);
+        if (!contract.type().isNpc()) {
+            Economies.get(server).deposit(contract.issuer(), refund, "reward_refund:" + id);
+            Mailbox.get(server).post(contract.issuer(), items);
+        }
         Contract expired = contract.withState(ContractState.EXPIRED);
         put(expired);
         notify(server, contract.issuer(), Component.translatable("contract.aerocouriers.notify.expired",

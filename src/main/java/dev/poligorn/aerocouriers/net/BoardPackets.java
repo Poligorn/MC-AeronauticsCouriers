@@ -60,8 +60,10 @@ public final class BoardPackets {
         Escrow escrow = Escrow.get(server);
         long now = ContractManager.now(server);
         UUID self = player.getUUID();
+        boolean allStations = player.hasPermissions(OP);
 
         List<BoardSnapshotPayload.BoardEntry> open = manager.open()
+                .filter(c -> visibleOnBoard(c, self, atlas, allStations))
                 .sorted(Comparator.comparingLong(c -> c.timing().createdAt()))
                 .map(c -> entry(c, self, atlas, escrow, now))
                 .toList();
@@ -75,8 +77,6 @@ public final class BoardPackets {
                 .map(c -> entry(c, self, atlas, escrow, now))
                 .limit(64)
                 .toList();
-
-        boolean allStations = player.hasPermissions(OP);
         List<BoardSnapshotPayload.StationHint> stations = atlas.all().stream()
                 .filter(s -> allStations || s.discoveredBy(self))
                 .sorted(Comparator.comparing(StationAtlas.Station::name))
@@ -227,6 +227,19 @@ public final class BoardPackets {
                     Component.translatable("ui.aerocouriers.error.no_selection"), Optional.empty());
         }
         return action.apply(ContractManager.get(player.server), player.server, id.get());
+    }
+
+    /** NPC orders only appear between stations this player has discovered (GDD §6.1). */
+    private static boolean visibleOnBoard(Contract contract, UUID viewer, StationAtlas atlas, boolean allStations) {
+        if (!contract.type().isNpc() || allStations) {
+            return true;
+        }
+        return atlas.byPos(contract.origin().dimension(), contract.origin().pos())
+                .map(s -> s.discoveredBy(viewer))
+                .orElse(false)
+                && atlas.byPos(contract.destination().dimension(), contract.destination().pos())
+                .map(s -> s.discoveredBy(viewer))
+                .orElse(false);
     }
 
     private static BoardSnapshotPayload.BoardEntry entry(Contract contract, UUID viewer, StationAtlas atlas,

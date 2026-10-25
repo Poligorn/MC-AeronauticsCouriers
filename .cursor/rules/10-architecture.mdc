@@ -15,7 +15,7 @@ alwaysApply: false
 | `command` | `/couriers ...` (Brigadier) |
 | `license` | `PilotLicenseItem` (`ICurioItem`), `LicenseOwner`, `LicenseRank`, `CourierProfile` (record + Codec), `Licenses` (поиск в Curios), `LicenseMigration` |
 | `contract` | `Contract` (+ `preplaced`), `CargoContainers`, `ContractManager`/`Escrow`/`Mailbox`, `RankRules`, `Pricing`, `Weights` |
-| `village` | `ContractSource` (абстракция NPC-заказов, см. `60-ikaria-pack.mdc`), `VillageAtlas`, `VillageContractGenerator`, `CargoTables` |
+| `village` | `PostStationBlock` (+BE), `StationAtlas`, `StationNames`, `VillageStructures`, `VillageCargo`, `StationContractSource implements ContractSource` |
 | `cargo` | `CargoContainerBlock` (+`FILL`), `CargoContainerBlockEntity`, `CargoSpawner`, `SableBridge` |
 | `economy` | `Economy` → `NumismaticsEconomy` (мост) / `InternalEconomy` |
 | `item` | `CourierStampItem` — единственный игрокский способ создать P2P-заказ |

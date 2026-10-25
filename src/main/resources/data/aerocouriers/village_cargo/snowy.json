@@ -1,0 +1,12 @@
+{
+  "produces": [
+    {"id": "minecraft:snowball", "min": 16, "max": 32},
+    {"id": "minecraft:spruce_log", "min": 8, "max": 16},
+    {"id": "minecraft:rabbit_hide", "min": 2, "max": 6}
+  ],
+  "consumes": [
+    {"id": "minecraft:coal", "min": 8, "max": 24},
+    {"id": "minecraft:bread", "min": 8, "max": 16},
+    {"id": "minecraft:white_wool", "min": 4, "max": 12}
+  ]
+}

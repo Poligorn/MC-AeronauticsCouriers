@@ -12,7 +12,7 @@ import net.minecraft.core.UUIDUtil;
  * Immutable contract (GDD §5.1). The manifest lives in {@link Escrow}, never here or in the container block.
  * Times are overworld game ticks, so contracts do not tick down while the server is stopped.
  *
- * @param issuer    for {@link ContractType#PLAYER} the player UUID; village issuers arrive in iteration 5
+ * @param issuer    player UUID for {@link ContractType#PLAYER}; station UUID for {@link ContractType#VILLAGE}
  * @param recipient who receives the cargo in the mailbox (defaults to the issuer)
  * @param weight    total cargo weight (GDD §8.2), the {@code W} of the XP formula
  * @param preplaced {@code true} when the cargo container already stands at the pickup point (stamp orders)

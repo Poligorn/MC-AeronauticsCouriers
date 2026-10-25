@@ -1,8 +1,9 @@
 package dev.poligorn.aerocouriers.contract;
 
 import dev.poligorn.aerocouriers.config.CouriersServerConfig;
+import net.minecraft.util.RandomSource;
 
-/** P2P money rules (GDD §7.1, §9.6). Amounts are spurs. */
+/** P2P money rules (GDD §7.1, §9.6) and NPC station formulas (GDD §6.3). Amounts are spurs. */
 public final class Pricing {
     public static final int MIN_DEADLINE_MINUTES = 30;
     public static final int MAX_DEADLINE_MINUTES = 7 * 24 * 60;
@@ -28,5 +29,17 @@ public final class Pricing {
 
     public static double lateWindow() {
         return CouriersServerConfig.LATE_WINDOW.get();
+    }
+
+    /** {@code 16 + (D/60) × (1 + W/400)} × 0.8–1.2 (GDD §6.3). */
+    public static long npcReward(double distance, double weight, RandomSource random) {
+        double base = 16.0 + (distance / 60.0) * (1.0 + weight / 400.0);
+        double factor = 0.8 + random.nextDouble() * 0.4;
+        return Math.max(1, Math.round(base * factor));
+    }
+
+    /** Stand-in for item_values.json (not in this iteration): roughly 2 sp per weight unit. */
+    public static long npcCollateral(double weight) {
+        return Math.max(1, Math.round(weight * 2.0));
     }
 }

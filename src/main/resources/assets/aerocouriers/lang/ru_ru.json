@@ -87,6 +87,8 @@
   "contract.aerocouriers.mail.claimed": "Забрано: %s, осталось в почте: %s",
   "contract.aerocouriers.balance": "Баланс %s: %s сп",
   "contract.aerocouriers.risk": "Риск: при провале (просрочка, отказ, потеря или повреждение контейнера) ваш залог %s сп и награда %s сп уходят заказчику",
+  "contract.aerocouriers.risk.npc": "Риск: при провале деревенского заказа залог %s сп сгорает, груз уничтожается, награда %s сп не выплачивается",
+  "contract.aerocouriers.trainee.advance": "Стажировка пройдена: аванс %s сп на залоги следующих заказов",
   "contract.aerocouriers.container_spawned": "Контейнер заказа %s поставлен в %s",
   "contract.aerocouriers.fail.damaged": "контейнер повредил(а) %s",
   "contract.aerocouriers.fail.damaged.explosion": "взрыв",
@@ -162,5 +164,6 @@
   "station.aerocouriers.list.line": "«%s» %s %s · открыли: %s",
   "station.aerocouriers.renamed": "Станция «%s» переименована в «%s»",
   "station.aerocouriers.error.name": "Название — от 1 до %s символов",
-  "station.aerocouriers.error.not_station": "В %s нет почтовой станции"
+  "station.aerocouriers.error.not_station": "В %s нет почтовой станции",
+  "station.aerocouriers.generated": "Опубликовано NPC-заказов между станциями: %s"
 }

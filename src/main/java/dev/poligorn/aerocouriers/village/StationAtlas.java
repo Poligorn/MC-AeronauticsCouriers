@@ -67,6 +67,12 @@ public final class StationAtlas extends SavedData {
         return Optional.ofNullable(stations.get(id));
     }
 
+    public Optional<Station> byPos(ResourceKey<Level> dimension, BlockPos pos) {
+        return stations.values().stream()
+                .filter(s -> s.dimension().equals(dimension) && s.pos().equals(pos))
+                .findFirst();
+    }
+
     public Set<String> names() {
         return stations.values().stream().map(Station::name).collect(Collectors.toSet());
     }

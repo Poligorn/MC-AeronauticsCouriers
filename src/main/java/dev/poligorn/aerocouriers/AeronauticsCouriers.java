@@ -16,7 +16,9 @@ import dev.poligorn.aerocouriers.registry.ModItems;
 import dev.poligorn.aerocouriers.registry.ModMenus;
 import dev.poligorn.aerocouriers.registry.ModPayloads;
 import dev.poligorn.aerocouriers.village.StationAtlas;
+import dev.poligorn.aerocouriers.village.StationContractSource;
 import dev.poligorn.aerocouriers.village.StationNames;
+import dev.poligorn.aerocouriers.village.VillageCargo;
 import dev.poligorn.aerocouriers.village.VillageStructures;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.CreativeModeTabs;
@@ -53,7 +55,9 @@ public final class AeronauticsCouriers {
         NeoForge.EVENT_BUS.addListener(ContractManager::onPlayerLoggedIn);
         NeoForge.EVENT_BUS.addListener(ContractManager::onServerTick);
         NeoForge.EVENT_BUS.addListener(StationAtlas::onServerTick);
+        NeoForge.EVENT_BUS.addListener(StationContractSource::onServerTick);
         NeoForge.EVENT_BUS.addListener(StationNames::onAddReloadListeners);
+        NeoForge.EVENT_BUS.addListener(VillageCargo::onAddReloadListeners);
         NeoForge.EVENT_BUS.addListener(VillageStructures::onServerAboutToStart);
         CargoEvents.register();
         if (GameTestHooks.isGametestEnabled()) {

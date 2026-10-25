@@ -1,0 +1,12 @@
+{
+  "produces": [
+    {"id": "minecraft:acacia_log", "min": 8, "max": 16},
+    {"id": "minecraft:cooked_beef", "min": 4, "max": 12},
+    {"id": "minecraft:leather", "min": 4, "max": 8}
+  ],
+  "consumes": [
+    {"id": "minecraft:wheat", "min": 8, "max": 24},
+    {"id": "minecraft:coal", "min": 8, "max": 16},
+    {"id": "minecraft:iron_ingot", "min": 2, "max": 8}
+  ]
+}

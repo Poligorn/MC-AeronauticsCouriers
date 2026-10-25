@@ -6,6 +6,7 @@ import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import dev.poligorn.aerocouriers.village.PostStationBlockEntity;
 import dev.poligorn.aerocouriers.village.StationAtlas;
+import dev.poligorn.aerocouriers.village.StationContractSource;
 import java.util.List;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
@@ -14,7 +15,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 
-/** {@code /couriers station list|rename} (GDD §6.0–6.1) until the station window exists (iteration 4). */
+/** {@code /couriers station list|rename|generate} (GDD §6.0–6.2). */
 final class StationCommands {
     private static final int OP = Commands.LEVEL_GAMEMASTERS;
     private static final int MAX_NAME_LENGTH = 48;
@@ -25,6 +26,9 @@ final class StationCommands {
     static LiteralArgumentBuilder<CommandSourceStack> station() {
         return Commands.literal("station")
                 .then(Commands.literal("list").executes(ctx -> list(ctx.getSource())))
+                .then(Commands.literal("generate")
+                        .requires(src -> src.hasPermission(OP))
+                        .executes(StationCommands::generate))
                 .then(Commands.literal("rename")
                         .requires(src -> src.hasPermission(OP))
                         .then(Commands.argument("pos", BlockPosArgument.blockPos())
@@ -45,6 +49,12 @@ final class StationCommands {
                     s.dimension().location().toString(), s.pos().toShortString(), s.discoveredBy().size()), false);
         }
         return shown.size();
+    }
+
+    private static int generate(CommandContext<CommandSourceStack> ctx) {
+        int created = StationContractSource.INSTANCE.generate(ctx.getSource().getServer());
+        ctx.getSource().sendSuccess(() -> Component.translatable("station.aerocouriers.generated", created), true);
+        return created;
     }
 
     private static int rename(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
