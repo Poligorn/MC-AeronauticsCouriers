@@ -87,5 +87,13 @@
   "contract.aerocouriers.error.pickup_not_loaded": "Точка погрузки не загружена",
   "contract.aerocouriers.error.pickup_blocked": "Рядом с %s нет места для контейнера",
   "contract.aerocouriers.error.spawn_failed": "Sable не собрал контейнер, см. лог сервера",
-  "contract.aerocouriers.error.courier_offline": "Курьер не в сети"
+  "contract.aerocouriers.error.courier_offline": "Курьер не в сети",
+  "block.aerocouriers.post_station": "Почтовая станция",
+  "station.aerocouriers.info": "Почтовая станция «%s». Окно станции появится в следующей версии",
+  "station.aerocouriers.discovered": "Почтовая станция «%s» добавлена в атлас",
+  "station.aerocouriers.list.header": "Почтовые станции: %s",
+  "station.aerocouriers.list.line": "«%s» %s %s · открыли: %s",
+  "station.aerocouriers.renamed": "Станция «%s» переименована в «%s»",
+  "station.aerocouriers.error.name": "Название — от 1 до %s символов",
+  "station.aerocouriers.error.not_station": "В %s нет почтовой станции"
 }

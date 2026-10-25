@@ -87,5 +87,13 @@
   "contract.aerocouriers.error.pickup_not_loaded": "The pickup point is not loaded",
   "contract.aerocouriers.error.pickup_blocked": "No free spot for the container near %s",
   "contract.aerocouriers.error.spawn_failed": "Sable did not assemble the container, see the server log",
-  "contract.aerocouriers.error.courier_offline": "The courier is offline"
+  "contract.aerocouriers.error.courier_offline": "The courier is offline",
+  "block.aerocouriers.post_station": "Post Station",
+  "station.aerocouriers.info": "Post station «%s». The station window comes in a later version",
+  "station.aerocouriers.discovered": "Post station «%s» added to your atlas",
+  "station.aerocouriers.list.header": "Post stations: %s",
+  "station.aerocouriers.list.line": "«%s» %s %s · discovered by %s",
+  "station.aerocouriers.renamed": "Station «%s» renamed to «%s»",
+  "station.aerocouriers.error.name": "The name must be 1 to %s characters",
+  "station.aerocouriers.error.not_station": "There is no post station at %s"
 }

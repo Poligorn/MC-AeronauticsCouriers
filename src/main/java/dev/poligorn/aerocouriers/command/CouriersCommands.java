@@ -92,6 +92,7 @@ public final class CouriersCommands {
         root.then(ContractCommands.mail());
         root.then(ContractCommands.balance());
         root.then(ContractCommands.money());
+        root.then(StationCommands.station());
 
         dispatcher.register(root);
     }

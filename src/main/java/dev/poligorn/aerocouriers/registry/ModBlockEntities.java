@@ -2,6 +2,7 @@ package dev.poligorn.aerocouriers.registry;
 
 import dev.poligorn.aerocouriers.AeronauticsCouriers;
 import dev.poligorn.aerocouriers.cargo.CargoContainerBlockEntity;
+import dev.poligorn.aerocouriers.village.PostStationBlockEntity;
 import java.util.function.Supplier;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.level.block.entity.BlockEntityType;
@@ -16,6 +17,11 @@ public final class ModBlockEntities {
             "cargo_container",
             () -> BlockEntityType.Builder.of(CargoContainerBlockEntity::new, ModBlocks.CARGO_CONTAINER_S.get())
                     .build(null));
+
+    @SuppressWarnings("DataFlowIssue")
+    public static final Supplier<BlockEntityType<PostStationBlockEntity>> POST_STATION = REGISTER.register(
+            "post_station",
+            () -> BlockEntityType.Builder.of(PostStationBlockEntity::new, ModBlocks.POST_STATION.get()).build(null));
 
     private ModBlockEntities() {
     }
