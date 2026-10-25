@@ -61,3 +61,17 @@ EVE Online-style courier contracts with physical Sable cargo containers for Crea
     versionRange="${aeronautics_version_range}"
     ordering="AFTER"
     side="BOTH"
+
+[[dependencies.${mod_id}]]
+    modId="xaerominimap"
+    type="optional"
+    versionRange="${xaero_minimap_version_range}"
+    ordering="NONE"
+    side="CLIENT"
+
+[[dependencies.${mod_id}]]
+    modId="xaeroworldmap"
+    type="optional"
+    versionRange="${xaero_worldmap_version_range}"
+    ordering="NONE"
+    side="CLIENT"

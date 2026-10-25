@@ -485,6 +485,7 @@ if (v == Verdict.REMOVE) level.removeBlock(worldPosition, false);  // заказ
 ### 10.3 Навигация
 - **Без зависимостей:** луч-маяк в точке погрузки и доставки (только для курьера) + компас в HUD с расстоянием.
 - **Контур зоны частицами:** курьер **этого** заказа видит зону погрузки (пока `ACCEPTED`) и зону доставки (пока `IN_TRANSIT`) как частицы по границе сферы, которую проверяет сервер: горизонтальная окружность на уровне точки и две вертикальные (реализовано, ⚠️ вид не проверен в клиенте). Рисует только клиент; сервер присылает курьеру его активные зоны. Клиентский конфиг `[zones]`: `enabled`, `particle_density` (частиц на блок контура), `render_distance` (блоков).
+- **Окно штампа:** подписи **над** полями (X/Y/Z, награда, залог, минуты, радиус), раскладка от размера окна и `font.lineHeight` (`StampCreateLayout`), длинный текст обрезается с тултипом или переносится. С Xaero — кнопка «Выбрать на карте» и список существующих вейпоинтов (см. ниже).
 - **С Xaero's Minimap (≥ 26.2.0):** временные точки погрузки и доставки ✅.
   - Используем **сторонние точки** Xaero (`xaero.hud.minimap.waypoint.thirdparty.ThirdPartyWaypoints`): хранятся только в памяти, не пишутся на диск, группируются по нашему `ResourceLocation`. На этом же механизме Xaero показывает точки Waystones.
   - Origin `aerocouriers:orders`, id точки `order-<uuid заказа>` (уникальный: если игрок удалил точку, Xaero запоминает удаление по id), цвет GOLD, `temp = true`.
@@ -504,6 +505,13 @@ if (v == Verdict.REMOVE) level.removeBlock(worldPosition, false);  // заказ
     ```
   - Мост `client/XaeroBridge` грузится только при `ModList.get().isLoaded("xaerominimap")`, все вызовы в `try/catch (Throwable)`: API у Xaero не публичный и уже переименовывался (`WaypointWorld` → `MinimapWorld`, `WaypointsManager` → `MinimapSession`). При любой ошибке — откат на луч + HUD.
   - ⚠️ Не проверено: mod ID fair-play версии (`xaerominimapfair`?).
+- **Выбор точки доставки на карте (окно штампа):** отдельного события «вейпоинт создан» в Xaero 26.6.0 / World Map 1.47.0 нет ✅.
+  - Кнопка только если `xaerominimap` загружен и сессия миникарты жива; без Xaero кнопки нет.
+  - Открытие: `new GuiMap(null, null, WorldMapSession.getCurrentSession().getMapProcessor(), camera)` — тот же путь, что клавиша M. Нет World Map — `GuiWaypoints` миникарты.
+  - После закрытия любого экрана `xaero.*` сравниваем список вейпоинтов текущего мира (все наборы, без third-party и death) с снимком до открытия; новый (`identityHashCode` + свежий `createdAt`) → поля X/Y/Z. То же окно штампа восстанавливается с уже введёнными значениями.
+  - Запасной путь: выпадающий список существующих вейпоинтов игрока.
+  - Нет Y (`isYIncluded() == false` или Y = 32767) → текущая высота игрока (иначе 64); в форме пометка, Y можно править.
+  - Код Xaero только в `XaeroMinimapAccess` / `XaeroWorldMapAccess`; фасад `XaeroMapPicker` без типов Xaero. `NoSuchMethodError` / `ClassNotFound` → кнопка скрыта. `compileOnly` (+ `xaerolib` 1.7.3). ⚠️ в игре с паком не проверено.
 
 ---
 

@@ -19,6 +19,7 @@ public final class AeroCouriersClient {
         modBus.addListener(AeroCouriersClient::onClientSetup);
         modBus.addListener(BoardKeyMappings::register);
         NeoForge.EVENT_BUS.addListener(BoardKeyMappings::onClientTick);
+        NeoForge.EVENT_BUS.addListener(XaeroMapPicker::onClientTick);
         NeoForge.EVENT_BUS.addListener(InventoryBoardButton::onScreenInit);
         NeoForge.EVENT_BUS.addListener(ZoneParticles::onClientTick);
         NeoForge.EVENT_BUS.addListener(ZoneParticles::onLoggingOut);

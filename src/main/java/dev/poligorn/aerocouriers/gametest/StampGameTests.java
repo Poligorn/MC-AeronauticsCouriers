@@ -3,6 +3,7 @@ package dev.poligorn.aerocouriers.gametest;
 import com.mojang.authlib.GameProfile;
 import dev.poligorn.aerocouriers.AeronauticsCouriers;
 import dev.poligorn.aerocouriers.cargo.CargoTracker;
+import dev.poligorn.aerocouriers.client.StampCreateLayout;
 import dev.poligorn.aerocouriers.contract.Contract;
 import dev.poligorn.aerocouriers.contract.ContractManager;
 import dev.poligorn.aerocouriers.contract.ContractState;
@@ -91,6 +92,13 @@ public final class StampGameTests {
                 "expired on the board");
         helper.assertValueEqual(Mailbox.get(f.server()).contents(f.issuer.getUUID()).size(), 2,
                 "expired stamp cargo goes to mailbox");
+        helper.succeed();
+    }
+
+    @GameTest(template = CouriersGameTests.EMPTY)
+    public static void stampCreateLayoutFitsGuiScales(GameTestHelper helper) {
+        java.util.List<String> failures = StampCreateLayout.checkCommonScales();
+        helper.assertTrue(failures.isEmpty(), "stamp layout overlaps at GUI scales 2–4: " + failures);
         helper.succeed();
     }
 

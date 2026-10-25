@@ -41,6 +41,19 @@ repositories {
         }
         filter { includeGroup 'top.theillusivec4.curios' }
     }
+    exclusiveContent {
+        forRepository {
+            maven {
+                name = 'Xaero (Chocolate Minecraft)'
+                url = 'https://chocolateminecraft.com/maven'
+            }
+        }
+        filter {
+            includeGroup 'xaero.minimap'
+            includeGroup 'xaero.map'
+            includeGroup 'xaero.lib'
+        }
+    }
 }
 
 neoForge {
@@ -96,6 +109,11 @@ dependencies {
     jarJar(implementation("dev.ryanhcode.sable-companion:sable-companion-common-1.21.1:[${sable_companion_version},)")) {
         version { prefer sable_companion_version }
     }
+
+    // Xaero — optional client bridge, ARR. compileOnly so the jars are never shipped or committed.
+    compileOnly "xaero.minimap:xaerominimap-neoforge-1.21.1:${xaero_minimap_version}"
+    compileOnly "xaero.map:xaeroworldmap-neoforge-1.21.1:${xaero_worldmap_version}"
+    compileOnly "xaero.lib:xaerolib-neoforge-1.21.1:${xaero_lib_version}"
 }
 
 var generateModMetadata = tasks.register("generateModMetadata", ProcessResources) {
@@ -113,6 +131,8 @@ var generateModMetadata = tasks.register("generateModMetadata", ProcessResources
             curios_version_range         : curios_version_range,
             create_version_range         : create_version_range,
             aeronautics_version_range    : aeronautics_version_range,
+            xaero_minimap_version_range  : xaero_minimap_version_range,
+            xaero_worldmap_version_range : xaero_worldmap_version_range,
     ]
     inputs.properties replaceProperties
     expand replaceProperties

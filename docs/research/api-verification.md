@@ -12,7 +12,9 @@
 | Sable Companion | 1.6.0 (вшит в Sable) | `dev.ryanhcode.sable-companion:sable-companion-common-1.21.1:1.6.0` (`jarJar`) | maven.ryanhcode.dev/releases |
 | Curios | 9.5.1+1.21.1 | `top.theillusivec4.curios:curios-neoforge:9.5.1+1.21.1` | maven.theillusivec4.top |
 | Numismatics | 1.1.0 (в GDD — 1.0.20) | ещё не подключён | ⚠️ API не сверен |
-| Xaero's Minimap | 26.6.0 | ещё не подключён (`compileOnly`, chocolateminecraft.com/maven) | см. [xaero.md](xaero.md) |
+| Xaero's Minimap | 26.6.0 | `compileOnly xaero.minimap:xaerominimap-neoforge-1.21.1:26.6.0` | см. [xaero.md](xaero.md) |
+| Xaero's World Map | 1.47.0 | `compileOnly xaero.map:xaeroworldmap-neoforge-1.21.1:1.47.0` | см. [xaero.md](xaero.md) |
+| XaeroLib | 1.7.3 | `compileOnly xaero.lib:xaerolib-neoforge-1.21.1:1.7.3` (compileOnly не транзитивен) | ✅ по POM 26.6.0 / 1.47.0 |
 
 ## Sable 2.0.6 / Sable Companion 1.6.0
 | Что | Факт | Статус |
@@ -52,8 +54,19 @@
 ## NeoForge 21.1.235
 Data Components (`DeferredRegister.createDataComponents`), Data Attachments (`AttachmentType.builder(...).serialize(codec).copyOnDeath()`), `ModConfigSpec`, `RegisterCommandsEvent`, `PlayerEvent.PlayerLoggedInEvent` — проверены компиляцией против 21.1.235.
 
+## Xaero 26.6.0 / World Map 1.47.0 (выбор точки на штампе)
+| Что | Факт | Статус |
+|---|---|---|
+| Открытие World Map | `new xaero.map.gui.GuiMap(null, null, WorldMapSession.getCurrentSession().getMapProcessor(), camera)` — так же делает `ControlsHandler` на клавишу M | ✅ javap |
+| `WorldMapSession.getCurrentSession()` / `isUsable()` / `getMapProcessor()` | есть | ✅ |
+| Экран вейпоинтов миникарты | `new xaero.common.gui.GuiWaypoints(HudMod.INSTANCE, MinimapSession, parent, escape)` | ✅ |
+| Список точек текущего мира | `MinimapWorld.getIterableWaypointSets()` → `WaypointSet.getWaypoints()`; `getX/Y/Z`, `getName`, `getCreatedAt`, `isYIncluded`, `isThirdParty`, `getPurpose().isDeath()` | ✅ |
+| Событие «вейпоинт создан» | нет | ✅ нет колбэка |
+| Y неизвестен | `isYIncluded()==false` или Y=`32767` (`SupportXaeroMinimap.createTempWaypoint`) | ✅ |
+| Maven | `chocolateminecraft.com/maven`, плюс `xaero.lib:xaerolib-neoforge-1.21.1:1.7.3` | ✅ |
+
 ## Что ещё не проверено
 - Numismatics 1.1.0: `Numismatics.BANK`, `BankAccount.deduct/deposit`, `BankAccount.Type` (GDD §14.5 ⚠️).
-- Xaero: fair-play mod ID.
+- Xaero: fair-play mod ID; выбор точки на карте **в игре** (код есть).
 - FFItemWeight: API для веса предметов.
 - Aeronautics: можно ли зацепить верёвку/лебёдку за наш блок (только в игре).

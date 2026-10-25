@@ -26,5 +26,6 @@ alwaysApply: false
   - ≥ 26.2.0: сторонние точки `xaero.hud.minimap.waypoint.thirdparty.ThirdPartyWaypoints`, origin `aerocouriers:orders`, id `order-<uuid>`, цвет GOLD, `temp = true`; `remove(id)` при завершении заказа, `clearOrigin` при выходе. Видны только при наборе «по умолчанию» или «все наборы» — писать в подсказке.
   - < 26.2: `Waypoint(..., WaypointPurpose.DESTINATION, temp=true)` в текущем наборе.
   - `client/XaeroBridge` грузится только при `ModList.get().isLoaded("xaerominimap")`; все вызовы в `try/catch (Throwable)`; при ошибке — откат на луч + HUD.
-  - Зависимость `compileOnly "xaero.minimap:xaerominimap-neoforge-1.21.1:26.6.0"` из `https://chocolateminecraft.com/maven`; jar **не** коммитить (ARR).
+  - Штамп, «Выбрать на карте»: фасад `XaeroMapPicker` без типов Xaero; вызовы в `XaeroMinimapAccess` / `XaeroWorldMapAccess`. World Map если есть (`GuiMap`), иначе `GuiWaypoints`. Нет события создания точки — снимок списка вейпоинтов текущего мира до/после + выпадающий список существующих. Нет Y (`yIncluded=false` или 32767) → Y игрока, иначе 64. `NoSuchMethodError`/`ClassNotFound` → кнопки нет.
+  - Зависимость `compileOnly` из `https://chocolateminecraft.com/maven`: minimap 26.6.0, worldmap 1.47.0, xaerolib 1.7.3; jar **не** коммитить (ARR).
   - ⚠️ mod ID fair-play версии (`xaerominimapfair`?) не проверен.

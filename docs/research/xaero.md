@@ -29,6 +29,29 @@
    User deletion stored as isThirdPartyDeleted by id in root config -> use unique id per order.
 - Legacy xaero.common.* classes still exist in 26.6.0 (Marketplace path still resolves), most ctors @Deprecated.
 
+## Opening the map and picking a waypoint (stamp window, verified 26.6.0 / 1.47.0 javap)
+
+No public callback or Forge event fires when the player adds a waypoint. ClientEvents / CommonEvents are lifecycle only. World Map `SupportXaeroMinimap.createWaypoint` just opens `GuiAddWaypoint` with the map as parent.
+
+**Open World Map** (same path as the M-key, `ControlsHandler.keyDown`):
+```
+WorldMapSession s = WorldMapSession.getCurrentSession();
+mc.setScreen(new xaero.map.gui.GuiMap(null, null, s.getMapProcessor(), mc.getCameraEntity()));
+```
+`WorldMapSession.isUsable()` must be true. Parent/escape stay null — Xaero does the same; passing our stamp as parent would make the map try to treat it as a Xaero `ScreenBase`.
+
+**Fallback without World Map:** `new xaero.common.gui.GuiWaypoints(HudMod.INSTANCE, minimapSession, parent, escape)` — the same screen as the minimap waypoint-menu key (`WaypointMenuFunction`).
+
+**Detect the new point:** snapshot `MinimapWorld.getIterableWaypointSets()` → `WaypointSet.getWaypoints()` (skip `isThirdParty`, `isDeath`, `isEffectivelyDeleted`) before opening; after every Xaero screen is gone (`screen.getClass().getName().startsWith("xaero.")` is false), take the waypoint whose `identityHashCode` was not in the snapshot (newest `getCreatedAt()` if several). Restore the same `StampCreateScreen` instance so typed fields survive.
+
+**Existing waypoints:** no “last selected” API. Dropdown on the stamp form lists the current world’s player waypoints.
+
+**Y missing:** `Waypoint.isYIncluded() == false` or `getY() == 32767` (sentinel in `SupportXaeroMinimap.createTempWaypoint`). Rule: use the local player’s block Y; if there is no player, 64. The form shows a notice and Y stays editable.
+
+**Older Xaero:** `try/catch` `NoSuchMethodError` / `NoClassDefFoundError` / `LinkageError` around every access class; the button is then hidden. compileOnly also needs `xaero.lib:xaerolib-neoforge-1.21.1:1.7.3` (transitive of both jars; Gradle `compileOnly` is not transitive).
+
+**mod IDs:** `xaerominimap`, `xaeroworldmap`. ⚠️ `xaerominimapfair` still unverified.
+
 ## Button placement (Create: Marketplace)
 - MarketConfig.java (CLIENT spec, config/create_marketplace-client.toml, section [appearance]):
   buttonPosition = CORNER (default) | INVENTORY_SIDE | CUSTOM ; customButtonX / customButtonY (0..4000, default 2).
