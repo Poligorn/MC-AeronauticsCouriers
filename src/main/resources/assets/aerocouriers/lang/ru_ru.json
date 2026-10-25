@@ -1,0 +1,33 @@
+{
+  "item.aerocouriers.pilot_license": "Лицензия пилота",
+  "item.aerocouriers.pilot_license.unbound": "Не оформлена: наденьте, чтобы подписать",
+  "item.aerocouriers.pilot_license.owner": "Владелец: %s",
+  "item.aerocouriers.pilot_license.number": "Лицензия № %s",
+  "item.aerocouriers.pilot_license.rank": "Ранг: %s",
+  "block.aerocouriers.cargo_container_s": "Опечатанный грузовой контейнер (S)",
+  "curios.identifier.license": "Лицензия",
+  "curios.modifiers.license": "Когда надета как лицензия:",
+
+  "rank.aerocouriers.rank1": "I Стажёр",
+  "rank.aerocouriers.rank2": "II Курьер",
+  "rank.aerocouriers.rank3": "III Пилот",
+  "rank.aerocouriers.rank4": "IV Капитан",
+  "rank.aerocouriers.rank5": "V Ас",
+  "rank.aerocouriers.admin": "Администратор",
+
+  "commands.aerocouriers.profile.header": "Профиль курьера: %s",
+  "commands.aerocouriers.profile.rank": "Ранг: %s · XP %s (следующий ранг с %s)",
+  "commands.aerocouriers.profile.stats": "Доставлено %s · провалено %s · с опозданием %s · успех %s · пройдено %s блоков",
+  "commands.aerocouriers.profile.license.none": "В слоте лицензии ничего нет",
+  "commands.aerocouriers.profile.license.unbound": "Надетая лицензия ещё не оформлена",
+  "commands.aerocouriers.profile.license.foreign": "Надетая лицензия принадлежит: %s",
+  "commands.aerocouriers.profile.license.own": "Лицензия № %s, погоны: %s",
+  "commands.aerocouriers.profile.issued": "Выдано лицензий: %s · перенесено с KubeJS: %s",
+  "commands.aerocouriers.license.given": "%s получает лицензию пилота (%s)",
+  "commands.aerocouriers.license.migrated": "Перенесено старых лицензий: %s",
+  "commands.aerocouriers.xp.changed": "У %s теперь %s XP (%s)",
+  "commands.aerocouriers.spawncargo.success": "Отладочный контейнер %s создан в %s (fill %s), физический объект %s",
+  "commands.aerocouriers.spawncargo.occupied": "Место %s занято",
+  "commands.aerocouriers.spawncargo.failed": "Sable не собрал контейнер, см. лог сервера",
+  "commands.aerocouriers.cargo.none": "Загруженные контейнеры пока ничего не сообщили"
+}

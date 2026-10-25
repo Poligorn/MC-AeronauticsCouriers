@@ -1,0 +1,14 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "aerocouriers:item/pilot_license_rank1"
+  },
+  "overrides": [
+    { "predicate": { "aerocouriers:rank": 0.0 }, "model": "aerocouriers:item/pilot_license_admin" },
+    { "predicate": { "aerocouriers:rank": 0.1 }, "model": "aerocouriers:item/pilot_license_rank1" },
+    { "predicate": { "aerocouriers:rank": 0.2 }, "model": "aerocouriers:item/pilot_license_rank2" },
+    { "predicate": { "aerocouriers:rank": 0.3 }, "model": "aerocouriers:item/pilot_license_rank3" },
+    { "predicate": { "aerocouriers:rank": 0.4 }, "model": "aerocouriers:item/pilot_license_rank4" },
+    { "predicate": { "aerocouriers:rank": 0.5 }, "model": "aerocouriers:item/pilot_license_rank5" }
+  ]
+}

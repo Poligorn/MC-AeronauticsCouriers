@@ -1,0 +1,33 @@
+{
+  "item.aerocouriers.pilot_license": "Pilot License",
+  "item.aerocouriers.pilot_license.unbound": "Not bound: wear it to sign it",
+  "item.aerocouriers.pilot_license.owner": "Holder: %s",
+  "item.aerocouriers.pilot_license.number": "License No. %s",
+  "item.aerocouriers.pilot_license.rank": "Rank: %s",
+  "block.aerocouriers.cargo_container_s": "Sealed Cargo Container (S)",
+  "curios.identifier.license": "License",
+  "curios.modifiers.license": "When worn as license:",
+
+  "rank.aerocouriers.rank1": "I Trainee",
+  "rank.aerocouriers.rank2": "II Courier",
+  "rank.aerocouriers.rank3": "III Pilot",
+  "rank.aerocouriers.rank4": "IV Captain",
+  "rank.aerocouriers.rank5": "V Ace",
+  "rank.aerocouriers.admin": "Administrator",
+
+  "commands.aerocouriers.profile.header": "Courier profile: %s",
+  "commands.aerocouriers.profile.rank": "Rank: %s · XP %s (next rank at %s)",
+  "commands.aerocouriers.profile.stats": "Delivered %s · failed %s · late %s · success %s · distance %s blocks",
+  "commands.aerocouriers.profile.license.none": "No license in the license slot",
+  "commands.aerocouriers.profile.license.unbound": "Worn license is not bound yet",
+  "commands.aerocouriers.profile.license.foreign": "Worn license belongs to %s",
+  "commands.aerocouriers.profile.license.own": "License No. %s, epaulettes: %s",
+  "commands.aerocouriers.profile.issued": "Licenses issued: %s · migrated from KubeJS: %s",
+  "commands.aerocouriers.license.given": "Gave %s a pilot license (%s)",
+  "commands.aerocouriers.license.migrated": "Migrated %s legacy license(s)",
+  "commands.aerocouriers.xp.changed": "%s now has %s XP (%s)",
+  "commands.aerocouriers.spawncargo.success": "Spawned debug container %s at %s (fill %s) as sub-level %s",
+  "commands.aerocouriers.spawncargo.occupied": "Position %s is occupied",
+  "commands.aerocouriers.spawncargo.failed": "Sable did not assemble the container, see the server log",
+  "commands.aerocouriers.cargo.none": "No loaded cargo containers have reported yet"
+}
