@@ -36,6 +36,7 @@ blast_resistance = 9.0
 drop_ratio = 0.5
 [stations]
 register_radius = 32
+village_dedup_radius = 96
 generate_in_villages = true
 [migration]
 # стартовый XP при миграции kubejs:pilot_license_<rank> (CLARIFICATIONS: «таблица в конфиге»)

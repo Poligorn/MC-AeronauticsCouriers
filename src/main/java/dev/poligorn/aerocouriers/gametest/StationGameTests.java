@@ -93,6 +93,33 @@ public final class StationGameTests {
                 .thenSucceed();
     }
 
+    @GameTest(template = CouriersGameTests.EMPTY)
+    public static void villageStationsEightyBlocksApartKeepOnlyOne(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        BlockPos first = helper.absolutePos(new BlockPos(1, 2, 1));
+        BlockPos second = first.offset(80, 0, 0);
+        level.getChunk(second);
+        level.setBlock(first.below(), Blocks.STONE.defaultBlockState(), Block.UPDATE_ALL);
+        level.setBlock(second.below(), Blocks.STONE.defaultBlockState(), Block.UPDATE_ALL);
+        PostStationBlockEntity.placingVillage(() -> {
+            level.setBlock(first, ModBlocks.POST_STATION.get().defaultBlockState(), Block.UPDATE_ALL);
+            level.setBlock(second, ModBlocks.POST_STATION.get().defaultBlockState(), Block.UPDATE_ALL);
+        });
+        helper.startSequence()
+                .thenWaitUntil(() -> {
+                    boolean firstKept = level.getBlockState(first).is(ModBlocks.POST_STATION.get());
+                    boolean secondKept = level.getBlockState(second).is(ModBlocks.POST_STATION.get());
+                    helper.assertTrue(firstKept ^ secondKept, "Exactly one of two village stations 80 blocks apart remains");
+                    BlockPos replaced = firstKept ? second : first;
+                    helper.assertTrue(level.getBlockState(replaced).is(Blocks.CARTOGRAPHY_TABLE),
+                            "The extra village station becomes a cartography table");
+                    helper.assertValueEqual(StationAtlas.get(level.getServer()).all().stream()
+                                    .filter(s -> s.pos().equals(first) || s.pos().equals(second))
+                                    .count(), 1L, "atlas has one of the pair");
+                })
+                .thenSucceed();
+    }
+
     private static ServerPlayer licensed(GameTestHelper helper) {
         ServerPlayer courier = FakePlayerFactory.get(helper.getLevel(), new GameProfile(UUID.randomUUID(), "explorer"));
         var curios = CuriosApi.getCuriosInventory(courier).orElseThrow();

@@ -15,10 +15,12 @@ import net.minecraft.core.UUIDUtil;
  * @param issuer    for {@link ContractType#PLAYER} the player UUID; village issuers arrive in iteration 5
  * @param recipient who receives the cargo in the mailbox (defaults to the issuer)
  * @param weight    total cargo weight (GDD §8.2), the {@code W} of the XP formula
+ * @param preplaced {@code true} when the cargo container already stands at the pickup point (stamp orders)
  */
 public record Contract(UUID id, ContractType type, UUID issuer, UUID recipient, Optional<UUID> courier,
                        Destination origin, Destination destination, CargoSize size, double weight,
-                       long reward, long collateral, LicenseRank requiredRank, Timing timing, ContractState state) {
+                       long reward, long collateral, LicenseRank requiredRank, Timing timing, ContractState state,
+                       boolean preplaced) {
 
     public static final Codec<Contract> CODEC = RecordCodecBuilder.create(instance -> instance.group(
             UUIDUtil.CODEC.fieldOf("id").forGetter(Contract::id),
@@ -34,7 +36,8 @@ public record Contract(UUID id, ContractType type, UUID issuer, UUID recipient, 
             Codec.LONG.fieldOf("collateral").forGetter(Contract::collateral),
             LicenseRank.CODEC.fieldOf("required_rank").forGetter(Contract::requiredRank),
             Timing.CODEC.fieldOf("timing").forGetter(Contract::timing),
-            ContractState.CODEC.fieldOf("state").forGetter(Contract::state)
+            ContractState.CODEC.fieldOf("state").forGetter(Contract::state),
+            Codec.BOOL.optionalFieldOf("preplaced", false).forGetter(Contract::preplaced)
     ).apply(instance, Contract::new));
 
     /**
@@ -78,20 +81,20 @@ public record Contract(UUID id, ContractType type, UUID issuer, UUID recipient, 
             throw new IllegalStateException("Contract " + id + ": " + state + " -> " + next);
         }
         return new Contract(id, type, issuer, recipient, courier, origin, destination, size, weight, reward,
-                collateral, requiredRank, timing, next);
+                collateral, requiredRank, timing, next, preplaced);
     }
 
     Contract accepted(UUID courierId, long now) {
         Contract next = withState(ContractState.ACCEPTED);
         return new Contract(id, type, issuer, recipient, Optional.of(courierId), origin, destination, size, weight,
                 reward, collateral, requiredRank,
-                new Timing(timing.createdAt(), timing.expiresAt(), timing.deadline(), now, 0), next.state);
+                new Timing(timing.createdAt(), timing.expiresAt(), timing.deadline(), now, 0), next.state, preplaced);
     }
 
     Contract withPause(long extraTicks) {
         return new Contract(id, type, issuer, recipient, courier, origin, destination, size, weight, reward,
                 collateral, requiredRank,
                 new Timing(timing.createdAt(), timing.expiresAt(), timing.deadline(), timing.acceptedAt(),
-                        timing.paused() + extraTicks), state);
+                        timing.paused() + extraTicks), state, preplaced);
     }
 }

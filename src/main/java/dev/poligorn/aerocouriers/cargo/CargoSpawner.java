@@ -69,6 +69,9 @@ public final class CargoSpawner {
         return true;
     }
 
+    /**
+     * Places a container on air. For stamp orders the source block must already have been removed without drops.
+     */
     public static Result spawn(ServerLevel level, BlockPos pos, int fill, UUID contractId, boolean debug) {
         if (!level.getBlockState(pos).canBeReplaced()) {
             return new Result.Occupied();
@@ -90,5 +93,14 @@ public final class CargoSpawner {
         AeronauticsCouriers.LOGGER.info("[cargo] Spawned container {} (fill {}) at {} as sub-level {}",
                 contractId, fill, pos, subLevel.get());
         return new Result.Spawned(subLevel.get());
+    }
+
+    /** Removes a cargo block without treating it as a vanished in-transit container. */
+    public static boolean removeQuietly(ServerLevel level, BlockPos pos) {
+        if (!(level.getBlockEntity(pos) instanceof CargoContainerBlockEntity be)) {
+            return false;
+        }
+        be.markSelfRemoving();
+        return level.removeBlock(pos, false);
     }
 }

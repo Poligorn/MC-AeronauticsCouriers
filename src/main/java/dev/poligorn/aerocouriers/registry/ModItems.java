@@ -1,6 +1,7 @@
 package dev.poligorn.aerocouriers.registry;
 
 import dev.poligorn.aerocouriers.AeronauticsCouriers;
+import dev.poligorn.aerocouriers.item.CourierStampItem;
 import dev.poligorn.aerocouriers.license.PilotLicenseItem;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
@@ -15,6 +16,11 @@ public final class ModItems {
             "pilot_license",
             PilotLicenseItem::new,
             new Item.Properties().stacksTo(1).rarity(Rarity.UNCOMMON));
+
+    public static final DeferredItem<CourierStampItem> COURIER_STAMP = REGISTER.registerItem(
+            "courier_stamp",
+            CourierStampItem::new,
+            new Item.Properties().stacksTo(16));
 
     // Operators only (creative "Operator Utilities" tab or /give); no recipe (GDD §6.0).
     public static final DeferredItem<BlockItem> POST_STATION = REGISTER.registerSimpleBlockItem(

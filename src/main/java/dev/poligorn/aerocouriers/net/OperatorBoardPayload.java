@@ -17,7 +17,7 @@ public record OperatorBoardPayload(Action action, Optional<UUID> contractId) imp
     public static final Type<OperatorBoardPayload> TYPE = new Type<>(AeronauticsCouriers.id("operator_board"));
 
     public enum Action {
-        GIVE_LICENSE, ADD_MONEY, FORCE_SPAWN, FORCE_DELIVER
+        GIVE_LICENSE, ADD_MONEY, GIVE_STAMP, FORCE_SPAWN, FORCE_DELIVER
     }
 
     public static final long TEST_MONEY = 500;

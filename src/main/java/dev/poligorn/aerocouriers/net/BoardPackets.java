@@ -1,6 +1,7 @@
 package dev.poligorn.aerocouriers.net;
 
 import dev.poligorn.aerocouriers.config.CouriersServerConfig;
+import dev.poligorn.aerocouriers.contract.CargoContainers;
 import dev.poligorn.aerocouriers.contract.Contract;
 import dev.poligorn.aerocouriers.contract.ContractManager;
 import dev.poligorn.aerocouriers.contract.ContractState;
@@ -8,9 +9,11 @@ import dev.poligorn.aerocouriers.contract.Destination;
 import dev.poligorn.aerocouriers.contract.Escrow;
 import dev.poligorn.aerocouriers.contract.Mailbox;
 import dev.poligorn.aerocouriers.contract.Pricing;
+import dev.poligorn.aerocouriers.contract.Weights;
 import dev.poligorn.aerocouriers.economy.Economies;
 import dev.poligorn.aerocouriers.license.LicenseRank;
 import dev.poligorn.aerocouriers.license.Licenses;
+import dev.poligorn.aerocouriers.registry.ModItems;
 import dev.poligorn.aerocouriers.village.StationAtlas;
 import java.util.Comparator;
 import java.util.List;
@@ -21,9 +24,9 @@ import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.Container;
+import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.block.entity.HopperBlockEntity;
 import net.neoforged.neoforge.network.PacketDistributor;
 
 /**
@@ -117,18 +120,43 @@ public final class BoardPackets {
         reply(player, outcome.message());
     }
 
-    public static void handleCreate(ServerPlayer player, CreateContractPayload payload) {
-        Container container = HopperBlockEntity.getContainerAt(player.level(), payload.from());
-        if (container == null) {
-            reply(player, Component.translatable("contract.aerocouriers.error.no_container",
-                    payload.from().toShortString()));
+    public static void openStamp(ServerPlayer player, BlockPos origin) {
+        if (!canSendBoard(player)) {
+            player.sendSystemMessage(Component.translatable("ui.aerocouriers.error.no_client"));
             return;
         }
+        if (!(player.level() instanceof ServerLevel level)) {
+            return;
+        }
+        var access = CargoContainers.find(level, origin);
+        if (access.isEmpty()) {
+            player.sendSystemMessage(Component.translatable("contract.aerocouriers.error.no_container",
+                    origin.toShortString()));
+            return;
+        }
+        List<ItemStack> cargo = access.get().items();
+        double weight = Weights.of(cargo);
+        StationAtlas atlas = StationAtlas.get(player.server);
+        boolean allStations = player.hasPermissions(OP);
+        List<BoardSnapshotPayload.StationHint> stations = atlas.all().stream()
+                .filter(s -> allStations || s.discoveredBy(player.getUUID()))
+                .sorted(Comparator.comparing(StationAtlas.Station::name))
+                .map(s -> new BoardSnapshotPayload.StationHint(s.name(), s.pos()))
+                .limit(64)
+                .toList();
+        PacketDistributor.sendToPlayer(player, new OpenStampPayload(
+                origin, cargo, weight, Economies.get(player.server).balance(player.getUUID()), stations));
+    }
+
+    public static void handleCreate(ServerPlayer player, CreateContractPayload payload) {
         Destination destination = new Destination(player.level().dimension(), payload.to(), payload.radius());
         ContractManager.Outcome outcome = ContractManager.get(player.server)
-                .create(player, container, payload.from(), destination,
+                .createFromStamp(player, payload.from(), destination,
                         payload.reward(), payload.collateral(), payload.minutes());
-        reply(player, outcome.message());
+        player.sendSystemMessage(outcome.message());
+        if (outcome.success()) {
+            open(player, 0, true, Optional.of(outcome.message()));
+        }
     }
 
     public static ContractManager.Outcome handleOperator(ServerPlayer player, OperatorBoardPayload payload) {
@@ -140,6 +168,7 @@ public final class BoardPackets {
         ContractManager.Outcome outcome = switch (payload.action()) {
             case GIVE_LICENSE -> giveLicense(player);
             case ADD_MONEY -> addMoney(player);
+            case GIVE_STAMP -> giveStamp(player);
             case FORCE_SPAWN -> operatorContract(player, payload.contractId(), ContractManager::spawnContainer);
             case FORCE_DELIVER -> operatorContract(player, payload.contractId(), ContractManager::forceDeliver);
         };
@@ -168,6 +197,15 @@ public final class BoardPackets {
         }
         return new ContractManager.Outcome(true, Component.translatable("commands.aerocouriers.license.given",
                 player.getDisplayName(), LicenseRank.RANK1.displayName()), Optional.empty());
+    }
+
+    private static ContractManager.Outcome giveStamp(ServerPlayer player) {
+        ItemStack stamp = new ItemStack(ModItems.COURIER_STAMP.get());
+        if (!player.getInventory().add(stamp)) {
+            player.drop(stamp, false);
+        }
+        return new ContractManager.Outcome(true, Component.translatable("commands.aerocouriers.stamp.given",
+                player.getDisplayName()), Optional.empty());
     }
 
     private static ContractManager.Outcome addMoney(ServerPlayer player) {

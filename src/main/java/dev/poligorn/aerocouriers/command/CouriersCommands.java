@@ -96,6 +96,12 @@ public final class CouriersCommands {
                     return 1;
                 }));
 
+        root.then(Commands.literal("stamp")
+                .requires(src -> src.hasPermission(OP))
+                .then(Commands.literal("give")
+                        .then(Commands.argument("targets", EntityArgument.players())
+                                .executes(CouriersCommands::giveStamp))));
+
         root.then(ContractCommands.contract());
         root.then(ContractCommands.mail());
         root.then(ContractCommands.balance());
@@ -145,6 +151,19 @@ public final class CouriersCommands {
             return Component.translatable("commands.aerocouriers.profile.license.foreign", owner.name());
         }
         return Component.translatable("commands.aerocouriers.profile.license.own", owner.number(), shown.displayName());
+    }
+
+    private static int giveStamp(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
+        Collection<ServerPlayer> targets = EntityArgument.getPlayers(ctx, "targets");
+        for (ServerPlayer target : targets) {
+            ItemStack stamp = new ItemStack(dev.poligorn.aerocouriers.registry.ModItems.COURIER_STAMP.get());
+            if (!target.getInventory().add(stamp)) {
+                target.drop(stamp, false);
+            }
+            ctx.getSource().sendSuccess(() -> Component.translatable("commands.aerocouriers.stamp.given",
+                    target.getDisplayName()), true);
+        }
+        return targets.size();
     }
 
     private static int giveLicense(CommandContext<CommandSourceStack> ctx, String rankName) throws CommandSyntaxException {

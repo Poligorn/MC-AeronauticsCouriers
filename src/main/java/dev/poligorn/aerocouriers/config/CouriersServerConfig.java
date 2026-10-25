@@ -31,6 +31,7 @@ public final class CouriersServerConfig {
     public static final ModConfigSpec.DoubleValue PIRACY_DROP_RATIO;
 
     public static final ModConfigSpec.IntValue STATION_REGISTER_RADIUS;
+    public static final ModConfigSpec.IntValue STATION_VILLAGE_DEDUP_RADIUS;
     public static final ModConfigSpec.BooleanValue STATIONS_IN_VILLAGES;
 
     public static final ModConfigSpec.ConfigValue<List<? extends Integer>> RANK_XP;
@@ -113,6 +114,8 @@ public final class CouriersServerConfig {
         b.push("stations");
         STATION_REGISTER_RADIUS = b.comment("A licensed player this close to a post station adds it to the atlas, blocks")
                 .defineInRange("register_radius", 32, 4, 256);
+        STATION_VILLAGE_DEDUP_RADIUS = b.comment("Village-generated stations within this radius of an existing station become a cartography table")
+                .defineInRange("village_dedup_radius", 96, 16, 256);
         STATIONS_IN_VILLAGES = b.comment("Add post stations to village structures (takes effect for newly generated villages)")
                 .define("generate_in_villages", true);
         b.pop();

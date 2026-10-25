@@ -50,6 +50,11 @@ public class CargoContainerBlockEntity extends BlockEntity {
         return debug;
     }
 
+    /** Marks this BE so {@link #setRemoved} does not report a missing container (expire / cancel / self-remove). */
+    public void markSelfRemoving() {
+        selfRemoving = true;
+    }
+
     @Override
     public void onLoad() {
         super.onLoad();

@@ -7,6 +7,7 @@ import dev.poligorn.aerocouriers.net.ClaimMailPayload;
 import dev.poligorn.aerocouriers.net.ContractIntentPayload;
 import dev.poligorn.aerocouriers.net.CreateContractPayload;
 import dev.poligorn.aerocouriers.net.OpenBoardPayload;
+import dev.poligorn.aerocouriers.net.OpenStampPayload;
 import dev.poligorn.aerocouriers.net.OperatorBoardPayload;
 import dev.poligorn.aerocouriers.net.ZoneSyncPayload;
 import net.minecraft.server.level.ServerPlayer;
@@ -25,6 +26,8 @@ public final class ModPayloads {
                 (payload, context) -> ClientZones.set(payload.zones()));
         registrar.playToClient(BoardSnapshotPayload.TYPE, BoardSnapshotPayload.STREAM_CODEC,
                 BoardSnapshotPayload::handle);
+        registrar.playToClient(OpenStampPayload.TYPE, OpenStampPayload.STREAM_CODEC,
+                OpenStampPayload::handle);
 
         registrar.playToServer(OpenBoardPayload.TYPE, OpenBoardPayload.STREAM_CODEC,
                 (payload, context) -> context.enqueueWork(() -> {
