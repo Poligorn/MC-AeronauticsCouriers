@@ -47,6 +47,7 @@
 | Валидатор по умолчанию | `curios:tag` → тег `curios:<slot>` (`data/curios/tags/item/license.json`) | ✅ |
 | Синхронизация изменений стека | `CuriosEventHandler.tick` (сервер): `!ItemStack.matches(stack, prev)` → `SPacketSyncStack` всем отслеживающим → смена компонента ранга видна другим игрокам без своих пакетов | ✅ по коду, ⚠️ в игре |
 | `curioTick` | вызывается каждый тик на обеих сторонах, если слот активен | ✅ |
+| Кэш поиска | `findFirstCurio(Item)` кэширует результат по ключу предмета **на текущий игровой тик** → замена стека в том же тике не видна (найдено GameTest'ом). `findFirstCurio(Predicate)` кэш не читает — используем его | ✅ |
 
 ## NeoForge 21.1.235
 Data Components (`DeferredRegister.createDataComponents`), Data Attachments (`AttachmentType.builder(...).serialize(codec).copyOnDeath()`), `ModConfigSpec`, `RegisterCommandsEvent`, `PlayerEvent.PlayerLoggedInEvent` — проверены компиляцией против 21.1.235.

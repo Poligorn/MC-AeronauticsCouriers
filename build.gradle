@@ -61,7 +61,13 @@ neoForge {
             server()
             programArgument '--nogui'
         }
+        // Runs all aerocouriers GameTests and exits; needs the same run/mods as the other runs.
+        gameTestServer {
+            type = 'gameTestServer'
+            gameDirectory = project.file('run/gametest')
+        }
         configureEach {
+            systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
             logLevel = org.slf4j.event.Level.INFO
         }
     }

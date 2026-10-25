@@ -22,8 +22,10 @@ public final class Licenses {
     }
 
     public static Optional<ItemStack> findLicense(Player player) {
+        // The Item overload of findFirstCurio caches its result for the whole game tick; the predicate overload
+        // does not, so a license swapped earlier in the same tick is seen.
         return CuriosApi.getCuriosInventory(player)
-                .flatMap(inventory -> inventory.findFirstCurio(ModItems.PILOT_LICENSE.get()))
+                .flatMap(inventory -> inventory.findFirstCurio(stack -> stack.is(ModItems.PILOT_LICENSE.get())))
                 .map(SlotResult::stack);
     }
 

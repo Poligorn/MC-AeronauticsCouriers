@@ -4,6 +4,7 @@ import com.mojang.logging.LogUtils;
 import dev.poligorn.aerocouriers.command.CouriersCommands;
 import dev.poligorn.aerocouriers.config.CouriersClientConfig;
 import dev.poligorn.aerocouriers.config.CouriersServerConfig;
+import dev.poligorn.aerocouriers.gametest.CouriersGameTests;
 import dev.poligorn.aerocouriers.license.LicenseMigration;
 import dev.poligorn.aerocouriers.registry.ModAttachments;
 import dev.poligorn.aerocouriers.registry.ModBlockEntities;
@@ -20,6 +21,7 @@ import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.config.ModConfig;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.BuildCreativeModeTabContentsEvent;
+import net.neoforged.neoforge.gametest.GameTestHooks;
 import org.slf4j.Logger;
 
 @Mod(AeronauticsCouriers.MOD_ID)
@@ -43,6 +45,9 @@ public final class AeronauticsCouriers {
 
         NeoForge.EVENT_BUS.addListener(CouriersCommands::register);
         NeoForge.EVENT_BUS.addListener(LicenseMigration::onPlayerLoggedIn);
+        if (GameTestHooks.isGametestEnabled()) {
+            NeoForge.EVENT_BUS.addListener(CouriersGameTests::createEmptyTemplate);
+        }
     }
 
     public static ResourceLocation id(String path) {

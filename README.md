@@ -41,6 +41,9 @@
 ### Запуск в среде разработки
 Sable, Create и Aeronautics подключены только для компиляции (`compileOnly`), их рантайм-зависимости (Veil, Flywheel, Ponder и т.д.) приносит сам пак. Для `./gradlew runClient` / `runServer` положите в `run/mods/` jar'ы той же версии, что в паке: `create-1.21.1-6.0.10.jar`, `create-aeronautics-bundled-1.21.1-1.3.0.jar`, `sable-neoforge-1.21.1-2.0.6.jar` (ссылки — в `mods/*.pw.toml` репозитория пака). Каталог `run/` в git не попадает. Сторонние jar'ы в репозиторий **не коммитим**.
 
+### Автотесты (GameTest)
+`./gradlew runGameTestServer` запускает headless-сервер в `run/gametest/` и прогоняет тесты из `dev.poligorn.aerocouriers.gametest` (лицензия и ранги, правила рангов, кодек профиля, контейнер в под-уровне Sable). Тем же jar'ам нужно лежать в `run/gametest/mods/` (удобно — симлинком на `run/mods`).
+
 ## Документация
 - [`docs/GDD.md`](docs/GDD.md) — дизайн-документ v3, источник истины.
 - [`docs/CLARIFICATIONS.md`](docs/CLARIFICATIONS.md) — решения после GDD; при конфликте побеждают они.
