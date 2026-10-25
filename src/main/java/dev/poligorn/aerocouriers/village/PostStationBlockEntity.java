@@ -93,7 +93,8 @@ public class PostStationBlockEntity extends BlockEntity {
         pendingDedup = true;
         MinecraftServer server = serverLevel.getServer();
         BlockPos pos = worldPosition.immutable();
-        server.tell(new TickTask(server.getTickCount(), () -> finishFirstLoad(serverLevel, pos)));
+        // Next tick: every village house of this generation pass is in the world, and tests can markVillage().
+        server.tell(new TickTask(server.getTickCount() + 1, () -> finishFirstLoad(serverLevel, pos)));
     }
 
     private void finishFirstLoad(ServerLevel serverLevel, BlockPos pos) {

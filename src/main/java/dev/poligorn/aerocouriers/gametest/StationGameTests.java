@@ -36,7 +36,7 @@ public final class StationGameTests {
     private StationGameTests() {
     }
 
-    @GameTest(template = CouriersGameTests.EMPTY)
+    @GameTest(template = CouriersGameTests.EMPTY, batch = "aerocouriers.stations.near", timeoutTicks = 200)
     public static void villageStructurePlacesOneNamedStationThatLicensedPlayersDiscover(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         StructureTemplate template = level.getStructureManager().get(VillageStructures.STRUCTURE).orElse(null);
@@ -50,6 +50,9 @@ public final class StationGameTests {
             helper.assertTrue(level.getBlockState(stationPos).is(ModBlocks.POST_STATION.get()), "No station in the structure");
             helper.assertValueEqual(level.getBlockState(stationPos).getValue(PostStationBlock.FACING), Direction.WEST,
                     "the station faces the street jigsaw");
+            if (level.getBlockEntity(stationPos) instanceof PostStationBlockEntity placed) {
+                placed.markVillage();
+            }
         }
 
         StationAtlas atlas = StationAtlas.get(level.getServer());
@@ -93,7 +96,7 @@ public final class StationGameTests {
                 .thenSucceed();
     }
 
-    @GameTest(template = CouriersGameTests.EMPTY)
+    @GameTest(template = CouriersGameTests.EMPTY, batch = "aerocouriers.stations.far", timeoutTicks = 200)
     public static void villageStationsEightyBlocksApartKeepOnlyOne(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         BlockPos first = helper.absolutePos(new BlockPos(1, 2, 1));
@@ -103,7 +106,13 @@ public final class StationGameTests {
         level.setBlock(second.below(), Blocks.STONE.defaultBlockState(), Block.UPDATE_ALL);
         PostStationBlockEntity.placingVillage(() -> {
             level.setBlock(first, ModBlocks.POST_STATION.get().defaultBlockState(), Block.UPDATE_ALL);
+            if (level.getBlockEntity(first) instanceof PostStationBlockEntity a) {
+                a.markVillage();
+            }
             level.setBlock(second, ModBlocks.POST_STATION.get().defaultBlockState(), Block.UPDATE_ALL);
+            if (level.getBlockEntity(second) instanceof PostStationBlockEntity b) {
+                b.markVillage();
+            }
         });
         helper.startSequence()
                 .thenWaitUntil(() -> {

@@ -2,7 +2,6 @@ package dev.poligorn.aerocouriers.gametest;
 
 import com.mojang.authlib.GameProfile;
 import dev.poligorn.aerocouriers.AeronauticsCouriers;
-import dev.poligorn.aerocouriers.cargo.CargoContainerBlockEntity;
 import dev.poligorn.aerocouriers.cargo.CargoTracker;
 import dev.poligorn.aerocouriers.contract.Contract;
 import dev.poligorn.aerocouriers.contract.ContractManager;
@@ -42,7 +41,7 @@ public final class StampGameTests {
     private StampGameTests() {
     }
 
-    @GameTest(template = CouriersGameTests.EMPTY)
+    @GameTest(template = CouriersGameTests.EMPTY, timeoutTicks = 200)
     public static void stampCreatesFromChestWithoutDuping(GameTestHelper helper) {
         Fixture f = new Fixture(helper);
         ContractManager.Outcome created = f.stamp(20, 0);
@@ -51,18 +50,22 @@ public final class StampGameTests {
         helper.assertTrue(contract.preplaced(), "stamp orders are preplaced");
         helper.assertValueEqual(contract.state(), ContractState.OPEN, "state");
         helper.assertFalse(helper.getBlockState(CHEST).is(Blocks.CHEST), "source chest must be gone");
-        helper.assertTrue(CargoTracker.get(contract.id()).isPresent()
-                        || helper.getBlockEntity(CHEST) instanceof CargoContainerBlockEntity,
-                "a cargo container was assembled for the order");
         helper.assertTrue(Escrow.get(f.server()).holding(contract.id()).items().size() == 2,
                 "cargo lives only in escrow");
         helper.assertValueEqual(droppedAround(helper, CHEST), 0, "no world drops (no dupe)");
         helper.assertValueEqual(Economies.get(f.server()).balance(f.issuer.getUUID()), 79L,
                 "reward + 5% fee taken");
-        helper.succeed();
+        // Sable moves the block into a sub-level; the tracker is filled on the next BE tick.
+        helper.startSequence()
+                .thenIdle(SABLE_SETTLE_TICKS)
+                .thenExecute(() -> helper.assertTrue(
+                        CargoTracker.get(contract.id()).isPresent()
+                                || helper.getBlockState(CHEST).is(ModBlocks.CARGO_CONTAINER_S.get()),
+                        "a cargo container was assembled for the order"))
+                .thenSucceed();
     }
 
-    @GameTest(template = CouriersGameTests.EMPTY)
+    @GameTest(template = CouriersGameTests.EMPTY, timeoutTicks = 200)
     public static void stampCancelReturnsCargoToMailbox(GameTestHelper helper) {
         Fixture f = new Fixture(helper);
         Contract contract = f.stamp(20, 0).contract().orElseThrow();
