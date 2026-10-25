@@ -1,0 +1,129 @@
+plugins {
+    id 'java-library'
+    id 'idea'
+    id 'net.neoforged.moddev' version '2.0.148'
+}
+
+tasks.named('wrapper', Wrapper).configure {
+    distributionType = Wrapper.DistributionType.BIN
+}
+
+version = mod_version
+group = mod_group_id
+
+base {
+    archivesName = mod_id
+}
+
+java.toolchain.languageVersion = JavaLanguageVersion.of(21)
+
+repositories {
+    exclusiveContent {
+        forRepository {
+            maven {
+                name = 'RyanHCode (Sable, Sable Companion, Aeronautics, Simulated)'
+                url = 'https://maven.ryanhcode.dev/releases'
+            }
+        }
+        filter {
+            includeGroup 'dev.ryanhcode.sable'
+            includeGroup 'dev.ryanhcode.sable-companion'
+            includeGroup 'dev.eriksonn.aeronautics'
+            includeGroup 'dev.simulated_team.simulated'
+        }
+    }
+    exclusiveContent {
+        forRepository {
+            maven {
+                name = 'Curios (TheIllusiveC4)'
+                url = 'https://maven.theillusivec4.top/'
+            }
+        }
+        filter { includeGroup 'top.theillusivec4.curios' }
+    }
+}
+
+neoForge {
+    version = project.neo_version
+
+    parchment {
+        mappingsVersion = project.parchment_mappings_version
+        minecraftVersion = project.parchment_minecraft_version
+    }
+
+    // Dev runs need the full mod set (Create, Aeronautics, Sable + Veil, ...) placed into run/mods manually;
+    // see README "Запуск в среде разработки".
+    runs {
+        client {
+            client()
+        }
+        server {
+            server()
+            programArgument '--nogui'
+        }
+        configureEach {
+            logLevel = org.slf4j.event.Level.INFO
+        }
+    }
+
+    mods {
+        "${mod_id}" {
+            sourceSet(sourceSets.main)
+        }
+    }
+}
+
+configurations {
+    runtimeClasspath.extendsFrom localRuntime
+}
+
+dependencies {
+    // Curios 9 — required. Full jar so the API impl classes resolve in dev runs.
+    implementation "top.theillusivec4.curios:curios-neoforge:${curios_version}"
+
+    // Sable — required at runtime (provided by the pack), compile against the NeoForge jar only.
+    // Non-transitive: its runtime deps (Create, Veil, Rapier natives, ...) are the pack's business.
+    compileOnly("dev.ryanhcode.sable:sable-neoforge-1.21.1:${sable_version}") { transitive = false }
+
+    // Sable Companion — MIT, designed to be embedded (jar-in-jar).
+    // Open upper bound so a newer Companion shipped by a future Sable wins Jar-in-Jar resolution.
+    jarJar(implementation("dev.ryanhcode.sable-companion:sable-companion-common-1.21.1:[${sable_companion_version},)")) {
+        version { prefer sable_companion_version }
+    }
+}
+
+var generateModMetadata = tasks.register("generateModMetadata", ProcessResources) {
+    var replaceProperties = [
+            minecraft_version_range      : minecraft_version_range,
+            neo_version_range            : neo_version_range,
+            loader_version_range         : loader_version_range,
+            mod_id                       : mod_id,
+            mod_name                     : mod_name,
+            mod_license                  : mod_license,
+            mod_version                  : mod_version,
+            mod_authors                  : mod_authors,
+            sable_version_range          : sable_version_range,
+            sable_companion_version_range: sable_companion_version_range,
+            curios_version_range         : curios_version_range,
+            create_version_range         : create_version_range,
+            aeronautics_version_range    : aeronautics_version_range,
+    ]
+    inputs.properties replaceProperties
+    expand replaceProperties
+    from "src/main/templates"
+    into "build/generated/sources/modMetadata"
+}
+sourceSets.main.resources.srcDir generateModMetadata
+neoForge.ideSyncTask generateModMetadata
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.compilerArgs << '-Xlint:deprecation'
+}
+
+idea {
+    module {
+        downloadSources = true
+        downloadJavadoc = true
+    }
+}
