@@ -1,10 +1,12 @@
 package dev.poligorn.aerocouriers.village;
 
 import com.mojang.serialization.MapCodec;
+import dev.poligorn.aerocouriers.net.BoardPackets;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.context.BlockPlaceContext;
@@ -70,15 +72,18 @@ public class PostStationBlock extends BaseEntityBlock {
         return new PostStationBlockEntity(pos, state);
     }
 
-    /** The station window is iteration 4; until then the name is shown in chat. */
+    /** Right-click opens the shared job board (iteration 4). */
     @Override
     protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player,
             BlockHitResult hit) {
         if (level.isClientSide) {
             return InteractionResult.SUCCESS;
         }
-        if (level.getBlockEntity(pos) instanceof PostStationBlockEntity station) {
-            player.sendSystemMessage(Component.translatable("station.aerocouriers.info", station.name()));
+        if (player instanceof ServerPlayer serverPlayer) {
+            if (level.getBlockEntity(pos) instanceof PostStationBlockEntity station) {
+                serverPlayer.sendSystemMessage(Component.translatable("station.aerocouriers.info", station.name()));
+            }
+            BoardPackets.open(serverPlayer);
         }
         return InteractionResult.CONSUME;
     }

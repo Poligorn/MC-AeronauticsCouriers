@@ -22,4 +22,5 @@ alwaysApply: false
 - Worldgen: `VillageStructures` на `ServerAboutToStartEvent` дописывает элемент в `templates`/`rawTemplates` пулов `village/*/houses` (рефлексия по mojmap-именам; в рантайме NeoForge 1.21.1 имена Mojang). Структура генерируется скриптом `tools/gen_post_station_structure.py` — правьте скрипт, а не `.nbt`.
 - Атлас: `StationAtlas.discoverNearby(player)` раз в секунду для всех игроков; FakePlayer в тестах вызывает его напрямую.
 - Команды: `/couriers station list` (игрок — открытые им, оператор/консоль — все), `/couriers station rename <pos> <имя>` (оператор).
-- Не сделано: окно станции (итерация 4), `StationContractSource` и таблицы груза (итерация 5), зомби-деревни, репутация станции.
+- ПКМ по станции открывает общую доску заказов (`BoardPackets.open`). Отдельного окна станции нет.
+- Не сделано: `StationContractSource` и таблицы груза (итерация 5), зомби-деревни, репутация станции.

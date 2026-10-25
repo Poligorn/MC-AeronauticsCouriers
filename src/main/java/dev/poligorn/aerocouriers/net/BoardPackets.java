@@ -1,0 +1,219 @@
+package dev.poligorn.aerocouriers.net;
+
+import dev.poligorn.aerocouriers.contract.Contract;
+import dev.poligorn.aerocouriers.contract.ContractManager;
+import dev.poligorn.aerocouriers.contract.ContractState;
+import dev.poligorn.aerocouriers.contract.Destination;
+import dev.poligorn.aerocouriers.contract.Escrow;
+import dev.poligorn.aerocouriers.contract.Mailbox;
+import dev.poligorn.aerocouriers.contract.Pricing;
+import dev.poligorn.aerocouriers.economy.Economies;
+import dev.poligorn.aerocouriers.license.LicenseRank;
+import dev.poligorn.aerocouriers.license.Licenses;
+import dev.poligorn.aerocouriers.village.StationAtlas;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Locale;
+import java.util.Optional;
+import java.util.UUID;
+import net.minecraft.commands.Commands;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.Container;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.entity.HopperBlockEntity;
+import net.neoforged.neoforge.network.PacketDistributor;
+
+/**
+ * Server-side board intents. The screen only sends these; every check stays in {@link ContractManager} and the
+ * existing command helpers (GDD §14).
+ */
+public final class BoardPackets {
+    private static final int OP = Commands.LEVEL_GAMEMASTERS;
+
+    private BoardPackets() {
+    }
+
+    public static void open(ServerPlayer player) {
+        open(player, 0, true, Optional.empty());
+    }
+
+    public static void open(ServerPlayer player, int page, boolean openScreen, Optional<Component> notice) {
+        if (player.connection == null || !player.connection.hasChannel(BoardSnapshotPayload.TYPE)) {
+            notice.ifPresent(player::sendSystemMessage);
+            player.sendSystemMessage(Component.translatable("ui.aerocouriers.error.no_client"));
+            return;
+        }
+        PacketDistributor.sendToPlayer(player, snapshot(player, page, openScreen, notice));
+    }
+
+    public static BoardSnapshotPayload snapshot(ServerPlayer player, int page, boolean openScreen,
+                                               Optional<Component> notice) {
+        MinecraftServer server = player.server;
+        ContractManager manager = ContractManager.get(server);
+        StationAtlas atlas = StationAtlas.get(server);
+        Escrow escrow = Escrow.get(server);
+        long now = ContractManager.now(server);
+        UUID self = player.getUUID();
+
+        List<BoardSnapshotPayload.BoardEntry> open = manager.open()
+                .sorted(Comparator.comparingLong(c -> c.timing().createdAt()))
+                .map(c -> entry(c, self, atlas, escrow, now))
+                .toList();
+        int safePage = Math.max(0, page);
+        int from = Math.min(safePage * BoardSnapshotPayload.PAGE_SIZE, open.size());
+        int to = Math.min(from + BoardSnapshotPayload.PAGE_SIZE, open.size());
+
+        List<BoardSnapshotPayload.BoardEntry> mine = manager.all()
+                .filter(c -> c.issuer().equals(self) || c.isCourier(self))
+                .sorted(Comparator.comparingLong(c -> c.timing().createdAt()))
+                .map(c -> entry(c, self, atlas, escrow, now))
+                .limit(64)
+                .toList();
+
+        boolean allStations = player.hasPermissions(OP);
+        List<BoardSnapshotPayload.StationHint> stations = atlas.all().stream()
+                .filter(s -> allStations || s.discoveredBy(self))
+                .sorted(Comparator.comparing(StationAtlas.Station::name))
+                .map(s -> new BoardSnapshotPayload.StationHint(s.name(), s.pos()))
+                .limit(64)
+                .toList();
+
+        return new BoardSnapshotPayload(
+                openScreen,
+                safePage,
+                open.size(),
+                Economies.get(server).balance(self),
+                Mailbox.get(server).contents(self).size(),
+                player.hasPermissions(OP),
+                Licenses.isLicensedCourier(player),
+                notice,
+                List.copyOf(open.subList(from, to)),
+                mine,
+                stations);
+    }
+
+    public static void handleOpen(ServerPlayer player, OpenBoardPayload payload) {
+        open(player, payload.page(), true, Optional.empty());
+    }
+
+    public static void handleClaim(ServerPlayer player) {
+        Mailbox mailbox = Mailbox.get(player.server);
+        int moved = mailbox.claim(player.getUUID(), player.getInventory());
+        int left = mailbox.contents(player.getUUID()).size();
+        reply(player, Component.translatable("contract.aerocouriers.mail.claimed", moved, left));
+    }
+
+    public static void handleIntent(ServerPlayer player, ContractIntentPayload payload) {
+        ContractManager manager = ContractManager.get(player.server);
+        ContractManager.Outcome outcome = switch (payload.kind()) {
+            case ACCEPT -> manager.accept(player, payload.id());
+            case ABANDON -> manager.abandon(player, payload.id());
+            case CANCEL -> manager.cancel(player, payload.id());
+        };
+        reply(player, outcome.message());
+    }
+
+    public static void handleCreate(ServerPlayer player, CreateContractPayload payload) {
+        Container container = HopperBlockEntity.getContainerAt(player.level(), payload.from());
+        if (container == null) {
+            reply(player, Component.translatable("contract.aerocouriers.error.no_container",
+                    payload.from().toShortString()));
+            return;
+        }
+        Destination destination = new Destination(player.level().dimension(), payload.to(), payload.radius());
+        ContractManager.Outcome outcome = ContractManager.get(player.server)
+                .create(player, container, payload.from(), destination,
+                        payload.reward(), payload.collateral(), payload.minutes());
+        reply(player, outcome.message());
+    }
+
+    public static ContractManager.Outcome handleOperator(ServerPlayer player, OperatorBoardPayload payload) {
+        if (!player.hasPermissions(OP)) {
+            Component message = Component.translatable("ui.aerocouriers.error.not_operator");
+            reply(player, message);
+            return new ContractManager.Outcome(false, message, Optional.empty());
+        }
+        ContractManager.Outcome outcome = switch (payload.action()) {
+            case GIVE_LICENSE -> giveLicense(player);
+            case ADD_MONEY -> addMoney(player);
+            case FORCE_SPAWN -> operatorContract(player, payload.contractId(), ContractManager::spawnContainer);
+            case FORCE_DELIVER -> operatorContract(player, payload.contractId(), ContractManager::forceDeliver);
+        };
+        reply(player, outcome.message());
+        return outcome;
+    }
+
+    private static void reply(ServerPlayer player, Component message) {
+        player.sendSystemMessage(message);
+        open(player, 0, false, Optional.of(message));
+    }
+
+    private static ContractManager.Outcome giveLicense(ServerPlayer player) {
+        ItemStack license = Licenses.issueLicense(player, LicenseRank.RANK1, false);
+        if (!player.getInventory().add(license)) {
+            player.drop(license, false);
+        }
+        return new ContractManager.Outcome(true, Component.translatable("commands.aerocouriers.license.given",
+                player.getDisplayName(), LicenseRank.RANK1.displayName()), Optional.empty());
+    }
+
+    private static ContractManager.Outcome addMoney(ServerPlayer player) {
+        Economies.get(player.server).deposit(player.getUUID(), OperatorBoardPayload.TEST_MONEY, "admin");
+        long balance = Economies.get(player.server).balance(player.getUUID());
+        return new ContractManager.Outcome(true, Component.translatable("contract.aerocouriers.balance",
+                player.getDisplayName(), balance), Optional.empty());
+    }
+
+    @FunctionalInterface
+    private interface OperatorContractAction {
+        ContractManager.Outcome apply(ContractManager manager, MinecraftServer server, UUID id);
+    }
+
+    private static ContractManager.Outcome operatorContract(ServerPlayer player, Optional<UUID> id,
+                                                           OperatorContractAction action) {
+        if (id.isEmpty()) {
+            return new ContractManager.Outcome(false,
+                    Component.translatable("ui.aerocouriers.error.no_selection"), Optional.empty());
+        }
+        return action.apply(ContractManager.get(player.server), player.server, id.get());
+    }
+
+    private static BoardSnapshotPayload.BoardEntry entry(Contract contract, UUID viewer, StationAtlas atlas,
+                                                        Escrow escrow, long now) {
+        String role = contract.issuer().equals(viewer) ? "issuer"
+                : contract.isCourier(viewer) ? "courier" : "board";
+        long ticksLeft = contract.state().isActive()
+                ? contract.timing().dueAt() - now
+                : contract.state() == ContractState.OPEN ? contract.timing().expiresAt() - now : 0;
+        List<BoardSnapshotPayload.CargoLine> manifest = escrow.holding(contract.id()).items().stream()
+                .filter(stack -> !stack.isEmpty())
+                .map(BoardSnapshotPayload.CargoLine::of)
+                .toList();
+        return new BoardSnapshotPayload.BoardEntry(
+                contract.id(),
+                contract.shortId(),
+                contract.state(),
+                role,
+                label(atlas, contract.origin()),
+                label(atlas, contract.destination()),
+                (int) contract.distance(),
+                contract.size().name(),
+                String.format(Locale.ROOT, "%.1f / %s", contract.weight(), contract.size().maxWeight()),
+                contract.reward(),
+                contract.collateral(),
+                contract.requiredRank(),
+                contract.timing().deadline() / Pricing.TICKS_PER_MINUTE,
+                Math.max(0, ticksLeft / Pricing.TICKS_PER_MINUTE),
+                manifest);
+    }
+
+    private static String label(StationAtlas atlas, Destination dest) {
+        return atlas.all().stream()
+                .filter(s -> s.dimension().equals(dest.dimension()) && s.pos().equals(dest.pos()))
+                .map(StationAtlas.Station::name)
+                .findFirst()
+                .orElse(dest.pos().toShortString());
+    }
+}

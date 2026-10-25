@@ -3,8 +3,8 @@ package dev.poligorn.aerocouriers.config;
 import net.neoforged.neoforge.common.ModConfigSpec;
 
 /**
- * {@code aerocouriers-client.toml} (GDD §10.1, §10.3). {@code [button]} is read by the inventory button once the UI
- * exists (iteration 4); {@code [zones]} drives the zone outline particles.
+ * {@code aerocouriers-client.toml} (GDD §10.1, §10.3). {@code [button]} places the inventory button;
+ * {@code [zones]} drives the zone outline particles.
  */
 public final class CouriersClientConfig {
     public static final ModConfigSpec SPEC;

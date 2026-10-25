@@ -6,7 +6,8 @@ import net.minecraft.world.inventory.MenuType;
 import net.neoforged.neoforge.registries.DeferredRegister;
 
 /**
- * Menus for the courier window (iteration 4, GDD §10). Nothing registered yet.
+ * Container menus for a later Create-styled window (GDD §10.2, 27 cargo slots). The testing board is a
+ * {@code Screen} plus packets, not a {@code Menu}.
  */
 public final class ModMenus {
     public static final DeferredRegister<MenuType<?>> REGISTER =

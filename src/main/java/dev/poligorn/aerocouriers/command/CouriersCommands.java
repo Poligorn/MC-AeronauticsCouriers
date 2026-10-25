@@ -15,6 +15,7 @@ import dev.poligorn.aerocouriers.license.LicenseMigration;
 import dev.poligorn.aerocouriers.license.LicenseOwner;
 import dev.poligorn.aerocouriers.license.LicenseRank;
 import dev.poligorn.aerocouriers.license.Licenses;
+import dev.poligorn.aerocouriers.net.BoardPackets;
 import dev.poligorn.aerocouriers.registry.ModComponents;
 import java.util.Arrays;
 import java.util.Collection;
@@ -34,8 +35,8 @@ import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 
 /**
- * {@code /couriers ...}. Player commands: {@code profile}, {@code contract}, {@code mail}, {@code balance}; the
- * rest are operator/debug tools until the UI exists.
+ * {@code /couriers ...}. Player commands: {@code profile}, {@code ui}, {@code contract}, {@code mail}, {@code balance};
+ * the rest are operator/debug tools.
  */
 public final class CouriersCommands {
     private static final int OP = Commands.LEVEL_GAMEMASTERS;
@@ -87,6 +88,13 @@ public final class CouriersCommands {
         root.then(Commands.literal("cargo")
                 .requires(src -> src.hasPermission(OP))
                 .then(Commands.literal("list").executes(ctx -> listCargo(ctx.getSource()))));
+
+        root.then(Commands.literal("ui")
+                .executes(ctx -> {
+                    ServerPlayer player = ctx.getSource().getPlayerOrException();
+                    BoardPackets.open(player);
+                    return 1;
+                }));
 
         root.then(ContractCommands.contract());
         root.then(ContractCommands.mail());
