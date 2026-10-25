@@ -21,6 +21,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.IntegerProperty;
 import org.jetbrains.annotations.Nullable;
+import org.joml.Vector3d;
 
 /**
  * Sealed cargo container (GDD §9). Holds only a contract id in its block entity; no inventory, no GUI, no
@@ -98,5 +99,11 @@ public class CargoContainerBlock extends BaseEntityBlock implements BlockSubLeve
         // Iteration 1 checklist (GDD §16): confirm this fires when a ship is re-assembled with the container.
         AeronauticsCouriers.LOGGER.info("[cargo] Sable moved container {} -> {} ({} -> {})",
                 oldPos, newPos, originLevel.dimension().location(), resultingLevel.dimension().location());
+        if (resultingLevel.getBlockEntity(newPos) instanceof CargoContainerBlockEntity be
+                && be.contractId() != null) {
+            Vector3d world = SableBridge.worldCenter(resultingLevel, newPos);
+            Vector3d velocity = SableBridge.velocity(resultingLevel, newPos);
+            CargoTracker.report(be.contractId(), resultingLevel, newPos, world, velocity, be.isDebug());
+        }
     }
 }
