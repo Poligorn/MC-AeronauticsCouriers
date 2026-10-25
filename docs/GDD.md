@@ -371,18 +371,15 @@ ServerSubLevel sub = SubLevelAssemblyHelper.assembleBlocks(level, anchor, List.o
 ### 9.3 Самопроверка доставки ✅
 > ❌ Поправка (25.10.2026): перегрузки `projectOutOfSubLevel(Level, Vec3)` и `getVelocity(Level, Vec3)` в Sable Companion 1.6.0 помечены `@Deprecated(ScheduledForRemoval "2.0.0")`. Использовать JOML-версии `projectOutOfSubLevel(Level, Vector3dc, Vector3d)` / `getVelocity(Level, Vector3dc, Vector3d)` (см. `cargo/SableBridge`, `docs/research/api-verification.md`). Скорость — в блоках/с.
 
-Блок-сущность контейнера раз в 20 тиков:
+Блок-сущность контейнера раз в 20 тиков (реализовано в итерации 3: `CargoContainerBlockEntity.serverTick` → `ContractManager.checkContainer`):
 ```java
-Vec3 local  = Vec3.atCenterOf(worldPosition);
-Vec3 global = SableCompanion.INSTANCE.projectOutOfSubLevel(level, local);
-Vec3 vel    = SableCompanion.INSTANCE.getVelocity(level, local);
-
-if (contract.destination().contains(level.dimension(), global)
-        && vel.lengthSqr() < 0.25            // < 0.5 м/с
-        && courierWithin(global, 64)         // курьер заказа рядом (защита от «угона», §12)
-        && ++stillTicks >= 3) {              // 3 проверки подряд ≈ 3 секунды
-    ContractManager.get(server).deliver(contractId, courier);
-}
+Vector3d world = SableBridge.worldCenter(level, worldPosition);   // projectOutOfSubLevel, JOML
+Vector3d vel   = SableBridge.velocity(level, worldPosition);      // getVelocity, блоков/с
+Verdict v = ContractManager.get(server).checkContainer(level, contractId, world, vel.length());
+// внутри: зона доставки (сфера радиуса зоны) && |v| < delivery_max_speed
+//         && курьер заказа в сети, в том же измерении и ближе 64 блоков (защита от «угона», §12)
+//         && delivery_still_checks проверок подряд → доставка; y < minBuildHeight → DESTROYED
+if (v == Verdict.REMOVE) level.removeBlock(worldPosition, false);  // заказ завершён или неизвестен
 ```
 - Маркер, как в Delivery Required, **не нужен**: контейнер сам знает свой заказ.
 - Работает одинаково, где бы ни был контейнер: отдельный объект, привязан верёвкой или встроен в корабль (§9.4).
@@ -392,7 +389,7 @@ if (contract.destination().contains(level.dimension(), global)
 Все способы разрешены — это и есть геймплей:
 | Способ | Механика | Проверка |
 |---|---|---|
-| Буксир на верёвке | Верёвки и лебёдка Aeronautics. Крепление — `simulated:rope_connector`, которое игрок ставит на контейнер (§9.4.1) | ✅ по исходникам: к чему цепляется верёвка; ⚠️ в игре: попадает ли коннектор в под-уровень контейнера |
+| Буксир на верёвке | Верёвки и лебёдка Aeronautics. Крепление — `simulated:rope_connector`, которое игрок ставит на контейнер (§9.4.1) | ✅ по исходникам: к чему цепляется верёвка; ✅ dev-сервер: коннектор в плоте рядом с контейнером входит в тот же под-уровень; ⚠️ клиент: установка рукой и сама верёвка |
 | Захват Sticker'ом | Как в готовых схемах «грузовых вертолётов» на CreateMod.com | ⚠️ |
 | Встраивание в корабль | Корабль пересобирают вместе с контейнером → блок переезжает в «плот» корабля | ⚠️ `BlockSubLevelAssemblyListener.afterMove` ✅ — переносим привязку |
 | Поезд Create, грузовик Offroad | Любой транспорт Sable | ⚠️ |
@@ -400,7 +397,7 @@ if (contract.destination().contains(level.dimension(), global)
 #### 9.4.1 Крепление для верёвки ✅ (исходники Simulated 1.3.0)
 - `RopeItem.isValidRopeAttachment` цепляет верёвку только к блок-сущности Create (`SmartBlockEntity`) с поведением `RopeStrandHolderBehavior`. Такое поведение есть у `simulated:rope_connector` и `simulated:rope_winch`. К обычному блоку, в том числе к нашему контейнеру, верёвка **не цепляется**.
 - `RopeConnectorBlock` — направленный блок без проверки опоры: его можно поставить на любую грань.
-- **Решение:** своей проушины не делаем. Игрок ставит обычный `simulated:rope_connector` на грань контейнера. Блок, поставленный на грань физического объекта, Sable помещает в его плот, значит коннектор становится частью **того же под-уровня** ⚠️ проверить в игре. Свой блок с `RopeStrandHolderBehavior` потребовал бы зависеть от внутренних классов Create и Simulated.
+- **Решение:** своей проушины не делаем. Игрок ставит обычный `simulated:rope_connector` на грань контейнера. Блок, поставленный на грань физического объекта, Sable помещает в его плот, значит коннектор становится частью **того же под-уровня**. ✅ Проверено на dev-сервере 25.10.2026: `setblock simulated:rope_connector` в плоте над контейнером — масса под-уровня 34.0 → 34.25, у коннектора есть блок-сущность держателя верёвки (`OwnStrand`). ⚠️ Установка рукой игрока и натяжение верёвки — нужен клиент. Свой блок с `RopeStrandHolderBehavior` потребовал бы зависеть от внутренних классов Create и Simulated.
 - Коннектор — имущество игрока: при доставке или провале контейнер исчезает, а коннектор остаётся (его можно снять).
 - Ломать коннектор — не повреждение груза.
 
@@ -484,7 +481,7 @@ if (contract.destination().contains(level.dimension(), global)
 
 ### 10.3 Навигация
 - **Без зависимостей:** луч-маяк в точке погрузки и доставки (только для курьера) + компас в HUD с расстоянием.
-- **Контур зоны частицами:** курьер **этого** заказа видит зону погрузки (пока `ACCEPTED`) и зону доставки (пока `IN_TRANSIT`) как частицы по границе: окружность радиуса зоны на уровне точки и на высоте зоны. Рисует только клиент; сервер присылает курьеру его активные зоны. Клиентский конфиг `[zones]`: `enabled`, `particle_density` (частиц на блок контура), `render_distance` (блоков).
+- **Контур зоны частицами:** курьер **этого** заказа видит зону погрузки (пока `ACCEPTED`) и зону доставки (пока `IN_TRANSIT`) как частицы по границе сферы, которую проверяет сервер: горизонтальная окружность на уровне точки и две вертикальные (реализовано, ⚠️ вид не проверен в клиенте). Рисует только клиент; сервер присылает курьеру его активные зоны. Клиентский конфиг `[zones]`: `enabled`, `particle_density` (частиц на блок контура), `render_distance` (блоков).
 - **С Xaero's Minimap (≥ 26.2.0):** временные точки погрузки и доставки ✅.
   - Используем **сторонние точки** Xaero (`xaero.hud.minimap.waypoint.thirdparty.ThirdPartyWaypoints`): хранятся только в памяти, не пишутся на диск, группируются по нашему `ResourceLocation`. На этом же механизме Xaero показывает точки Waystones.
   - Origin `aerocouriers:orders`, id точки `order-<uuid заказа>` (уникальный: если игрок удалил точку, Xaero запоминает удаление по id), цвет GOLD, `temp = true`.
@@ -730,7 +727,7 @@ render_distance = 128
 - [x] `projectOutOfSubLevel` + `getVelocity` дают разумные значения в полёте (свободное падение: 11 → 63 бл/с за 7 с, на земле 0)
 - [x] Переопределения `sable:mass` по `fill` применяются, в том числе **при смене состояния у уже собранного** объекта (`/setblock` в плоте: 34 → 66, BE сохранился)
 - [ ] Масса 66 / 200 / 500 — физика устойчива (66 проверено только в свободном падении; 200/500 и сцепка с кораблём — нет)
-- [ ] Верёвка или Sticker Aeronautics цепляет контейнер (нужен клиент). По исходникам: верёвка цепляется к `simulated:rope_connector`, поставленному на контейнер (§9.4.1)
+- [ ] Верёвка или Sticker Aeronautics цепляет контейнер (нужен клиент). По исходникам: верёвка цепляется к `simulated:rope_connector`, поставленному на контейнер (§9.4.1); на dev-сервере коннектор в плоте входит в под-уровень контейнера ✅
 - [ ] Пересборка корабля вместе с контейнером → `afterMove` вызывается, привязка сохраняется (`afterMove` вызывается при первичной сборке ✅; пересборка корабля — не проверена)
 - [x] Рестарт сервера → BE загружается (`onLoad` с `contractId`, тот же под-уровень, масса сохранена). «Заказ находится» — после итерации 2
 
