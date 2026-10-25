@@ -1,0 +1,35 @@
+---
+description: Лицензия пилота, слот Curios, Data Components владельца и ранга, профиль курьера (Data Attachment), ранги/XP, рендер погон из pilotwings и миграция kubejs:pilot_license_* (GDD §3, §4, CLARIFICATIONS). Применять при работе с пакетом license, EpauletteRenderer, Curios-данными, текстурами погон.
+globs: src/main/java/dev/poligorn/aerocouriers/license/**, src/main/java/dev/poligorn/aerocouriers/client/EpauletteRenderer.java, src/main/resources/data/**/curios/**, src/main/resources/assets/aerocouriers/textures/entity/**
+alwaysApply: false
+---
+
+# Лицензия, ранги, погоны (GDD §3, §4)
+
+## Предмет и данные
+- `aerocouriers:pilot_license`, стак 1, крафта нет. Слот Curios `license` (размер 1): `data/aerocouriers/curios/slots/license.json` + `curios/entities/player.json`; валидатор по умолчанию `curios:tag` → тег `curios:license`.
+- Data Components на предмете: `aerocouriers:license_owner` (UUID, ник, номер лицензии), `aerocouriers:license_rank` (`rank1..rank5`, `admin`).
+- Data Attachment игрока `aerocouriers:courier_profile` (`CourierProfile`, `copyOnDeath = true`): XP, доставлено/провалено, дистанция, выдачи лицензии и т.п. Потеря предмета ≠ потеря прогресса.
+- Привязка: первая надетая пустая лицензия получает владельца. Чужая лицензия не даёт доступа к вкладке «Курьер».
+- Сервер обновляет `license_rank` при изменении ранга; Curios сам синхронизирует изменённый стек всем отслеживающим игрокам (проверено: `CuriosEventHandler.tick` → `ItemStack.matches` → `SPacketSyncStack`) ✅. `admin` сервер не перезаписывает — его выдаёт оператор.
+- Выдача: кнопка «Получить лицензию» (бесплатно один раз); переоформление платно, ×2 за каждую следующую.
+
+## Ранги (§4.2) — пороги в конфиге `rank_xp = [0, 300, 1500, 5000, 15000]`, `ace_min_success = 0.90`
+| Ранг | XP | Макс. залог | Контейнер | Дистанция | Активных |
+|---|---|---|---|---|---|
+| I Стажёр | 0 | 200 | S | 1 500 | 1 |
+| II Курьер | 300 | 600 | M | 4 000 | 2 |
+| III Пилот | 1 500 | 2 000 | L | 10 000 | 2 |
+| IV Капитан | 5 000 | 6 000 | L×2 | ∞ | 3 |
+| V Ас | 15 000 + успех ≥ 90% | ∞ | L×4 | ∞ | 3 |
+
+XP (§4.1): `XP = (10 + D/200 + W/50) × M_срок × M_повтор`; `M_срок` 1.0 / 0.5 при опоздании; `M_повтор` 1.0→0.1 за повторы P2P от одного заказчика за сутки. Провал XP не отнимает. Кривая — калибровать после плейтеста.
+
+## Погоны (перенос из pilotwings, MIT, тот же автор)
+- `client/EpauletteRenderer` (`ICurioRenderer`), регистрация `CuriosRendererRegistry.register(item, supplier)` в `FMLClientSetupEvent`.
+- Две пластины 4×4 px (3 px для slim) над плечами, привязка к `rightArm`/`leftArm`, видны сверху и снизу; два прохода: `entityCutoutNoCull(epaulette_<rank>)` и `RenderType.eyes(epaulette_<rank>_glow)` с подъёмом 0.001.
+- Текстура — по компоненту `license_rank`: `textures/entity/epaulette_<rank>.png` + `_glow`. Соответствие старых: cadet→rank1, second→rank2, first→rank3, captain→rank4, admin→admin; **rank5 — заглушка** (копия rank4), нужна новая текстура.
+
+## Миграция с KubeJS
+- При входе игрока `kubejs:pilot_license_<cadet|second|first|captain|admin>` в слоте Curios `license` заменяется на `aerocouriers:pilot_license` с владельцем = игрок и рангом; стартовый XP по рангу из конфига (`migration_xp`), если текущий XP меньше.
+- ⚠️ Чтобы старые предметы не исчезли при загрузке, KubeJS-регистрации `pilot_license_*` должны **оставаться в паке** на переходный период; мод `pilotwings` и тег `curios:license` с kubejs-предметами убрать.

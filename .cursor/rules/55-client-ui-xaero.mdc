@@ -1,0 +1,27 @@
+---
+description: Клиентский интерфейс — окно мода и вкладки, кнопка в инвентаре с настраиваемым местом (идея Create Marketplace), клавиша J, навигация (луч + HUD) и мост к Xaero's Minimap через сторонние/временные точки (GDD §10, CLARIFICATIONS, docs/research/xaero.md). Применять при работе с пакетом client, клиентским конфигом, XaeroBridge.
+globs: src/main/java/dev/poligorn/aerocouriers/client/**
+alwaysApply: false
+---
+
+# Клиент, кнопка, Xaero (GDD §10)
+
+## Вход в окно
+- Клавиша **J** (M занята Create: Marketplace). Вкладка «Курьер» неактивна без **своей** лицензии в слоте.
+- Кнопка только на экране инвентаря игрока (`ScreenEvent.Init.Post`), клиентский конфиг `aerocouriers-client.toml` `[button]`:
+  - `position = CORNER | INVENTORY_SIDE | CUSTOM | HIDDEN` (по умолчанию `INVENTORY_SIDE`), `custom_x`, `custom_y` (0..4000, по умолчанию 2).
+  - CORNER → `(2, height-22)`; INVENTORY_SIDE → `(guiLeft-22, guiTop+10)`; CUSTOM → `(custom_x, custom_y)`.
+  - С EMI/JEI при значении по умолчанию — встать в их ряд кнопок; явно заданное значение приоритетнее.
+- Код Marketplace **не копировать** (GPL-3.0, лицензия мода не выбрана) — только идею.
+
+## Окно — 4 вкладки (§10.2)
+Доска (фильтры, манифест, «Принять — залог N») · Мои перевозки (таймер, дистанция, «Показать на карте», «Отказаться») · Мои заказы (27 слотов + поля) · Почта («Забрать всё»). Стиль Create: латунь, бумага, шестерёнки. Не путать термины с модом Envelope (у него свои «курьеры»).
+
+## Навигация
+- Базовая (всегда): луч-маяк в точках погрузки/доставки (только курьеру) + компас в HUD с расстоянием.
+- Xaero (опционально, проверено по байткоду 26.6.0, подробно — [docs/research/xaero.md](mdc:docs/research/xaero.md)):
+  - ≥ 26.2.0: сторонние точки `xaero.hud.minimap.waypoint.thirdparty.ThirdPartyWaypoints`, origin `aerocouriers:orders`, id `order-<uuid>`, цвет GOLD, `temp = true`; `remove(id)` при завершении заказа, `clearOrigin` при выходе. Видны только при наборе «по умолчанию» или «все наборы» — писать в подсказке.
+  - < 26.2: `Waypoint(..., WaypointPurpose.DESTINATION, temp=true)` в текущем наборе.
+  - `client/XaeroBridge` грузится только при `ModList.get().isLoaded("xaerominimap")`; все вызовы в `try/catch (Throwable)`; при ошибке — откат на луч + HUD.
+  - Зависимость `compileOnly "xaero.minimap:xaerominimap-neoforge-1.21.1:26.6.0"` из `https://chocolateminecraft.com/maven`; jar **не** коммитить (ARR).
+  - ⚠️ mod ID fair-play версии (`xaerominimapfair`?) не проверен.

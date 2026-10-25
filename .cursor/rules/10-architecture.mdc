@@ -1,0 +1,35 @@
+---
+description: Архитектура и раскладка пакетов (GDD §14) — куда класть новый код, регистры, сеть, сборка Gradle и зависимости. Применять при добавлении классов, регистраций, пакетов или правке build.gradle.
+globs: src/main/java/**/*.java, build.gradle, settings.gradle, gradle.properties, src/main/templates/**
+alwaysApply: false
+---
+
+# Архитектура (GDD §14)
+
+## Пакеты `dev.poligorn.aerocouriers`
+| Пакет | Содержимое |
+|---|---|
+| (корень) | `AeronauticsCouriers` — `@Mod`, подключение регистров, конфигов, событий |
+| `registry` | `ModItems`, `ModBlocks`, `ModBlockEntities`, `ModComponents` (Data Components), `ModAttachments` (Data Attachments), `ModMenus`, `ModPayloads` — только `DeferredRegister`/регистрация |
+| `config` | `CouriersServerConfig` (`aerocouriers-server.toml`), `CouriersClientConfig` (`aerocouriers-client.toml`) |
+| `command` | `/couriers ...` (Brigadier) |
+| `license` | `PilotLicenseItem` (`ICurioItem`), `LicenseOwner`, `LicenseRank`, `CourierProfile` (record + Codec), `Licenses` (поиск в Curios), `LicenseMigration` |
+| `contract` | `Contract`, `ContractState`, `ContractType`, `Destination`, `ContractManager`/`Escrow`/`Mailbox` (SavedData), `RankRules`, `Pricing`, `Weights`, `XpCalculator` |
+| `village` | `ContractSource` (абстракция NPC-заказов, см. `60-ikaria-pack.mdc`), `VillageAtlas`, `VillageContractGenerator`, `CargoTables` |
+| `cargo` | `CargoContainerBlock` (+`FILL`), `CargoContainerBlockEntity`, `CargoSpawner`, `SableBridge` |
+| `economy` | `Economy` → `NumismaticsEconomy` (мост) / `InternalEconomy` |
+| `net` | C2S: OpenBoard, Accept, Abandon, CreateContract, Claim; S2C: BoardSnapshot, ProfileSync, NavTargets |
+| `client` | Экран, вкладки, кнопка инвентаря, клавиши, NavRenderer (луч+HUD), `XaeroBridge`, `EpauletteRenderer` |
+| `compat` | `JadeProvider`, `ClaimsBridge` и прочие мосты к опциональным модам |
+
+## Правила
+- Клиентский код — только в `client` и только через `@EventBusSubscriber(value = Dist.CLIENT)` / `@Mod(dist = Dist.CLIENT)`; общий код не должен ссылаться на `client.*`.
+- Мосты к опциональным модам — отдельные классы, на которые ссылаются **только** после проверки `ModList.get().isLoaded(id)` (иначе `NoClassDefFoundError`).
+- Данные предмета — Data Components; данные игрока — Data Attachments (`copyOnDeath`); мировые данные — `SavedData`. Capabilities/`@NBTSerializable`/SQL — ❌ (GDD §0.3).
+- Сеть: клиент получает снимок доски (пагинация по 20) и свой профиль; C2S-пакеты — только намерения.
+- Curios 9: `CuriosApi.getCuriosInventory(entity)` (❌ `getCuriosHelper()` — API 1.18–1.20).
+
+## Сборка
+- Версии — только в `gradle.properties`. Maven: `maven.ryanhcode.dev/releases` (Sable, Companion, Aeronautics, Simulated), `maven.theillusivec4.top` (Curios), `maven.createmod.net` (Create), `chocolateminecraft.com/maven` (Xaero, только `compileOnly`).
+- Sable/Create/Aeronautics — `compileOnly` (рантайм даёт пак); Companion — `jarJar` ровно той версии, что требует Sable (1.6.0).
+- `./gradlew build` обязан проходить перед каждым коммитом в PR.

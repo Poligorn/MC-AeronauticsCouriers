@@ -1,0 +1,24 @@
+---
+description: Особенности целевой сборки MC-Ikaria «Aeronautics Ikaria» — небесные острова без деревень (абстракция ContractSource), FFItemWeight, уничтожение груза NPC-заказа при провале, конфликт терминов с Envelope, MVP в одном измерении, версии модов пака. Применять при проектировании NPC-заказов, весов, UI-терминов и при выборе версий зависимостей.
+globs:
+alwaysApply: false
+---
+
+# Сборка MC-Ikaria (CLARIFICATIONS)
+
+Репозиторий пака: `Poligorn/MC-Ikaria`, packwiz, ветка `dev`. NeoForge 21.1.250 у клиента, **21.1.235 на сервере** (минимум для мода).
+
+Версии модов в паке (проверено по `mods/*.pw.toml`, 25.10.2026): Create 6.0.10 · Create Aeronautics bundled 1.3.0 · Sable 2.0.6 · Curios 9.5.1+1.21.1 · Numismatics 1.1.0 · Jade 15.10.6 · Xaero's Minimap 26.6.0.
+
+## Решения
+1. **Мир — небесные острова, деревень почти нет.** NPC-заказы идут через интерфейс `village/ContractSource`; реализации: деревни (обычные миры, первая реализация) и «почтовые станции» (блок/точка от админа или структура — **решение за командой**). Не завязывать логику на колокола/деревни напрямую.
+2. **FFItemWeight** в паке — если установлен, вес груза берётся из него (soft-dep, мост в `compat`), иначе `item_weights.json`. ⚠️ API FFItemWeight не изучен.
+3. **Груз NPC-заказа при провале уничтожается**, курьеру не отдаётся (иначе покупка груза по заниженной оценке).
+4. В паке есть мод **Envelope** со своими «курьерами» — в UI избегать путаницы терминов.
+5. Waystones телепортируют только в пределах измерения → MVP «обе точки в одном измерении» согласуется.
+6. ⚠️ Уточнить у Simulated Project, можно ли использовать слово «Aeronautics» в названии аддона.
+
+## Наследие KubeJS в паке
+- `kubejs/startup_scripts/pilot_license.js` — 5 предметов `kubejs:pilot_license_{cadet,second,first,captain,admin}`.
+- `kubejs/data/kubejs/curios/slots/license.json` (size 1, order 200), `.../entities/player.json`, тег `curios:license`.
+- Мод `pilotwings` (рендер погон). После перехода — удалить мод и тег, регистрации предметов оставить на время миграции (см. `40-license-ranks.mdc`).

@@ -19,3 +19,20 @@ gradle-app.setting
 .project
 # JDT-specific (Eclipse Java Development Tools)
 .classpath
+
+# Minecraft / ModDevGradle
+build/
+run/
+runs/
+repo/
+src/generated/**/.cache
+*.log
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+out/
+bin/

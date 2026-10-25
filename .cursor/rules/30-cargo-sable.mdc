@@ -1,0 +1,43 @@
+---
+description: Грузовой контейнер и интеграция с Sable/Sable Companion — проверенные вызовы API, сборка блока в под-уровень, масса по fill, опечатка, самопроверка доставки, риски (GDD §0.2, §8, §9, §18). Применять при работе с пакетом cargo, SableBridge, physics_block_properties.
+globs: src/main/java/dev/poligorn/aerocouriers/cargo/**, src/main/resources/data/**/physics_block_properties/**
+alwaysApply: false
+---
+
+# Контейнер и Sable (GDD §0.2, §8, §9, §18)
+
+## Проверенный API (Sable 2.0.6, Companion 1.6.0 — по sources.jar)
+| Задача | Вызов |
+|---|---|
+| Блок → физический объект | `dev.ryanhcode.sable.api.SubLevelAssemblyHelper.assembleBlocks(ServerLevel, BlockPos anchor, Iterable<BlockPos>, BoundingBox3ic bounds)` → `ServerSubLevel`. Так же `/sable` shatter: bounds = блок ±1. ✅ |
+| `BoundingBox3i` | пакет **`dev.ryanhcode.sable.companion.math`** (не `sable.api`) ✅ |
+| Данные BE при сборке | `moveBlocks` делает `saveWithFullMetadata` и грузит тег в новую позицию в плоте → `contractId` переезжает ✅ (по коду; в игре ⚠️) |
+| Где блок | `SableCompanion.INSTANCE.getContaining(level, pos)` → `SubLevelAccess` или null ✅ |
+| Мировые координаты | `projectOutOfSubLevel(Level, Vector3dc, Vector3d dest)` (JOML). Перегрузка с `Vec3` **@Deprecated, к удалению в 2.0.0** — не использовать ✅ |
+| Скорость точки | `getVelocity(Level, Vector3dc, Vector3d dest)` ✅ |
+| Расстояние | `distanceSquaredWithSubLevels(level, a, b)` ✅ |
+| Масса по blockstate | datapack `data/<ns>/physics_block_properties/*.json`: `selector`, `priority`, `properties`, `overrides` (ключ — условие blockstate `"fill=1"`) ✅ |
+| Уведомление о переносе | `dev.ryanhcode.sable.api.block.BlockSubLevelAssemblyListener` (`beforeMove`/`afterMove`) ✅ |
+| Удары | `dev.ryanhcode.sable.api.block.BlockWithSubLevelCollisionCallback` ✅ |
+
+Важно: блок в под-уровне физически стоит в «плоте» (далёкие координаты). `worldPosition` BE — координаты плота; мировые — только через Companion.
+
+## Контейнеры (§8.1)
+| Размер | Слотов | Вес макс. | Модель | Ранг |
+|---|---|---|---|---|
+| S | 9 | 256 | 1×1×1 | I |
+| M | 18 | 768 | 1×1×2 | II |
+| L | 27 | 2048 | 2×2×2 ⚠️ — **вне MVP** (CLARIFICATIONS) | III |
+
+- Свойство блока `fill = 0..8` = доля веса от максимума × 8.
+- Масса: `2 + fill × W_max × k / 8`, `k = cargo_mass_scale` (0.25). Для S: 2, 10, 18, … 66.
+- ⚠️ Устойчивость Rapier при блоке в 50–500 раз тяжелее соседей; ⚠️ пересчитывается ли масса при смене `fill` у уже собранного объекта → иначе фиксируем `fill` при появлении.
+
+## Поведение
+- Появление ленивое (§9.1): курьер ближе `spawn_trigger_radius` (64) → `setBlock` с `FILL` → `bind(contractId)` **до** сборки → `assembleBlocks`. Площадка 3×3×3 с твёрдым основанием.
+- Опечатка (§9.2): GUI нет, capability инвентаря нет (воронки/трубы/Mechanical Arm не видят), `destroyTime = -1` (кроме курьера в креативе и операторов).
+- Самопроверка (§9.3): раз в 20 тиков мировые координаты + скорость; доставка, если в зоне назначения, `|v|² < delivery_max_speed²` (0.5 м/с), курьер в 64 блоках, `delivery_still_checks` (3) раза подряд.
+- Способы перевозки (§9.4): верёвка/лебёдка Aeronautics ⚠️, Sticker ⚠️, встраивание в корабль (`afterMove` переносит привязку) ⚠️, поезд/Offroad ⚠️.
+
+## Чек-лист прототипа (итерация 1, GDD §16) — отмечать в GDD и STATUS
+assemble с BE · project/velocity в полёте · масса при смене state · масса 66/200/500 · верёвка/Sticker · пересборка корабля + `afterMove` · рестарт сервера.
