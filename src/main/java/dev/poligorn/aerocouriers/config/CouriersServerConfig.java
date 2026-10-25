@@ -23,6 +23,15 @@ public final class CouriersServerConfig {
     public static final ModConfigSpec.IntValue DELIVERY_STILL_CHECKS;
     public static final ModConfigSpec.DoubleValue CARGO_MASS_SCALE;
     public static final ModConfigSpec.IntValue CARGO_DEBUG_LOG_INTERVAL;
+    public static final ModConfigSpec.IntValue SPAWN_SEARCH_RADIUS;
+
+    public static final ModConfigSpec.BooleanValue PIRACY_ENABLED;
+    public static final ModConfigSpec.DoubleValue PIRACY_BREAK_SECONDS;
+    public static final ModConfigSpec.DoubleValue PIRACY_BLAST_RESISTANCE;
+    public static final ModConfigSpec.DoubleValue PIRACY_DROP_RATIO;
+
+    public static final ModConfigSpec.IntValue STATION_REGISTER_RADIUS;
+    public static final ModConfigSpec.BooleanValue STATIONS_IN_VILLAGES;
 
     public static final ModConfigSpec.ConfigValue<List<? extends Integer>> RANK_XP;
     public static final ModConfigSpec.DoubleValue ACE_MIN_SUCCESS;
@@ -67,6 +76,8 @@ public final class CouriersServerConfig {
                 .defineInRange("cargo_mass_scale", 0.25, 0.0, 10.0);
         CARGO_DEBUG_LOG_INTERVAL = b.comment("Prototype: log world position and velocity of debug containers every N ticks (0 = off)")
                 .defineInRange("debug_log_interval_ticks", 20, 0, 72000);
+        SPAWN_SEARCH_RADIUS = b.comment("How far from the pickup point to look for a free 3x3x3 spot with a solid base, blocks")
+                .defineInRange("spawn_search_radius", 8, 0, 32);
         b.pop();
 
         b.push("progression");
@@ -82,6 +93,26 @@ public final class CouriersServerConfig {
 
         b.push("economy");
         EMERALD_VALUE_SPURS = b.defineInRange("emerald_value_spurs", 8, 1, 4096);
+        b.pop();
+
+        b.push("piracy");
+        b.comment("Cargo damage (GDD 9.7, formerly pvp_rules). A broken or blown-up container fails the contract as DAMAGED,",
+                "returns collateral and reward to the issuer and drops part of the manifest into the world.");
+        PIRACY_ENABLED = b.comment("false = containers are unbreakable and explosion-proof")
+                .define("enabled", true);
+        PIRACY_BREAK_SECONDS = b.comment("Time to break a container with any tool, seconds")
+                .defineInRange("break_seconds", 10.0, 0.05, 3600.0);
+        PIRACY_BLAST_RESISTANCE = b.comment("Explosion resistance of a container (stone 6, obsidian 1200)")
+                .defineInRange("blast_resistance", 9.0, 0.0, 3_600_000.0);
+        PIRACY_DROP_RATIO = b.comment("Share of every manifest stack that drops when the container is damaged; the rest is destroyed")
+                .defineInRange("drop_ratio", 0.5, 0.0, 1.0);
+        b.pop();
+
+        b.push("stations");
+        STATION_REGISTER_RADIUS = b.comment("A licensed player this close to a post station adds it to the atlas, blocks")
+                .defineInRange("register_radius", 32, 4, 256);
+        STATIONS_IN_VILLAGES = b.comment("Add post stations to village structures (takes effect for newly generated villages)")
+                .define("generate_in_villages", true);
         b.pop();
 
         b.push("migration");

@@ -9,6 +9,7 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import net.neoforged.bus.api.IEventBus;
+import net.neoforged.neoforge.common.NeoForge;
 import top.theillusivec4.curios.api.client.CuriosRendererRegistry;
 
 @Mod(value = AeronauticsCouriers.MOD_ID, dist = Dist.CLIENT)
@@ -16,6 +17,8 @@ public final class AeroCouriersClient {
 
     public AeroCouriersClient(IEventBus modBus) {
         modBus.addListener(AeroCouriersClient::onClientSetup);
+        NeoForge.EVENT_BUS.addListener(ZoneParticles::onClientTick);
+        NeoForge.EVENT_BUS.addListener(ZoneParticles::onLoggingOut);
     }
 
     private static void onClientSetup(FMLClientSetupEvent event) {

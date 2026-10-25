@@ -40,22 +40,24 @@ public record Contract(UUID id, ContractType type, UUID issuer, UUID recipient, 
     /**
      * @param deadline   time allowed after acceptance, ticks
      * @param acceptedAt game time of acceptance, {@code -1} while open
+     * @param paused     ticks the deadline was on hold because the pickup point was blocked (GDD §12)
      */
-    public record Timing(long createdAt, long expiresAt, long deadline, long acceptedAt) {
+    public record Timing(long createdAt, long expiresAt, long deadline, long acceptedAt, long paused) {
         public static final Codec<Timing> CODEC = RecordCodecBuilder.create(instance -> instance.group(
                 Codec.LONG.fieldOf("created_at").forGetter(Timing::createdAt),
                 Codec.LONG.fieldOf("expires_at").forGetter(Timing::expiresAt),
                 Codec.LONG.fieldOf("deadline").forGetter(Timing::deadline),
-                Codec.LONG.optionalFieldOf("accepted_at", -1L).forGetter(Timing::acceptedAt)
+                Codec.LONG.optionalFieldOf("accepted_at", -1L).forGetter(Timing::acceptedAt),
+                Codec.LONG.optionalFieldOf("paused", 0L).forGetter(Timing::paused)
         ).apply(instance, Timing::new));
 
         public long dueAt() {
-            return acceptedAt + deadline;
+            return acceptedAt + paused + deadline;
         }
 
         /** End of the late window (GDD §9.6); after it the contract fails. */
         public long lateUntil(double lateWindow) {
-            return acceptedAt + deadline + (long) Math.floor(deadline * lateWindow);
+            return dueAt() + (long) Math.floor(deadline * lateWindow);
         }
     }
 
@@ -83,6 +85,13 @@ public record Contract(UUID id, ContractType type, UUID issuer, UUID recipient, 
         Contract next = withState(ContractState.ACCEPTED);
         return new Contract(id, type, issuer, recipient, Optional.of(courierId), origin, destination, size, weight,
                 reward, collateral, requiredRank,
-                new Timing(timing.createdAt(), timing.expiresAt(), timing.deadline(), now), next.state);
+                new Timing(timing.createdAt(), timing.expiresAt(), timing.deadline(), now, 0), next.state);
+    }
+
+    Contract withPause(long extraTicks) {
+        return new Contract(id, type, issuer, recipient, courier, origin, destination, size, weight, reward,
+                collateral, requiredRank,
+                new Timing(timing.createdAt(), timing.expiresAt(), timing.deadline(), timing.acceptedAt(),
+                        timing.paused() + extraTicks), state);
     }
 }

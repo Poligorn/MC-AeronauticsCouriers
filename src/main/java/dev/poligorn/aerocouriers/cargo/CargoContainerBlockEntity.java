@@ -2,7 +2,9 @@ package dev.poligorn.aerocouriers.cargo;
 
 import dev.poligorn.aerocouriers.AeronauticsCouriers;
 import dev.poligorn.aerocouriers.config.CouriersServerConfig;
+import dev.poligorn.aerocouriers.contract.ContractManager;
 import dev.poligorn.aerocouriers.registry.ModBlockEntities;
+import java.util.Locale;
 import java.util.UUID;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
@@ -16,7 +18,8 @@ import org.joml.Vector3d;
 
 /**
  * Holds only the contract id (GDD §9.2). Once per second it resolves its real world position and velocity through
- * Sable Companion (GDD §9.3) and reports them to {@link CargoTracker}. While assembled into a Sable sub-level
+ * Sable Companion and asks {@link ContractManager#checkContainer} whether it was delivered (GDD §9.3); a container
+ * whose contract is unknown or no longer in transit removes itself. While assembled into a Sable sub-level
  * {@link #worldPosition} is a plot coordinate, never a world coordinate.
  */
 public class CargoContainerBlockEntity extends BlockEntity {
@@ -25,6 +28,8 @@ public class CargoContainerBlockEntity extends BlockEntity {
     private @Nullable UUID contractId;
     private boolean debug;
     private int ticks;
+    private boolean chunkUnloading;
+    private boolean selfRemoving;
 
     public CargoContainerBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.CARGO_CONTAINER.get(), pos, state);
@@ -49,8 +54,26 @@ public class CargoContainerBlockEntity extends BlockEntity {
     public void onLoad() {
         super.onLoad();
         if (level instanceof ServerLevel serverLevel && contractId != null) {
-            AeronauticsCouriers.LOGGER.info("[cargo] Container for contract {} loaded at {} (sub-level {})",
+            AeronauticsCouriers.LOGGER.debug("[cargo] Container for contract {} loaded at {} (sub-level {})",
                     contractId, worldPosition, SableBridge.containingSubLevel(serverLevel, worldPosition));
+        }
+    }
+
+    @Override
+    public void onChunkUnloaded() {
+        super.onChunkUnloaded();
+        chunkUnloading = true;
+    }
+
+    /**
+     * Sable re-creates the block entity when it moves blocks (assembly, ship re-assembly), so a removal is only
+     * reported; the manager fails the contract if no container with this id reports again shortly (GDD §12).
+     */
+    @Override
+    public void setRemoved() {
+        super.setRemoved();
+        if (!chunkUnloading && !selfRemoving && !debug && contractId != null && level instanceof ServerLevel serverLevel) {
+            ContractManager.get(serverLevel.getServer()).containerRemoved(contractId, serverLevel.getGameTime());
         }
     }
 
@@ -59,23 +82,33 @@ public class CargoContainerBlockEntity extends BlockEntity {
             return;
         }
         ServerLevel serverLevel = (ServerLevel) level;
-        Vector3d global = SableBridge.worldCenter(serverLevel, pos);
+        Vector3d world = SableBridge.worldCenter(serverLevel, pos);
         Vector3d velocity = SableBridge.velocity(serverLevel, pos);
-        CargoTracker.report(be.contractId, serverLevel, global, velocity, be.debug);
+        CargoTracker.report(be.contractId, serverLevel, pos, world, velocity, be.debug);
 
-        int logInterval = CouriersServerConfig.SPEC.isLoaded() ? CouriersServerConfig.CARGO_DEBUG_LOG_INTERVAL.get() : 0;
-        if (be.debug && logInterval > 0 && be.ticks % Math.max(CHECK_INTERVAL_TICKS, logInterval) == 0) {
-            AeronauticsCouriers.LOGGER.info("[cargo] {} plot={} world=({}, {}, {}) v=({}, {}, {}) |v|={} b/s fill={}",
-                    be.contractId, pos,
-                    fmt(global.x), fmt(global.y), fmt(global.z),
-                    fmt(velocity.x), fmt(velocity.y), fmt(velocity.z), fmt(velocity.length()),
-                    state.getValue(CargoContainerBlock.FILL));
+        if (be.debug) {
+            int logInterval = CouriersServerConfig.SPEC.isLoaded() ? CouriersServerConfig.CARGO_DEBUG_LOG_INTERVAL.get() : 0;
+            if (logInterval > 0 && be.ticks % Math.max(CHECK_INTERVAL_TICKS, logInterval) == 0) {
+                AeronauticsCouriers.LOGGER.info("[cargo] {} plot={} world=({}, {}, {}) v=({}, {}, {}) |v|={} b/s fill={}",
+                        be.contractId, pos,
+                        fmt(world.x), fmt(world.y), fmt(world.z),
+                        fmt(velocity.x), fmt(velocity.y), fmt(velocity.z), fmt(velocity.length()),
+                        state.getValue(CargoContainerBlock.FILL));
+            }
+            return;
         }
-        // Delivery self-check against ContractManager arrives with iteration 3 (GDD §9.3).
+
+        ContractManager.Verdict verdict = ContractManager.get(serverLevel.getServer())
+                .checkContainer(serverLevel, be.contractId, world, velocity.length());
+        if (verdict == ContractManager.Verdict.REMOVE) {
+            be.selfRemoving = true;
+            CargoTracker.forget(be.contractId);
+            level.removeBlock(pos, false);
+        }
     }
 
     private static String fmt(double value) {
-        return String.format(java.util.Locale.ROOT, "%.2f", value);
+        return String.format(Locale.ROOT, "%.2f", value);
     }
 
     @Override

@@ -1,6 +1,7 @@
 package dev.poligorn.aerocouriers;
 
 import com.mojang.logging.LogUtils;
+import dev.poligorn.aerocouriers.cargo.CargoEvents;
 import dev.poligorn.aerocouriers.command.CouriersCommands;
 import dev.poligorn.aerocouriers.config.CouriersClientConfig;
 import dev.poligorn.aerocouriers.config.CouriersServerConfig;
@@ -48,6 +49,7 @@ public final class AeronauticsCouriers {
         NeoForge.EVENT_BUS.addListener(LicenseMigration::onPlayerLoggedIn);
         NeoForge.EVENT_BUS.addListener(ContractManager::onPlayerLoggedIn);
         NeoForge.EVENT_BUS.addListener(ContractManager::onServerTick);
+        CargoEvents.register();
         if (GameTestHooks.isGametestEnabled()) {
             NeoForge.EVENT_BUS.addListener(CouriersGameTests::createEmptyTemplate);
         }

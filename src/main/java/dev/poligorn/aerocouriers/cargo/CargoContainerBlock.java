@@ -4,8 +4,12 @@ import com.mojang.serialization.MapCodec;
 import dev.poligorn.aerocouriers.AeronauticsCouriers;
 import dev.poligorn.aerocouriers.registry.ModBlockEntities;
 import dev.ryanhcode.sable.api.block.BlockSubLevelAssemblyListener;
+import dev.poligorn.aerocouriers.config.CouriersServerConfig;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.Explosion;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.BaseEntityBlock;
 import net.minecraft.world.level.block.Block;
@@ -20,8 +24,12 @@ import org.jetbrains.annotations.Nullable;
 
 /**
  * Sealed cargo container (GDD §9). Holds only a contract id in its block entity; no inventory, no GUI, no
- * item capability, unbreakable in survival. {@link #FILL} drives the Sable mass via
+ * item capability, drops nothing. {@link #FILL} drives the Sable mass via
  * {@code data/aerocouriers/physics_block_properties/}.
+ *
+ * <p>Base hardness stays {@code -1} so machines (Create drills, deployers) treat it as unbreakable; players break it
+ * in {@code piracy.break_seconds} and explosions use {@code piracy.blast_resistance} (GDD §9.7). With piracy
+ * disabled it is unbreakable and explosion-proof. What breaking means for the contract is in {@link CargoEvents}.
  */
 public class CargoContainerBlock extends BaseEntityBlock implements BlockSubLevelAssemblyListener {
     public static final int MAX_FILL = 8;
@@ -47,6 +55,22 @@ public class CargoContainerBlock extends BaseEntityBlock implements BlockSubLeve
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
         builder.add(FILL);
+    }
+
+    @Override
+    protected float getDestroyProgress(BlockState state, Player player, BlockGetter level, BlockPos pos) {
+        if (!CouriersServerConfig.SPEC.isLoaded() || !CouriersServerConfig.PIRACY_ENABLED.get()) {
+            return 0.0F;
+        }
+        return (float) (1.0 / (CouriersServerConfig.PIRACY_BREAK_SECONDS.get() * 20.0));
+    }
+
+    @Override
+    public float getExplosionResistance(BlockState state, BlockGetter level, BlockPos pos, Explosion explosion) {
+        if (!CouriersServerConfig.SPEC.isLoaded() || !CouriersServerConfig.PIRACY_ENABLED.get()) {
+            return 3_600_000.0F;
+        }
+        return CouriersServerConfig.PIRACY_BLAST_RESISTANCE.get().floatValue();
     }
 
     @Override

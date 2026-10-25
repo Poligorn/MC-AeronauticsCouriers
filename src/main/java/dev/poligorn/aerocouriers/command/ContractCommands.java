@@ -62,20 +62,28 @@ final class ContractCommands {
                 .then(Commands.literal("list").executes(ctx -> list(ctx.getSource())))
                 .then(Commands.literal("info").then(idArgument().executes(ContractCommands::info)))
                 .then(action("accept", ContractManager::accept))
-                .then(action("pickup", ContractManager::pickup))
-                .then(action("deliver", ContractManager::deliver))
                 .then(action("abandon", ContractManager::abandon))
                 .then(action("cancel", ContractManager::cancel))
-                .then(Commands.literal("fail")
-                        .requires(src -> src.hasPermission(OP))
-                        .then(idArgument().executes(ctx -> {
-                            MinecraftServer server = ctx.getSource().getServer();
-                            Optional<Contract> contract = resolve(ctx);
-                            if (contract.isEmpty()) {
-                                return unknown(ctx.getSource());
-                            }
-                            return report(ctx.getSource(), ContractManager.get(server).destroy(server, contract.get().id()));
-                        })));
+                .then(operator("forcespawn", ContractManager::spawnContainer))
+                .then(operator("forcedeliver", ContractManager::forceDeliver))
+                .then(operator("fail", ContractManager::destroy));
+    }
+
+    private interface OperatorAction {
+        ContractManager.Outcome apply(ContractManager manager, MinecraftServer server, UUID id);
+    }
+
+    private static LiteralArgumentBuilder<CommandSourceStack> operator(String name, OperatorAction action) {
+        return Commands.literal(name)
+                .requires(src -> src.hasPermission(OP))
+                .then(idArgument().executes(ctx -> {
+                    MinecraftServer server = ctx.getSource().getServer();
+                    Optional<Contract> contract = resolve(ctx);
+                    if (contract.isEmpty()) {
+                        return unknown(ctx.getSource());
+                    }
+                    return report(ctx.getSource(), action.apply(ContractManager.get(server), server, contract.get().id()));
+                }));
     }
 
     static LiteralArgumentBuilder<CommandSourceStack> mail() {
@@ -186,6 +194,7 @@ final class ContractCommands {
         source.sendSuccess(() -> Component.translatable("contract.aerocouriers.info.details",
                 String.format(Locale.ROOT, "%.1f", c.weight()), c.size().maxWeight(),
                 minutes(c.timing().deadline()), timeLeft), false);
+        source.sendSuccess(() -> ContractManager.riskLine(c), false);
         Escrow.Holding holding = Escrow.get(server).holding(c.id());
         for (ItemStack stack : holding.items()) {
             source.sendSuccess(() -> Component.literal("  " + stack.getCount() + " × ").append(stack.getHoverName()), false);

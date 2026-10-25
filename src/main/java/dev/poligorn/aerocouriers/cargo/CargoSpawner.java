@@ -5,6 +5,7 @@ import dev.poligorn.aerocouriers.registry.ModBlocks;
 import java.util.Optional;
 import java.util.UUID;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
@@ -26,6 +27,46 @@ public final class CargoSpawner {
 
         record AssemblyFailed() implements Result {
         }
+    }
+
+    /**
+     * Nearest free 3×3×3 spot with a sturdy block under its centre, within {@code radius} blocks horizontally and
+     * a few blocks vertically of {@code origin} (GDD §7.3, §12). Returns the bottom-centre block of the spot.
+     */
+    public static Optional<BlockPos> findSpot(ServerLevel level, BlockPos origin, int radius) {
+        BlockPos best = null;
+        double bestDistance = Double.MAX_VALUE;
+        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+        for (int dy : new int[] {0, 1, -1, 2, -2, 3, -3}) {
+            for (int dx = -radius; dx <= radius; dx++) {
+                for (int dz = -radius; dz <= radius; dz++) {
+                    double distance = dx * dx + dz * dz + dy * dy;
+                    if (distance >= bestDistance) {
+                        continue;
+                    }
+                    cursor.set(origin.getX() + dx, origin.getY() + dy, origin.getZ() + dz);
+                    if (isFreeSpot(level, cursor)) {
+                        best = cursor.immutable();
+                        bestDistance = distance;
+                    }
+                }
+            }
+        }
+        return Optional.ofNullable(best);
+    }
+
+    private static boolean isFreeSpot(ServerLevel level, BlockPos bottomCentre) {
+        BlockPos below = bottomCentre.below();
+        if (!level.isLoaded(below) || !level.getBlockState(below).isFaceSturdy(level, below, Direction.UP)) {
+            return false;
+        }
+        for (BlockPos pos : BlockPos.betweenClosed(bottomCentre.offset(-1, 0, -1), bottomCentre.offset(1, 2, 1))) {
+            BlockState state = level.getBlockState(pos);
+            if (!state.canBeReplaced() || !state.getFluidState().isEmpty()) {
+                return false;
+            }
+        }
+        return true;
     }
 
     public static Result spawn(ServerLevel level, BlockPos pos, int fill, UUID contractId, boolean debug) {
