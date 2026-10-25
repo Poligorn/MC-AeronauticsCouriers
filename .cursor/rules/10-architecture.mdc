@@ -20,7 +20,7 @@ alwaysApply: false
 | `economy` | `Economy` → `NumismaticsEconomy` (мост) / `InternalEconomy` |
 | `item` | `CourierStampItem` — единственный игрокский способ создать P2P-заказ |
 | `net` | C2S: OpenBoard, ContractIntent, CreateContract (только со штампа), Claim, OperatorBoard; S2C: BoardSnapshot (по 20), OpenStamp, ZoneSync |
-| `client` | Экран, вкладки, кнопка инвентаря, клавиши, NavRenderer (луч+HUD), `XaeroMapPicker` / `XaeroMinimapAccess` / `XaeroWorldMapAccess`, `XaeroBridge`, `EpauletteRenderer` |
+| `client` | Экран, вкладки, кнопка инвентаря, клавиши, `CreateGui` / `CreateGuiTextures` / `CreateStyleButton` (стиль Create по ResourceLocation), NavRenderer (луч+HUD), `XaeroMapPicker` / `XaeroMinimapAccess` / `XaeroWorldMapAccess`, `XaeroBridge`, `EpauletteRenderer` |
 | `compat` | `JadeProvider`, `ClaimsBridge` и прочие мосты к опциональным модам |
 
 ## Правила

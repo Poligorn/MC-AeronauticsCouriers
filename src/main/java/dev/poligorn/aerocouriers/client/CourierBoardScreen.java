@@ -10,17 +10,17 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.components.Button;
-import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.util.Mth;
+import net.minecraft.world.item.Items;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.jetbrains.annotations.Nullable;
 
 /**
  * Monitoring board: open orders and the viewer's own. Creation is the stamp item, not a tab.
+ * Chrome is assembled from Create 6.0.10 GUI textures (see {@link CreateGui}).
  */
 public final class CourierBoardScreen extends Screen {
     enum Tab {
@@ -72,11 +72,13 @@ public final class CourierBoardScreen extends Screen {
         }
 
         int mail = snapshot == null ? 0 : snapshot.mailCount();
-        addRenderableWidget(Button.builder(
-                        Component.translatable("ui.aerocouriers.mail.claim", mail),
+        Component mailText = Component.translatable("ui.aerocouriers.mail.claim", mail);
+        int mailW = Mth.clamp(26 + font.width(mailText), 88, Math.min(168, panelW() / 3));
+        addRenderableWidget(CreateStyleButton.create(
+                        left + panelW() - 8 - mailW, top + 6, mailW, 18, mailText,
                         b -> PacketDistributor.sendToServer(ClaimMailPayload.INSTANCE))
-                .bounds(left + panelW() - 126, top + 6, 118, 20)
-                .build());
+                .item(Items.PAPER)
+                .hint(mailText));
 
         if (snapshot == null) {
             return;
@@ -89,60 +91,57 @@ public final class CourierBoardScreen extends Screen {
     }
 
     private void addTab(int x, int y, int w, Tab value, String key) {
-        Button button = Button.builder(Component.translatable(key), b -> {
+        boolean on = tab == value;
+        CreateStyleButton button = CreateStyleButton.create(x, y, w, 18, Component.translatable(key), b -> {
                     tab = value;
                     scroll = 0;
                     pendingAccept = null;
                     rebuildWidgets();
                 })
-                .bounds(x, y, w, 20)
-                .build();
-        button.active = tab != value;
+                .selected(on);
+        button.active = !on;
         addRenderableWidget(button);
     }
 
     private void initListButtons(List<BoardSnapshotPayload.BoardEntry> all, boolean boardTab) {
         int left = left();
-        int top = top();
         int visible = visibleRows();
         scroll = Mth.clamp(scroll, 0, Math.max(0, all.size() - visible));
         int rowTop = listTop();
         for (int i = 0; i < visible && scroll + i < all.size(); i++) {
             BoardSnapshotPayload.BoardEntry entry = all.get(scroll + i);
             int y = rowTop + i * rowH();
-            addRenderableWidget(Button.builder(Component.translatable("ui.aerocouriers.details"), b -> {
+            addRenderableWidget(CreateStyleButton.create(
+                    left + panelW() - 156, y, 68, 18, Component.translatable("ui.aerocouriers.details"), b -> {
                         selected = entry.id();
                         pendingAccept = null;
                         rebuildWidgets();
-                    })
-                    .bounds(left + panelW() - 156, y, 68, 18)
-                    .build());
+                    }));
             if (boardTab && entry.state() == ContractState.OPEN
                     && (!"issuer".equals(entry.role()) || snapshot.allowSelfAccept())) {
                 boolean confirm = entry.id().equals(pendingAccept);
-                Button accept = Button.builder(
+                CreateStyleButton accept = CreateStyleButton.create(
+                                left + panelW() - 84, y, 76, 18,
                                 Component.translatable(confirm ? "ui.aerocouriers.accept.confirm" : "ui.aerocouriers.accept",
                                         entry.collateral()),
                                 b -> onAccept(entry))
-                        .bounds(left + panelW() - 84, y, 76, 18)
-                        .build();
+                        .green(confirm);
                 accept.active = snapshot != null && snapshot.licensed();
                 if (!accept.active) {
-                    accept.setTooltip(Tooltip.create(Component.translatable("contract.aerocouriers.error.no_license")));
+                    accept.hint(Component.translatable("contract.aerocouriers.error.no_license"));
                 }
                 addRenderableWidget(accept);
             } else if (!boardTab && "issuer".equals(entry.role()) && entry.state() == ContractState.OPEN) {
-                addRenderableWidget(Button.builder(Component.translatable("ui.aerocouriers.cancel"), b ->
+                addRenderableWidget(CreateStyleButton.create(
+                                left + panelW() - 84, y, 76, 18, Component.translatable("ui.aerocouriers.cancel"), b ->
                                 PacketDistributor.sendToServer(
                                         new ContractIntentPayload(ContractIntentPayload.Kind.CANCEL, entry.id())))
-                        .bounds(left + panelW() - 84, y, 76, 18)
-                        .build());
+                        .icon(CreateGuiTextures.ICON_TRASH));
             } else if (!boardTab && "courier".equals(entry.role()) && entry.state().isActive()) {
-                addRenderableWidget(Button.builder(Component.translatable("ui.aerocouriers.abandon"), b ->
+                addRenderableWidget(CreateStyleButton.create(
+                        left + panelW() - 84, y, 76, 18, Component.translatable("ui.aerocouriers.abandon"), b ->
                                 PacketDistributor.sendToServer(
-                                        new ContractIntentPayload(ContractIntentPayload.Kind.ABANDON, entry.id())))
-                        .bounds(left + panelW() - 84, y, 76, 18)
-                        .build());
+                                        new ContractIntentPayload(ContractIntentPayload.Kind.ABANDON, entry.id()))));
             }
         }
     }
@@ -161,33 +160,27 @@ public final class CourierBoardScreen extends Screen {
     private void initTest() {
         int left = left();
         int top = top();
-        addRenderableWidget(Button.builder(Component.translatable("ui.aerocouriers.test.license"), b ->
+        addRenderableWidget(CreateStyleButton.create(left + 8, top + 54, 220, 20,
+                Component.translatable("ui.aerocouriers.test.license"), b ->
                         PacketDistributor.sendToServer(new OperatorBoardPayload(
-                                OperatorBoardPayload.Action.GIVE_LICENSE, Optional.empty())))
-                .bounds(left + 8, top + 54, 220, 20)
-                .build());
-        addRenderableWidget(Button.builder(Component.translatable("ui.aerocouriers.test.money",
-                        OperatorBoardPayload.TEST_MONEY), b ->
+                                OperatorBoardPayload.Action.GIVE_LICENSE, Optional.empty()))));
+        addRenderableWidget(CreateStyleButton.create(left + 8, top + 78, 220, 20,
+                Component.translatable("ui.aerocouriers.test.money", OperatorBoardPayload.TEST_MONEY), b ->
                         PacketDistributor.sendToServer(new OperatorBoardPayload(
-                                OperatorBoardPayload.Action.ADD_MONEY, Optional.empty())))
-                .bounds(left + 8, top + 78, 220, 20)
-                .build());
-        addRenderableWidget(Button.builder(Component.translatable("ui.aerocouriers.test.stamp"), b ->
+                                OperatorBoardPayload.Action.ADD_MONEY, Optional.empty()))));
+        addRenderableWidget(CreateStyleButton.create(left + 8, top + 102, 220, 20,
+                Component.translatable("ui.aerocouriers.test.stamp"), b ->
                         PacketDistributor.sendToServer(new OperatorBoardPayload(
-                                OperatorBoardPayload.Action.GIVE_STAMP, Optional.empty())))
-                .bounds(left + 8, top + 102, 220, 20)
-                .build());
+                                OperatorBoardPayload.Action.GIVE_STAMP, Optional.empty()))));
         Optional<UUID> id = Optional.ofNullable(selected);
-        Button spawn = Button.builder(Component.translatable("ui.aerocouriers.test.forcespawn"), b ->
+        CreateStyleButton spawn = CreateStyleButton.create(left + 8, top + 146, 120, 20,
+                Component.translatable("ui.aerocouriers.test.forcespawn"), b ->
                         PacketDistributor.sendToServer(new OperatorBoardPayload(
-                                OperatorBoardPayload.Action.FORCE_SPAWN, id)))
-                .bounds(left + 8, top + 146, 120, 20)
-                .build();
-        Button deliver = Button.builder(Component.translatable("ui.aerocouriers.test.forcedeliver"), b ->
+                                OperatorBoardPayload.Action.FORCE_SPAWN, id)));
+        CreateStyleButton deliver = CreateStyleButton.create(left + 132, top + 146, 120, 20,
+                Component.translatable("ui.aerocouriers.test.forcedeliver"), b ->
                         PacketDistributor.sendToServer(new OperatorBoardPayload(
-                                OperatorBoardPayload.Action.FORCE_DELIVER, id)))
-                .bounds(left + 132, top + 146, 120, 20)
-                .build();
+                                OperatorBoardPayload.Action.FORCE_DELIVER, id)));
         spawn.active = selected != null;
         deliver.active = selected != null;
         addRenderableWidget(spawn);
@@ -197,10 +190,7 @@ public final class CourierBoardScreen extends Screen {
     @Override
     public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         super.renderBackground(graphics, mouseX, mouseY, partialTick);
-        int left = left();
-        int top = top();
-        graphics.fill(left, top, left + panelW(), top + panelH(), 0xC0101010);
-        graphics.fill(left + 1, top + 1, left + panelW() - 1, top + panelH() - 1, 0xFF202020);
+        CreateGui.drawWindow(graphics, left(), top(), panelW(), panelH());
     }
 
     @Override
@@ -209,14 +199,15 @@ public final class CourierBoardScreen extends Screen {
         super.render(graphics, mouseX, mouseY, partialTick);
         int left = left();
         int top = top();
-        graphics.drawString(font, title, left + 8, top + 32, 0xFFFFFF, false);
+        graphics.drawString(font, title, left + 8, top + 32, CreateGui.TEXT_TITLE, false);
         long balance = snapshot == null ? 0 : snapshot.balance();
         graphics.drawString(font, Component.translatable("ui.aerocouriers.balance", balance),
-                left + Math.min(panelW() - 200, 200), top + 32, 0xFFE082, false);
+                left + Math.min(panelW() - 200, 200), top + 32, CreateGui.TEXT_BRASS, false);
 
         if (snapshot == null) {
             graphics.drawString(font, Component.translatable("ui.aerocouriers.loading"),
-                    left + 8, top + 60, 0xAAAAAA, false);
+                    left + 8, top + 60, CreateGui.TEXT_MUTED, false);
+            drawHoverTip(graphics, mouseX, mouseY);
             return;
         }
 
@@ -226,24 +217,25 @@ public final class CourierBoardScreen extends Screen {
             String id = selected == null ? "—" : snapshot.find(selected).map(BoardSnapshotPayload.BoardEntry::shortId)
                     .orElse(selected.toString().substring(0, 8));
             graphics.drawString(font, Component.translatable("ui.aerocouriers.test.selected", id),
-                    left + 8, top + 130, 0xCCCCCC, false);
+                    left + 8, top + 130, CreateGui.TEXT, false);
             drawWrapped(graphics, Component.translatable("ui.aerocouriers.test.hint"),
-                    left + 8, top + 176, panelW() - 16, 0xAAAAAA);
+                    left + 8, top + 176, panelW() - 16, CreateGui.TEXT_MUTED);
         }
 
         if (notice != null) {
-            drawWrapped(graphics, notice, left + 8, top + panelH() - 22, panelW() - 16, 0xFFCC66);
+            int noticeY = top + panelH() - 22;
+            CreateGui.drawBanner(graphics, left + 8, noticeY - 2, Math.min(panelW() - 16, font.width(notice) + 24));
+            drawWrapped(graphics, notice, left + 16, noticeY, panelW() - 32, CreateGui.TEXT_WARN);
         }
-        if (hoverTip != null) {
-            graphics.renderTooltip(font, font.split(hoverTip, 240), mouseX, mouseY);
-        }
+        captureButtonHint(mouseX, mouseY);
+        drawHoverTip(graphics, mouseX, mouseY);
     }
 
     private void renderList(GuiGraphics graphics, List<BoardSnapshotPayload.BoardEntry> all, int left, int top,
                             int mouseX, int mouseY) {
         if (all.isEmpty()) {
             graphics.drawString(font, Component.translatable("contract.aerocouriers.list.none"),
-                    left + 8, listTop() + 4, 0xAAAAAA, false);
+                    left + 8, listTop() + 4, CreateGui.TEXT_MUTED, false);
             return;
         }
         int visible = visibleRows();
@@ -253,9 +245,7 @@ public final class CourierBoardScreen extends Screen {
         for (int i = 0; i < visible && scroll + i < all.size(); i++) {
             BoardSnapshotPayload.BoardEntry entry = all.get(scroll + i);
             int y = listTop() + i * rowH();
-            if (entry.id().equals(selected)) {
-                graphics.fill(left + 6, y - 1, left + panelW() - 158, y + rowH() - 3, 0x403D7EAF);
-            }
+            CreateGui.drawRow(graphics, left + 6, y - 1, panelW() - 164, rowH() - 2, entry.id().equals(selected));
             Component main = Component.translatable("ui.aerocouriers.row.main",
                     entry.shortId(), entry.originLabel(), entry.destinationLabel(), entry.distance());
             Component meta = Component.translatable("ui.aerocouriers.row.meta",
@@ -266,15 +256,18 @@ public final class CourierBoardScreen extends Screen {
                     entry.weight(),
                     entry.size(),
                     Component.translatable("contract.aerocouriers.role." + entry.role()));
-            drawClipped(graphics, main, left + 8, y, textW, 0xFFFFFF, mouseX, mouseY);
-            drawClipped(graphics, meta, left + 8, y + 10, textW, 0xBBBBBB, mouseX, mouseY);
+            drawClipped(graphics, main, left + 8, y, textW, CreateGui.TEXT_TITLE, mouseX, mouseY);
+            drawClipped(graphics, meta, left + 8, y + 10, textW, CreateGui.TEXT_MUTED, mouseX, mouseY);
         }
         graphics.disableScissor();
 
         if (all.size() > visible) {
             graphics.drawString(font, Component.translatable("ui.aerocouriers.scroll",
                             scroll + 1, Math.min(scroll + visible, all.size()), all.size()),
-                    left + 8, detailsTop() - 12, 0x888888, false);
+                    left + 8, detailsTop() - 12, CreateGui.TEXT_MUTED, false);
+            float thumb = visible / (float) all.size();
+            float progress = scroll / (float) Math.max(1, all.size() - visible);
+            CreateGui.drawScrollbar(graphics, left + panelW() - 12, listTop(), visible * rowH(), progress, thumb);
         }
 
         if (selected == null) {
@@ -290,11 +283,11 @@ public final class CourierBoardScreen extends Screen {
                     .orElse("—");
             drawWrapped(graphics, Component.translatable("ui.aerocouriers.details.line",
                             entry.requiredRank().displayName(), entry.deadlineMinutes(), cargo),
-                    left + 8, y, panelW() - 16, 0xDDDDDD);
+                    left + 8, y, panelW() - 16, CreateGui.TEXT);
             if (entry.state() == ContractState.OPEN) {
                 drawWrapped(graphics, Component.translatable("contract.aerocouriers.risk",
                                 entry.collateral(), entry.reward()),
-                        left + 8, y + 22, panelW() - 16, 0xFFCC66);
+                        left + 8, y + 22, panelW() - 16, CreateGui.TEXT_WARN);
             }
         });
     }
@@ -318,6 +311,23 @@ public final class CourierBoardScreen extends Screen {
         for (FormattedCharSequence line : lines) {
             graphics.drawString(font, line, x, drawY, color, false);
             drawY += 9;
+        }
+    }
+
+    private void captureButtonHint(int mouseX, int mouseY) {
+        if (hoverTip != null) {
+            return;
+        }
+        getChildAt(mouseX, mouseY).ifPresent(widget -> {
+            if (widget instanceof CreateStyleButton button && button.hint() != null) {
+                hoverTip = button.hint();
+            }
+        });
+    }
+
+    private void drawHoverTip(GuiGraphics graphics, int mouseX, int mouseY) {
+        if (hoverTip != null) {
+            CreateGui.drawSpeechTooltip(graphics, font, hoverTip, mouseX, mouseY, 240);
         }
     }
 

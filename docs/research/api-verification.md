@@ -6,7 +6,7 @@
 | Мод | Версия в паке | Артефакт для сборки | Maven |
 |---|---|---|---|
 | NeoForge | 21.1.250 (клиент), 21.1.235 (сервер) | компилируем против **21.1.235** | maven.neoforged.net |
-| Create | 6.0.10 | не нужен для компиляции (пока) | maven.createmod.net (`com.simibubi.create:create-1.21.1:6.0.10-280`) |
+| Create | 6.0.10 | GUI: UV сверены с исходниками тега `mc1.21.1-6.0.10`; blit по `create:textures/gui/...` (не compileOnly — `AllGuiTextures` тянет Catnip) | maven.createmod.net (`com.simibubi.create:create-1.21.1:6.0.10-280`) |
 | Create Aeronautics | bundled 1.3.0 | не нужен для компиляции; mod ID `aeronautics` (+ `simulated`) | maven.ryanhcode.dev (`dev.eriksonn.aeronautics:aeronautics-neoforge-1.21.1`, `dev.simulated_team.simulated:simulated-neoforge-1.21.1`) |
 | Sable | 2.0.6 | `dev.ryanhcode.sable:sable-neoforge-1.21.1:2.0.6` (`compileOnly`, нетранзитивно) | maven.ryanhcode.dev/releases |
 | Sable Companion | 1.6.0 (вшит в Sable) | `dev.ryanhcode.sable-companion:sable-companion-common-1.21.1:1.6.0` (`jarJar`) | maven.ryanhcode.dev/releases |
@@ -64,6 +64,20 @@ Data Components (`DeferredRegister.createDataComponents`), Data Attachments (`At
 | Событие «вейпоинт создан» | нет | ✅ нет колбэка |
 | Y неизвестен | `isYIncluded()==false` или Y=`32767` (`SupportXaeroMinimap.createTempWaypoint`) | ✅ |
 | Maven | `chocolateminecraft.com/maven`, плюс `xaero.lib:xaerolib-neoforge-1.21.1:1.7.3` | ✅ |
+
+## Create 6.0.10 GUI (стиль окон, 25.10.2026)
+| Что | Факт | Статус |
+|---|---|---|
+| `AllGuiTextures` | enum, `create:textures/gui/<file>.png`, `render` = blit фиксированного куска; `FONT_COLOR = 0x575F7A` | ✅ исходник тега `mc1.21.1-6.0.10` |
+| Адаптивное окно | `STOCK_KEEPER_REQUEST_HEADER/BODY/FOOTER` (256×36 / 256×20 / 256×80) — так стопкует `StockKeeperRequestScreen`; BODY тайлится по высоте. Ширину Create не растягивает — мы 9-slice'им, середину шапки берём узкой колонкой (иначе повторяется поиск) | ✅ |
+| Кнопки | `BUTTON/HOVER/DOWN/GREEN/DISABLED` 18×18 в `widgets.png`; `IconButton` не растягивает фон | ✅ |
+| Поля | `STATION_TEXTBOX_TOP/MIDDLE/BOTTOM` в `assemble.png` (150×18 / 1 / 4) | ✅ |
+| Иконки | `AllIcons`: `I_CONFIRM` (0,1), `I_TRASH` (1,0), `I_MTD_CLOSE` (1,9) в `icons.png` 16×16 | ✅ |
+| Слот | `STOCK_KEEPER_REQUEST_SLOT` 18×18 | ✅ |
+| Рамка | `BRASS_FRAME_*` + `VALUE_SETTINGS_OUTER_BG` в `value_settings.png` | ✅ |
+| Тултип | `SPEECH_TOOLTIP_BACKGROUND/COLOR` 8×8 в `widgets.png` | ✅ |
+| Письмо в `AllIcons` | отдельной иконки конверта нет | ✅ нет |
+| Catnip на compile | `catnip-neoforge` в maven.createmod.net для 1.21.1 не опубликован (есть только `+mc26.1.2`); `IconButton`/`Label`/`ScrollInput` без него не скомпилировать | ✅ maven |
 
 ## Что ещё не проверено
 - Numismatics 1.1.0: `Numismatics.BANK`, `BankAccount.deduct/deposit`, `BankAccount.Type` (GDD §14.5 ⚠️).

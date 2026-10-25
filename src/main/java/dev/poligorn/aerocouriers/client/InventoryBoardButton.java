@@ -2,6 +2,7 @@ package dev.poligorn.aerocouriers.client;
 
 import dev.poligorn.aerocouriers.config.CouriersClientConfig;
 import dev.poligorn.aerocouriers.registry.ModItems;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.Tooltip;
@@ -39,7 +40,9 @@ public final class InventoryBoardButton extends Button {
         int[] pos = position(inventory);
         setX(pos[0]);
         setY(pos[1]);
-        super.renderWidget(graphics, mouseX, mouseY, partialTick);
+        boolean pressed = isHovered && Minecraft.getInstance().mouseHandler.isLeftPressed();
+        CreateGui.drawButton(graphics, getX(), getY(), getWidth(), getHeight(),
+                active, isHoveredOrFocused(), pressed, false);
         graphics.renderFakeItem(new ItemStack(ModItems.PILOT_LICENSE.get()), getX() + 2, getY() + 2);
     }
 
