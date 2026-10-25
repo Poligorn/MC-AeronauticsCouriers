@@ -13,7 +13,7 @@ village_generation_interval_min = 10
 village_board_max = 12
 p2p_min_collateral_ratio = 0.5
 p2p_fee = 0.05
-max_open_per_player = 10
+max_open_per_player = 10        # незавершённые заказы заказчика (создание), не лимит перевозок
 pause_on_logout_singleplayer = true
 late_window = 0.25
 [cargo]

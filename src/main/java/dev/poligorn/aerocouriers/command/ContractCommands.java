@@ -171,7 +171,7 @@ final class ContractCommands {
     }
 
     private static Component summary(Contract c, UUID viewer) {
-        String role = c.issuer().equals(viewer) ? "issuer" : c.isCourier(viewer) ? "courier" : "board";
+        String role = c.roleFor(viewer);
         return Component.translatable("contract.aerocouriers.list.line", c.shortId(), c.state().displayName(),
                 c.origin().pos().toShortString(), c.destination().pos().toShortString(), (long) c.distance(),
                 c.size().name(), c.reward(), c.collateral(), c.requiredRank().displayName(),

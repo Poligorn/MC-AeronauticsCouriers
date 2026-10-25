@@ -72,7 +72,7 @@
   "contract.aerocouriers.debug.self_accept": "Debug mode is on: you accepted your own contract. This is only for testing (debug.allow_self_accept).",
   "contract.aerocouriers.error.no_license": "Wear your own pilot license in the License slot",
   "contract.aerocouriers.error.rank_too_low": "Rank %s required",
-  "contract.aerocouriers.error.too_many_active": "Your rank allows at most %s active deliveries",
+  "contract.aerocouriers.error.too_many_active": "Your rank allows at most %s active deliveries (already hauling: %s)",
   "contract.aerocouriers.error.not_your_contract": "This is not your contract",
   "contract.aerocouriers.error.wrong_state": "Not possible now: the contract is %s",
   "contract.aerocouriers.error.too_late": "Too late: the contract failed",

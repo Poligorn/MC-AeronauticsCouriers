@@ -72,7 +72,7 @@
   "contract.aerocouriers.debug.self_accept": "Включён отладочный режим: вы приняли собственный заказ. Только для тестов (debug.allow_self_accept).",
   "contract.aerocouriers.error.no_license": "Наденьте свою лицензию пилота в слот «Лицензия»",
   "contract.aerocouriers.error.rank_too_low": "Нужен ранг %s",
-  "contract.aerocouriers.error.too_many_active": "Ваш ранг позволяет не больше %s активных перевозок",
+  "contract.aerocouriers.error.too_many_active": "Ваш ранг позволяет не больше %s активных перевозок (уже везёте: %s)",
   "contract.aerocouriers.error.not_your_contract": "Это не ваш заказ",
   "contract.aerocouriers.error.wrong_state": "Сейчас нельзя: заказ %s",
   "contract.aerocouriers.error.too_late": "Слишком поздно: заказ провален",

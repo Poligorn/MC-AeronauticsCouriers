@@ -231,8 +231,7 @@ public final class BoardPackets {
 
     private static BoardSnapshotPayload.BoardEntry entry(Contract contract, UUID viewer, StationAtlas atlas,
                                                         Escrow escrow, long now) {
-        String role = contract.issuer().equals(viewer) ? "issuer"
-                : contract.isCourier(viewer) ? "courier" : "board";
+        String role = contract.roleFor(viewer);
         long ticksLeft = contract.state().isActive()
                 ? contract.timing().dueAt() - now
                 : contract.state() == ContractState.OPEN ? contract.timing().expiresAt() - now : 0;

@@ -23,6 +23,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
@@ -175,6 +176,24 @@ public final class ContractManager extends SavedData {
         return all().filter(c -> c.issuer().equals(issuer));
     }
 
+    /**
+     * Jobs this player is currently hauling (GDD §4.2 {@code maxActive}). Only {@code ACCEPTED}/{@code IN_TRANSIT}
+     * with this UUID in {@code courier}. Own {@code OPEN} orders, finished/failed/cancelled/expired rows and
+     * pending offline-failure bookkeeping do not occupy the slot — otherwise self-accept (issuer == courier)
+     * would treat the very order being taken as an already-active delivery.
+     */
+    public List<Contract> activeJobs(UUID courier) {
+        return all()
+                .filter(c -> c.courier().filter(courier::equals).isPresent())
+                .filter(c -> c.state() == ContractState.ACCEPTED || c.state() == ContractState.IN_TRANSIT)
+                .toList();
+    }
+
+    /** Unfinished orders this player published; used only by {@code max_open_per_player} on create. */
+    public long unfinishedIssued(UUID issuer) {
+        return byIssuer(issuer).filter(c -> !c.state().isFinal()).count();
+    }
+
     /** What the courier loses on failure — shown before and on acceptance (owner's decision, GDD §7.2). */
     public static Component riskLine(Contract contract) {
         return Component.translatable("contract.aerocouriers.risk", contract.collateral(), contract.reward());
@@ -192,8 +211,7 @@ public final class ContractManager extends SavedData {
         long now = now(server);
         Destination origin = new Destination(issuer.level().dimension(), sourcePos.immutable(), destination.radius());
 
-        if (byIssuer(issuer.getUUID()).filter(c -> !c.state().isFinal()).count()
-                >= CouriersServerConfig.MAX_OPEN_PER_PLAYER.get()) {
+        if (unfinishedIssued(issuer.getUUID()) >= CouriersServerConfig.MAX_OPEN_PER_PLAYER.get()) {
             return Outcome.error("too_many_open", CouriersServerConfig.MAX_OPEN_PER_PLAYER.get());
         }
         if (deadlineMinutes < Pricing.MIN_DEADLINE_MINUTES || deadlineMinutes > Pricing.MAX_DEADLINE_MINUTES) {
@@ -284,8 +302,7 @@ public final class ContractManager extends SavedData {
         long now = now(server);
         Destination origin = new Destination(level.dimension(), sourcePos.immutable(), destination.radius());
 
-        if (byIssuer(issuer.getUUID()).filter(c -> !c.state().isFinal()).count()
-                >= CouriersServerConfig.MAX_OPEN_PER_PLAYER.get()) {
+        if (unfinishedIssued(issuer.getUUID()) >= CouriersServerConfig.MAX_OPEN_PER_PLAYER.get()) {
             return Outcome.error("too_many_open", CouriersServerConfig.MAX_OPEN_PER_PLAYER.get());
         }
         if (deadlineMinutes < Pricing.MIN_DEADLINE_MINUTES || deadlineMinutes > Pricing.MAX_DEADLINE_MINUTES) {
@@ -379,8 +396,10 @@ public final class ContractManager extends SavedData {
             return Outcome.error("rank_too_low", contract.requiredRank().displayName());
         }
         int maxActive = RankRules.limits(rank).maxActive();
-        if (byCourier(courier.getUUID()).filter(c -> c.state().isActive()).count() >= maxActive) {
-            return Outcome.error("too_many_active", maxActive);
+        List<Contract> active = activeJobs(courier.getUUID());
+        if (active.size() >= maxActive) {
+            String ids = active.stream().map(Contract::shortId).collect(Collectors.joining(", "));
+            return Outcome.error("too_many_active", maxActive, ids);
         }
         Economy economy = Economies.get(server);
         if (!economy.withdraw(courier.getUUID(), contract.collateral(), "collateral:" + id)) {
@@ -388,6 +407,11 @@ public final class ContractManager extends SavedData {
         }
         Escrow.get(server).addCollateral(id, contract.collateral());
         Contract accepted = contract.accepted(courier.getUUID(), now(server));
+        // Stamp / NPC crates already stand at pickup; leaving ACCEPTED until the next tick let a courier
+        // fly the crate away and then never reach IN_TRANSIT, so the rank-1 slot stayed occupied.
+        if (accepted.preplaced()) {
+            accepted = accepted.withState(ContractState.IN_TRANSIT);
+        }
         put(accepted);
         if (!self) {
             notify(server, contract.issuer(), Component.translatable("contract.aerocouriers.notify.accepted",
@@ -414,6 +438,10 @@ public final class ContractManager extends SavedData {
         Contract contract = contracts.get(id);
         if (contract == null) {
             return Outcome.error("unknown");
+        }
+        if (contract.preplaced() && contract.state() == ContractState.IN_TRANSIT) {
+            return Outcome.ok(contract, "container_ready", contract.shortId(),
+                    contract.origin().pos().toShortString());
         }
         if (contract.state() != ContractState.ACCEPTED) {
             return Outcome.error("wrong_state", contract.state().displayName());
@@ -474,11 +502,23 @@ public final class ContractManager extends SavedData {
             stillChecks.remove(id);
             return Verdict.REMOVE;
         }
-        // Stamp orders already have a physical container while OPEN / ACCEPTED; do not delete it.
-        if (contract.preplaced() && (contract.state() == ContractState.OPEN
-                || contract.state() == ContractState.ACCEPTED)) {
+        // Stamp / NPC crates already stand while OPEN; do not delete them.
+        if (contract.preplaced() && contract.state() == ContractState.OPEN) {
             missingSince.remove(id);
             return Verdict.KEEP;
+        }
+        // A leftover ACCEPTED stamp job: the courier next to the crate has picked it up.
+        if (contract.preplaced() && contract.state() == ContractState.ACCEPTED) {
+            missingSince.remove(id);
+            ServerPlayer holder = findPlayer(level.getServer(), contract.courier().orElseThrow());
+            Vec3 crate = new Vec3(world.x(), world.y(), world.z());
+            if (holder != null && holder.level() == level
+                    && holder.position().distanceToSqr(crate) <= COURIER_REACH * COURIER_REACH) {
+                contract = contract.withState(ContractState.IN_TRANSIT);
+                put(contract);
+            } else {
+                return Verdict.KEEP;
+            }
         }
         if (contract.state() != ContractState.IN_TRANSIT) {
             stillChecks.remove(id);
@@ -513,6 +553,10 @@ public final class ContractManager extends SavedData {
         Contract contract = contracts.get(id);
         if (contract == null) {
             return Outcome.error("unknown");
+        }
+        if (contract.preplaced() && contract.state() == ContractState.ACCEPTED) {
+            contract = contract.withState(ContractState.IN_TRANSIT);
+            put(contract);
         }
         if (contract.state() != ContractState.IN_TRANSIT) {
             return Outcome.error("wrong_state", contract.state().displayName());
@@ -610,6 +654,9 @@ public final class ContractManager extends SavedData {
         if (contract.preplaced() && contract.state() == ContractState.OPEN) {
             return expire(site.level().getServer(), contract);
         }
+        if (contract.preplaced() && contract.state() == ContractState.ACCEPTED) {
+            return fail(site.level().getServer(), contract, FailReason.DAMAGED, site);
+        }
         if (contract.state() != ContractState.IN_TRANSIT) {
             return Outcome.error("wrong_state", contract.state().displayName());
         }
@@ -624,6 +671,10 @@ public final class ContractManager extends SavedData {
         }
         if (contract.preplaced() && contract.state() == ContractState.OPEN && server != null) {
             expire(server, contract);
+            return;
+        }
+        if (contract.preplaced() && contract.state() == ContractState.ACCEPTED && server != null) {
+            fail(server, contract, FailReason.DESTROYED, null);
             return;
         }
         if (contract.state() == ContractState.IN_TRANSIT) {

@@ -241,6 +241,129 @@ public final class ContractGameTests {
         helper.succeed();
     }
 
+    /**
+     * Rank I allows one active haul. Own OPEN orders (issuer == courier on self-accept) must not occupy
+     * that slot; delivery / abandon / cancel / expire must free it. The refusal names the blocking id.
+     */
+    @GameTest(template = CouriersGameTests.EMPTY)
+    public static void activeLimitIgnoresOwnOpenAndFreesAfterTerminal(GameTestHelper helper) {
+        Fixture f = new Fixture(helper);
+        var curios = CuriosApi.getCuriosInventory(f.issuer).orElseThrow();
+        curios.setEquippedCurio(Licenses.CURIOS_SLOT, 0, new ItemStack(ModItems.PILOT_LICENSE.get()));
+        Licenses.tickWorn(f.issuer, Licenses.findLicense(f.issuer).orElseThrow());
+        ContractManager.registerTestPlayer(f.issuer);
+        f.economy.deposit(f.issuer.getUUID(), 400, "test");
+        CouriersServerConfig.ALLOW_SELF_ACCEPT.set(true);
+        try {
+            Contract first = f.create(20, 30);
+            helper.assertTrue(f.manager.activeJobs(f.issuer.getUUID()).isEmpty(),
+                    "an OPEN order the player published is not an active haul");
+            f.expect(f.manager.accept(f.issuer, first.id()), true, "self-accept of own open");
+            helper.assertValueEqual(f.manager.activeJobs(f.issuer.getUUID()).size(), 1, "one active after accept");
+            helper.assertValueEqual(f.manager.byId(first.id()).orElseThrow().roleFor(f.issuer.getUUID()),
+                    "courier", "self-accepted job is shown as a haul");
+
+            f.fillChest();
+            Contract second = f.create(20, 30);
+            helper.assertValueEqual(f.manager.activeJobs(f.issuer.getUUID()).size(), 1,
+                    "a second OPEN issued order still does not count as a haul");
+            ContractManager.Outcome blocked = f.manager.accept(f.issuer, second.id());
+            f.expect(blocked, false, "rank1 cannot take a second haul");
+            String blockedText = blocked.message().getString();
+            helper.assertTrue(blockedText.contains(first.shortId()),
+                    "refusal must name the blocking contract: " + blockedText);
+
+            f.expect(f.manager.abandon(f.issuer, first.id()), true, "abandon frees the slot");
+            helper.assertTrue(f.manager.activeJobs(f.issuer.getUUID()).isEmpty(), "no active after abandon");
+            f.expect(f.manager.accept(f.issuer, second.id()), true, "accept after abandon");
+
+            f.expect(f.manager.abandon(f.issuer, second.id()), true, "clear second");
+            f.fillChest();
+            Contract toDeliver = f.create(20, 30);
+            f.expect(f.manager.accept(f.issuer, toDeliver.id()), true, "accept to deliver");
+            f.spawn(toDeliver);
+            Vector3d atTarget = f.world(TARGET);
+            f.issuer.setPos(Vec3.atCenterOf(helper.absolutePos(TARGET)));
+            int checks = CouriersServerConfig.DELIVERY_STILL_CHECKS.get();
+            for (int i = 0; i < checks - 1; i++) {
+                f.check(toDeliver, atTarget, 0, ContractManager.Verdict.KEEP, "still " + i);
+            }
+            f.check(toDeliver, atTarget, 0, ContractManager.Verdict.REMOVE, "deliver");
+            helper.assertValueEqual(f.state(toDeliver), ContractState.DELIVERED, "delivered");
+            helper.assertTrue(f.manager.activeJobs(f.issuer.getUUID()).isEmpty(), "delivery frees the slot");
+
+            f.fillChest();
+            Contract afterDelivery = f.create(20, 30);
+            f.expect(f.manager.accept(f.issuer, afterDelivery.id()), true, "accept after delivery");
+            f.expect(f.manager.abandon(f.issuer, afterDelivery.id()), true, "clear delivered-next");
+
+            f.fillChest();
+            Contract cancelled = f.create(20, 0);
+            helper.assertTrue(f.manager.activeJobs(f.issuer.getUUID()).isEmpty(), "OPEN cancel candidate is not active");
+            f.expect(f.manager.cancel(f.issuer, cancelled.id()), true, "cancel");
+            helper.assertTrue(f.manager.activeJobs(f.issuer.getUUID()).isEmpty(), "cancel does not occupy a haul slot");
+
+            f.fillChest();
+            Contract expired = f.create(20, 0);
+            f.manager.tick(f.server(), expired.timing().expiresAt());
+            helper.assertValueEqual(f.state(expired), ContractState.EXPIRED, "expired");
+            helper.assertTrue(f.manager.activeJobs(f.issuer.getUUID()).isEmpty(), "expire frees any haul slot");
+            f.fillChest();
+            Contract afterExpire = f.create(20, 30);
+            f.expect(f.manager.accept(f.issuer, afterExpire.id()), true, "accept after expire");
+        } finally {
+            CouriersServerConfig.ALLOW_SELF_ACCEPT.set(false);
+        }
+        helper.succeed();
+    }
+
+    /** Stamp self-accept: the sealed crate is already there, so accept must not leave a stuck ACCEPTED slot. */
+    @GameTest(template = CouriersGameTests.EMPTY, timeoutTicks = 200)
+    public static void stampSelfAcceptThenDeliverFreesTheSlot(GameTestHelper helper) {
+        Fixture f = new Fixture(helper);
+        var curios = CuriosApi.getCuriosInventory(f.issuer).orElseThrow();
+        curios.setEquippedCurio(Licenses.CURIOS_SLOT, 0, new ItemStack(ModItems.PILOT_LICENSE.get()));
+        Licenses.tickWorn(f.issuer, Licenses.findLicense(f.issuer).orElseThrow());
+        ContractManager.registerTestPlayer(f.issuer);
+        f.economy.deposit(f.issuer.getUUID(), 300, "test");
+        CouriersServerConfig.ALLOW_SELF_ACCEPT.set(true);
+        try {
+            Contract first = f.stamp(20, 30);
+            helper.assertTrue(first.preplaced(), "stamp is preplaced");
+            helper.assertTrue(f.manager.activeJobs(f.issuer.getUUID()).isEmpty(),
+                    "stamped OPEN is not an active haul");
+            f.expect(f.manager.accept(f.issuer, first.id()), true, "stamp self-accept");
+            helper.assertValueEqual(f.state(first), ContractState.IN_TRANSIT,
+                    "preplaced accept goes in transit immediately");
+            helper.assertValueEqual(f.manager.activeJobs(f.issuer.getUUID()).size(), 1, "one haul");
+
+            f.chestAt(new BlockPos(2, 1, 1));
+            Contract second = f.stampAt(new BlockPos(2, 1, 1), 20, 30);
+            ContractManager.Outcome blocked = f.manager.accept(f.issuer, second.id());
+            f.expect(blocked, false, "second stamp accept blocked");
+            helper.assertTrue(blocked.message().getString().contains(first.shortId()),
+                    "blocked by the in-transit stamp: " + blocked.message().getString());
+
+            Vector3d atTarget = f.world(TARGET);
+            f.issuer.setPos(Vec3.atCenterOf(helper.absolutePos(TARGET)));
+            int checks = CouriersServerConfig.DELIVERY_STILL_CHECKS.get();
+            for (int i = 0; i < checks - 1; i++) {
+                f.check(first, atTarget, 0, ContractManager.Verdict.KEEP, "stamp still " + i);
+            }
+            f.check(first, atTarget, 0, ContractManager.Verdict.REMOVE, "stamp deliver");
+            helper.assertValueEqual(f.state(first), ContractState.DELIVERED, "stamp delivered");
+            helper.assertTrue(f.manager.activeJobs(f.issuer.getUUID()).isEmpty(), "stamp delivery frees the slot");
+            f.expect(f.manager.accept(f.issuer, second.id()), true, "accept next stamp after delivery");
+            f.expect(f.manager.abandon(f.issuer, second.id()), true, "abandon second stamp");
+            helper.assertTrue(f.manager.activeJobs(f.issuer.getUUID()).isEmpty(), "abandon stamp frees the slot");
+        } finally {
+            CouriersServerConfig.ALLOW_SELF_ACCEPT.set(false);
+        }
+        helper.startSequence()
+                .thenIdle(SABLE_SETTLE_TICKS)
+                .thenSucceed();
+    }
+
     @GameTest(template = CouriersGameTests.EMPTY)
     public static void contractCodecRoundTrip(GameTestHelper helper) {
         Fixture f = new Fixture(helper);
@@ -488,6 +611,27 @@ public final class ContractGameTests {
         Contract create(long reward, long collateral) {
             ContractManager.Outcome outcome = tryCreate(reward, collateral);
             expect(outcome, true, "create");
+            return outcome.contract().orElseThrow();
+        }
+
+        void chestAt(BlockPos relative) {
+            helper.setBlock(relative, Blocks.CHEST);
+            ChestBlockEntity chest = (ChestBlockEntity) helper.getBlockEntity(relative);
+            chest.setItem(0, new ItemStack(Items.COBBLESTONE, 32));
+            chest.setItem(1, new ItemStack(Items.IRON_INGOT, 5));
+            issuer.setPos(Vec3.atCenterOf(helper.absolutePos(relative)));
+        }
+
+        Contract stamp(long reward, long collateral) {
+            return stampAt(CHEST, reward, collateral);
+        }
+
+        Contract stampAt(BlockPos relative, long reward, long collateral) {
+            issuer.setPos(Vec3.atCenterOf(helper.absolutePos(relative)));
+            Destination destination = new Destination(helper.getLevel().dimension(), helper.absolutePos(TARGET), 2);
+            ContractManager.Outcome outcome = manager.createFromStamp(issuer, helper.absolutePos(relative),
+                    destination, reward, collateral, 60);
+            expect(outcome, true, "stamp");
             return outcome.contract().orElseThrow();
         }
 

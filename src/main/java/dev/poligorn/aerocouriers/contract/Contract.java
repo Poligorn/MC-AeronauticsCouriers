@@ -72,6 +72,20 @@ public record Contract(UUID id, ContractType type, UUID issuer, UUID recipient, 
         return courier.filter(player::equals).isPresent();
     }
 
+    /**
+     * Board / list role. A self-accepted job (issuer == courier) is shown as {@code courier} while the
+     * deadline is running so the slot can be abandoned; an unpublished own order stays {@code issuer}.
+     */
+    public String roleFor(UUID viewer) {
+        if (isCourier(viewer) && state.isActive()) {
+            return "courier";
+        }
+        if (issuer.equals(viewer)) {
+            return "issuer";
+        }
+        return isCourier(viewer) ? "courier" : "board";
+    }
+
     public String shortId() {
         return id.toString().substring(0, 8);
     }
