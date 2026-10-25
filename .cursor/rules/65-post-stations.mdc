@@ -1,0 +1,16 @@
+---
+description: Почтовые станции — блок aerocouriers:post_station, генерация в деревнях через worldgen, названия из словаря, атлас станций и NPC-заказы через ContractSource (GDD §6, CLARIFICATIONS «Решения владельца» п. 5). Применять при работе с пакетом village, worldgen, названиями станций.
+globs: src/main/java/dev/poligorn/aerocouriers/village/**, src/main/resources/data/aerocouriers/station_names/**, src/main/resources/data/aerocouriers/structure/**
+alwaysApply: false
+---
+
+# Почтовые станции (GDD §6)
+
+- Станция `aerocouriers:post_station` нужна **только** для NPC-заказов (автогенерация). P2P-заказам станция не нужна. Колокола не используются (❌ старый атлас деревень).
+- Блок + BE: `stationId` (UUID) и название. Название генерируется из `data/aerocouriers/station_names/*.json`, когда станция появляется; переименовывает **только оператор** (окно станции по ПКМ / команда).
+- Источники станций:
+  - генерация с деревнями: свой элемент **добавляется** в пулы деревень при запуске сервера. Ванильные пулы и пулы других модов не заменять и не перезаписывать JSON. Выключается `stations.generate_in_villages`;
+  - администратор ставит сам (креатив, `/give`). В выживании предмета нет.
+- Атлас (`StationAtlas`, SavedData): станция открывается игроку **с лицензией**, когда он ближе `stations.register_radius` (32). На сервере атлас общий, доска показывает заказы между станциями, открытыми этим игроком.
+- NPC-заказы генерирует `StationContractSource implements ContractSource` (GDD §6.2–6.5): пары открытых станций ≤ 10 000 блоков, раз в `village_generation_interval_min`, ≤ `village_board_max`. При провале груз уничтожается, залог сгорает (CLARIFICATIONS).
+- Worldgen проверять на dev-сервере (новый мир, `/locate structure minecraft:village_plains`, телепорт) и отмечать в STATUS.

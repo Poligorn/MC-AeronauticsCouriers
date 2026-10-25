@@ -18,6 +18,7 @@ pause_on_logout_singleplayer = true
 late_window = 0.25
 [cargo]
 spawn_trigger_radius = 64
+spawn_search_radius = 8
 delivery_max_speed = 0.5
 delivery_still_checks = 3
 cargo_mass_scale = 0.25
@@ -28,6 +29,14 @@ trainee_free_contracts = 3
 trainee_bonus = 100
 [economy]
 emerald_value_spurs = 8
+[piracy]             # §9.7 (ранее pvp_rules)
+enabled = true
+break_seconds = 10.0
+blast_resistance = 9.0
+drop_ratio = 0.5
+[stations]
+register_radius = 32
+generate_in_villages = true
 [migration]
 # стартовый XP при миграции kubejs:pilot_license_<rank> (CLARIFICATIONS: «таблица в конфиге»)
 ```
@@ -36,6 +45,7 @@ emerald_value_spurs = 8
 
 ## `aerocouriers-client.toml`
 `[button] position / custom_x / custom_y` — см. `55-client-ui-xaero.mdc`.
+`[zones] enabled / particle_density / render_distance` — контур зон частицами (§10.3).
 
 ## Datapack
 | Путь | Назначение |
@@ -43,7 +53,7 @@ emerald_value_spurs = 8
 | `data/aerocouriers/item_weights.json` | Вес предметов (блок 1.0 · слиток/самоцвет 0.11 · предмет 0.05 · инструмент/броня 0.5 · ведро 1.0). При наличии FFItemWeight — брать вес из него |
 | `data/aerocouriers/item_values.json` | Оценка стоимости |
 | `data/aerocouriers/village_cargo/<biome>.json` | Что производят/потребляют деревни |
-| `data/aerocouriers/village_names/*.json` | Генератор названий |
+| `data/aerocouriers/station_names/*.json` | Словарь названий почтовых станций |
 | `data/aerocouriers/physics_block_properties/*.json` | Масса контейнеров (формат Sable: `selector`, `priority`, `properties`, `overrides` с ключами `"fill=N"`) ✅ |
 | `data/aerocouriers/curios/slots/license.json` + `data/aerocouriers/curios/entities/player.json` | Слот лицензии ✅ |
 | `data/curios/tags/item/license.json` | Какие предметы допускает слот (`curios:tag`-валидатор) ✅ |

@@ -62,10 +62,10 @@ Sable, Create и Aeronautics подключены только для компи
 ### Правила для ИИ-агентов (Cursor)
 В [`.cursor/rules/`](.cursor/rules/) лежат правила, выжатые из GDD и CLARIFICATIONS, чтобы агент, подхвативший задачу, не перечитывал весь GDD:
 - `00-project-core.mdc` — всегда в контексте: идентификаторы, версии, зависимости, инварианты, языковые соглашения, чек-лист «как возобновить работу».
-- Тематические: `10-architecture`, `20-contracts`, `30-cargo-sable`, `40-license-ranks`, `50-economy`, `55-client-ui-xaero`, `57-config-datapack`, `60-ikaria-pack`.
+- Тематические: `10-architecture`, `20-contracts`, `30-cargo-sable`, `40-license-ranks`, `50-economy`, `55-client-ui-xaero`, `57-config-datapack`, `60-ikaria-pack`, `65-post-stations`.
 - `90-maintaining-docs.mdc` — обязанность обновлять `docs/STATUS.md`, чек-лист GDD §16 и правила при каждом решении или завершённом шаге.
 
 ## Авторы и лицензия
 Автор — Poligorn (Егор). Рендер погон перенесён из собственного мода автора SkyPact Pilot Wings (MIT).
 
-Лицензия мода **ещё не выбрана командой** (TODO, см. вопросы в `docs/STATUS.md`); в `neoforge.mods.toml` стоит `TODO`. Файл `LICENSE` (MIT) появился при создании репозитория — до решения команды на него не стоит опираться.
+Лицензия — **MIT** (см. [`LICENSE`](LICENSE)). Код Create: Marketplace не используется и не копируется — только идея настраиваемой кнопки.
