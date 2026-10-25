@@ -14,3 +14,12 @@ alwaysApply: false
 - Атлас (`StationAtlas`, SavedData): станция открывается игроку **с лицензией**, когда он ближе `stations.register_radius` (32). На сервере атлас общий, доска показывает заказы между станциями, открытыми этим игроком.
 - NPC-заказы генерирует `StationContractSource implements ContractSource` (GDD §6.2–6.5): пары открытых станций ≤ 10 000 блоков, раз в `village_generation_interval_min`, ≤ `village_board_max`. При провале груз уничтожается, залог сгорает (CLARIFICATIONS).
 - Worldgen проверять на dev-сервере (новый мир, `/locate structure minecraft:village_plains`, телепорт) и отмечать в STATUS.
+
+## Реализация (начато вместе с итерацией 3)
+- `PostStationBlock` (+ `PostStationBlockEntity`): твёрдость −1 (в выживании не ломается), `noLootTable`, `FACING`. Предмет — только во вкладке «Инструменты оператора» и через `/give`, рецепта нет.
+- BE при первой серверной загрузке (`onLoad`) получает `station_id` и имя (`StationNames.pick`, без повторов) и регистрируется в `StationAtlas`. `Block.onRemove` (смена блока, не выгрузка чанка) убирает станцию из атласа.
+- Одна станция на деревню: флаг `village` в NBT структуры; новая деревенская станция ближе `PostStationBlockEntity.VILLAGE_SPACING` (128) к известной → стол картографа (отложено через `TickTask`). Станции оператора не заменяются.
+- Worldgen: `VillageStructures` на `ServerAboutToStartEvent` дописывает элемент в `templates`/`rawTemplates` пулов `village/*/houses` (рефлексия по mojmap-именам; в рантайме NeoForge 1.21.1 имена Mojang). Структура генерируется скриптом `tools/gen_post_station_structure.py` — правьте скрипт, а не `.nbt`.
+- Атлас: `StationAtlas.discoverNearby(player)` раз в секунду для всех игроков; FakePlayer в тестах вызывает его напрямую.
+- Команды: `/couriers station list` (игрок — открытые им, оператор/консоль — все), `/couriers station rename <pos> <имя>` (оператор).
+- Не сделано: окно станции (итерация 4), `StationContractSource` и таблицы груза (итерация 5), зомби-деревни, репутация станции.
