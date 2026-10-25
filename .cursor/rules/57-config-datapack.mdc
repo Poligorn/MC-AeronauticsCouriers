@@ -39,6 +39,8 @@ register_radius = 32
 generate_in_villages = true
 [migration]
 # стартовый XP при миграции kubejs:pilot_license_<rank> (CLARIFICATIONS: «таблица в конфиге»)
+[debug]
+allow_self_accept = false   # только для тестов: заказчик может принять свой заказ
 ```
 - Новый ключ: добавить в `CouriersServerConfig`, в эту таблицу и в STATUS (если это решение).
 - `cargo_mass_scale` **не** влияет на уже сгенерированный JSON массы — при смене пересчитать `physics_block_properties`.

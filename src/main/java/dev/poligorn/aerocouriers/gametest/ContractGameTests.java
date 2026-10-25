@@ -14,8 +14,10 @@ import dev.poligorn.aerocouriers.economy.Economies;
 import dev.poligorn.aerocouriers.economy.Economy;
 import dev.poligorn.aerocouriers.license.LicenseRank;
 import dev.poligorn.aerocouriers.license.Licenses;
+import dev.poligorn.aerocouriers.net.BoardPackets;
 import dev.poligorn.aerocouriers.registry.ModItems;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
@@ -156,6 +158,86 @@ public final class ContractGameTests {
         f.chest().clearContent();
         f.chest().setItem(0, new ItemStack(Items.DIRT));
         f.expect(f.tryCreate(0, 0), false, "zero reward");
+        helper.succeed();
+    }
+
+    /**
+     * {@code debug.allow_self_accept}: one player is issuer and courier. Money, mail, XP and {@code M_повтор}
+     * stay single-account; the fee is the only net loss.
+     */
+    @GameTest(template = CouriersGameTests.EMPTY)
+    public static void debugSelfAcceptRunsFullCycle(GameTestHelper helper) {
+        Fixture f = new Fixture(helper);
+        var curios = CuriosApi.getCuriosInventory(f.issuer).orElseThrow();
+        curios.setEquippedCurio(Licenses.CURIOS_SLOT, 0, new ItemStack(ModItems.PILOT_LICENSE.get()));
+        Licenses.tickWorn(f.issuer, Licenses.findLicense(f.issuer).orElseThrow());
+        ContractManager.registerTestPlayer(f.issuer);
+        f.economy.deposit(f.issuer.getUUID(), 200, "test");
+
+        helper.assertFalse(CouriersServerConfig.ALLOW_SELF_ACCEPT.get(), "flag off by default");
+        helper.assertFalse(BoardPackets.snapshot(f.issuer, 0, false, Optional.empty()).allowSelfAccept(),
+                "board snapshot hides self-accept");
+
+        CouriersServerConfig.ALLOW_SELF_ACCEPT.set(true);
+        try {
+            helper.assertTrue(BoardPackets.snapshot(f.issuer, 0, false, Optional.empty()).allowSelfAccept(),
+                    "board snapshot exposes self-accept");
+
+            Contract first = f.create(20, 30);
+            helper.assertValueEqual(f.economy.balance(f.issuer.getUUID()), 179L, "after create: 200 − 21");
+            ContractManager.Outcome accepted = f.manager.accept(f.issuer, first.id());
+            f.expect(accepted, true, "self-accept");
+            String acceptText = accepted.message().getString();
+            helper.assertTrue(acceptText.contains("debug.allow_self_accept") || acceptText.contains("Debug mode")
+                            || acceptText.contains("отладочный"),
+                    "debug warning in accept chat: " + acceptText);
+            helper.assertValueEqual(f.economy.balance(f.issuer.getUUID()), 149L, "after collateral: 179 − 30");
+
+            f.spawn(first);
+            Vector3d atTarget = f.world(TARGET);
+            f.issuer.setPos(Vec3.atCenterOf(helper.absolutePos(TARGET)));
+            int checks = CouriersServerConfig.DELIVERY_STILL_CHECKS.get();
+            for (int i = 0; i < checks - 1; i++) {
+                f.check(first, atTarget, 0, ContractManager.Verdict.KEEP, "still " + i);
+            }
+            f.check(first, atTarget, 0, ContractManager.Verdict.REMOVE, "deliver");
+            helper.assertValueEqual(f.economy.balance(f.issuer.getUUID()), 199L, "after self-delivery: 149 + 20 + 30");
+            helper.assertValueEqual(f.state(first), ContractState.DELIVERED, "delivered");
+            helper.assertValueEqual(Mailbox.get(f.server()).contents(f.issuer.getUUID()).size(), 2, "mailbox");
+            helper.assertValueEqual(Licenses.profile(f.issuer).delivered(), 1, "delivered count");
+            helper.assertValueEqual(Licenses.profile(f.issuer).xp(), 10, "first delivery XP, M_repeat = 1.0");
+            helper.assertTrue(Escrow.get(f.server()).holding(first.id()).isEmpty(), "escrow empty after delivery");
+
+            f.fillChest();
+            Contract second = f.create(20, 30);
+            helper.assertValueEqual(f.economy.balance(f.issuer.getUUID()), 178L, "199 − 21");
+            f.expect(f.manager.accept(f.issuer, second.id()), true, "second self-accept");
+            helper.assertValueEqual(f.economy.balance(f.issuer.getUUID()), 148L, "178 − 30");
+            f.spawn(second);
+            for (int i = 0; i < checks - 1; i++) {
+                f.check(second, atTarget, 0, ContractManager.Verdict.KEEP, "still2 " + i);
+            }
+            f.check(second, atTarget, 0, ContractManager.Verdict.REMOVE, "deliver2");
+            helper.assertValueEqual(f.economy.balance(f.issuer.getUUID()), 198L, "148 + 50");
+            helper.assertValueEqual(Mailbox.get(f.server()).contents(f.issuer.getUUID()).size(), 4, "mail after two");
+            helper.assertValueEqual(Licenses.profile(f.issuer).xp(), 19, "10 + floor(base × 0.9) = 19");
+
+            f.fillChest();
+            Contract failed = f.create(20, 30);
+            helper.assertValueEqual(f.economy.balance(f.issuer.getUUID()), 177L, "198 − 21");
+            f.expect(f.manager.accept(f.issuer, failed.id()), true, "accept before fail");
+            helper.assertValueEqual(f.economy.balance(f.issuer.getUUID()), 147L, "177 − 30");
+            f.expect(f.manager.abandon(f.issuer, failed.id()), true, "self-abandon");
+            helper.assertValueEqual(f.state(failed), ContractState.FAILED, "failed");
+            helper.assertValueEqual(f.economy.balance(f.issuer.getUUID()), 197L, "147 + collateral 30 + reward 20");
+            helper.assertValueEqual(Mailbox.get(f.server()).contents(f.issuer.getUUID()).size(), 6,
+                    "returned cargo mailed to the same player");
+            helper.assertValueEqual(Licenses.profile(f.issuer).failed(), 1, "one failure");
+            helper.assertValueEqual(Licenses.profile(f.issuer).xp(), 19, "fail does not change XP");
+            helper.assertTrue(Escrow.get(f.server()).holding(failed.id()).isEmpty(), "escrow empty after fail");
+        } finally {
+            CouriersServerConfig.ALLOW_SELF_ACCEPT.set(false);
+        }
         helper.succeed();
     }
 

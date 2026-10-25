@@ -71,6 +71,7 @@ public final class BoardGameTests {
         helper.assertTrue(issuerView.mine().stream().anyMatch(e -> e.id().equals(contract.id()) && e.role().equals("issuer")),
                 "issuer sees it under Mine");
         helper.assertFalse(issuerView.operator(), "FakePlayer is not an operator");
+        helper.assertFalse(issuerView.allowSelfAccept(), "self-accept is off by default");
         helper.assertFalse(issuerView.board().getFirst().manifest().isEmpty(), "manifest is in the snapshot");
         helper.assertValueEqual(issuerView.board().getFirst().manifest().getFirst().count(), 32, "stack count");
 

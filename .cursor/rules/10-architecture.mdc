@@ -26,7 +26,7 @@ alwaysApply: false
 - Клиентский код — только в `client` и только через `@EventBusSubscriber(value = Dist.CLIENT)` / `@Mod(dist = Dist.CLIENT)`; общий код не должен ссылаться на `client.*`.
 - Мосты к опциональным модам — отдельные классы, на которые ссылаются **только** после проверки `ModList.get().isLoaded(id)` (иначе `NoClassDefFoundError`).
 - Данные предмета — Data Components; данные игрока — Data Attachments (`copyOnDeath`); мировые данные — `SavedData`. Capabilities/`@NBTSerializable`/SQL — ❌ (GDD §0.3).
-- Сеть: клиент получает снимок доски (пагинация по 20: открытые + свои + станции + баланс + почта + флаг оператора); C2S-пакеты — только намерения. Логика — в `ContractManager` / `BoardPackets`.
+- Сеть: клиент получает снимок доски (пагинация по 20: открытые + свои + станции + баланс + почта + флаги оператора / лицензии / `allowSelfAccept`); C2S-пакеты — только намерения. Логика — в `ContractManager` / `BoardPackets`.
 - Curios 9: `CuriosApi.getCuriosInventory(entity)` (❌ `getCuriosHelper()` — API 1.18–1.20).
 
 ## Сборка

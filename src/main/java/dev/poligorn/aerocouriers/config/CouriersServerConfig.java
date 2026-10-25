@@ -45,6 +45,8 @@ public final class CouriersServerConfig {
     public static final ModConfigSpec.IntValue MIGRATION_XP_FIRST;
     public static final ModConfigSpec.IntValue MIGRATION_XP_CAPTAIN;
 
+    public static final ModConfigSpec.BooleanValue ALLOW_SELF_ACCEPT;
+
     static {
         ModConfigSpec.Builder b = new ModConfigSpec.Builder();
 
@@ -121,6 +123,11 @@ public final class CouriersServerConfig {
         MIGRATION_XP_SECOND = b.defineInRange("xp_second", 300, 0, Integer.MAX_VALUE);
         MIGRATION_XP_FIRST = b.defineInRange("xp_first", 1500, 0, Integer.MAX_VALUE);
         MIGRATION_XP_CAPTAIN = b.defineInRange("xp_captain", 5000, 0, Integer.MAX_VALUE);
+        b.pop();
+
+        b.push("debug");
+        ALLOW_SELF_ACCEPT = b.comment("Test-only: allow a player to accept their own contract (singleplayer loop)")
+                .define("allow_self_accept", false);
         b.pop();
 
         SPEC = b.build();

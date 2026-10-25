@@ -258,7 +258,7 @@ public final class ContractManager extends SavedData {
                 contract.requiredRank().displayName());
     }
 
-    /** GDD §7.2: own contracts cannot be taken, collateral is withdrawn atomically, the risk is spelled out. */
+    /** GDD §7.2: own contracts cannot be taken unless {@code debug.allow_self_accept}; collateral is atomic. */
     public Outcome accept(ServerPlayer courier, UUID id) {
         MinecraftServer server = courier.server;
         Contract contract = contracts.get(id);
@@ -268,7 +268,8 @@ public final class ContractManager extends SavedData {
         if (contract.state() != ContractState.OPEN || now(server) >= contract.timing().expiresAt()) {
             return Outcome.error("not_open");
         }
-        if (contract.issuer().equals(courier.getUUID())) {
+        boolean self = contract.issuer().equals(courier.getUUID());
+        if (self && !CouriersServerConfig.ALLOW_SELF_ACCEPT.get()) {
             return Outcome.error("own_contract");
         }
         if (!Licenses.isLicensedCourier(courier)) {
@@ -289,12 +290,19 @@ public final class ContractManager extends SavedData {
         Escrow.get(server).addCollateral(id, contract.collateral());
         Contract accepted = contract.accepted(courier.getUUID(), now(server));
         put(accepted);
-        notify(server, contract.issuer(), Component.translatable("contract.aerocouriers.notify.accepted",
-                contract.shortId(), courier.getDisplayName()));
+        if (!self) {
+            notify(server, contract.issuer(), Component.translatable("contract.aerocouriers.notify.accepted",
+                    contract.shortId(), courier.getDisplayName()));
+        }
         Component message = Component.translatable("contract.aerocouriers.accepted", contract.shortId(),
                         contract.collateral(), accepted.timing().deadline() / Pricing.TICKS_PER_MINUTE,
                         contract.origin().pos().toShortString())
                 .append("\n").append(riskLine(contract));
+        if (self) {
+            Component warning = Component.translatable("contract.aerocouriers.debug.self_accept");
+            courier.sendSystemMessage(warning);
+            message = message.copy().append("\n").append(warning);
+        }
         return Outcome.ok(accepted, message);
     }
 

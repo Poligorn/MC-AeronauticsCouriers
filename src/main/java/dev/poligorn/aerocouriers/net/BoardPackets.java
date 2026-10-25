@@ -1,5 +1,6 @@
 package dev.poligorn.aerocouriers.net;
 
+import dev.poligorn.aerocouriers.config.CouriersServerConfig;
 import dev.poligorn.aerocouriers.contract.Contract;
 import dev.poligorn.aerocouriers.contract.ContractManager;
 import dev.poligorn.aerocouriers.contract.ContractState;
@@ -88,6 +89,7 @@ public final class BoardPackets {
                 Mailbox.get(server).contents(self).size(),
                 player.hasPermissions(OP),
                 Licenses.isLicensedCourier(player),
+                CouriersServerConfig.ALLOW_SELF_ACCEPT.get(),
                 notice,
                 List.copyOf(open.subList(from, to)),
                 mine,

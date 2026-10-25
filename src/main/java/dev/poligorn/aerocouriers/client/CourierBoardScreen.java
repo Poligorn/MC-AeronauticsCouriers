@@ -152,7 +152,8 @@ public final class CourierBoardScreen extends Screen {
                     })
                     .bounds(left + PANEL_W - 148, y, 68, 20)
                     .build());
-            if (boardTab && entry.state() == ContractState.OPEN && !"issuer".equals(entry.role())) {
+            if (boardTab && entry.state() == ContractState.OPEN
+                    && (!"issuer".equals(entry.role()) || snapshot.allowSelfAccept())) {
                 boolean confirm = entry.id().equals(pendingAccept);
                 Button accept = Button.builder(
                                 Component.translatable(confirm ? "ui.aerocouriers.accept.confirm" : "ui.aerocouriers.accept",

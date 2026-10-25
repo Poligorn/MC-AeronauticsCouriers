@@ -62,6 +62,7 @@
   "contract.aerocouriers.error.unknown": "Заказ не найден",
   "contract.aerocouriers.error.not_open": "Заказ уже недоступен",
   "contract.aerocouriers.error.own_contract": "Свой заказ принять нельзя",
+  "contract.aerocouriers.debug.self_accept": "Включён отладочный режим: вы приняли собственный заказ. Только для тестов (debug.allow_self_accept).",
   "contract.aerocouriers.error.no_license": "Наденьте свою лицензию пилота в слот «Лицензия»",
   "contract.aerocouriers.error.rank_too_low": "Нужен ранг %s",
   "contract.aerocouriers.error.too_many_active": "Ваш ранг позволяет не больше %s активных перевозок",

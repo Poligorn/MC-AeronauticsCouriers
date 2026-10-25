@@ -62,6 +62,7 @@
   "contract.aerocouriers.error.unknown": "Contract not found",
   "contract.aerocouriers.error.not_open": "The contract is no longer available",
   "contract.aerocouriers.error.own_contract": "You cannot accept your own contract",
+  "contract.aerocouriers.debug.self_accept": "Debug mode is on: you accepted your own contract. This is only for testing (debug.allow_self_accept).",
   "contract.aerocouriers.error.no_license": "Wear your own pilot license in the License slot",
   "contract.aerocouriers.error.rank_too_low": "Rank %s required",
   "contract.aerocouriers.error.too_many_active": "Your rank allows at most %s active deliveries",
