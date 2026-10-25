@@ -40,7 +40,7 @@ public final class BoardPackets {
     }
 
     public static void open(ServerPlayer player, int page, boolean openScreen, Optional<Component> notice) {
-        if (player.connection == null || !player.connection.hasChannel(BoardSnapshotPayload.TYPE)) {
+        if (!canSendBoard(player)) {
             notice.ifPresent(player::sendSystemMessage);
             player.sendSystemMessage(Component.translatable("ui.aerocouriers.error.no_client"));
             return;
@@ -143,6 +143,15 @@ public final class BoardPackets {
         };
         reply(player, outcome.message());
         return outcome;
+    }
+
+    /** FakePlayers used by GameTests have a Connection whose Netty channel is null. */
+    private static boolean canSendBoard(ServerPlayer player) {
+        try {
+            return player.connection != null && player.connection.hasChannel(BoardSnapshotPayload.TYPE);
+        } catch (RuntimeException ignored) {
+            return false;
+        }
     }
 
     private static void reply(ServerPlayer player, Component message) {
