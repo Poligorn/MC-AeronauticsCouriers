@@ -34,7 +34,8 @@ import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 
 /**
- * {@code /couriers ...}. Everything except {@code profile} (self) is an operator/debug tool until the UI exists.
+ * {@code /couriers ...}. Player commands: {@code profile}, {@code contract}, {@code mail}, {@code balance}; the
+ * rest are operator/debug tools until the UI exists.
  */
 public final class CouriersCommands {
     private static final int OP = Commands.LEVEL_GAMEMASTERS;
@@ -86,6 +87,11 @@ public final class CouriersCommands {
         root.then(Commands.literal("cargo")
                 .requires(src -> src.hasPermission(OP))
                 .then(Commands.literal("list").executes(ctx -> listCargo(ctx.getSource()))));
+
+        root.then(ContractCommands.contract());
+        root.then(ContractCommands.mail());
+        root.then(ContractCommands.balance());
+        root.then(ContractCommands.money());
 
         dispatcher.register(root);
     }

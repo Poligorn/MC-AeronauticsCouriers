@@ -9,8 +9,12 @@ import java.util.UUID;
 public interface Economy {
     long balance(UUID player);
 
-    /** Atomically takes {@code spurs}; returns false and changes nothing if the balance is insufficient. */
-    boolean withdraw(UUID player, long spurs);
+    /**
+     * Atomically takes {@code spurs}; returns false and changes nothing if the balance is insufficient.
+     *
+     * @param reason short machine-readable cause for {@code transactions.log}, e.g. {@code collateral:<contract>}
+     */
+    boolean withdraw(UUID player, long spurs, String reason);
 
-    void deposit(UUID player, long spurs);
+    void deposit(UUID player, long spurs, String reason);
 }

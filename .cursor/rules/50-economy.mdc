@@ -11,6 +11,11 @@ alwaysApply: false
 - Numismatics опционален (мнение команды): мост `NumismaticsEconomy` грузится только при `ModList.isLoaded("numismatics")`. Без него — `InternalEconomy` (внутренний баланс) + обмен изумрудов, `emerald_value_spurs = 8`.
 - ⚠️ API Numismatics из GDD (`Numismatics.BANK.getAccount(UUID)`, `.deduct(int, boolean)`, `.deposit(int)`, `getOrCreateAccount(UUID, BankAccount.Type.PLAYER)`) **не сверен** с артефактом версии пака (1.1.0) — сверить перед реализацией моста.
 
+## Реализация
+- Получать экономику только через `Economies.get(server)` — она оборачивает бэкенд журналом `<мир>/aerocouriers/transactions.log`. `withdraw/deposit` принимают причину вида `reward:<contractId>`, `collateral:<id>`, `admin`.
+- Сейчас бэкенд один — `InternalEconomy` (SavedData `aerocouriers_balances`). Обмен изумрудов ещё не сделан.
+- Деньги по контрактам идут напрямую на счёт, почта (`Mailbox`) — только для предметов.
+
 ## Формулы (NPC/деревенские заказы, §6.3)
 - Награда: `16 + (D/60) × (1 + W/400)` сп × случайно 0.8–1.2.
 - Залог = оценочная стоимость груза (§8.3: `item_values.json` → цена Marketplace ⚠️ → по редкости).
