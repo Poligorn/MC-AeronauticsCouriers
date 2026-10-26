@@ -18,6 +18,8 @@ import xaero.hud.minimap.waypoint.WaypointColor;
 import xaero.hud.minimap.waypoint.WaypointPurpose;
 import xaero.hud.minimap.waypoint.thirdparty.ThirdPartyWaypointManager;
 import xaero.hud.minimap.waypoint.thirdparty.ThirdPartyWaypoints;
+import xaero.hud.minimap.world.container.MinimapWorldContainer;
+import xaero.hud.minimap.world.container.MinimapWorldRootContainer;
 import xaero.map.WorldMapSession;
 import xaero.map.gui.GuiMap;
 
@@ -28,6 +30,7 @@ final class XaeroOrderWaypoints {
     static final ResourceLocation ORIGIN = AeronauticsCouriers.id("orders");
 
     private static final Set<String> PERSISTENT_IDS = new HashSet<>();
+    private static @Nullable UUID previewOrderId;
     private static @Nullable MinimapSession cachedSession;
     private static @Nullable ThirdPartyWaypointManager cachedManager;
 
@@ -47,72 +50,73 @@ final class XaeroOrderWaypoints {
     }
 
     static void showPeek(UUID orderId, ResourceKey<Level> dimension, BlockPos pos, String label) {
-        if (!minimapLoaded()) {
-            return;
-        }
-        try {
-            ThirdPartyWaypoints bucket = bucket();
-            if (bucket == null) {
-                return;
-            }
-            String id = waypointId(orderId);
-            if (PERSISTENT_IDS.contains(id)) {
-                return;
-            }
-            bucket.remove(id);
-            bucket.add(id, new Waypoint(
-                    pos.getX(), pos.getY(), pos.getZ(),
-                    label, "✉",
-                    WaypointColor.GOLD, WaypointPurpose.NORMAL, true));
-        } catch (Throwable ignored) {
-            // Xaero API is not stable across versions
-        }
+        place(orderId, dimension, pos, label, XaeroWaypointSymbols.Kind.DELIVERY, false);
     }
 
     static void hidePeek(UUID orderId) {
-        if (!minimapLoaded()) {
+        if (previewOrderId != null && previewOrderId.equals(orderId)) {
             return;
         }
-        try {
-            String id = waypointId(orderId);
-            if (PERSISTENT_IDS.contains(id)) {
-                return;
-            }
-            ThirdPartyWaypoints bucket = bucket();
-            if (bucket != null) {
-                bucket.remove(id);
-            }
-        } catch (Throwable ignored) {
+        remove(orderId, null);
+    }
+
+    /** Map-pin click: one preview waypoint per player (replaces any previous preview). */
+    static void setPreview(UUID orderId, ResourceKey<Level> dimension, BlockPos pos, String label) {
+        if (previewOrderId != null && !previewOrderId.equals(orderId)) {
+            remove(previewOrderId, null);
+        }
+        previewOrderId = orderId;
+        place(orderId, dimension, pos, label, XaeroWaypointSymbols.Kind.DELIVERY, false);
+    }
+
+    static void clearPreview() {
+        if (previewOrderId != null) {
+            remove(previewOrderId, null);
+            previewOrderId = null;
         }
     }
 
     static void markPersistent(UUID orderId, ResourceKey<Level> dimension, BlockPos pos, String label) {
-        if (!minimapLoaded()) {
-            return;
+        String id = waypointId(orderId);
+        PERSISTENT_IDS.add(id);
+        if (previewOrderId != null && previewOrderId.equals(orderId)) {
+            previewOrderId = null;
         }
-        try {
-            String id = waypointId(orderId);
-            PERSISTENT_IDS.add(id);
-            ThirdPartyWaypoints bucket = bucket();
-            if (bucket == null) {
-                return;
-            }
-            bucket.remove(id);
-            bucket.add(id, new Waypoint(
-                    pos.getX(), pos.getY(), pos.getZ(),
-                    label, "✉",
-                    WaypointColor.GOLD, WaypointPurpose.NORMAL, true));
-        } catch (Throwable ignored) {
-        }
+        place(orderId, dimension, pos, label, XaeroWaypointSymbols.Kind.DELIVERY, true);
     }
 
     static void clearPersistent(UUID orderId) {
         PERSISTENT_IDS.remove(waypointId(orderId));
-        hidePeek(orderId);
+        if (previewOrderId != null && previewOrderId.equals(orderId)) {
+            previewOrderId = null;
+        }
+        remove(orderId, null);
+    }
+
+    /** Drop preview when the order is finished or no longer on the board snapshot. */
+    static void prunePreview(Set<UUID> stillRelevant) {
+        if (previewOrderId == null) {
+            return;
+        }
+        if (!stillRelevant.contains(previewOrderId)) {
+            clearPreview();
+        }
+    }
+
+    static void syncPersistent(Set<UUID> activeDeliveryOrders) {
+        Set<String> stale = new HashSet<>(PERSISTENT_IDS);
+        for (UUID id : activeDeliveryOrders) {
+            stale.remove(waypointId(id));
+        }
+        for (String sid : stale) {
+            PERSISTENT_IDS.remove(sid);
+            removeByStringId(sid, null);
+        }
     }
 
     static void clearAll() {
         PERSISTENT_IDS.clear();
+        previewOrderId = null;
         if (!minimapLoaded()) {
             return;
         }
@@ -129,11 +133,6 @@ final class XaeroOrderWaypoints {
         }
     }
 
-    /**
-     * Opens the world map and tries to center the camera on block coordinates via package-private fields.
-     *
-     * @return {@code true} if the map opened and camera centering was applied
-     */
     static boolean openWorldMapAt(BlockPos pos) {
         if (!worldMapLoaded()) {
             return false;
@@ -156,6 +155,58 @@ final class XaeroOrderWaypoints {
         }
     }
 
+    private static void place(
+            UUID orderId,
+            ResourceKey<Level> dimension,
+            BlockPos pos,
+            String label,
+            XaeroWaypointSymbols.Kind symbolKind,
+            boolean persistent
+    ) {
+        if (!minimapLoaded()) {
+            return;
+        }
+        String id = waypointId(orderId);
+        if (!persistent && PERSISTENT_IDS.contains(id)) {
+            return;
+        }
+        try {
+            ThirdPartyWaypoints bucket = bucket(dimension);
+            if (bucket == null) {
+                XaeroLegacyWaypoints.placeFallback(orderId, dimension, pos, label, symbolKind, persistent);
+                return;
+            }
+            bucket.remove(id);
+            String symbol = XaeroWaypointSymbols.resolve(label, symbolKind);
+            bucket.add(id, new Waypoint(
+                    pos.getX(), pos.getY(), pos.getZ(),
+                    label, symbol,
+                    WaypointColor.GOLD, WaypointPurpose.NORMAL, true));
+        } catch (Throwable ignored) {
+            XaeroLegacyWaypoints.placeFallback(orderId, dimension, pos, label, symbolKind, persistent);
+        }
+    }
+
+    private static void remove(UUID orderId, @Nullable ResourceKey<Level> dimension) {
+        removeByStringId(waypointId(orderId), dimension);
+    }
+
+    private static void removeByStringId(String id, @Nullable ResourceKey<Level> dimension) {
+        if (!minimapLoaded()) {
+            return;
+        }
+        if (PERSISTENT_IDS.contains(id)) {
+            return;
+        }
+        try {
+            ThirdPartyWaypoints bucket = dimension == null ? bucketAny() : bucket(dimension);
+            if (bucket != null) {
+                bucket.remove(id);
+            }
+        } catch (Throwable ignored) {
+        }
+    }
+
     private static boolean centerGuiMap(GuiMap map, double blockX, double blockZ) {
         try {
             Field cameraX = GuiMap.class.getDeclaredField("cameraX");
@@ -173,11 +224,38 @@ final class XaeroOrderWaypoints {
         }
     }
 
-    private static @Nullable ThirdPartyWaypoints bucket() {
+    private static @Nullable ThirdPartyWaypoints bucket(ResourceKey<Level> dimension) {
         MinimapSession session = BuiltInHudModules.MINIMAP.getCurrentSession();
         if (session == null) {
             return null;
         }
+        try {
+            MinimapWorldRootContainer root = session.getWorldManager().getAutoRootContainer();
+            String node = session.getDimensionHelper().getDimensionDirectoryName(dimension);
+            MinimapWorldContainer container = root.addSubContainer(root.getPath().resolve(node));
+            return container.getThirdPartyWaypointManager().get(ORIGIN);
+        } catch (Throwable ignored) {
+            return bucketLegacy(session);
+        }
+    }
+
+    private static @Nullable ThirdPartyWaypoints bucketAny() {
+        MinimapSession session = BuiltInHudModules.MINIMAP.getCurrentSession();
+        if (session == null) {
+            return null;
+        }
+        ThirdPartyWaypoints direct = bucketLegacy(session);
+        if (direct != null) {
+            return direct;
+        }
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft.level != null) {
+            return bucket(minecraft.level.dimension());
+        }
+        return null;
+    }
+
+    private static @Nullable ThirdPartyWaypoints bucketLegacy(MinimapSession session) {
         ThirdPartyWaypointManager manager = manager(session);
         return manager == null ? null : manager.get(ORIGIN);
     }

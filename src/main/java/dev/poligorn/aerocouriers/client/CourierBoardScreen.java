@@ -277,11 +277,9 @@ public final class CourierBoardScreen extends Screen {
             return;
         }
         snapshot.find(orderId).ifPresent(entry -> {
-            if (XaeroOrderBridge.openWorldMapAt(entry.destinationPos())) {
-                return;
-            }
-            XaeroOrderBridge.onHoverDestination(entry.id(), entry.destinationDimension(), entry.destinationPos(),
-                    entry.shortId());
+            XaeroOrderBridge.onPreviewDestination(
+                    entry.id(), entry.destinationDimension(), entry.destinationPos(), entry.shortId());
+            XaeroOrderBridge.openWorldMapAt(entry.destinationPos());
         });
     }
 
