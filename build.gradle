@@ -171,11 +171,25 @@ tasks.register('checkTraineeRules', Exec) {
     commandLine 'python3', layout.projectDirectory.file('tools/check_trainee_rules.py')
 }
 
+tasks.register('checkStationReputation', Exec) {
+    group = 'verification'
+    description = 'Pure-logic checks for GDD §6.4 reputation tiers.'
+    commandLine 'python3', layout.projectDirectory.file('tools/check_station_reputation.py')
+}
+
+tasks.register('checkVillageRareCargo', Exec) {
+    group = 'verification'
+    description = 'Pure-logic checks for village rare cargo table eligibility.'
+    commandLine 'python3', layout.projectDirectory.file('tools/check_village_rare_cargo.py')
+}
+
 tasks.named('build') {
     dependsOn tasks.named('checkScreenRenderGuard')
     dependsOn tasks.named('checkProfileSkinLayout')
     dependsOn tasks.named('checkProfileSkinAngles')
     dependsOn tasks.named('checkTraineeRules')
+    dependsOn tasks.named('checkStationReputation')
+    dependsOn tasks.named('checkVillageRareCargo')
 }
 
 idea {

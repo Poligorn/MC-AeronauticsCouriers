@@ -1,0 +1,9 @@
+{
+  "min_reputation": 50,
+  "weight": 4,
+  "enchanted_book": {
+    "enchantments": ["minecraft:mending", "minecraft:fortune", "minecraft:silk_touch"],
+    "level_min": 1,
+    "level_max": 1
+  }
+}

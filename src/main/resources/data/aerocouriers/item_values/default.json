@@ -14,6 +14,10 @@
     "minecraft:emerald": 8,
     "minecraft:diamond": 64,
     "minecraft:iron_ingot": 8,
-    "minecraft:gold_ingot": 16
+    "minecraft:gold_ingot": 16,
+    "minecraft:enchanted_book": 48,
+    "minecraft:beetroot_seeds": 2,
+    "minecraft:melon_seeds": 3,
+    "minecraft:cherry_sapling": 24
   }
 }

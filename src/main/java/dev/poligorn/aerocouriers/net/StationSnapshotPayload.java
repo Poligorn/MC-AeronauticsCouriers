@@ -15,6 +15,8 @@ public record StationSnapshotPayload(
         String name,
         int reputation,
         int bonusPercent,
+        int reputationTier,
+        int reputationNextThreshold,
         boolean canRename,
         List<BoardSnapshotPayload.BoardEntry> orders
 ) implements CustomPacketPayload {
@@ -22,15 +24,30 @@ public record StationSnapshotPayload(
     public static final int MAX_ORDERS = 32;
 
     public static final StreamCodec<RegistryFriendlyByteBuf, StationSnapshotPayload> STREAM_CODEC =
-            StreamCodec.composite(
-                    BlockPos.STREAM_CODEC, StationSnapshotPayload::stationPos,
-                    ByteBufCodecs.STRING_UTF8, StationSnapshotPayload::name,
-                    ByteBufCodecs.VAR_INT, StationSnapshotPayload::reputation,
-                    ByteBufCodecs.VAR_INT, StationSnapshotPayload::bonusPercent,
-                    ByteBufCodecs.BOOL, StationSnapshotPayload::canRename,
-                    BoardSnapshotPayload.BoardEntry.STREAM_CODEC.apply(ByteBufCodecs.list(MAX_ORDERS)),
-                    StationSnapshotPayload::orders,
-                    StationSnapshotPayload::new);
+            StreamCodec.of(StationSnapshotPayload::write, StationSnapshotPayload::read);
+
+    private static void write(RegistryFriendlyByteBuf buf, StationSnapshotPayload payload) {
+        BlockPos.STREAM_CODEC.encode(buf, payload.stationPos());
+        ByteBufCodecs.STRING_UTF8.encode(buf, payload.name());
+        ByteBufCodecs.VAR_INT.encode(buf, payload.reputation());
+        ByteBufCodecs.VAR_INT.encode(buf, payload.bonusPercent());
+        ByteBufCodecs.VAR_INT.encode(buf, payload.reputationTier());
+        ByteBufCodecs.VAR_INT.encode(buf, payload.reputationNextThreshold());
+        buf.writeBoolean(payload.canRename());
+        BoardSnapshotPayload.BoardEntry.STREAM_CODEC.apply(ByteBufCodecs.list(MAX_ORDERS)).encode(buf, payload.orders());
+    }
+
+    private static StationSnapshotPayload read(RegistryFriendlyByteBuf buf) {
+        return new StationSnapshotPayload(
+                BlockPos.STREAM_CODEC.decode(buf),
+                ByteBufCodecs.STRING_UTF8.decode(buf),
+                ByteBufCodecs.VAR_INT.decode(buf),
+                ByteBufCodecs.VAR_INT.decode(buf),
+                ByteBufCodecs.VAR_INT.decode(buf),
+                ByteBufCodecs.VAR_INT.decode(buf),
+                buf.readBoolean(),
+                BoardSnapshotPayload.BoardEntry.STREAM_CODEC.apply(ByteBufCodecs.list(MAX_ORDERS)).decode(buf));
+    }
 
     public static void handle(StationSnapshotPayload payload,
                               net.neoforged.neoforge.network.handling.IPayloadContext context) {

@@ -117,8 +117,11 @@ public final class PostStationScreen extends Screen {
         int cx = contentLeft();
         int cy = contentTop();
         graphics.drawString(font, title, cx, cy, TabletGui.TEXT, false);
+        Component next = snapshot.reputationNextThreshold() < 0
+                ? Component.translatable("ui.aerocouriers.reputation.max_tier")
+                : Component.translatable("ui.aerocouriers.station.reputation_next", snapshot.reputationNextThreshold());
         Component rep = Component.translatable("ui.aerocouriers.station.reputation",
-                snapshot.reputation(), snapshot.bonusPercent());
+                snapshot.reputation(), snapshot.reputationTier(), snapshot.bonusPercent(), next);
         graphics.drawString(font, rep, cx, cy + (snapshot.canRename() ? 42 : 20), TabletGui.TEXT_MUTED, false);
 
         renderOrderList(graphics, mouseX, mouseY);
@@ -160,7 +163,7 @@ public final class PostStationScreen extends Screen {
             TabletGui.drawRow(graphics, frameLeft, rowY, frameW, rowH, hover);
             BoardRowRenderer.renderLine1(graphics, font, entry, textLeft, BoardRowMetrics.line1Y(rowY), textW,
                     mouseX, mouseY, true, (tip, ignored) -> hoverTip = tip);
-            BoardRowRenderer.renderLine2(graphics, font, entry, textLeft, BoardRowMetrics.line2Y(rowY));
+            BoardRowRenderer.renderLine2(graphics, font, entry, textLeft, BoardRowMetrics.line2Y(rowY), textW);
         }
     }
 
@@ -256,6 +259,19 @@ public final class PostStationScreen extends Screen {
             return;
         }
         BoardSnapshotPayload.BoardEntry entry = snapshot.orders().get(index);
+        int sx = contentLeft() + 2;
+        int sw = contentW() - 4;
+        int listY = listTopY();
+        int rowY = listY + (index - scroll) * rowH();
+        int textLeft = sx + BoardRowMetrics.ROW_FRAME_SIDE + BoardRowMetrics.ROW_INSET_LEFT;
+        BoardRowLayout layout = BoardRowLayout.forRow(sx, sw, false);
+        int textW = Math.max(8, layout.textRight() - textLeft);
+        Component rare = BoardRowRenderer.hitRareCargoHover(
+                entry, textLeft, BoardRowMetrics.line2Y(rowY), textW, mouseX, mouseY);
+        if (rare != null) {
+            hoverTip = rare;
+            return;
+        }
         hoverTipLines = List.of(
                 Component.translatable("ui.aerocouriers.row.summary.reward", entry.reward()),
                 Component.translatable("ui.aerocouriers.row.summary.collateral", entry.collateral()),

@@ -551,6 +551,11 @@ def gen_board_row_icons() -> None:
         d.polygon([(2, 9), (5, 5), (8, 9)], fill=TB_ORANGE_ICON_DK, outline=TB_OUTLINE)
         d.polygon([(8, 7), (11, 3), (14, 7)], fill=TB_ORANGE_ICON, outline=TB_OUTLINE)
 
+    def rare_gem(d: ImageDraw.ImageDraw, img: Image.Image) -> None:
+        d.polygon([(8, 2), (12, 6), (8, 14), (4, 6)], fill=TB_ORANGE_ICON, outline=TB_OUTLINE)
+        d.line([(8, 2), (8, 14)], fill=TB_ORANGE_ICON_DK)
+        d.line([(4, 6), (12, 6)], fill=TB_SH)
+
     save_sprite("icon/map_pin_tablet", _tablet_icon(map_pin), None)
     save_sprite("icon/crate_tablet", _tablet_icon(crate), None)
     save_sprite("icon/coin_tablet", _tablet_icon(coin), None)
@@ -558,6 +563,7 @@ def gen_board_row_icons() -> None:
     save_sprite("icon/clock_tablet", _tablet_icon(clock), None)
     save_sprite("icon/star_badge_tablet", _tablet_icon(star), None)
     save_sprite("icon/village_tablet", _tablet_icon(village), None)
+    save_sprite("icon/rare_cargo_tablet", _tablet_icon(rare_gem), None)
 
 
 def gen_bell_icons() -> None:

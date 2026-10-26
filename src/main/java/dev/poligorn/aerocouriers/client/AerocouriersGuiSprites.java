@@ -36,6 +36,7 @@ public final class AerocouriersGuiSprites {
     public static final ResourceLocation ICON_CLOCK = id("icon/clock_tablet");
     public static final ResourceLocation ICON_STAR = id("icon/star_badge_tablet");
     public static final ResourceLocation ICON_VILLAGE = id("icon/village_tablet");
+    public static final ResourceLocation ICON_RARE_CARGO = id("icon/rare_cargo_tablet");
 
     private static final WidgetSprites VANILLA_BUTTON = new WidgetSprites(
             vanilla("button"),

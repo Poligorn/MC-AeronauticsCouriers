@@ -23,14 +23,15 @@ import net.minecraft.world.level.saveddata.SavedData;
 public final class Escrow extends SavedData {
     private static final String NAME = "aerocouriers_escrow";
 
-    public record Holding(List<ItemStack> items, long reward, long collateral) {
+    public record Holding(List<ItemStack> items, long reward, long collateral, boolean villageRare) {
         static final Codec<Holding> CODEC = RecordCodecBuilder.create(instance -> instance.group(
                 ItemStack.CODEC.listOf().optionalFieldOf("items", List.of()).forGetter(Holding::items),
                 Codec.LONG.optionalFieldOf("reward", 0L).forGetter(Holding::reward),
-                Codec.LONG.optionalFieldOf("collateral", 0L).forGetter(Holding::collateral)
+                Codec.LONG.optionalFieldOf("collateral", 0L).forGetter(Holding::collateral),
+                Codec.BOOL.optionalFieldOf("village_rare", false).forGetter(Holding::villageRare)
         ).apply(instance, Holding::new));
 
-        static final Holding EMPTY = new Holding(List.of(), 0, 0);
+        static final Holding EMPTY = new Holding(List.of(), 0, 0, false);
 
         public boolean isEmpty() {
             return items.isEmpty() && reward == 0 && collateral == 0;
@@ -60,33 +61,37 @@ public final class Escrow extends SavedData {
     }
 
     void open(UUID contractId, List<ItemStack> items, long reward) {
+        open(contractId, items, reward, false);
+    }
+
+    void open(UUID contractId, List<ItemStack> items, long reward, boolean villageRare) {
         if (holdings.containsKey(contractId)) {
             throw new IllegalStateException("Escrow already open for " + contractId);
         }
-        holdings.put(contractId, new Holding(copy(items), reward, 0));
+        holdings.put(contractId, new Holding(copy(items), reward, 0, villageRare));
         setDirty();
     }
 
     void addCollateral(UUID contractId, long collateral) {
         Holding h = holding(contractId);
-        put(contractId, new Holding(h.items(), h.reward(), h.collateral() + collateral));
+        put(contractId, new Holding(h.items(), h.reward(), h.collateral() + collateral, h.villageRare()));
     }
 
     long takeReward(UUID contractId) {
         Holding h = holding(contractId);
-        put(contractId, new Holding(h.items(), 0, h.collateral()));
+        put(contractId, new Holding(h.items(), 0, h.collateral(), h.villageRare()));
         return h.reward();
     }
 
     long takeCollateral(UUID contractId) {
         Holding h = holding(contractId);
-        put(contractId, new Holding(h.items(), h.reward(), 0));
+        put(contractId, new Holding(h.items(), h.reward(), 0, h.villageRare()));
         return h.collateral();
     }
 
     List<ItemStack> takeItems(UUID contractId) {
         Holding h = holding(contractId);
-        put(contractId, new Holding(List.of(), h.reward(), h.collateral()));
+        put(contractId, new Holding(List.of(), h.reward(), h.collateral(), h.villageRare()));
         return copy(h.items());
     }
 

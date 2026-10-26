@@ -2,7 +2,6 @@ package dev.poligorn.aerocouriers.client.board;
 
 import dev.poligorn.aerocouriers.client.AerocouriersGuiSprites;
 import dev.poligorn.aerocouriers.client.TabletGui;
-import dev.poligorn.aerocouriers.village.StationReputation;
 import dev.poligorn.aerocouriers.net.BoardSnapshotPayload;
 import java.util.Optional;
 import java.util.function.BiConsumer;
@@ -115,9 +114,13 @@ public final class BoardRowRenderer {
     ) {
         if (mouseOver(mouseX, mouseY, faceX, y, BoardRowMetrics.CUSTOMER_FACE + BoardRowMetrics.FACE_NAME_GAP + nameW)) {
             if (entry.villageCustomer()) {
-                int bonus = StationReputation.bonusPercent(entry.customerStationReputation());
+                Component next = entry.customerReputationNext() < 0
+                        ? Component.translatable("ui.aerocouriers.reputation.max_tier")
+                        : Component.translatable("ui.aerocouriers.row.reputation_next_inline",
+                                entry.customerReputationNext());
                 return Component.translatable("ui.aerocouriers.row.customer_tooltip_village",
-                        entry.customerName(), entry.customerStationReputation(), bonus);
+                        entry.customerName(), entry.customerStationReputation(), entry.customerReputationTier(),
+                        entry.customerReputationBonusPercent(), next);
             }
             return Component.translatable("ui.aerocouriers.row.customer_tooltip", entry.customerName());
         }
@@ -127,7 +130,8 @@ public final class BoardRowRenderer {
         return null;
     }
 
-    public static void renderLine2(GuiGraphics graphics, Font font, BoardSnapshotPayload.BoardEntry entry, int x, int y) {
+    public static void renderLine2(GuiGraphics graphics, Font font, BoardSnapshotPayload.BoardEntry entry, int x, int y,
+                                   int width) {
         int statX = x;
         statX = drawStat(graphics, font, AerocouriersGuiSprites.ICON_COIN, Long.toString(entry.reward()), statX, y);
         statX = drawStat(graphics, font, AerocouriersGuiSprites.ICON_LOCK, Long.toString(entry.collateral()), statX, y);
@@ -137,6 +141,24 @@ public final class BoardRowRenderer {
             graphics.blitSprite(AerocouriersGuiSprites.ICON_STAR, statX + 2, y, BoardRowMetrics.LINE2_ICON,
                     BoardRowMetrics.LINE2_ICON);
         }
+        if (entry.villageRare()) {
+            int icon = BoardRowMetrics.LINE2_ICON;
+            int rareX = x + Math.max(statX - x, width - icon);
+            graphics.blitSprite(AerocouriersGuiSprites.ICON_RARE_CARGO, rareX, y, icon, icon);
+        }
+    }
+
+    public static @Nullable Component hitRareCargoHover(BoardSnapshotPayload.BoardEntry entry, int x, int y, int width,
+                                                        int mouseX, int mouseY) {
+        if (!entry.villageRare()) {
+            return null;
+        }
+        int icon = BoardRowMetrics.LINE2_ICON;
+        int rareX = x + Math.max(0, width - icon);
+        if (mouseOver(mouseX, mouseY, rareX, y, icon)) {
+            return Component.translatable("ui.aerocouriers.row.rare_cargo");
+        }
+        return null;
     }
 
     private static int drawStat(GuiGraphics graphics, Font font, ResourceLocation icon, String value, int x, int y) {

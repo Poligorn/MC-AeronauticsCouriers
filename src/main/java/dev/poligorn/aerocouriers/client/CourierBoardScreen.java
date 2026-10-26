@@ -771,7 +771,7 @@ public final class CourierBoardScreen extends Screen {
                                 int mouseX, int mouseY) {
         BoardRowRenderer.renderLine1(
                 graphics, font, entry, x, BoardRowMetrics.line1Y(rowTop), width, mouseX, mouseY, false, null);
-        BoardRowRenderer.renderLine2(graphics, font, entry, x, BoardRowMetrics.line2Y(rowTop));
+        BoardRowRenderer.renderLine2(graphics, font, entry, x, BoardRowMetrics.line2Y(rowTop), width);
     }
 
     private void captureRowHoverTips(int mouseX, int mouseY) {
@@ -850,6 +850,12 @@ public final class CourierBoardScreen extends Screen {
                     (tip, ignored) -> hoverTip = tip);
             if (line1.tooltip() != null) {
                 hoverTip = line1.tooltip();
+                return;
+            }
+            Component rare = BoardRowRenderer.hitRareCargoHover(
+                    entry, textLeft, BoardRowMetrics.line2Y(rowY), textW, mouseX, mouseY);
+            if (rare != null) {
+                hoverTip = rare;
             }
             return;
         }

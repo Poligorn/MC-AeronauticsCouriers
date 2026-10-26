@@ -33,6 +33,9 @@ public final class CouriersServerConfig {
     public static final ModConfigSpec.IntValue STATION_REGISTER_RADIUS;
     public static final ModConfigSpec.IntValue STATION_VILLAGE_DEDUP_RADIUS;
     public static final ModConfigSpec.BooleanValue STATIONS_IN_VILLAGES;
+    public static final ModConfigSpec.ConfigValue<List<? extends Integer>> REPUTATION_TIER_THRESHOLDS;
+    public static final ModConfigSpec.ConfigValue<List<? extends Integer>> REPUTATION_TIER_BONUS_PERCENT;
+    public static final ModConfigSpec.DoubleValue VILLAGE_RARE_ROLL_CHANCE;
 
     public static final ModConfigSpec.ConfigValue<List<? extends Integer>> RANK_XP;
     public static final ModConfigSpec.DoubleValue ACE_MIN_SUCCESS;
@@ -123,6 +126,14 @@ public final class CouriersServerConfig {
                 .defineInRange("village_dedup_radius", 96, 16, 256);
         STATIONS_IN_VILLAGES = b.comment("Add post stations to village structures (takes effect for newly generated villages)")
                 .define("generate_in_villages", true);
+        REPUTATION_TIER_THRESHOLDS = b.comment("Reputation at each tier (GDD §6.4); pairs with reputation_tier_bonus_percent")
+                .defineList("reputation_tier_thresholds", List.of(10, 25, 50), () -> 0,
+                        o -> o instanceof Integer i && i > 0);
+        REPUTATION_TIER_BONUS_PERCENT = b.comment("NPC reward bonus percent at each tier (same order as thresholds)")
+                .defineList("reputation_tier_bonus_percent", List.of(10, 20, 30), () -> 0,
+                        o -> o instanceof Integer i && i >= 0);
+        VILLAGE_RARE_ROLL_CHANCE = b.comment("Chance to replace one manifest stack with rare cargo when origin reputation meets a rare table row (0 = off)")
+                .defineInRange("village_rare_roll_chance", 0.35, 0.0, 1.0);
         b.pop();
 
         b.push("migration");

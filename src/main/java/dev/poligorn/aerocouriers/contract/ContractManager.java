@@ -401,7 +401,8 @@ public final class ContractManager extends SavedData {
      */
     public Optional<Contract> publishVillage(ServerLevel level, StationAtlas.Station from, StationAtlas.Station to,
                                             BlockPos cratePos, List<ItemStack> manifest, CargoSize size,
-                                            double weight, long reward, long collateral, int deadlineMinutes) {
+                                            double weight, long reward, long collateral, int deadlineMinutes,
+                                            boolean villageRare) {
         MinecraftServer server = level.getServer();
         long now = now(server);
         Destination origin = new Destination(from.dimension(), from.pos().immutable(), StationContractSource.ZONE_RADIUS);
@@ -419,11 +420,11 @@ public final class ContractManager extends SavedData {
                 new Contract.Timing(now, now + deadlineMinutes * Pricing.TICKS_PER_MINUTE,
                         deadlineMinutes * Pricing.TICKS_PER_MINUTE, -1, 0),
                 ContractState.OPEN, true, Optional.empty());
-        Escrow.get(server).open(id, manifest, reward);
+        Escrow.get(server).open(id, manifest, reward, villageRare);
         put(contract);
         AeronauticsCouriers.LOGGER.info(
-                "[contract] {} NPC «{}» → «{}»: {} stacks, W={}, D={}, reward={}, collateral={}",
-                id, from.name(), to.name(), manifest.size(), weight, (long) distance, reward, collateral);
+                "[contract] {} NPC «{}» → «{}»: {} stacks, W={}, D={}, reward={}, collateral={}, rare={}",
+                id, from.name(), to.name(), manifest.size(), weight, (long) distance, reward, collateral, villageRare);
         return Optional.of(contract);
     }
 

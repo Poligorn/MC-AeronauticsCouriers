@@ -1,0 +1,5 @@
+{
+  "min_reputation": 10,
+  "weight": 12,
+  "item": {"id": "minecraft:beetroot_seeds", "min": 2, "max": 8}
+}

@@ -337,6 +337,9 @@ public final class BoardPackets {
                         .map(GameProfile::getName)
                         .orElse(contract.issuer().toString().substring(0, 8));
         int customerStationReputation = villageCustomer ? atlas.reputation(contract.issuer()) : 0;
+        int customerTier = villageCustomer ? StationReputation.tier(customerStationReputation) : 0;
+        int customerNext = villageCustomer ? StationReputation.nextThreshold(customerStationReputation) : -1;
+        int customerBonus = villageCustomer ? StationReputation.bonusPercent(customerStationReputation) : 0;
         return new BoardSnapshotPayload.BoardEntry(
                 contract.id(),
                 contract.shortId(),
@@ -361,7 +364,11 @@ public final class BoardPackets {
                 contract.destination().dimension(),
                 contract.destination().pos(),
                 cargoItems,
-                customerStationReputation);
+                customerStationReputation,
+                escrow.holding(contract.id()).villageRare(),
+                customerTier,
+                customerNext,
+                customerBonus);
     }
 
     private static String label(StationAtlas atlas, Destination dest) {

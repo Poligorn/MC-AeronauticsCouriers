@@ -1,28 +1,27 @@
 # Итерация 5 — аудит (финал 26.10.2026)
 
-База: `cursor/waybill-crafting-flow-9b25` → ветка `cursor/iteration5-trainee-stations-45ff` (PR #16).
+База: `cursor/iteration5-trainee-stations-45ff` (PR #16) + редкий груз (`cursor/rare-cargo-iteration5-f22f`).
 
 ## Статус по GDD §6 и UI итерации 5
 
 | Пункт | Статус | Где |
 |-------|--------|-----|
 | §6.0–6.3 Станции, атлас, генерация, деньги NPC | **Готово** | `PostStationBlock`, `StationContractSource`, `VillageCargo` |
-| §6.4 Репутация (+1/−3, 10/25/50, +10/+20/+30%) | **Готово** | `StationReputation`, `StationAtlas`, `ContractManager` |
-| §6.4 Редкий груз | **Не сделано** | — |
+| §6.4 Репутация (+1/−3, пороги, бонус награды) | **Готово** | `StationReputation`, `CouriersServerConfig`, `ContractManager` |
+| §6.4 Редкий груз | **Готово** | `VillageCargo` (`village_cargo/rare/`), `Escrow.villageRare`, `BoardRowRenderer` |
 | §6.5 Стажировка | **Готово** | `TraineeRules`, `ContractManager`, подсказка на доске |
 | §8.3 `item_values.json` (залог NPC) | **Готово** | `ItemValues`, `data/aerocouriers/item_values/default.json` |
-| Окно станции (не только доска) | **Готово** | `PostStationScreen`, `StationPackets` |
+| Окно станции | **Готово** | `PostStationScreen`, `StationPackets` |
 | Уведомления (колокол, лог, звук) | **Готово** | `NotificationLog`, `CouriersNotifications` |
-| Доска: без «Подробнее», confirm accept | **Готово** | `CourierBoardScreen`, `BoardAcceptConfirmScreen` |
-| Фон планшета `#0A0200` + сетка `#241006` | **Готово** | `TabletGui` |
+| Доска: confirm accept, без «Подробнее» | **Готово** | `CourierBoardScreen`, `BoardAcceptConfirmScreen` |
+| Планшет: фон, рамка, вкладки Текущие/История | **Готово** | `TabletGui`, `CourierBoardScreen` |
 
 ## Остаётся
 
-1. Редкий груз при высокой репутации (§6.4).
-2. Клиентская проверка итерации 5 (живой игрок, биомы, Ikaria).
-3. Вкладка «Атлас» на планшете (список станций в UI).
+1. Клиентская проверка итерации 5 (живой игрок, биомы, Ikaria).
+2. Вкладка «Атлас» на планшете (список станций в UI).
 
 ## Jar / артефакты
 
-- `aerocouriers-0.1.0-alpha.jar` в `/opt/cursor/artifacts/`
+- `build/libs/aerocouriers-0.1.0-alpha.jar`
 - Превью: доска, confirm, фон, окно станции, уведомления

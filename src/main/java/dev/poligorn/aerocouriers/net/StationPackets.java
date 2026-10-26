@@ -31,6 +31,8 @@ public final class StationPackets {
         StationAtlas atlas = StationAtlas.get(player.server);
         int reputation = atlas.reputation(stationId);
         int bonus = StationReputation.bonusPercent(reputation);
+        int tier = StationReputation.tier(reputation);
+        int nextThreshold = StationReputation.nextThreshold(reputation);
         List<BoardSnapshotPayload.BoardEntry> orders = ContractManager.get(player.server).open()
                 .filter(c -> c.type() == ContractType.VILLAGE)
                 .filter(c -> c.issuer().equals(stationId) || c.recipient().equals(stationId))
@@ -43,6 +45,8 @@ public final class StationPackets {
                 station.name(),
                 reputation,
                 bonus,
+                tier,
+                nextThreshold,
                 player.hasPermissions(OP),
                 orders));
     }

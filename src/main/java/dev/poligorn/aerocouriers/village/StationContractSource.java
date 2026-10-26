@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Optional;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
@@ -143,8 +144,16 @@ public final class StationContractSource implements ContractSource {
      */
     public static Optional<Contract> publish(ServerLevel level, StationAtlas.Station from, StationAtlas.Station to,
                                             RandomSource random) {
-        List<ItemStack> manifest = VillageCargo.rollManifest(biomeId(level, from.pos()), biomeId(level, to.pos()),
+        StationAtlas atlas = StationAtlas.get(level.getServer());
+        int originReputation = atlas.reputation(from.id());
+        VillageCargo.ManifestRoll rolled = VillageCargo.rollManifest(
+                biomeId(level, from.pos()),
+                biomeId(level, to.pos()),
+                originReputation,
+                level.registryAccess().lookupOrThrow(Registries.ENCHANTMENT),
                 random);
+        List<ItemStack> manifest = rolled.stacks();
+        boolean villageRare = rolled.rare();
         double weight = Weights.of(manifest);
         Optional<CargoSize> size = CargoSize.smallestFor(manifest.size(), weight);
         if (size.isEmpty()) {
@@ -160,7 +169,7 @@ public final class StationContractSource implements ContractSource {
         long reward = Pricing.npcReward(distance, weight, random);
         long collateral = Pricing.npcCollateral(manifest, weight);
         return ContractManager.get(level.getServer()).publishVillage(level, from, to, spot.get(), manifest, size.get(),
-                weight, reward, collateral, DEFAULT_DEADLINE_MINUTES);
+                weight, reward, collateral, DEFAULT_DEADLINE_MINUTES, villageRare);
     }
 
     public static ResourceLocation biomeId(ServerLevel level, BlockPos pos) {
