@@ -183,8 +183,10 @@ public final class BoardPackets {
         }
         var access = CargoContainers.find(level, origin);
         if (access.isEmpty()) {
-            player.sendSystemMessage(Component.translatable("contract.aerocouriers.error.no_container",
-                    origin.toShortString()));
+            Component message = Component.translatable("contract.aerocouriers.error.no_container",
+                    origin.toShortString());
+            player.sendSystemMessage(message);
+            player.displayClientMessage(message, true);
             return;
         }
         List<ItemStack> cargo = access.get().items();
@@ -209,9 +211,11 @@ public final class BoardPackets {
         if (outcome.success()) {
             CouriersNotifications.notifyOrder(player.server, player.getUUID(), outcome.message(),
                     outcome.contract().map(Contract::id));
-            open(player, 0, true, Optional.of(outcome.message()));
+            open(player, 0, true, Optional.empty());
         } else {
-            player.sendSystemMessage(outcome.message());
+            Component message = outcome.message();
+            player.sendSystemMessage(message);
+            player.displayClientMessage(message, true);
         }
     }
 
@@ -249,7 +253,7 @@ public final class BoardPackets {
 
     private static void reply(ServerPlayer player, Component message) {
         CouriersNotifications.notifyOrder(player.server, player.getUUID(), message, Optional.empty());
-        open(player, 0, false, Optional.of(message));
+        open(player, 0, false, Optional.empty());
     }
 
     private static ContractManager.Outcome giveLicense(ServerPlayer player) {

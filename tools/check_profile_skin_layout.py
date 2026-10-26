@@ -16,7 +16,7 @@ ANTENNA_BASE_H = FRAME_BORDER
 TAB_Y = 2
 TAB_H = 20
 HEADING_GAP = 7
-SCREEN_BOTTOM_PAD = 12
+SCREEN_BOTTOM_PAD = 4
 
 
 def panel_w(width: int) -> int:

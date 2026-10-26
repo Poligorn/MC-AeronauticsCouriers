@@ -54,7 +54,7 @@ public final class CourierBoardScreen extends Screen {
     private static final int TAB_H = 20;
     /** Gap between tab row and per-tab heading (px). */
     private static final int HEADING_GAP = 7;
-    private static final int SCREEN_BOTTOM_PAD = 12;
+    private static final int SCREEN_BOTTOM_PAD = 4;
     private static final int SCROLL_COUNTER_H = 12;
     private static final int BALANCE_MAIL_GAP = 8;
     private static final int MINE_SUB_TOGGLE_H = 18;
@@ -73,7 +73,6 @@ public final class CourierBoardScreen extends Screen {
     private Tab tab = Tab.BOARD;
     private int scroll;
     private @Nullable UUID selected;
-    private @Nullable Component notice;
     private @Nullable Component hoverTip;
     private @Nullable List<Component> hoverTipLines;
     private @Nullable BoardCargoTooltip hoverCargoComponent;
@@ -234,7 +233,6 @@ public final class CourierBoardScreen extends Screen {
     private void applySnapshot(@Nullable BoardSnapshotPayload payload) {
         this.snapshot = payload;
         if (payload != null) {
-            payload.notice().ifPresent(component -> notice = component);
             if (!payload.operator() && tab == Tab.TEST) {
                 tab = Tab.BOARD;
                 refreshBoardContent();
@@ -513,11 +511,6 @@ public final class CourierBoardScreen extends Screen {
         RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
         TabletGui.drawFrameChrome(graphics, left(), top(), panelW(), panelH());
 
-        if (notice != null) {
-            int noticeY = screenTop() + screenH() - 20;
-            TabletGui.drawListPanel(graphics, sx, noticeY - 2, Math.min(screenW(), font.width(notice) + 16), 18);
-            drawWrapped(graphics, notice, sx + 4, noticeY, screenW() - 8, TabletGui.TEXT_WARN);
-        }
         updateRowIconHover(mouseX, mouseY);
         captureRowLine1HoverTips(mouseX, mouseY);
         captureRowHoverTips(mouseX, mouseY);

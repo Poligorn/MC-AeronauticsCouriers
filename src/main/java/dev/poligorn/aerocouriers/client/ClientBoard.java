@@ -73,11 +73,6 @@ public final class ClientBoard {
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.screen instanceof CourierBoardScreen screen) {
             screen.apply(payload);
-        } else if (minecraft.screen instanceof WaybillCreateScreen && !payload.openScreen()) {
-            // stamp confirm replies with a board snapshot notice; close the stamp window
-            if (payload.notice().isPresent()) {
-                minecraft.setScreen(null);
-            }
         } else if (payload.openScreen()) {
             minecraft.setScreen(new CourierBoardScreen(payload));
         }

@@ -35,7 +35,7 @@ public final class CouriersNotifications {
         notifyOrder(server, player, message, contractId, true);
     }
 
-    /** Persist and sync without chat, toast, or sound (e.g. station board footer). */
+    /** Persist and sync without chat, toast, or sound. */
     public static void pushSilent(MinecraftServer server, UUID player, Component message, Optional<UUID> contractId) {
         NotificationLog.get(server).push(server, player, message, contractId);
         ServerPlayer online = server.getPlayerList().getPlayer(player);
