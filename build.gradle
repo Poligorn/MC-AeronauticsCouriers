@@ -183,6 +183,18 @@ tasks.register('checkVillageRareCargo', Exec) {
     commandLine 'python3', layout.projectDirectory.file('tools/check_village_rare_cargo.py')
 }
 
+tasks.register('checkNavMath', Exec) {
+    group = 'verification'
+    description = 'Pure-logic checks for navigation HUD bearing/distance math.'
+    commandLine 'python3', layout.projectDirectory.file('tools/check_nav_math.py')
+}
+
+tasks.register('checkRankLimits', Exec) {
+    group = 'verification'
+    description = 'Pure-logic checks for rank table accept limits.'
+    commandLine 'python3', layout.projectDirectory.file('tools/check_rank_limits.py')
+}
+
 tasks.named('build') {
     dependsOn tasks.named('checkScreenRenderGuard')
     dependsOn tasks.named('checkProfileSkinLayout')
@@ -190,6 +202,8 @@ tasks.named('build') {
     dependsOn tasks.named('checkTraineeRules')
     dependsOn tasks.named('checkStationReputation')
     dependsOn tasks.named('checkVillageRareCargo')
+    dependsOn tasks.named('checkNavMath')
+    dependsOn tasks.named('checkRankLimits')
 }
 
 idea {

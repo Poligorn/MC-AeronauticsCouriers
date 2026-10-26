@@ -82,6 +82,10 @@
   "contract.aerocouriers.error.no_license": "Наденьте свою лицензию пилота в слот «Лицензия»",
   "contract.aerocouriers.error.no_waybill": "Для публикации заказа нужна транспортная накладная в инвентаре",
   "contract.aerocouriers.error.rank_too_low": "Нужен ранг %s",
+  "contract.aerocouriers.error.rank_limit_collateral": "Для вашего ранга максимальный залог — %s сп",
+  "contract.aerocouriers.error.rank_limit_size": "Для вашего ранга максимальный размер контейнера — %s",
+  "contract.aerocouriers.error.rank_limit_distance": "Для вашего ранга максимальная дистанция — %s блоков",
+  "contract.aerocouriers.error.rank_limit_active": "Для вашего ранга не больше %s активных перевозок",
   "contract.aerocouriers.error.too_many_active": "Ваш ранг позволяет не больше %s активных перевозок (уже везёте: %s)",
   "contract.aerocouriers.error.not_your_contract": "Это не ваш заказ",
   "contract.aerocouriers.error.wrong_state": "Сейчас нельзя: заказ %s",
@@ -242,5 +246,8 @@
   "ui.aerocouriers.station.orders.empty": "Сейчас нет открытых заказов.",
   "ui.aerocouriers.station.open_board": "Доска заказов",
   "ui.aerocouriers.station.rename": "Название станции",
-  "ui.aerocouriers.station.rename.action": "Переименовать"
+  "ui.aerocouriers.station.rename.action": "Переименовать",
+  "ui.aerocouriers.nav.order": "Заказ #%s",
+  "ui.aerocouriers.nav.distance": "%s м",
+  "ui.aerocouriers.nav.wrong_dimension": "Другое измерение"
 }

@@ -63,12 +63,12 @@ public final class XaeroOrderBridge {
         }
         Set<UUID> seen = new HashSet<>();
         for (ZoneSyncPayload.Zone zone : zones) {
-            if (!zone.delivery()) {
-                continue;
-            }
             seen.add(zone.orderId());
+            XaeroWaypointSymbols.Kind kind = zone.delivery()
+                    ? XaeroWaypointSymbols.Kind.DELIVERY
+                    : XaeroWaypointSymbols.Kind.PICKUP;
             String label = zone.contract();
-            XaeroOrderWaypoints.markPersistent(zone.orderId(), zone.dimension(), zone.pos(), label);
+            XaeroOrderWaypoints.markPersistent(zone.orderId(), zone.dimension(), zone.pos(), label, kind);
         }
         XaeroOrderWaypoints.syncPersistent(seen);
     }

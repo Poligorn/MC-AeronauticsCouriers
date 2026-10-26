@@ -8,6 +8,7 @@ import dev.poligorn.aerocouriers.registry.ModItems;
 import net.minecraft.client.renderer.item.ItemProperties;
 import dev.poligorn.aerocouriers.client.board.BoardCargoClientTooltip;
 import dev.poligorn.aerocouriers.client.board.BoardCargoTooltip;
+import dev.poligorn.aerocouriers.client.navigation.NavRenderer;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
@@ -28,6 +29,9 @@ public final class AeroCouriersClient {
         NeoForge.EVENT_BUS.addListener(InventoryBoardButton::onScreenInit);
         NeoForge.EVENT_BUS.addListener(ZoneParticles::onClientTick);
         NeoForge.EVENT_BUS.addListener(ZoneParticles::onLoggingOut);
+        NeoForge.EVENT_BUS.addListener(NavRenderer::onRenderLevel);
+        NeoForge.EVENT_BUS.addListener(NavRenderer::onRenderHud);
+        NeoForge.EVENT_BUS.addListener(NavRenderer::onChatLayout);
     }
 
     private static void registerTooltips(RegisterClientTooltipComponentFactoriesEvent event) {

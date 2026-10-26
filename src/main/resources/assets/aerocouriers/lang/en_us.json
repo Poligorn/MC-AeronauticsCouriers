@@ -82,6 +82,10 @@
   "contract.aerocouriers.error.no_license": "Wear your own pilot license in the License slot",
   "contract.aerocouriers.error.no_waybill": "You need a transport waybill in your inventory to post this order",
   "contract.aerocouriers.error.rank_too_low": "Rank %s required",
+  "contract.aerocouriers.error.rank_limit_collateral": "Your rank allows collateral up to %s sp",
+  "contract.aerocouriers.error.rank_limit_size": "Your rank allows container size up to %s",
+  "contract.aerocouriers.error.rank_limit_distance": "Your rank allows routes up to %s blocks",
+  "contract.aerocouriers.error.rank_limit_active": "Your rank allows at most %s active deliveries",
   "contract.aerocouriers.error.too_many_active": "Your rank allows at most %s active deliveries (already hauling: %s)",
   "contract.aerocouriers.error.not_your_contract": "This is not your contract",
   "contract.aerocouriers.error.wrong_state": "Not possible now: the contract is %s",
@@ -242,5 +246,8 @@
   "ui.aerocouriers.station.orders.empty": "No open village orders here right now.",
   "ui.aerocouriers.station.open_board": "Job board",
   "ui.aerocouriers.station.rename": "Station name",
-  "ui.aerocouriers.station.rename.action": "Rename"
+  "ui.aerocouriers.station.rename.action": "Rename",
+  "ui.aerocouriers.nav.order": "Order #%s",
+  "ui.aerocouriers.nav.distance": "%s m",
+  "ui.aerocouriers.nav.wrong_dimension": "Other dimension"
 }

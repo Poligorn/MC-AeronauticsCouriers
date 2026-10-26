@@ -446,8 +446,21 @@ public final class ContractManager extends SavedData {
             return Outcome.error("no_license");
         }
         LicenseRank rank = Licenses.rankOf(courier);
-        if (!RankRules.satisfies(rank, contract.requiredRank())) {
-            return Outcome.error("rank_too_low", contract.requiredRank().displayName());
+        CourierProfile profile = Licenses.profile(courier);
+        int traineeFree = CouriersServerConfig.TRAINEE_FREE_CONTRACTS.get();
+        int traineeMax = CouriersServerConfig.TRAINEE_MAX_DISTANCE.get();
+        Optional<AcceptEligibility.Denial> denial = AcceptEligibility.check(
+                rank,
+                contract.requiredRank(),
+                contract.collateral(),
+                contract.size(),
+                contract.distance(),
+                contract.type().isNpc(),
+                profile.villageDelivered(),
+                traineeFree,
+                traineeMax);
+        if (denial.isPresent()) {
+            return denial.get().toOutcome();
         }
         int maxActive = RankRules.limits(rank).maxActive();
         List<Contract> active = activeJobs(courier.getUUID());
@@ -456,17 +469,8 @@ public final class ContractManager extends SavedData {
             return Outcome.error("too_many_active", maxActive, ids);
         }
         long collateralDue = contract.collateral();
-        CourierProfile profile = Licenses.profile(courier);
-        if (contract.type().isNpc()) {
-            int traineeFree = CouriersServerConfig.TRAINEE_FREE_CONTRACTS.get();
-            if (TraineeRules.onTraineeVillageContracts(profile.villageDelivered(), traineeFree)
-                    && !TraineeRules.villageDistanceAllowed(contract.distance(), profile.villageDelivered(),
-                    traineeFree, CouriersServerConfig.TRAINEE_MAX_DISTANCE.get())) {
-                return Outcome.error("trainee_too_far", CouriersServerConfig.TRAINEE_MAX_DISTANCE.get());
-            }
-            if (profile.villageDelivered() < traineeFree) {
-                collateralDue = 0;
-            }
+        if (contract.type().isNpc() && profile.villageDelivered() < traineeFree) {
+            collateralDue = 0;
         }
         Economy economy = Economies.get(server);
         if (collateralDue > 0 && !economy.withdraw(courier.getUUID(), collateralDue, "collateral:" + id)) {

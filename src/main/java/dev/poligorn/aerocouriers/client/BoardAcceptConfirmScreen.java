@@ -1,10 +1,13 @@
 package dev.poligorn.aerocouriers.client;
 
+import dev.poligorn.aerocouriers.client.board.BoardAcceptUi;
+import dev.poligorn.aerocouriers.contract.AcceptEligibility;
 import dev.poligorn.aerocouriers.contract.TraineeRules;
 import dev.poligorn.aerocouriers.net.BoardSnapshotPayload;
 import dev.poligorn.aerocouriers.net.ContractIntentPayload;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Renderable;
 import net.minecraft.client.gui.screens.Screen;
@@ -21,6 +24,7 @@ public final class BoardAcceptConfirmScreen extends Screen {
     private final Screen parent;
     private final BoardSnapshotPayload.BoardEntry entry;
     private final BoardSnapshotPayload.BoardProfile profile;
+    private final int activeHauls;
 
     private int boxW;
     private int boxH;
@@ -29,11 +33,12 @@ public final class BoardAcceptConfirmScreen extends Screen {
     private int btnY;
 
     public BoardAcceptConfirmScreen(Screen parent, BoardSnapshotPayload.BoardEntry entry,
-                                    BoardSnapshotPayload.BoardProfile profile) {
+                                    BoardSnapshotPayload.BoardProfile profile, int activeHauls) {
         super(Component.translatable("ui.aerocouriers.accept.confirm.title"));
         this.parent = parent;
         this.entry = entry;
         this.profile = profile;
+        this.activeHauls = activeHauls;
     }
 
     @Override
@@ -42,8 +47,14 @@ public final class BoardAcceptConfirmScreen extends Screen {
         relayout();
         int btnW = (boxW - 24) / 2;
         clearWidgets();
-        addRenderableWidget(TabletButton.create(boxX + 8, btnY, btnW, 20,
-                Component.translatable("ui.aerocouriers.accept.confirm.action"), b -> confirm()));
+        TabletButton confirmBtn = TabletButton.create(boxX + 8, btnY, btnW, 20,
+                Component.translatable("ui.aerocouriers.accept.confirm.action"), b -> confirm());
+        Optional<AcceptEligibility.Denial> blocked = acceptBlocked();
+        confirmBtn.active = blocked.isEmpty();
+        if (blocked.isPresent()) {
+            confirmBtn.hint(blocked.get().message());
+        }
+        addRenderableWidget(confirmBtn);
         addRenderableWidget(TabletButton.create(boxX + 16 + btnW, btnY, btnW, 20,
                 Component.translatable("gui.cancel"), b -> onClose()));
     }
@@ -70,8 +81,15 @@ public final class BoardAcceptConfirmScreen extends Screen {
     }
 
     private void confirm() {
+        if (acceptBlocked().isPresent()) {
+            return;
+        }
         PacketDistributor.sendToServer(new ContractIntentPayload(ContractIntentPayload.Kind.ACCEPT, entry.id()));
         onClose();
+    }
+
+    private Optional<AcceptEligibility.Denial> acceptBlocked() {
+        return BoardAcceptUi.denial(entry, profile, activeHauls);
     }
 
     @Override
@@ -142,6 +160,7 @@ public final class BoardAcceptConfirmScreen extends Screen {
         lines.add(Component.translatable("ui.aerocouriers.accept.confirm.deadline",
                 entry.deadlineMinutes(), entry.minutesLeft()));
         lines.add(Component.translatable("ui.aerocouriers.accept.confirm.rank", entry.requiredRank().displayName()));
+        acceptBlocked().ifPresent(denial -> lines.add(denial.message().copy().withStyle(style -> style.withColor(0xFF5555))));
         return lines;
     }
 

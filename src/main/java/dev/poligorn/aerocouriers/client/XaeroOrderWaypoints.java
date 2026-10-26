@@ -76,13 +76,19 @@ final class XaeroOrderWaypoints {
         }
     }
 
-    static void markPersistent(UUID orderId, ResourceKey<Level> dimension, BlockPos pos, String label) {
+    static void markPersistent(
+            UUID orderId,
+            ResourceKey<Level> dimension,
+            BlockPos pos,
+            String label,
+            XaeroWaypointSymbols.Kind symbolKind
+    ) {
         String id = waypointId(orderId);
         PERSISTENT_IDS.add(id);
         if (previewOrderId != null && previewOrderId.equals(orderId)) {
             previewOrderId = null;
         }
-        place(orderId, dimension, pos, label, XaeroWaypointSymbols.Kind.DELIVERY, true);
+        place(orderId, dimension, pos, label, symbolKind, true);
     }
 
     static void clearPersistent(UUID orderId) {

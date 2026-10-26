@@ -5,8 +5,11 @@ import dev.poligorn.aerocouriers.client.board.BoardCargoTooltip;
 import dev.poligorn.aerocouriers.client.board.BoardRowDebug;
 import dev.poligorn.aerocouriers.client.board.BoardRowLayout;
 import dev.poligorn.aerocouriers.client.board.BoardRowMetrics;
+import dev.poligorn.aerocouriers.client.board.BoardAcceptUi;
 import dev.poligorn.aerocouriers.client.board.BoardRowRenderer;
 import dev.poligorn.aerocouriers.client.board.MineListSection;
+import dev.poligorn.aerocouriers.client.navigation.ClientNavigation;
+import dev.poligorn.aerocouriers.contract.AcceptEligibility;
 import dev.poligorn.aerocouriers.client.board.TabletRowIconButton;
 import dev.poligorn.aerocouriers.contract.ContractState;
 import dev.poligorn.aerocouriers.license.LicenseRank;
@@ -359,9 +362,18 @@ public final class CourierBoardScreen extends Screen {
                         layout.secondaryX(), btnY, layout.secondaryW(), BoardRowMetrics.BUTTON_HEIGHT,
                         Component.translatable("ui.aerocouriers.accept", collateralDue(entry)),
                         b -> onAccept(entry));
-                accept.active = snapshot != null && snapshot.licensed();
+                BoardSnapshotPayload.BoardProfile profile = snapshot != null
+                        ? snapshot.profile()
+                        : BoardSnapshotPayload.BoardProfile.EMPTY;
+                int activeHauls = snapshot != null ? BoardAcceptUi.countActiveHauls(snapshot.mine()) : 0;
+                Optional<AcceptEligibility.Denial> denial = BoardAcceptUi.denial(entry, profile, activeHauls);
+                accept.active = snapshot != null && snapshot.licensed() && denial.isEmpty();
                 if (!accept.active) {
-                    accept.hint(Component.translatable("contract.aerocouriers.error.no_license"));
+                    if (snapshot == null || !snapshot.licensed()) {
+                        accept.hint(Component.translatable("contract.aerocouriers.error.no_license"));
+                    } else if (denial.isPresent()) {
+                        accept.hint(denial.get().message());
+                    }
                 }
                 addRenderableWidget(accept);
             } else if (!boardTab && "issuer".equals(entry.role()) && entry.state() == ContractState.OPEN) {
@@ -408,7 +420,8 @@ public final class CourierBoardScreen extends Screen {
             BoardSnapshotPayload.BoardProfile profile = snapshot != null
                     ? snapshot.profile()
                     : BoardSnapshotPayload.BoardProfile.EMPTY;
-            minecraft.setScreen(new BoardAcceptConfirmScreen(this, entry, profile));
+            int activeHauls = BoardAcceptUi.countActiveHauls(snapshot.mine());
+            minecraft.setScreen(new BoardAcceptConfirmScreen(this, entry, profile, activeHauls));
         }
     }
 
@@ -769,6 +782,12 @@ public final class CourierBoardScreen extends Screen {
 
     private void renderOrderRow(GuiGraphics graphics, BoardSnapshotPayload.BoardEntry entry, int rowTop, int x, int width,
                                 int mouseX, int mouseY) {
+        if (tab == Tab.BOARD && snapshot != null && entry.state() == ContractState.OPEN
+                && BoardAcceptUi.rowRankLocked(entry, snapshot.profile().rank())) {
+            int h = rowH();
+            graphics.fill(x - 2, rowTop, x + width + 2, rowTop + h, 0x66000000);
+            graphics.blitSprite(AerocouriersGuiSprites.ICON_LOCK, x + width - 18, rowTop + 4, 16, 16);
+        }
         BoardRowRenderer.renderLine1(
                 graphics, font, entry, x, BoardRowMetrics.line1Y(rowTop), width, mouseX, mouseY, false, null);
         BoardRowRenderer.renderLine2(graphics, font, entry, x, BoardRowMetrics.line2Y(rowTop), width);
@@ -972,6 +991,9 @@ public final class CourierBoardScreen extends Screen {
                 BoardSnapshotPayload.BoardEntry row = hitRowBody(mx, my);
                 if (row != null) {
                     selected = row.id();
+                    if (row.state().isActive() && "courier".equals(row.role())) {
+                        ClientNavigation.setFocusedOrder(row.id());
+                    }
                     return true;
                 }
             }

@@ -170,6 +170,9 @@ public final class BoardPackets {
             case ABANDON -> manager.abandon(player, payload.id());
             case CANCEL -> manager.cancel(player, payload.id());
         };
+        if (!outcome.success()) {
+            player.displayClientMessage(outcome.message(), true);
+        }
         reply(player, outcome.message());
     }
 
