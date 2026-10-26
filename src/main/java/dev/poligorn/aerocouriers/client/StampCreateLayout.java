@@ -135,6 +135,7 @@ public final class StampCreateLayout {
             int screenW, int screenH, int lineH, int cargoCount,
             boolean showMapButton, boolean showWaypointList, int mapLabelW) {
         int line = Math.max(8, lineH);
+        int clipMargin = StampCreateGui.CLIP_OVERHANG + 6;
         int maxW = Math.max(16, screenW - 8);
         int maxH = Math.max(16, screenH - 8);
         int panelW = clamp(screenW - 40, Math.min(360, maxW), Math.min(520, maxW));
@@ -142,7 +143,10 @@ public final class StampCreateLayout {
         int panelH = clamp(screenH - 24, Math.min(220, maxH), Math.min(440, maxH));
         panelH = Math.min(panelH, maxH);
         int left = Math.max(0, (screenW - panelW) / 2);
-        int top = Math.max(StampCreateGui.CLIP_OVERHANG + 6, (screenH - panelH) / 2);
+        int top = Math.max(clipMargin, (screenH - panelH) / 2);
+        if (top + panelH > screenH) {
+            panelH = Math.max(StampCreateLayout.FIELD_H * 6, screenH - top);
+        }
         int paperLeft = left + StampCreateGui.FRAME_PAD;
         int paperTop = top + StampCreateGui.FRAME_PAD;
         int paperW = panelW - StampCreateGui.FRAME_PAD * 2;
