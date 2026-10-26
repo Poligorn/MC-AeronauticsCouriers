@@ -30,6 +30,7 @@ public final class BoardRowRenderer {
             int width,
             int mouseX,
             int mouseY,
+            boolean captureHover,
             BiConsumer<Component, Integer> clippedHover
     ) {
         int cursor = x;
@@ -41,7 +42,8 @@ public final class BoardRowRenderer {
         int statusWidth = Math.max(8, Math.min(STATUS_MAX_WIDTH, x + width - cursor - BoardRowMetrics.CUSTOMER_FACE - 48));
         String statusShown = clip(font, status.getString(), statusWidth);
         graphics.drawString(font, statusShown, cursor, y, TabletGui.TEXT_MUTED, false);
-        if (!statusShown.equals(status.getString()) && mouseOver(mouseX, mouseY, cursor, y, statusWidth)) {
+        if (captureHover && !statusShown.equals(status.getString())
+                && mouseOver(mouseX, mouseY, cursor, y, statusWidth)) {
             clippedHover.accept(status, statusWidth);
         }
         cursor += font.width(statusShown) + 4;
@@ -58,12 +60,65 @@ public final class BoardRowRenderer {
         String nameShown = clip(font, entry.customerName(), nameW);
         graphics.drawString(font, nameShown, cursor, y, TabletGui.TEXT, false);
         Component customerTip = null;
-        if (mouseOver(mouseX, mouseY, faceX, y, BoardRowMetrics.CUSTOMER_FACE + BoardRowMetrics.FACE_NAME_GAP + nameW)) {
-            customerTip = Component.translatable("ui.aerocouriers.row.customer_tooltip", entry.customerName());
-        } else if (!nameShown.equals(entry.customerName()) && mouseOver(mouseX, mouseY, cursor, y, nameW)) {
-            clippedHover.accept(Component.literal(entry.customerName()), nameW);
+        if (captureHover) {
+            customerTip = line1HoverTooltip(
+                    entry, faceX, cursor, y, nameW, nameShown, mouseX, mouseY, clippedHover);
         }
         return new Line1Hover(customerTip);
+    }
+
+    /** Hover hit-test for line 1 without drawing (matches {@link #renderLine1} geometry). */
+    public static Line1Hover hitLine1Hover(
+            Font font,
+            BoardSnapshotPayload.BoardEntry entry,
+            int x,
+            int y,
+            int width,
+            int mouseX,
+            int mouseY,
+            BiConsumer<Component, Integer> clippedHover
+    ) {
+        if (mouseY < y || mouseY >= y + BoardRowMetrics.LINE1_HEIGHT) {
+            return new Line1Hover(null);
+        }
+        int cursor = x;
+        String idText = "#" + entry.shortId();
+        cursor += font.width(idText) + BoardRowMetrics.ID_STATUS_GAP;
+        Component status = entry.state().displayName();
+        int statusWidth = Math.max(8, Math.min(STATUS_MAX_WIDTH, x + width - cursor - BoardRowMetrics.CUSTOMER_FACE - 48));
+        String statusShown = clip(font, status.getString(), statusWidth);
+        if (!statusShown.equals(status.getString()) && mouseOver(mouseX, mouseY, cursor, y, statusWidth)) {
+            clippedHover.accept(status, statusWidth);
+            return new Line1Hover(null);
+        }
+        cursor += font.width(statusShown) + 4;
+        int faceX = cursor;
+        cursor += BoardRowMetrics.CUSTOMER_FACE + BoardRowMetrics.FACE_NAME_GAP;
+        int nameW = Math.max(8, x + width - cursor);
+        String nameShown = clip(font, entry.customerName(), nameW);
+        Component tip = line1HoverTooltip(
+                entry, faceX, cursor, y, nameW, nameShown, mouseX, mouseY, clippedHover);
+        return new Line1Hover(tip);
+    }
+
+    private static @Nullable Component line1HoverTooltip(
+            BoardSnapshotPayload.BoardEntry entry,
+            int faceX,
+            int nameX,
+            int y,
+            int nameW,
+            String nameShown,
+            int mouseX,
+            int mouseY,
+            BiConsumer<Component, Integer> clippedHover
+    ) {
+        if (mouseOver(mouseX, mouseY, faceX, y, BoardRowMetrics.CUSTOMER_FACE + BoardRowMetrics.FACE_NAME_GAP + nameW)) {
+            return Component.translatable("ui.aerocouriers.row.customer_tooltip", entry.customerName());
+        }
+        if (!nameShown.equals(entry.customerName()) && mouseOver(mouseX, mouseY, nameX, y, nameW)) {
+            clippedHover.accept(Component.literal(entry.customerName()), nameW);
+        }
+        return null;
     }
 
     public static void renderLine2(GuiGraphics graphics, Font font, BoardSnapshotPayload.BoardEntry entry, int x, int y) {

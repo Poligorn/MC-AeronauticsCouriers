@@ -2,6 +2,7 @@ package dev.poligorn.aerocouriers.client;
 
 import dev.poligorn.aerocouriers.AeronauticsCouriers;
 import dev.poligorn.aerocouriers.client.board.BoardCargoTooltip;
+import dev.poligorn.aerocouriers.client.board.BoardRowDebug;
 import dev.poligorn.aerocouriers.client.board.BoardRowLayout;
 import dev.poligorn.aerocouriers.client.board.BoardRowMetrics;
 import dev.poligorn.aerocouriers.client.board.BoardRowRenderer;
@@ -68,6 +69,7 @@ public final class CourierBoardScreen extends Screen {
     private @Nullable UUID pendingAccept;
     private @Nullable Component notice;
     private @Nullable Component hoverTip;
+    private @Nullable List<Component> hoverTipLines;
     private @Nullable BoardCargoTooltip hoverCargoComponent;
     private @Nullable UUID mapHoverOrder;
     private @Nullable UUID crateHoverOrder;
@@ -335,6 +337,7 @@ public final class CourierBoardScreen extends Screen {
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         hoverTip = null;
+        hoverTipLines = null;
         hoverCargoComponent = null;
         RenderSystem.disableDepthTest();
         RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
@@ -362,6 +365,7 @@ public final class CourierBoardScreen extends Screen {
 
         if (tab == Tab.BOARD || tab == Tab.MINE) {
             renderList(graphics, tab == Tab.BOARD ? snapshot.board() : snapshot.mine(), sx, mouseX, mouseY);
+            renderListActionWidgetsOnTop(graphics, mouseX, mouseY, partialTick);
         } else if (tab == Tab.PROFILE) {
             renderProfile(graphics, snapshot.profile(), sx, mouseX, mouseY);
         } else if (tab == Tab.TEST) {
@@ -382,9 +386,12 @@ public final class CourierBoardScreen extends Screen {
             TabletGui.drawListPanel(graphics, sx + 6, noticeY - 2, Math.min(screenW() - 12, font.width(notice) + 24), 18);
             drawWrapped(graphics, notice, sx + 12, noticeY, screenW() - 24, TabletGui.TEXT_WARN);
         }
-        captureButtonHint(mouseX, mouseY);
         updateRowIconHover(mouseX, mouseY);
+        captureRowLine1HoverTips(mouseX, mouseY);
         captureRowHoverTips(mouseX, mouseY);
+        if (hoverTip == null && hoverTipLines == null && hoverCargoComponent == null) {
+            captureButtonHint(mouseX, mouseY);
+        }
         renderTopLayerTooltips(graphics, mouseX, mouseY);
     }
 
@@ -515,6 +522,19 @@ public final class CourierBoardScreen extends Screen {
         return Component.literal(String.format(Locale.ROOT, "%d", sum / count));
     }
 
+    /** Row widgets are drawn under list chrome in {@link #render}; paint them again on top. */
+    private void renderListActionWidgetsOnTop(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        int listY = listTop();
+        int listBottom = listY + visibleRows() * rowH();
+        for (Renderable widget : renderables) {
+            if (widget instanceof TabletRowIconButton) {
+                widget.render(graphics, mouseX, mouseY, partialTick);
+            } else if (widget instanceof TabletButton button && button.getY() >= listY && button.getY() < listBottom) {
+                widget.render(graphics, mouseX, mouseY, partialTick);
+            }
+        }
+    }
+
     private void renderList(GuiGraphics graphics, List<BoardSnapshotPayload.BoardEntry> all, int sx,
                             int mouseX, int mouseY) {
         if (all.isEmpty()) {
@@ -525,7 +545,8 @@ public final class CourierBoardScreen extends Screen {
         int visible = visibleRows();
         scroll = Mth.clamp(scroll, 0, Math.max(0, all.size() - visible));
         int sw = screenW();
-        int textLeft = sx + 8;
+        int frameLeft = sx + BoardRowMetrics.ROW_FRAME_SIDE;
+        int textLeft = frameLeft + BoardRowMetrics.ROW_INSET_LEFT;
         String detailsLabel = Component.translatable("ui.aerocouriers.details").getString();
         BoardRowLayout reserve = BoardRowLayout.forRow(sx, sw, font, detailsLabel, true);
         int textRight = reserve.textRight();
@@ -538,9 +559,29 @@ public final class CourierBoardScreen extends Screen {
             for (int i = 0; i < visible && scroll + i < all.size(); i++) {
                 BoardSnapshotPayload.BoardEntry entry = all.get(scroll + i);
                 int rowY = listY + i * rowH();
-                TabletGui.drawRow(graphics, sx + 6, rowY, textRight - sx - 6, rowH(),
-                        entry.id().equals(selected));
-                renderOrderRow(graphics, entry, textLeft, rowY, textW, mouseX, mouseY);
+                boolean hasSecondary = hasSecondaryAction(entry, tab == Tab.BOARD);
+                BoardRowLayout layout = BoardRowLayout.forRow(sx, sw, font, detailsLabel, hasSecondary);
+                int frameRight = layout.hasSecondary()
+                        ? layout.secondaryX() + BoardRowLayout.SECONDARY_W
+                        : layout.detailsX() + layout.detailsW();
+                int frameW = Math.max(8, frameRight - frameLeft);
+                TabletGui.drawRow(graphics, frameLeft, rowY, frameW, rowH(), entry.id().equals(selected));
+                renderOrderRow(graphics, entry, rowY, textLeft, textW, mouseX, mouseY);
+                BoardRowDebug.logRow(
+                        i,
+                        frameLeft,
+                        rowY,
+                        frameW,
+                        rowH(),
+                        BoardRowMetrics.line1Y(rowY),
+                        BoardRowMetrics.line2Y(rowY),
+                        textLeft,
+                        textRight,
+                        layout.mapX(),
+                        layout.crateX(),
+                        layout.detailsX(),
+                        layout.detailsW(),
+                        BoardRowMetrics.buttonY(rowY));
             }
         } finally {
             graphics.disableScissor();
@@ -600,7 +641,7 @@ public final class CourierBoardScreen extends Screen {
     }
 
     private void captureButtonHint(int mouseX, int mouseY) {
-        if (hoverTip != null) {
+        if (hoverTip != null || hoverTipLines != null || hoverCargoComponent != null) {
             return;
         }
         getChildAt(mouseX, mouseY).ifPresent(widget -> {
@@ -616,6 +657,10 @@ public final class CourierBoardScreen extends Screen {
             graphics.renderTooltip(font, lines, Optional.of(hoverCargoComponent), mouseX, mouseY);
             return;
         }
+        if (hoverTipLines != null && !hoverTipLines.isEmpty()) {
+            graphics.renderTooltip(font, hoverTipLines, Optional.empty(), mouseX, mouseY);
+            return;
+        }
         if (hoverTip != null) {
             graphics.renderTooltip(font, List.of(hoverTip), Optional.empty(), mouseX, mouseY);
         }
@@ -623,13 +668,8 @@ public final class CourierBoardScreen extends Screen {
 
     private void renderOrderRow(GuiGraphics graphics, BoardSnapshotPayload.BoardEntry entry, int rowTop, int x, int width,
                                 int mouseX, int mouseY) {
-        int line1Y = BoardRowMetrics.line1Y(rowTop);
-        BoardRowRenderer.Line1Hover line1 = BoardRowRenderer.renderLine1(
-                graphics, font, entry, x, line1Y, width, mouseX, mouseY,
-                (tip, ignored) -> hoverTip = tip);
-        if (line1.tooltip() != null) {
-            hoverTip = line1.tooltip();
-        }
+        BoardRowRenderer.renderLine1(
+                graphics, font, entry, x, BoardRowMetrics.line1Y(rowTop), width, mouseX, mouseY, false, null);
         BoardRowRenderer.renderLine2(graphics, font, entry, x, BoardRowMetrics.line2Y(rowTop));
     }
 
@@ -637,7 +677,7 @@ public final class CourierBoardScreen extends Screen {
         if (snapshot == null || tab != Tab.BOARD && tab != Tab.MINE) {
             return;
         }
-        if (hoverTip != null || hoverCargoComponent != null) {
+        if (hoverTip != null || hoverTipLines != null || hoverCargoComponent != null || isOverRowIcon(mouseX, mouseY)) {
             return;
         }
         List<BoardSnapshotPayload.BoardEntry> all = tab == Tab.BOARD ? snapshot.board() : snapshot.mine();
@@ -657,11 +697,70 @@ public final class CourierBoardScreen extends Screen {
             if (isOverRowAction(mouseX, mouseY)) {
                 continue;
             }
-            hoverTip = Component.translatable("ui.aerocouriers.row.summary_tooltip",
-                    entry.reward(), entry.collateral(), entry.minutesLeft(), entry.weight(), entry.size(),
-                    entry.distance(), Component.translatable("contract.aerocouriers.role." + entry.role()));
+            hoverTipLines = List.of(
+                    Component.translatable("ui.aerocouriers.row.summary.reward", entry.reward()),
+                    Component.translatable("ui.aerocouriers.row.summary.collateral", entry.collateral()),
+                    Component.translatable("ui.aerocouriers.row.summary.time", entry.minutesLeft()),
+                    Component.translatable("ui.aerocouriers.row.summary.cargo", entry.weight(), entry.size()),
+                    Component.translatable("ui.aerocouriers.row.summary.distance", entry.distance()),
+                    Component.translatable("ui.aerocouriers.row.summary.role",
+                            Component.translatable("contract.aerocouriers.role." + entry.role())));
             return;
         }
+    }
+
+    private void captureRowLine1HoverTips(int mouseX, int mouseY) {
+        if (snapshot == null || tab != Tab.BOARD && tab != Tab.MINE) {
+            return;
+        }
+        if (hoverTip != null || hoverTipLines != null || hoverCargoComponent != null || isOverRowIcon(mouseX, mouseY)) {
+            return;
+        }
+        if (isOverRowAction(mouseX, mouseY)) {
+            return;
+        }
+        List<BoardSnapshotPayload.BoardEntry> all = tab == Tab.BOARD ? snapshot.board() : snapshot.mine();
+        int visible = visibleRows();
+        int listY = listTop();
+        int sx = screenLeft();
+        int sw = screenW();
+        String detailsLabel = Component.translatable("ui.aerocouriers.details").getString();
+        int textLeft = sx + BoardRowMetrics.ROW_FRAME_SIDE + BoardRowMetrics.ROW_INSET_LEFT;
+        for (int i = 0; i < visible && scroll + i < all.size(); i++) {
+            BoardSnapshotPayload.BoardEntry entry = all.get(scroll + i);
+            int rowY = listY + i * rowH();
+            if (mouseY < rowY || mouseY >= rowY + rowH()) {
+                continue;
+            }
+            boolean hasSecondary = hasSecondaryAction(entry, tab == Tab.BOARD);
+            BoardRowLayout layout = BoardRowLayout.forRow(sx, sw, font, detailsLabel, hasSecondary);
+            if (mouseX < textLeft || mouseX >= layout.textRight()) {
+                return;
+            }
+            int textW = Math.max(8, layout.textRight() - textLeft);
+            BoardRowRenderer.Line1Hover line1 = BoardRowRenderer.hitLine1Hover(
+                    font,
+                    entry,
+                    textLeft,
+                    BoardRowMetrics.line1Y(rowY),
+                    textW,
+                    mouseX,
+                    mouseY,
+                    (tip, ignored) -> hoverTip = tip);
+            if (line1.tooltip() != null) {
+                hoverTip = line1.tooltip();
+            }
+            return;
+        }
+    }
+
+    private boolean isOverRowIcon(int mouseX, int mouseY) {
+        for (Renderable widget : renderables) {
+            if (widget instanceof TabletRowIconButton icon && icon.isMouseOver(mouseX, mouseY)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private boolean isOverRowAction(int mouseX, int mouseY) {
@@ -687,35 +786,36 @@ public final class CourierBoardScreen extends Screen {
                 }
             }
         }
-        if (!Objects.equals(mapHoverOrder, nextMap)) {
-            if (mapHoverOrder != null && snapshot != null) {
-                snapshot.find(mapHoverOrder).ifPresent(e -> {
-                    if (!keepsPersistentWaypoint(e)) {
-                        XaeroOrderBridge.onLeaveDestination(e.id());
-                    }
-                });
-            }
-            mapHoverOrder = nextMap;
-            if (nextMap != null && snapshot != null) {
-                snapshot.find(nextMap).ifPresent(this::onMapHover);
+        final UUID hoveredMap = nextMap;
+        if (hoveredMap != null && snapshot != null) {
+            snapshot.find(hoveredMap).ifPresent(entry -> {
+                hoverTip = buildMapTooltip(entry);
+                if (!Objects.equals(mapHoverOrder, hoveredMap)) {
+                    XaeroOrderBridge.onHoverDestination(entry.id(), entry.destinationDimension(), entry.destinationPos(),
+                            entry.shortId());
+                }
+            });
+        } else if (mapHoverOrder != null && snapshot != null) {
+            snapshot.find(mapHoverOrder).ifPresent(e -> {
+                if (!keepsPersistentWaypoint(e)) {
+                    XaeroOrderBridge.onLeaveDestination(e.id());
+                }
+            });
+            if (nextCrate == null) {
+                hoverTip = null;
             }
         }
-        if (!Objects.equals(crateHoverOrder, nextCrate)) {
-            crateHoverOrder = nextCrate;
+        mapHoverOrder = nextMap;
+
+        if (nextCrate != null && snapshot != null) {
+            snapshot.find(nextCrate).ifPresent(this::applyCrateHover);
+        } else {
             hoverCargoComponent = null;
-            if (nextCrate != null && snapshot != null) {
-                snapshot.find(nextCrate).ifPresent(this::onCrateHover);
-            }
         }
+        crateHoverOrder = nextCrate;
     }
 
-    private void onMapHover(BoardSnapshotPayload.BoardEntry entry) {
-        hoverTip = buildMapTooltip(entry);
-        XaeroOrderBridge.onHoverDestination(entry.id(), entry.destinationDimension(), entry.destinationPos(),
-                entry.shortId());
-    }
-
-    private void onCrateHover(BoardSnapshotPayload.BoardEntry entry) {
+    private void applyCrateHover(BoardSnapshotPayload.BoardEntry entry) {
         List<net.minecraft.world.item.ItemStack> stacks = entry.cargoStacks();
         int shown = Math.min(BoardCargoTooltip.MAX_SHOWN, stacks.size());
         int hidden = Math.max(0, entry.manifest().size() - shown);
@@ -783,7 +883,8 @@ public final class CourierBoardScreen extends Screen {
             if (mouseY < line1Y || mouseY >= line1Y + 9) {
                 continue;
             }
-            int faceStart = sx + 8 + font.width("#" + entry.shortId()) + BoardRowMetrics.ID_STATUS_GAP
+            int textLeft = sx + BoardRowMetrics.ROW_FRAME_SIDE + BoardRowMetrics.ROW_INSET_LEFT;
+            int faceStart = textLeft + font.width("#" + entry.shortId()) + BoardRowMetrics.ID_STATUS_GAP
                     + Math.min(font.width(entry.state().displayName().getString()), 88) + 4;
             int faceEnd = faceStart + BoardRowMetrics.CUSTOMER_FACE + BoardRowMetrics.FACE_NAME_GAP
                     + font.width(entry.customerName());

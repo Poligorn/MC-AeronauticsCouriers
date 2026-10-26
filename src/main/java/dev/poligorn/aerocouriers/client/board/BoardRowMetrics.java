@@ -2,6 +2,8 @@ package dev.poligorn.aerocouriers.client.board;
 
 /** Shared row geometry for {@link dev.poligorn.aerocouriers.client.CourierBoardScreen} and offline previews. */
 public final class BoardRowMetrics {
+    public static final int ROW_INSET_LEFT = 4;
+    public static final int ROW_FRAME_SIDE = 6;
     public static final int PAD_TOP = 3;
     public static final int PAD_BOTTOM = 3;
     public static final int LINE1_HEIGHT = 9;
