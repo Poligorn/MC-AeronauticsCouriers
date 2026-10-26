@@ -10,7 +10,7 @@ from PIL import Image, ImageDraw, ImageFont
 ROOT = Path(__file__).resolve().parents[1]
 SPRITES = ROOT / "src/main/resources/assets/aerocouriers/textures/gui/sprites"
 OUT = Path("/opt/cursor/artifacts/station_window_preview.png")
-BG = (0x14, 0x04, 0x00, 255)
+BG = (0x0A, 0x02, 0x00, 255)
 ROW = (0x3E, 0x26, 0x14, 255)
 TEXT = (0xF8, 0xF0, 0xDC, 255)
 MUTED = (0xCD, 0xBC, 0xA8, 255)

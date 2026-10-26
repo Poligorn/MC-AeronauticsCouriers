@@ -1,5 +1,6 @@
 package dev.poligorn.aerocouriers.client;
 
+import dev.poligorn.aerocouriers.contract.TraineeRules;
 import dev.poligorn.aerocouriers.net.BoardSnapshotPayload;
 import dev.poligorn.aerocouriers.net.ContractIntentPayload;
 import java.util.ArrayList;
@@ -19,6 +20,7 @@ public final class BoardAcceptConfirmScreen extends Screen {
 
     private final Screen parent;
     private final BoardSnapshotPayload.BoardEntry entry;
+    private final BoardSnapshotPayload.BoardProfile profile;
 
     private int boxW;
     private int boxH;
@@ -26,10 +28,12 @@ public final class BoardAcceptConfirmScreen extends Screen {
     private int boxY;
     private int btnY;
 
-    public BoardAcceptConfirmScreen(Screen parent, BoardSnapshotPayload.BoardEntry entry) {
+    public BoardAcceptConfirmScreen(Screen parent, BoardSnapshotPayload.BoardEntry entry,
+                                    BoardSnapshotPayload.BoardProfile profile) {
         super(Component.translatable("ui.aerocouriers.accept.confirm.title"));
         this.parent = parent;
         this.entry = entry;
+        this.profile = profile;
     }
 
     @Override
@@ -111,10 +115,16 @@ public final class BoardAcceptConfirmScreen extends Screen {
         super.render(graphics, mouseX, mouseY, partialTick);
     }
 
+    private long collateralDue() {
+        return TraineeRules.collateralDueAtAccept(entry.collateral(), entry.villageCustomer(),
+                profile.villageDelivered(), profile.traineeFreeContracts());
+    }
+
     private Component riskLine() {
+        long due = collateralDue();
         return entry.villageCustomer()
-                ? Component.translatable("contract.aerocouriers.risk.npc", entry.collateral(), entry.reward())
-                : Component.translatable("contract.aerocouriers.risk", entry.collateral(), entry.reward());
+                ? Component.translatable("contract.aerocouriers.risk.npc", due, entry.reward())
+                : Component.translatable("contract.aerocouriers.risk", due, entry.reward());
     }
 
     private List<Component> bodyLines() {
@@ -124,7 +134,7 @@ public final class BoardAcceptConfirmScreen extends Screen {
         lines.add(Component.translatable("ui.aerocouriers.accept.confirm.route",
                 entry.originLabel(), entry.destinationLabel(), entry.distance()));
         lines.add(Component.translatable("ui.aerocouriers.accept.confirm.reward", entry.reward()));
-        lines.add(Component.translatable("ui.aerocouriers.accept.confirm.collateral", entry.collateral()));
+        lines.add(Component.translatable("ui.aerocouriers.accept.confirm.collateral", collateralDue()));
         lines.add(Component.translatable("ui.aerocouriers.accept.confirm.deadline",
                 entry.deadlineMinutes(), entry.minutesLeft()));
         lines.add(Component.translatable("ui.aerocouriers.accept.confirm.rank", entry.requiredRank().displayName()));

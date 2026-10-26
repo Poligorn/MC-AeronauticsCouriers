@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SPRITES = ROOT / "src/main/resources/assets/aerocouriers/textures/gui/sprites"
 OUT = Path("/opt/cursor/artifacts/notifications_preview.png")
 
-BG = (0x14, 0x04, 0x00, 255)
+BG = (0x0A, 0x02, 0x00, 255)
 ROW = (0x3E, 0x26, 0x14, 255)
 TEXT = (0xF8, 0xF0, 0xDC, 255)
 MUTED = (0xCD, 0xBC, 0xA8, 255)
@@ -52,7 +52,7 @@ def main() -> None:
 
     # List panel
     panel_x, panel_y, panel_w, panel_h = 40, 70, 400, 220
-    d.rectangle((panel_x, panel_y, panel_x + panel_w, panel_y + panel_h), fill=(0x14, 0x04, 0x00, 200))
+    d.rectangle((panel_x, panel_y, panel_x + panel_w, panel_y + panel_h), fill=(0x0A, 0x02, 0x00, 200))
     d.text((panel_x + 8, panel_y + 8), "Уведомления", fill=TEXT, font=font_b)
 
     rows = [

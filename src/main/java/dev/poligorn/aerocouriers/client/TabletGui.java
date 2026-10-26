@@ -19,10 +19,10 @@ public final class TabletGui {
     public static final int TEXT_BUTTON_HOVER = 0xFF9E00;
     public static final int TEXT_BUTTON_DISABLED = 0x873B00;
 
-    /** Dark cavity fill (#140400) with a calm but visible grid (#2E0F06), as in board UI #14. */
-    private static final int SCREEN_FILL = 0xFF140400;
-    private static final int GRID_LINE = 0xFF2E0F06;
-    private static final int LIST_PANEL_FILL = 0xCC140400;
+    /** Dark cavity fill (#0A0200) with a calm but visible grid (#241006). */
+    private static final int SCREEN_FILL = 0xFF0A0200;
+    private static final int GRID_LINE = 0xFF241006;
+    private static final int LIST_PANEL_FILL = 0xCC0A0200;
     private static final int ROW_FILL = 0xFF3E2614;
     private static final int TOOLTIP_BG = 0xF02C0900;
     private static final int GRID_STEP = 9;

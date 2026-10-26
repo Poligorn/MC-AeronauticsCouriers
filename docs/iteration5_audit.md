@@ -14,7 +14,7 @@
 | Окно станции (не только доска) | **Готово** | `PostStationScreen`, `StationPackets` |
 | Уведомления (колокол, лог, звук) | **Готово** | `NotificationLog`, `CouriersNotifications` |
 | Доска: без «Подробнее», confirm accept | **Готово** | `CourierBoardScreen`, `BoardAcceptConfirmScreen` |
-| Фон планшета `#140400` + сетка | **Готово** | `TabletGui` |
+| Фон планшета `#0A0200` + сетка `#241006` | **Готово** | `TabletGui` |
 
 ## Остаётся
 

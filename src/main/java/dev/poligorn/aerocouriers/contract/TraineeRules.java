@@ -21,4 +21,13 @@ public final class TraineeRules {
         }
         return distanceBlocks <= traineeMaxDistance;
     }
+
+    /** Collateral withdrawn on accept; mirrors {@code ContractManager#accept}. */
+    public static long collateralDueAtAccept(long contractCollateral, boolean villageNpc, int villageDelivered,
+                                             int traineeFreeContracts) {
+        if (villageNpc && onTraineeVillageContracts(villageDelivered, traineeFreeContracts)) {
+            return 0L;
+        }
+        return contractCollateral;
+    }
 }

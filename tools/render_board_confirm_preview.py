@@ -5,7 +5,7 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
 OUT = Path("/opt/cursor/artifacts")
-FILL = (0x14, 0x04, 0x00)
+FILL = (0x0A, 0x02, 0x00)
 PANEL = (0x3E, 0x26, 0x14)
 OUTLINE = (0xB3, 0x68, 0x33)
 TEXT = (0xFF, 0xAF, 0x55)
@@ -47,7 +47,7 @@ def main() -> None:
         "Требуемый ранг: I Стажёр",
     ]
     risk = (
-        "Риск: при провале деревенского заказа залог 120 сп сгорает, груз уничтожается, "
+        "Риск: при провале деревенского заказа залог 0 сп сгорает, груз уничтожается, "
         "награда 92 сп не выплачивается"
     )
     damage = (

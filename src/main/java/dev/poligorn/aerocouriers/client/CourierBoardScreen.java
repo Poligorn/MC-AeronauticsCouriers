@@ -9,6 +9,7 @@ import dev.poligorn.aerocouriers.client.board.BoardRowRenderer;
 import dev.poligorn.aerocouriers.client.board.TabletRowIconButton;
 import dev.poligorn.aerocouriers.contract.ContractState;
 import dev.poligorn.aerocouriers.license.LicenseRank;
+import dev.poligorn.aerocouriers.contract.TraineeRules;
 import dev.poligorn.aerocouriers.net.BoardSnapshotPayload;
 import dev.poligorn.aerocouriers.registry.ModComponents;
 import dev.poligorn.aerocouriers.registry.ModItems;
@@ -255,7 +256,7 @@ public final class CourierBoardScreen extends Screen {
                     && (!"issuer".equals(entry.role()) || snapshot.allowSelfAccept())) {
                 TabletButton accept = TabletButton.create(
                         layout.secondaryX(), btnY, layout.secondaryW(), BoardRowMetrics.BUTTON_HEIGHT,
-                        Component.translatable("ui.aerocouriers.accept", entry.collateral()),
+                        Component.translatable("ui.aerocouriers.accept", collateralDue(entry)),
                         b -> onAccept(entry));
                 accept.active = snapshot != null && snapshot.licensed();
                 if (!accept.active) {
@@ -303,8 +304,19 @@ public final class CourierBoardScreen extends Screen {
     private void onAccept(BoardSnapshotPayload.BoardEntry entry) {
         selected = entry.id();
         if (minecraft != null) {
-            minecraft.setScreen(new BoardAcceptConfirmScreen(this, entry));
+            BoardSnapshotPayload.BoardProfile profile = snapshot != null
+                    ? snapshot.profile()
+                    : BoardSnapshotPayload.BoardProfile.EMPTY;
+            minecraft.setScreen(new BoardAcceptConfirmScreen(this, entry, profile));
         }
+    }
+
+    private long collateralDue(BoardSnapshotPayload.BoardEntry entry) {
+        if (snapshot == null) {
+            return entry.collateral();
+        }
+        return TraineeRules.collateralDueAtAccept(entry.collateral(), entry.villageCustomer(),
+                snapshot.profile().villageDelivered(), snapshot.profile().traineeFreeContracts());
     }
 
     private void initTest() {

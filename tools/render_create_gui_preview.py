@@ -18,8 +18,8 @@ ANTENNA_W, ANTENNA_H = 10, 28
 GEAR_W, GEAR_H = 28, 28
 ROW_ACTION_RESERVE = 158
 GRID_STEP = 9
-SCREEN_FILL = (0x2C, 0x09, 0x00)
-GRID_LINE = (0x43, 0x1A, 0x0F)
+SCREEN_FILL = (0x0A, 0x02, 0x00)
+GRID_LINE = (0x24, 0x10, 0x06)
 
 C_MAIN = (0xFF, 0xAF, 0x55)
 C_BRIGHT = (0xFF, 0xD2, 0x5D)
@@ -108,7 +108,7 @@ def draw_monitor(canvas: Image.Image, fx: int, fy: int, fw: int, fh: int) -> tup
 
 def pixel_in_dark_range(rgb: tuple[int, int, int]) -> bool:
     r, g, b = rgb
-    return 0x1F <= r <= 0x4A and 0x05 <= g <= 0x20 and 0x00 <= b <= 0x10
+    return 0x08 <= r <= 0x28 and 0x00 <= g <= 0x14 and 0x00 <= b <= 0x0A
 
 
 def verify_empty_screen_darkness(img: Image.Image, sx: int, sy: int, sw: int, sh: int) -> list[tuple[tuple[int, int], tuple[int, int, int], bool]]:
