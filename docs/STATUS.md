@@ -100,10 +100,10 @@
 - Находка: `findFirstCurio(Item)` в Curios кэширует результат на текущий тик — поиск лицензии переведён на перегрузку с `Predicate` (см. `docs/research/api-verification.md`).
 
 ### CSI GUI на экранах (26.10.2026, только клиентский рендер)
-- Доска и окно штампа: **собственные** nine-slice спрайты в `assets/aerocouriers/textures/gui/sprites/` (генерация `tools/gen_gui_sprites.py`; палитра по мотивам Create Style Interface, PNG пака не копируем). Панель `#875A4D` с золотой полосой, врезки списков/груза — `inset`, заголовок — `title_label` (крем `#F8F8EC`, текст `#404040`).
+- **Доска:** собственные CSI nine-slice спрайты (`panel`, `inset`, `title_label`, кнопки…). **Окно штампа (создание заказа):** деревянная рамка `panel` + лист `paper_sheet` + зажим `clipboard_clip` сверху (`StampCreateGui`); тёмный текст на бумаге `#3E2812` / `#6B453E`, поля `paper_field`. Генерация `tools/gen_gui_sprites.py`; PNG пака не копируем.
 - Кнопки/вкладки — `CourierButton` / `CourierTabButton` через `WidgetSprites` и `guiGraphics.blitSprite`; почта — `MailIconButton` 20×20 (конверт + бейдж непрочитанного), тултип «Почта». Текст на кнопках `#FFFFFF`, на панели `#F8F8EC` / `#CDBCA8`.
 - Клиентский конфиг `[gui] useVanillaSprites` (по умолчанию `false`) — кнопки/вкладки на `minecraft:widget/*` для игроков с установленным CSI.
-- Превью: `tools/render_create_gui_preview.py` → `board_tab{0,1,2}_*.png`, `stamp_window_*.png` в артефактах. Раскладка (`StampCreateLayout`) и логика без изменений.
+- Превью: доска — `tools/render_create_gui_preview.py`; штамп-клипборд — `tools/render_stamp_clipboard_preview.py` → `stamp_clipboard_*.png`. Раскладка штампа учитывает вылет зажима (`CLIP_OVERHANG`); логика заказа без изменений.
 
 ### Итерация 4 — тестовый UI доски (код готов, в клиенте не проверено)
 - Экран `CourierBoardScreen`: хром CSI (см. выше), без кода Create: Marketplace. Крупнее, адаптивен к GUI scale, списки с прокруткой, длинный текст обрезается с тултипом.

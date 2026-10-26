@@ -32,6 +32,17 @@ TRACK_OUT = (0x2C, 0x1C, 0x1B, 255)
 TRACK_IN = (0x1C, 0x11, 0x11, 255)
 SCROLL_MID = (0x9B, 0x6C, 0x61, 255)
 TRANSPARENT = (0, 0, 0, 0)
+PAPER = (0xE8, 0xD9, 0xB5, 255)
+PAPER_EDGE = (0xCD, 0xBC, 0xA8, 255)
+PAPER_OUTLINE = (0xA0, 0x8A, 0x68, 255)
+PAPER_FIELD = (0xF8, 0xF0, 0xDC, 255)
+PAPER_FIELD_BORDER = (0x8A, 0x74, 0x58, 255)
+METAL_HI = (0xC9, 0xC9, 0xC9, 255)
+METAL = (0x8A, 0x8A, 0x8A, 255)
+METAL_DK = (0x4F, 0x4F, 0x4F, 255)
+BRASS_HI = (0xF7, 0xCB, 0x6C, 255)
+BRASS = (0xC4, 0x7C, 0x25, 255)
+BRASS_DK = (0x6C, 0x35, 0x28, 255)
 
 
 def save_sprite(name: str, img: Image.Image, nine_slice: dict | None) -> None:
@@ -228,6 +239,72 @@ def gen_slot() -> None:
     save_sprite("container_slot", img, None)
 
 
+def gen_paper_sheet() -> None:
+    w, h = 48, 48
+    img = Image.new("RGBA", (w, h), TRANSPARENT)
+    fill_rect(img, 1, 1, w - 1, h - 1, PAPER)
+    fill_rect(img, 2, h - 4, w - 2, h - 1, PAPER_EDGE)
+    fill_rect(img, w - 4, 2, w - 1, h - 2, PAPER_EDGE)
+    for x in range(w):
+        img.putpixel((x, 0), PAPER_OUTLINE)
+        img.putpixel((x, h - 1), PAPER_OUTLINE)
+    for y in range(h):
+        img.putpixel((0, y), PAPER_OUTLINE)
+        img.putpixel((w - 1, y), PAPER_OUTLINE)
+    save_sprite(
+        "paper_sheet",
+        img,
+        {"width": 48, "height": 48, "border": {"left": 5, "top": 5, "right": 5, "bottom": 5}},
+    )
+
+
+def gen_paper_field(focused: bool) -> None:
+    w, h = 200, 20
+    border_c = WHITE if focused else PAPER_FIELD_BORDER
+    img = Image.new("RGBA", (w, h), TRANSPARENT)
+    fill_rect(img, 1, 1, w - 1, h - 1, PAPER_FIELD)
+    fill_rect(img, 2, h - 3, w - 2, h - 1, PAPER_EDGE)
+    for x in range(w):
+        img.putpixel((x, 0), border_c)
+        img.putpixel((x, h - 1), border_c)
+    for y in range(h):
+        img.putpixel((0, y), border_c)
+        img.putpixel((w - 1, y), border_c)
+    name = "paper_field_highlighted" if focused else "paper_field"
+    save_sprite(name, img, {"width": 200, "height": 20, "border": {"left": 2, "top": 2, "right": 2, "bottom": 2}})
+
+
+def gen_clipboard_clip() -> None:
+    w, h = 64, 24
+    img = Image.new("RGBA", (w, h), TRANSPARENT)
+    d = ImageDraw.Draw(img)
+    # back plate
+    fill_rect(img, 8, 10, w - 8, h - 2, METAL_DK)
+    fill_rect(img, 9, 11, w - 9, h - 3, METAL)
+    # side jaws
+    fill_rect(img, 4, 8, 12, h - 4, METAL_DK)
+    fill_rect(img, w - 12, 8, w - 4, h - 4, METAL_DK)
+    fill_rect(img, 5, 9, 11, h - 5, METAL)
+    fill_rect(img, w - 11, 9, w - 5, h - 5, METAL)
+    # brass spring / top highlight
+    fill_rect(img, 10, 4, w - 10, 12, BRASS_DK)
+    fill_rect(img, 12, 5, w - 12, 11, BRASS)
+    fill_rect(img, 14, 6, w - 14, 9, BRASS_HI)
+    fill_rect(img, 22, 2, w - 22, 7, METAL_HI)
+    d.rectangle((6, 7, w - 6, h - 2), outline=BLACK)
+    save_sprite("clipboard_clip", img, None)
+
+
+def gen_paper_slot() -> None:
+    img = Image.new("RGBA", (18, 18), TRANSPARENT)
+    fill_rect(img, 0, 0, 18, 18, PAPER_FIELD)
+    fill_rect(img, 0, 0, 18, 2, PAPER_OUTLINE)
+    fill_rect(img, 0, 0, 2, 18, PAPER_OUTLINE)
+    fill_rect(img, 16, 0, 18, 18, PAPER_EDGE)
+    fill_rect(img, 0, 16, 18, 18, PAPER_EDGE)
+    save_sprite("paper_slot", img, None)
+
+
 def gen_envelope() -> None:
     img = Image.new("RGBA", (16, 16), TRANSPARENT)
     d = ImageDraw.Draw(img)
@@ -248,6 +325,11 @@ def main() -> None:
     gen_text_field(True)
     gen_scroller()
     gen_slot()
+    gen_paper_sheet()
+    gen_paper_field(False)
+    gen_paper_field(True)
+    gen_clipboard_clip()
+    gen_paper_slot()
     gen_envelope()
     print(f"Wrote sprites to {OUT}")
 

@@ -20,7 +20,7 @@ import org.jetbrains.annotations.Nullable;
 /**
  * Player-facing order creation: destination, money, deadline. Cargo and pickup come from the stamped container.
  * Layout is computed from the current scaled window and font (see {@link StampCreateLayout}).
- * Chrome uses mod CSI-inspired GUI sprites (see {@link CreateGui}).
+ * Clipboard layout: wooden CSI frame + paper sheet (see {@link StampCreateGui}).
  */
 public final class StampCreateScreen extends Screen {
     private final OpenStampPayload preview;
@@ -155,7 +155,7 @@ public final class StampCreateScreen extends Screen {
         EditBox box = new EditBox(font, x + 4, y + 2, Math.max(8, w - 8), h - 3, label) {
             @Override
             public void renderWidget(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-                CreateGui.drawField(graphics, x, y, w, h, isFocused());
+                StampCreateGui.drawPaperField(graphics, x, y, w, h, isFocused());
                 super.renderWidget(graphics, mouseX, mouseY, partialTick);
             }
 
@@ -170,8 +170,8 @@ public final class StampCreateScreen extends Screen {
             }
         };
         box.setBordered(false);
-        box.setTextColor(CreateGui.TEXT);
-        box.setTextColorUneditable(CreateGui.TEXT_MUTED);
+        box.setTextColor(StampCreateGui.TEXT);
+        box.setTextColorUneditable(StampCreateGui.TEXT_MUTED);
         return box;
     }
 
@@ -231,54 +231,55 @@ public final class StampCreateScreen extends Screen {
     @Override
     public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         super.renderBackground(graphics, mouseX, mouseY, partialTick);
-        CreateGui.drawWindow(graphics, layout.left, layout.top, layout.panelW, layout.panelH);
+        StampCreateGui.drawWoodenFrame(graphics, layout.left, layout.top, layout.panelW, layout.panelH);
+        StampCreateGui.drawPaperSheet(graphics, layout.paperLeft, layout.paperTop, layout.paperW, layout.paperH);
+        StampCreateGui.drawClip(graphics, layout.clipX, layout.clipY);
     }
 
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         hoverTip = null;
         super.render(graphics, mouseX, mouseY, partialTick);
-        CreateGui.drawTitleLabel(graphics, layout.left + StampCreateLayout.PAD, layout.headerY - 2,
-                layout.innerW, layout.lineH + 4);
-        int titleW = Math.max(32, layout.balanceX - layout.left - StampCreateLayout.PAD - 8);
-        drawClipped(graphics, title, layout.left + StampCreateLayout.PAD, layout.headerY, titleW, CreateGui.TEXT_TITLE,
-                mouseX, mouseY);
+        int textX = layout.paperLeft + StampCreateLayout.PAD;
+        int titleW = Math.max(32, layout.balanceX - textX - 8);
+        drawClipped(graphics, title, textX, layout.headerY, titleW, StampCreateGui.TEXT, mouseX, mouseY);
         drawClipped(graphics, Component.translatable("ui.aerocouriers.balance", preview.balance()),
-                layout.balanceX, layout.headerY, layout.left + layout.panelW - StampCreateLayout.PAD - layout.balanceX,
-                CreateGui.TEXT_BRASS, mouseX, mouseY);
+                layout.balanceX, layout.headerY,
+                layout.paperLeft + layout.paperW - StampCreateLayout.PAD - layout.balanceX,
+                StampCreateGui.TEXT_MUTED, mouseX, mouseY);
         Component originText = Component.translatable("ui.aerocouriers.stamp.origin", preview.origin().toShortString());
         Component weightText = Component.translatable("ui.aerocouriers.stamp.weight",
                 String.format(java.util.Locale.ROOT, "%.1f", preview.weight()));
         if (layout.originY == layout.weightY) {
             int originW = layout.innerW * 62 / 100;
-            drawClipped(graphics, originText, layout.left + StampCreateLayout.PAD, layout.originY,
-                    originW, CreateGui.TEXT, mouseX, mouseY);
-            drawClipped(graphics, weightText, layout.left + StampCreateLayout.PAD + originW + StampCreateLayout.GAP,
-                    layout.weightY, layout.innerW - originW - StampCreateLayout.GAP, CreateGui.TEXT_MUTED, mouseX, mouseY);
+            drawClipped(graphics, originText, textX, layout.originY,
+                    originW, StampCreateGui.TEXT, mouseX, mouseY);
+            drawClipped(graphics, weightText, textX + originW + StampCreateLayout.GAP,
+                    layout.weightY, layout.innerW - originW - StampCreateLayout.GAP, StampCreateGui.TEXT_MUTED, mouseX, mouseY);
         } else {
-            drawClipped(graphics, originText, layout.left + StampCreateLayout.PAD, layout.originY,
-                    layout.innerW, CreateGui.TEXT, mouseX, mouseY);
-            drawClipped(graphics, weightText, layout.left + StampCreateLayout.PAD, layout.weightY,
-                    layout.innerW, CreateGui.TEXT_MUTED, mouseX, mouseY);
+            drawClipped(graphics, originText, textX, layout.originY,
+                    layout.innerW, StampCreateGui.TEXT, mouseX, mouseY);
+            drawClipped(graphics, weightText, textX, layout.weightY,
+                    layout.innerW, StampCreateGui.TEXT_MUTED, mouseX, mouseY);
         }
 
         if (layout.cargoRows > 0) {
             int cargoH = layout.cargoRows * StampCreateLayout.SLOT + 4;
-            CreateGui.drawInset(graphics, layout.cargoX - 2, layout.cargoY - 2,
-                    Math.min(layout.innerW, 9 * StampCreateLayout.SLOT + 4), cargoH);
+            StampCreateGui.drawPaperField(graphics, layout.cargoX - 2, layout.cargoY - 2,
+                    Math.min(layout.innerW, 9 * StampCreateLayout.SLOT + 4), cargoH, false);
         }
         renderCargo(graphics, mouseX, mouseY);
 
         if (layout.destTitleY + layout.lineH <= layout.coordLabelY) {
             drawClipped(graphics, Component.translatable("ui.aerocouriers.create.to"),
-                    layout.left + StampCreateLayout.PAD, layout.destTitleY, layout.innerW, CreateGui.TEXT, mouseX, mouseY);
+                    textX, layout.destTitleY, layout.innerW, StampCreateGui.TEXT, mouseX, mouseY);
         }
         for (int i = 0; i < 3; i++) {
-            drawClipped(graphics, coordLabel(i), layout.coordX[i], layout.coordLabelY, layout.coordW[i], CreateGui.TEXT_MUTED,
+            drawClipped(graphics, coordLabel(i), layout.coordX[i], layout.coordLabelY, layout.coordW[i], StampCreateGui.TEXT_MUTED,
                     mouseX, mouseY);
         }
         for (int i = 0; i < 4; i++) {
-            drawClipped(graphics, moneyLabel(i), layout.moneyX[i], layout.moneyLabelY, layout.moneyW[i], CreateGui.TEXT_MUTED,
+            drawClipped(graphics, moneyLabel(i), layout.moneyX[i], layout.moneyLabelY, layout.moneyW[i], StampCreateGui.TEXT_MUTED,
                     mouseX, mouseY);
         }
 
@@ -291,16 +292,16 @@ public final class StampCreateScreen extends Screen {
         if (to.isPresent()) {
             long min = Pricing.minReward(Math.sqrt(preview.origin().distSqr(to.get())));
             infoY = drawWrappedLimited(graphics, Component.translatable("ui.aerocouriers.create.min_reward", min),
-                    layout.left + StampCreateLayout.PAD, infoY, layout.infoW, infoBottom, CreateGui.TEXT_OK, mouseX, mouseY);
+                    textX, infoY, layout.infoW, infoBottom, StampCreateGui.TEXT_OK, mouseX, mouseY);
         }
         infoY = drawWrappedLimited(graphics, Component.translatable("ui.aerocouriers.stamp.cost",
                         rewardValue, fee, collateralValue),
-                layout.left + StampCreateLayout.PAD, infoY, layout.infoW, infoBottom, CreateGui.TEXT_BRASS, mouseX, mouseY);
+                textX, infoY, layout.infoW, infoBottom, StampCreateGui.TEXT_ACCENT, mouseX, mouseY);
         drawWrappedLimited(graphics, Component.translatable("contract.aerocouriers.risk", collateralValue, rewardValue),
-                layout.left + StampCreateLayout.PAD, infoY, layout.infoW, infoBottom, CreateGui.TEXT_WARN, mouseX, mouseY);
+                textX, infoY, layout.infoW, infoBottom, StampCreateGui.TEXT_WARN, mouseX, mouseY);
         if (notice != null) {
             drawWrappedLimited(graphics, notice, layout.noticeX, layout.buttonY + 2, layout.noticeW,
-                    layout.buttonY + StampCreateLayout.FIELD_H, CreateGui.TEXT_WARN, mouseX, mouseY);
+                    layout.buttonY + StampCreateLayout.FIELD_H, StampCreateGui.TEXT_WARN, mouseX, mouseY);
         }
         if (hoverTip == null) {
             getChildAt(mouseX, mouseY).ifPresent(widget -> {
@@ -318,7 +319,7 @@ public final class StampCreateScreen extends Screen {
         List<ItemStack> cargo = preview.cargo();
         if (cargo.isEmpty()) {
             drawClipped(graphics, Component.translatable("contract.aerocouriers.error.empty_cargo"),
-                    layout.cargoX, layout.cargoY, layout.innerW, CreateGui.TEXT_BAD, mouseX, mouseY);
+                    layout.cargoX, layout.cargoY, layout.innerW, StampCreateGui.TEXT_BAD, mouseX, mouseY);
             return;
         }
         int shown = Math.min(cargo.size(), layout.cargoRows * 9);
@@ -327,7 +328,7 @@ public final class StampCreateScreen extends Screen {
             int row = i / 9;
             int x = layout.cargoX + col * StampCreateLayout.SLOT;
             int y = layout.cargoY + row * StampCreateLayout.SLOT;
-            CreateGui.drawSlot(graphics, x - 1, y - 1);
+            StampCreateGui.drawPaperSlot(graphics, x - 1, y - 1);
             graphics.renderItem(cargo.get(i), x, y);
             graphics.renderItemDecorations(font, cargo.get(i), x, y);
             if (mouseX >= x && mouseX < x + 16 && mouseY >= y && mouseY < y + 16) {

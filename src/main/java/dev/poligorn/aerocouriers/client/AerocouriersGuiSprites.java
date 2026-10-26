@@ -15,6 +15,11 @@ public final class AerocouriersGuiSprites {
     public static final ResourceLocation SCROLLER_TRACK = id("scroller_track");
     public static final ResourceLocation CONTAINER_SLOT = id("container_slot");
     public static final ResourceLocation ENVELOPE = id("icon/envelope");
+    public static final ResourceLocation PAPER_SHEET = id("paper_sheet");
+    public static final ResourceLocation PAPER_FIELD = id("paper_field");
+    public static final ResourceLocation PAPER_FIELD_FOCUSED = id("paper_field_highlighted");
+    public static final ResourceLocation PAPER_SLOT = id("paper_slot");
+    public static final ResourceLocation CLIPBOARD_CLIP = id("clipboard_clip");
 
     private static final WidgetSprites VANILLA_BUTTON = new WidgetSprites(
             vanilla("button"),

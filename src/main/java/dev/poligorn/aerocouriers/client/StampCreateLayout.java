@@ -19,6 +19,12 @@ public final class StampCreateLayout {
     public final int panelH;
     public final int left;
     public final int top;
+    public final int paperLeft;
+    public final int paperTop;
+    public final int paperW;
+    public final int paperH;
+    public final int clipX;
+    public final int clipY;
     public final int innerW;
     public final int lineH;
 
@@ -65,7 +71,9 @@ public final class StampCreateLayout {
     public final int noticeW;
 
     private StampCreateLayout(
-            int panelW, int panelH, int left, int top, int innerW, int lineH,
+            int panelW, int panelH, int left, int top,
+            int paperLeft, int paperTop, int paperW, int paperH, int clipX, int clipY,
+            int innerW, int lineH,
             int headerY, int balanceX, int originY, int weightY,
             int cargoX, int cargoY, int cargoRows, int cargoH,
             int destTitleY, int coordLabelY, int coordFieldY, int[] coordX, int[] coordW,
@@ -78,6 +86,12 @@ public final class StampCreateLayout {
         this.panelH = panelH;
         this.left = left;
         this.top = top;
+        this.paperLeft = paperLeft;
+        this.paperTop = paperTop;
+        this.paperW = paperW;
+        this.paperH = paperH;
+        this.clipX = clipX;
+        this.clipY = clipY;
         this.innerW = innerW;
         this.lineH = lineH;
         this.headerY = headerY;
@@ -128,16 +142,22 @@ public final class StampCreateLayout {
         int panelH = clamp(screenH - 24, Math.min(220, maxH), Math.min(440, maxH));
         panelH = Math.min(panelH, maxH);
         int left = Math.max(0, (screenW - panelW) / 2);
-        int top = Math.max(0, (screenH - panelH) / 2);
-        int innerW = Math.max(32, panelW - PAD * 2);
+        int top = Math.max(StampCreateGui.CLIP_OVERHANG + 4, (screenH - panelH) / 2);
+        int paperLeft = left + StampCreateGui.FRAME_PAD;
+        int paperTop = top + StampCreateGui.FRAME_PAD;
+        int paperW = panelW - StampCreateGui.FRAME_PAD * 2;
+        int paperH = panelH - StampCreateGui.FRAME_PAD * 2;
+        int clipX = left + (panelW - StampCreateGui.CLIP_W) / 2;
+        int clipY = top - StampCreateGui.CLIP_OVERHANG;
+        int innerW = Math.max(32, paperW - PAD * 2);
         int cargoRows = Math.max(1, (Math.max(0, cargoCount) + 8) / 9);
         boolean compact = panelH < 280;
         boolean stackedMeta = panelH >= 220;
         int labelGap = compact ? 1 : 2;
         int sectionGap = panelH < 200 ? 2 : compact ? 3 : 5;
 
-        int buttonY = top + panelH - PAD - FIELD_H;
-        int y = top + PAD;
+        int buttonY = paperTop + paperH - PAD - FIELD_H;
+        int y = paperTop + StampCreateGui.CLIP_H / 2 + 4;
         int headerY = y;
         y += line + (compact ? 2 : 4);
         int originY = y;
@@ -171,7 +191,7 @@ public final class StampCreateLayout {
         y += coordBlockH + sectionGap;
 
         int mapBtnW = 0;
-        int mapBtnX = left + PAD;
+        int mapBtnX = paperLeft + PAD;
         int mapBtnY = coordFieldY;
         boolean mapOnCoordRow = showMapButton && innerW >= 280;
         if (showMapButton) {
@@ -180,23 +200,23 @@ public final class StampCreateLayout {
         int coordBudget = innerW;
         if (mapOnCoordRow) {
             coordBudget = Math.max(90, innerW - mapBtnW - GAP);
-            mapBtnX = left + PAD + coordBudget + GAP;
+            mapBtnX = paperLeft + PAD + coordBudget + GAP;
         }
         int[] coordX = new int[COLS];
         int[] coordW = new int[COLS];
-        splitRow(left + PAD, coordBudget, COLS, coordX, coordW);
+        splitRow(paperLeft + PAD, coordBudget, COLS, coordX, coordW);
 
         int stationY = y;
         if (showMapButton && !mapOnCoordRow) {
             mapBtnY = stationY;
-            mapBtnX = left + PAD;
+            mapBtnX = paperLeft + PAD;
         }
-        int stationX = left + PAD;
+        int stationX = paperLeft + PAD;
         int stationW = innerW;
-        int waypointX = left + PAD;
+        int waypointX = paperLeft + PAD;
         int waypointW = 0;
         if (showMapButton && !mapOnCoordRow) {
-            stationX = left + PAD + mapBtnW + GAP;
+            stationX = paperLeft + PAD + mapBtnW + GAP;
             stationW = Math.max(64, innerW - mapBtnW - GAP);
         }
         if (showWaypointList) {
@@ -212,7 +232,7 @@ public final class StampCreateLayout {
         int moneyFieldY = y + line + labelGap;
         int[] moneyX = new int[MONEY_COLS];
         int[] moneyW = new int[MONEY_COLS];
-        splitRow(left + PAD, innerW, MONEY_COLS, moneyX, moneyW);
+        splitRow(paperLeft + PAD, innerW, MONEY_COLS, moneyX, moneyW);
         y += moneyH + sectionGap;
 
         int infoY = Math.min(y, buttonY - minInfo);
@@ -221,16 +241,16 @@ public final class StampCreateLayout {
 
         int cancelW = 80;
         int submitW = Math.min(118, Math.max(80, innerW / 3));
-        int cancelX = left + PAD;
-        int submitX = left + panelW - PAD - submitW;
+        int cancelX = paperLeft + PAD;
+        int submitX = paperLeft + paperW - PAD - submitW;
         int noticeX = cancelX + cancelW + GAP;
         int noticeW = Math.max(16, submitX - GAP - noticeX);
-        int balanceX = left + Math.max(PAD + 80, panelW - PAD - Math.min(140, innerW / 2));
+        int balanceX = paperLeft + Math.max(PAD + 80, paperW - PAD - Math.min(140, innerW / 2));
 
         return new StampCreateLayout(
-                panelW, panelH, left, top, innerW, line,
+                panelW, panelH, left, top, paperLeft, paperTop, paperW, paperH, clipX, clipY, innerW, line,
                 headerY, balanceX, originY, weightY,
-                left + PAD, cargoY, cargoRows, cargoH,
+                paperLeft + PAD, cargoY, cargoRows, cargoH,
                 destTitleY, coordLabelY, coordFieldY, coordX, coordW,
                 mapBtnX, mapBtnW, mapBtnY,
                 stationX, stationY, stationW, waypointX, waypointW,
@@ -274,6 +294,9 @@ public final class StampCreateLayout {
         }
         if (left < 0 || top < 0 || left + panelW > screenW + 1 || top + panelH > screenH + 1) {
             failures.add(id + ": panel origin out of screen");
+        }
+        if (clipY < 0) {
+            failures.add(id + ": clipboard clip above screen (clipY=" + clipY + ")");
         }
         if (coordLabelY + lineH > coordFieldY) {
             failures.add(id + ": XYZ labels overlap coord fields (" + coordLabelY + "+" + lineH + ">" + coordFieldY + ")");
