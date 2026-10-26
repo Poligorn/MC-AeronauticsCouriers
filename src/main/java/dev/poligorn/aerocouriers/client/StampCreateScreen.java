@@ -8,7 +8,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
@@ -132,8 +131,8 @@ public final class StampCreateScreen extends Screen {
                 }));
     }
 
-    private EditBox coordBox(int column, String value, java.util.function.Consumer<String> sink) {
-        EditBox box = styledBox(layout.coordX[column], layout.coordFieldY, layout.coordW[column], coordLabel(column));
+    private PaperEditBox coordBox(int column, String value, java.util.function.Consumer<String> sink) {
+        PaperEditBox box = styledBox(layout.coordX[column], layout.coordFieldY, layout.coordW[column], coordLabel(column));
         box.setMaxLength(9);
         box.setFilter(s -> s.isEmpty() || s.equals("-") || s.matches("-?\\d{1,8}"));
         box.setValue(value);
@@ -141,8 +140,8 @@ public final class StampCreateScreen extends Screen {
         return box;
     }
 
-    private EditBox numberBox(int column, String value, java.util.function.Consumer<String> sink) {
-        EditBox box = styledBox(layout.moneyX[column], layout.moneyFieldY, layout.moneyW[column], moneyLabel(column));
+    private PaperEditBox numberBox(int column, String value, java.util.function.Consumer<String> sink) {
+        PaperEditBox box = styledBox(layout.moneyX[column], layout.moneyFieldY, layout.moneyW[column], moneyLabel(column));
         box.setMaxLength(12);
         box.setFilter(s -> s.isEmpty() || s.matches("\\d{1,12}"));
         box.setValue(value);
@@ -150,9 +149,9 @@ public final class StampCreateScreen extends Screen {
         return box;
     }
 
-    private EditBox styledBox(int x, int y, int w, Component label) {
+    private PaperEditBox styledBox(int x, int y, int w, Component label) {
         int h = StampCreateLayout.FIELD_H;
-        EditBox box = new EditBox(font, x + 4, y + 2, Math.max(8, w - 8), h - 3, label) {
+        PaperEditBox box = new PaperEditBox(font, x + 4, y + 2, Math.max(8, w - 8), h - 3, label) {
             @Override
             public void renderWidget(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
                 StampCreateGui.drawPaperField(graphics, x, y, w, h, isFocused());
@@ -169,9 +168,6 @@ public final class StampCreateScreen extends Screen {
                 return visible && mouseX >= x && mouseY >= y && mouseX < x + w && mouseY < y + h;
             }
         };
-        box.setBordered(false);
-        box.setTextColor(StampCreateGui.TEXT);
-        box.setTextColorUneditable(StampCreateGui.TEXT_MUTED);
         return box;
     }
 

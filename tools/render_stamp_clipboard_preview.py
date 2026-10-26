@@ -32,6 +32,8 @@ def font(size: int = 12) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
 
 TEXT = (0x3E, 0x28, 0x12, 255)
 TEXT_MUTED = (0x6B, 0x45, 0x3E, 255)
+TEXT_HINT = (0x8A, 0x74, 0x58, 255)
+FIELD_VALUES = ("45", "", "", "10", "0", "30", "8")
 BTN_TEXT = (255, 255, 255, 255)
 
 
@@ -122,15 +124,19 @@ def render(screen_w: int, screen_h: int) -> Image.Image:
     cw = (paper_w - pad * 2 - 12) // 3
     for i, lab in enumerate(labels):
         cx = tx + i * (cw + 6)
-        d.text((cx, y), lab, fill=TEXT_MUTED, font=fnt_sm)
+        d.text((cx, y), lab, fill=TEXT_HINT, font=fnt_sm)
         nine_slice(canvas, load("paper_field"), cx, y + 11, cw, 20, (2, 2, 2, 2))
+        val = FIELD_VALUES[i]
+        if val:
+            d.text((cx + 5, y + 15), val, fill=TEXT, font=fnt_sm)
     y += 40
     money = ["Награда", "Залог", "Мин.", "Радиус"]
     mw = (paper_w - pad * 2 - 18) // 4
     for i, lab in enumerate(money):
         mx = tx + i * (mw + 6)
-        d.text((mx, y), lab, fill=TEXT_MUTED, font=fnt_sm)
+        d.text((mx, y), lab, fill=TEXT_HINT, font=fnt_sm)
         nine_slice(canvas, load("paper_field"), mx, y + 11, mw, 20, (2, 2, 2, 2))
+        d.text((mx + 5, y + 15), FIELD_VALUES[3 + i], fill=TEXT, font=fnt_sm)
     y += 44
     d.text((tx, y), "Залог и награда уходят заказчику при провале.", fill=TEXT_MUTED, font=fnt_sm)
     by = paper_t + paper_h - pad - FIELD_H
