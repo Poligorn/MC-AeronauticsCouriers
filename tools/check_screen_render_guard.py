@@ -16,8 +16,8 @@ RENDER_METHOD = re.compile(
 )
 
 CHROME_BEFORE_SUPER = (
-    "StampCreateGui.drawWoodenFrame",
-    "StampCreateGui.drawPaperSheet",
+    "WaybillCreateGui.drawWoodenFrame",
+    "WaybillCreateGui.drawPaperSheet",
     "TabletGui.drawScreenBackground",
     "TabletGui.drawFrameChrome",
 )

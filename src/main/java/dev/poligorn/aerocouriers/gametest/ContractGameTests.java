@@ -634,7 +634,7 @@ public final class ContractGameTests {
         Contract stampAt(BlockPos relative, long reward, long collateral) {
             issuer.setPos(Vec3.atCenterOf(helper.absolutePos(relative)));
             Destination destination = new Destination(helper.getLevel().dimension(), helper.absolutePos(TARGET), 2);
-            ContractManager.Outcome outcome = manager.createFromStamp(issuer, helper.absolutePos(relative),
+            ContractManager.Outcome outcome = manager.createFromWaybill(issuer, helper.absolutePos(relative),
                     destination, reward, collateral, 60);
             expect(outcome, true, "stamp");
             return outcome.contract().orElseThrow();

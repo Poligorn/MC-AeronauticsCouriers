@@ -72,7 +72,7 @@ public final class AeronauticsCouriers {
     private static void addCreativeTabContents(BuildCreativeModeTabContentsEvent event) {
         if (event.getTabKey() == CreativeModeTabs.TOOLS_AND_UTILITIES) {
             event.accept(ModItems.PILOT_LICENSE.get());
-            event.accept(ModItems.COURIER_STAMP.get());
+            event.accept(ModItems.TRANSPORT_WAYBILL.get());
             event.accept(ModItems.ORDER_TABLET.get());
         }
         if (event.getTabKey() == CreativeModeTabs.OP_BLOCKS && event.hasPermissions()) {

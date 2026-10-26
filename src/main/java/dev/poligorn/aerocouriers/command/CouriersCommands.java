@@ -97,11 +97,11 @@ public final class CouriersCommands {
                     return 1;
                 }));
 
-        root.then(Commands.literal("stamp")
-                .requires(src -> src.hasPermission(OP))
-                .then(Commands.literal("give")
-                        .then(Commands.argument("targets", EntityArgument.players())
-                                .executes(CouriersCommands::giveStamp))));
+        var waybillGive = Commands.literal("give")
+                .then(Commands.argument("targets", EntityArgument.players())
+                        .executes(CouriersCommands::giveWaybill));
+        root.then(Commands.literal("waybill").requires(src -> src.hasPermission(OP)).then(waybillGive));
+        root.then(Commands.literal("stamp").requires(src -> src.hasPermission(OP)).then(waybillGive));
 
         root.then(ContractCommands.contract());
         root.then(ContractCommands.mail());
@@ -154,14 +154,14 @@ public final class CouriersCommands {
         return Component.translatable("commands.aerocouriers.profile.license.own", owner.number(), shown.displayName());
     }
 
-    private static int giveStamp(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
+    private static int giveWaybill(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
         Collection<ServerPlayer> targets = EntityArgument.getPlayers(ctx, "targets");
         for (ServerPlayer target : targets) {
-            ItemStack stamp = new ItemStack(dev.poligorn.aerocouriers.registry.ModItems.COURIER_STAMP.get());
-            if (!target.getInventory().add(stamp)) {
-                target.drop(stamp, false);
+            ItemStack waybills = dev.poligorn.aerocouriers.item.Waybills.stack(4);
+            if (!target.getInventory().add(waybills)) {
+                target.drop(waybills, false);
             }
-            ctx.getSource().sendSuccess(() -> Component.translatable("commands.aerocouriers.stamp.given",
+            ctx.getSource().sendSuccess(() -> Component.translatable("commands.aerocouriers.waybill.given",
                     target.getDisplayName()), true);
         }
         return targets.size();

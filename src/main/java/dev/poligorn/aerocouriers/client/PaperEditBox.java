@@ -11,7 +11,7 @@ import net.minecraft.util.Mth;
 
 /**
  * Edit field for clipboard / paper backgrounds: crisp ink without vanilla text shadow,
- * warm selection highlight (see {@link StampCreateScreen}).
+ * warm selection highlight (see {@link WaybillCreateScreen}).
  */
 public class PaperEditBox extends EditBox {
     public static final int TEXT = 0x3E2812;

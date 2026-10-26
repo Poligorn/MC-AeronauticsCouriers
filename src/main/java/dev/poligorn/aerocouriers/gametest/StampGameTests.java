@@ -3,7 +3,7 @@ package dev.poligorn.aerocouriers.gametest;
 import com.mojang.authlib.GameProfile;
 import dev.poligorn.aerocouriers.AeronauticsCouriers;
 import dev.poligorn.aerocouriers.cargo.CargoTracker;
-import dev.poligorn.aerocouriers.client.StampCreateLayout;
+import dev.poligorn.aerocouriers.client.WaybillCreateLayout;
 import dev.poligorn.aerocouriers.contract.Contract;
 import dev.poligorn.aerocouriers.contract.ContractManager;
 import dev.poligorn.aerocouriers.contract.ContractState;
@@ -117,7 +117,7 @@ public final class StampGameTests {
 
     @GameTest(template = CouriersGameTests.EMPTY)
     public static void stampCreateLayoutFitsGuiScales(GameTestHelper helper) {
-        java.util.List<String> failures = StampCreateLayout.checkCommonScales();
+        java.util.List<String> failures = WaybillCreateLayout.checkCommonScales();
         helper.assertTrue(failures.isEmpty(), "stamp layout overlaps at GUI scales 2–4: " + failures);
         helper.succeed();
     }
@@ -135,7 +135,7 @@ public final class StampGameTests {
         stranger.setPos(Vec3.atCenterOf(helper.absolutePos(CHEST)));
         Economies.get(helper.getLevel().getServer()).deposit(stranger.getUUID(), 100, "test");
         ContractManager.Outcome denied = ContractManager.get(helper.getLevel().getServer())
-                .createFromStamp(stranger, helper.absolutePos(CHEST),
+                .createFromWaybill(stranger, helper.absolutePos(CHEST),
                         new Destination(helper.getLevel().dimension(), helper.absolutePos(TARGET), 8),
                         20, 0, 60);
         helper.assertFalse(denied.success(), "unlicensed stamp");
@@ -181,7 +181,7 @@ public final class StampGameTests {
         }
 
         ContractManager.Outcome stamp(long reward, long collateral) {
-            return manager.createFromStamp(issuer, helper.absolutePos(CHEST),
+            return manager.createFromWaybill(issuer, helper.absolutePos(CHEST),
                     new Destination(helper.getLevel().dimension(), helper.absolutePos(TARGET), 8),
                     reward, collateral, 60);
         }

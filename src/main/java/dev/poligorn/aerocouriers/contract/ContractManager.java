@@ -8,6 +8,7 @@ import dev.poligorn.aerocouriers.cargo.CargoSize;
 import dev.poligorn.aerocouriers.cargo.CargoSpawner;
 import dev.poligorn.aerocouriers.cargo.CargoTracker;
 import dev.poligorn.aerocouriers.config.CouriersServerConfig;
+import dev.poligorn.aerocouriers.item.Waybills;
 import dev.poligorn.aerocouriers.economy.Economies;
 import dev.poligorn.aerocouriers.economy.Economy;
 import dev.poligorn.aerocouriers.license.CourierProfile;
@@ -287,14 +288,18 @@ public final class ContractManager extends SavedData {
     }
 
     /**
-     * Player-facing create: stamp on a container. Same money/cargo checks as {@link #create}, plus a worn license
-     * and the right to open the block. The source is emptied without drops, then replaced in-place by a Sable
-     * cargo container that already stands at pickup while the order is {@code OPEN}.
+     * Player-facing create: transport waybill on a container. Same money/cargo checks as {@link #create}, plus a
+     * worn license and the right to open the block. The source is emptied without drops, then replaced in-place
+     * by a Sable cargo container that already stands at pickup while the order is {@code OPEN}. One waybill is
+     * consumed on success (not in creative).
      */
-    public Outcome createFromStamp(ServerPlayer issuer, BlockPos sourcePos, Destination destination,
+    public Outcome createFromWaybill(ServerPlayer issuer, BlockPos sourcePos, Destination destination,
                                    long reward, long collateral, int deadlineMinutes) {
         if (!Licenses.isLicensedCourier(issuer)) {
             return Outcome.error("no_license");
+        }
+        if (!issuer.isCreative() && !Waybills.hasOne(issuer)) {
+            return Outcome.error("no_waybill");
         }
         if (!(issuer.level() instanceof ServerLevel level)) {
             return Outcome.error("no_container", sourcePos.toShortString());
@@ -378,11 +383,14 @@ public final class ContractManager extends SavedData {
         Escrow.get(server).open(id, manifest, reward);
         put(contract);
         level.playSound(null, sourcePos, SoundEvents.BARREL_CLOSE, SoundSource.BLOCKS, 1.0F, 0.8F);
+        if (!issuer.isCreative()) {
+            Waybills.consumeOne(issuer);
+        }
         AeronauticsCouriers.LOGGER.info(
-                "[contract] {} stamped by {}: {} stacks, W={}, D={}, reward={}, fee={}, collateral={}",
+                "[contract] {} waybill by {}: {} stacks, W={}, D={}, reward={}, fee={}, collateral={}",
                 id, issuer.getGameProfile().getName(), manifest.size(), weight, (long) distance, reward, fee,
                 collateral);
-        return Outcome.ok(contract, "created_stamp", contract.shortId(), reward, fee,
+        return Outcome.ok(contract, "created_waybill", contract.shortId(), reward, fee,
                 contract.requiredRank().displayName(), sourcePos.toShortString());
     }
 

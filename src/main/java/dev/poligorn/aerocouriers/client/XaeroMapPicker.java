@@ -74,7 +74,7 @@ public final class XaeroMapPicker {
      * waypoints; when the player leaves every Xaero screen the newest new waypoint is applied
      * and the same stamp instance is restored.
      */
-    public static boolean openMapForPick(StampCreateScreen stamp) {
+    public static boolean openMapForPick(WaybillCreateScreen stamp) {
         if (!canOpenMap()) {
             return false;
         }
@@ -160,6 +160,6 @@ public final class XaeroMapPicker {
         return name.startsWith("xaero.");
     }
 
-    private record Pending(StampCreateScreen stamp, Set<Integer> before) {
+    private record Pending(WaybillCreateScreen stamp, Set<Integer> before) {
     }
 }

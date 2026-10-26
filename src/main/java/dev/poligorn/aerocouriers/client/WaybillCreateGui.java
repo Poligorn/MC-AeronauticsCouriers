@@ -2,8 +2,8 @@ package dev.poligorn.aerocouriers.client;
 
 import net.minecraft.client.gui.GuiGraphics;
 
-/** Clipboard chrome for {@link StampCreateScreen} only (wood frame + paper + clip). */
-public final class StampCreateGui {
+/** Clipboard chrome for {@link WaybillCreateScreen} only (wood frame + paper + clip). */
+public final class WaybillCreateGui {
     public static final int TEXT = 0x3E2812;
     public static final int TEXT_MUTED = 0x6B453E;
     public static final int TEXT_ACCENT = 0x875A4D;
@@ -18,7 +18,7 @@ public final class StampCreateGui {
     /** Wood border thickness before the paper sheet. */
     public static final int FRAME_PAD = 6;
 
-    private StampCreateGui() {
+    private WaybillCreateGui() {
     }
 
     public static void drawWoodenFrame(GuiGraphics graphics, int x, int y, int w, int h) {

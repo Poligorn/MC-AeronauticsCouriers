@@ -5,7 +5,7 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 
 /**
- * In-world pause screens ({@link CourierBoardScreen}, {@link StampCreateScreen}) must not call
+ * In-world pause screens ({@link CourierBoardScreen}, {@link WaybillCreateScreen}) must not call
  * {@link Screen#renderBackground(GuiGraphics, int, int, float)} with blur: NeoForge 21.1 runs
  * {@code processBlurEffect} there, which breaks sprite atlas draws for the rest of the frame
  * (tabs/frame vanish while {@link TabletGui#drawScreenBackground} fills still show).

@@ -309,9 +309,9 @@ public final class CourierBoardScreen extends Screen {
                         PacketDistributor.sendToServer(new OperatorBoardPayload(
                                 OperatorBoardPayload.Action.ADD_MONEY, Optional.empty()))));
         addRenderableWidget(TabletButton.create(sx + 8, y + 48, 220, 20,
-                Component.translatable("ui.aerocouriers.test.stamp"), b ->
+                Component.translatable("ui.aerocouriers.test.waybill"), b ->
                         PacketDistributor.sendToServer(new OperatorBoardPayload(
-                                OperatorBoardPayload.Action.GIVE_STAMP, Optional.empty()))));
+                                OperatorBoardPayload.Action.GIVE_WAYBILL, Optional.empty()))));
         Optional<UUID> id = Optional.ofNullable(selected);
         int actionY = y + 88;
         TabletButton spawn = TabletButton.create(sx + 8, actionY, 120, 20,

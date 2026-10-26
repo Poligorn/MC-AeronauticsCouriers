@@ -4,10 +4,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Pixel layout for {@link StampCreateScreen}. Positions come from the scaled screen size and the
+ * Pixel layout for {@link WaybillCreateScreen}. Positions come from the scaled screen size and the
  * current font line height — no hardcoded stacks that overlap when GUI scale or language changes.
  */
-public final class StampCreateLayout {
+public final class WaybillCreateLayout {
     public static final int FIELD_H = 20;
     public static final int SLOT = 18;
     public static final int PAD = 8;
@@ -70,7 +70,7 @@ public final class StampCreateLayout {
     public final int noticeX;
     public final int noticeW;
 
-    private StampCreateLayout(
+    private WaybillCreateLayout(
             int panelW, int panelH, int left, int top,
             int paperLeft, int paperTop, int paperW, int paperH, int clipX, int clipY,
             int innerW, int lineH,
@@ -131,11 +131,11 @@ public final class StampCreateLayout {
         this.noticeW = noticeW;
     }
 
-    public static StampCreateLayout compute(
+    public static WaybillCreateLayout compute(
             int screenW, int screenH, int lineH, int cargoCount,
             boolean showMapButton, boolean showWaypointList, int mapLabelW) {
         int line = Math.max(8, lineH);
-        int over = StampCreateGui.CLIP_OVERHANG;
+        int over = WaybillCreateGui.CLIP_OVERHANG;
         int bottomMargin = 6;
         int maxW = Math.max(16, screenW - 8);
         int maxH = Math.max(16, screenH - 8);
@@ -145,16 +145,16 @@ public final class StampCreateLayout {
         panelH = Math.min(panelH, maxH);
         int maxPanelH = screenH - 2 * over - 2 - bottomMargin;
         if (panelH > maxPanelH) {
-            panelH = Math.max(StampCreateLayout.FIELD_H * 6, maxPanelH);
+            panelH = Math.max(WaybillCreateLayout.FIELD_H * 6, maxPanelH);
         }
         int left = Math.max(0, (screenW - panelW) / 2);
         int clipY = Math.max(over + 2, (screenH - panelH - over) / 2);
         int top = clipY + over;
-        int paperLeft = left + StampCreateGui.FRAME_PAD;
-        int paperTop = top + StampCreateGui.FRAME_PAD;
-        int paperW = panelW - StampCreateGui.FRAME_PAD * 2;
-        int paperH = panelH - StampCreateGui.FRAME_PAD * 2;
-        int clipX = left + (panelW - StampCreateGui.CLIP_W) / 2;
+        int paperLeft = left + WaybillCreateGui.FRAME_PAD;
+        int paperTop = top + WaybillCreateGui.FRAME_PAD;
+        int paperW = panelW - WaybillCreateGui.FRAME_PAD * 2;
+        int paperH = panelH - WaybillCreateGui.FRAME_PAD * 2;
+        int clipX = left + (panelW - WaybillCreateGui.CLIP_W) / 2;
         int innerW = Math.max(32, paperW - PAD * 2);
         int cargoRows = Math.max(1, (Math.max(0, cargoCount) + 8) / 9);
         boolean compact = panelH < 280;
@@ -163,7 +163,7 @@ public final class StampCreateLayout {
         int sectionGap = panelH < 200 ? 2 : compact ? 3 : 5;
 
         int buttonY = paperTop + paperH - PAD - FIELD_H;
-        int y = clipY + StampCreateGui.CLIP_H + 4;
+        int y = clipY + WaybillCreateGui.CLIP_H + 4;
         int headerY = y;
         y += line + (compact ? 2 : 4);
         int originY = y;
@@ -253,7 +253,7 @@ public final class StampCreateLayout {
         int noticeW = Math.max(16, submitX - GAP - noticeX);
         int balanceX = paperLeft + Math.max(PAD + 80, paperW - PAD - Math.min(140, innerW / 2));
 
-        return new StampCreateLayout(
+        return new WaybillCreateLayout(
                 panelW, panelH, left, top, paperLeft, paperTop, paperW, paperH, clipX, clipY, innerW, line,
                 headerY, balanceX, originY, weightY,
                 paperLeft + PAD, cargoY, cargoRows, cargoH,
@@ -281,7 +281,7 @@ public final class StampCreateLayout {
                 for (boolean map : new boolean[] {false, true}) {
                     for (boolean list : new boolean[] {false, true}) {
                         for (int cargo : new int[] {0, 9, 27}) {
-                            StampCreateLayout layout = compute(w, h, 9, cargo, map, list, 110);
+                            WaybillCreateLayout layout = compute(w, h, 9, cargo, map, list, 110);
                             String id = res[0] + "x" + res[1] + "@s" + scale + " cargo=" + cargo
                                     + " map=" + map + " list=" + list;
                             failures.addAll(layout.validate(id, w, h));

@@ -1,22 +1,20 @@
 package dev.poligorn.aerocouriers.item;
 
-import dev.poligorn.aerocouriers.contract.CargoContainers;
-import dev.poligorn.aerocouriers.license.Licenses;
-import dev.poligorn.aerocouriers.net.BoardPackets;
+import dev.poligorn.aerocouriers.registry.ModItems;
+import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.context.UseOnContext;
-import net.minecraft.ChatFormatting;
+import net.minecraft.world.level.Level;
 import java.util.List;
 
 /**
- * {@code aerocouriers:courier_stamp}: the only player-facing way to post a P2P order. Right-click any inventory
- * the player may open; the server then sends the stamp screen. The item is not consumed.
+ * Legacy {@code aerocouriers:courier_stamp}. Kept registered so old worlds do not break; stacks migrate to
+ * {@link TransportWaybillItem} on use or inventory tick.
  */
 public class CourierStampItem extends Item {
     public CourierStampItem(Properties properties) {
@@ -24,31 +22,36 @@ public class CourierStampItem extends Item {
     }
 
     @Override
-    public InteractionResult useOn(UseOnContext context) {
-        if (!(context.getLevel() instanceof ServerLevel level)
-                || !(context.getPlayer() instanceof ServerPlayer player)) {
-            return InteractionResult.SUCCESS;
+    public void inventoryTick(ItemStack stack, Level level, Entity entity, int slotId, boolean selected) {
+        if (level.isClientSide || stack.isEmpty() || !(entity instanceof Player player)) {
+            return;
         }
-        if (!Licenses.isLicensedCourier(player)) {
-            player.sendSystemMessage(Component.translatable("contract.aerocouriers.error.no_license"));
-            return InteractionResult.FAIL;
+        migrateStack(player, slotId, stack.getCount());
+    }
+
+    @Override
+    public net.minecraft.world.InteractionResult useOn(UseOnContext context) {
+        if (context.getLevel().isClientSide) {
+            return net.minecraft.world.InteractionResult.SUCCESS;
         }
-        if (!CargoContainers.canOpen(player, level, context.getClickedPos())) {
-            player.sendSystemMessage(Component.translatable("contract.aerocouriers.error.no_access",
-                    context.getClickedPos().toShortString()));
-            return InteractionResult.FAIL;
+        Player player = context.getPlayer();
+        if (player == null) {
+            return net.minecraft.world.InteractionResult.FAIL;
         }
-        if (CargoContainers.find(level, context.getClickedPos()).isEmpty()) {
-            player.sendSystemMessage(Component.translatable("contract.aerocouriers.error.no_container",
-                    context.getClickedPos().toShortString()));
-            return InteractionResult.FAIL;
+        int count = context.getItemInHand().getCount();
+        player.setItemInHand(context.getHand(), Waybills.stack(count));
+        return ModItems.TRANSPORT_WAYBILL.get().useOn(context);
+    }
+
+    private static void migrateStack(Player player, int slotId, int count) {
+        if (slotId < 0) {
+            return;
         }
-        BoardPackets.openStamp(player, context.getClickedPos());
-        return InteractionResult.CONSUME;
+        player.getInventory().setItem(slotId, Waybills.stack(count));
     }
 
     @Override
     public void appendHoverText(ItemStack stack, TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
-        tooltip.add(Component.translatable("item.aerocouriers.courier_stamp.hint").withStyle(ChatFormatting.GRAY));
+        tooltip.add(Component.translatable("item.aerocouriers.courier_stamp.legacy").withStyle(ChatFormatting.GRAY));
     }
 }

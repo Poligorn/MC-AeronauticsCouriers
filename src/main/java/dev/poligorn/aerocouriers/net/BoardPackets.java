@@ -18,7 +18,7 @@ import dev.poligorn.aerocouriers.license.LicenseRank;
 import dev.poligorn.aerocouriers.license.Licenses;
 import dev.poligorn.aerocouriers.contract.RankRules;
 import dev.poligorn.aerocouriers.registry.ModComponents;
-import dev.poligorn.aerocouriers.registry.ModItems;
+import dev.poligorn.aerocouriers.item.Waybills;
 import dev.poligorn.aerocouriers.village.StationAtlas;
 import com.mojang.authlib.GameProfile;
 import java.util.Comparator;
@@ -163,7 +163,7 @@ public final class BoardPackets {
         reply(player, outcome.message());
     }
 
-    public static void openStamp(ServerPlayer player, BlockPos origin) {
+    public static void openWaybillCreate(ServerPlayer player, BlockPos origin) {
         if (!canSendBoard(player)) {
             player.sendSystemMessage(Component.translatable("ui.aerocouriers.error.no_client"));
             return;
@@ -187,14 +187,14 @@ public final class BoardPackets {
                 .map(s -> new BoardSnapshotPayload.StationHint(s.name(), s.pos()))
                 .limit(64)
                 .toList();
-        PacketDistributor.sendToPlayer(player, new OpenStampPayload(
+        PacketDistributor.sendToPlayer(player, new OpenWaybillCreatePayload(
                 origin, cargo, weight, Economies.get(player.server).balance(player.getUUID()), stations));
     }
 
     public static void handleCreate(ServerPlayer player, CreateContractPayload payload) {
         Destination destination = new Destination(player.level().dimension(), payload.to(), payload.radius());
         ContractManager.Outcome outcome = ContractManager.get(player.server)
-                .createFromStamp(player, payload.from(), destination,
+                .createFromWaybill(player, payload.from(), destination,
                         payload.reward(), payload.collateral(), payload.minutes());
         player.sendSystemMessage(outcome.message());
         if (outcome.success()) {
@@ -211,7 +211,7 @@ public final class BoardPackets {
         ContractManager.Outcome outcome = switch (payload.action()) {
             case GIVE_LICENSE -> giveLicense(player);
             case ADD_MONEY -> addMoney(player);
-            case GIVE_STAMP -> giveStamp(player);
+            case GIVE_WAYBILL -> giveWaybill(player);
             case FORCE_SPAWN -> operatorContract(player, payload.contractId(), ContractManager::spawnContainer);
             case FORCE_DELIVER -> operatorContract(player, payload.contractId(), ContractManager::forceDeliver);
         };
@@ -248,12 +248,12 @@ public final class BoardPackets {
                 player.getDisplayName(), LicenseRank.RANK1.displayName()), Optional.empty());
     }
 
-    private static ContractManager.Outcome giveStamp(ServerPlayer player) {
-        ItemStack stamp = new ItemStack(ModItems.COURIER_STAMP.get());
-        if (!player.getInventory().add(stamp)) {
-            player.drop(stamp, false);
+    private static ContractManager.Outcome giveWaybill(ServerPlayer player) {
+        ItemStack waybill = Waybills.stack(4);
+        if (!player.getInventory().add(waybill)) {
+            player.drop(waybill, false);
         }
-        return new ContractManager.Outcome(true, Component.translatable("commands.aerocouriers.stamp.given",
+        return new ContractManager.Outcome(true, Component.translatable("commands.aerocouriers.waybill.given",
                 player.getDisplayName()), Optional.empty());
     }
 

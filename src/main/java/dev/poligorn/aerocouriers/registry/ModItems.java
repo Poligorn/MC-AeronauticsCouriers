@@ -3,6 +3,7 @@ package dev.poligorn.aerocouriers.registry;
 import dev.poligorn.aerocouriers.AeronauticsCouriers;
 import dev.poligorn.aerocouriers.item.CourierStampItem;
 import dev.poligorn.aerocouriers.item.OrderTabletItem;
+import dev.poligorn.aerocouriers.item.TransportWaybillItem;
 import dev.poligorn.aerocouriers.license.PilotLicenseItem;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
@@ -21,6 +22,11 @@ public final class ModItems {
     public static final DeferredItem<CourierStampItem> COURIER_STAMP = REGISTER.registerItem(
             "courier_stamp",
             CourierStampItem::new,
+            new Item.Properties().stacksTo(16));
+
+    public static final DeferredItem<TransportWaybillItem> TRANSPORT_WAYBILL = REGISTER.registerItem(
+            "transport_waybill",
+            TransportWaybillItem::new,
             new Item.Properties().stacksTo(16));
 
     public static final DeferredItem<OrderTabletItem> ORDER_TABLET = REGISTER.registerItem(

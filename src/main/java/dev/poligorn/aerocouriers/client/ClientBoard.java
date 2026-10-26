@@ -3,7 +3,7 @@ package dev.poligorn.aerocouriers.client;
 import dev.poligorn.aerocouriers.access.OrderTablets;
 import dev.poligorn.aerocouriers.net.BoardSnapshotPayload;
 import dev.poligorn.aerocouriers.net.OpenBoardPayload;
-import dev.poligorn.aerocouriers.net.OpenStampPayload;
+import dev.poligorn.aerocouriers.net.OpenWaybillCreatePayload;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.neoforged.neoforge.network.PacketDistributor;
@@ -48,7 +48,7 @@ public final class ClientBoard {
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.screen instanceof CourierBoardScreen screen) {
             screen.apply(payload);
-        } else if (minecraft.screen instanceof StampCreateScreen && !payload.openScreen()) {
+        } else if (minecraft.screen instanceof WaybillCreateScreen && !payload.openScreen()) {
             // stamp confirm replies with a board snapshot notice; close the stamp window
             if (payload.notice().isPresent()) {
                 minecraft.setScreen(null);
@@ -58,7 +58,7 @@ public final class ClientBoard {
         }
     }
 
-    public static void openStamp(OpenStampPayload payload) {
-        Minecraft.getInstance().setScreen(new StampCreateScreen(payload));
+    public static void openWaybillCreate(OpenWaybillCreatePayload payload) {
+        Minecraft.getInstance().setScreen(new WaybillCreateScreen(payload));
     }
 }
