@@ -35,9 +35,9 @@ import org.joml.Vector3d;
  * item capability, drops nothing. {@link #FILL} drives the Sable mass via
  * {@code data/aerocouriers/physics_block_properties/}.
  *
- * <p>Base hardness stays {@code -1} so machines (Create drills, deployers) treat it as unbreakable; players break it
- * in {@code piracy.break_seconds} and explosions use {@code piracy.blast_resistance} (GDD §9.7). With piracy
- * disabled it is unbreakable and explosion-proof. What breaking means for the contract is in {@link CargoEvents}.
+ * <p>Hardness matches obsidian ({@code 50}) with diamond-pick mining tags; blast resistance stays low (~stone) so
+ * TNT and cannons can destroy it (GDD §9.7). With piracy disabled it is unbreakable and explosion-proof.
+ * Contract consequences of damage are in {@link CargoEvents}.
  */
 public class CargoContainerBlock extends BaseEntityBlock implements BlockSubLevelAssemblyListener {
     public static final int MAX_FILL = 8;
@@ -90,11 +90,11 @@ public class CargoContainerBlock extends BaseEntityBlock implements BlockSubLeve
     }
 
     @Override
-    protected float getDestroyProgress(BlockState state, Player player, BlockGetter level, BlockPos pos) {
-        if (!CouriersServerConfig.SPEC.isLoaded() || !CouriersServerConfig.PIRACY_ENABLED.get()) {
+    public float getDestroyProgress(BlockState state, Player player, BlockGetter level, BlockPos pos) {
+        if (CouriersServerConfig.SPEC.isLoaded() && !CouriersServerConfig.PIRACY_ENABLED.get()) {
             return 0.0F;
         }
-        return (float) (1.0 / (CouriersServerConfig.PIRACY_BREAK_SECONDS.get() * 20.0));
+        return super.getDestroyProgress(state, player, level, pos);
     }
 
     @Override

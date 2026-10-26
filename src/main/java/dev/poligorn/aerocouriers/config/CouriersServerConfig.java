@@ -105,10 +105,10 @@ public final class CouriersServerConfig {
                 "returns collateral and reward to the issuer and drops part of the manifest into the world.");
         PIRACY_ENABLED = b.comment("false = containers are unbreakable and explosion-proof")
                 .define("enabled", true);
-        PIRACY_BREAK_SECONDS = b.comment("Time to break a container with any tool, seconds")
+        PIRACY_BREAK_SECONDS = b.comment("Unused: break time follows obsidian-like hardness (50) and pickaxe tags")
                 .defineInRange("break_seconds", 10.0, 0.05, 3600.0);
-        PIRACY_BLAST_RESISTANCE = b.comment("Explosion resistance of a container (stone 6, obsidian 1200)")
-                .defineInRange("blast_resistance", 9.0, 0.0, 3_600_000.0);
+        PIRACY_BLAST_RESISTANCE = b.comment("Explosion resistance when piracy is enabled (stone 6, obsidian 1200)")
+                .defineInRange("blast_resistance", 6.0, 0.0, 3_600_000.0);
         PIRACY_DROP_RATIO = b.comment("Share of every manifest stack that drops when the container is damaged; the rest is destroyed")
                 .defineInRange("drop_ratio", 0.5, 0.0, 1.0);
         b.pop();

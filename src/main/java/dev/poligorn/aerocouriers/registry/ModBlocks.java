@@ -21,7 +21,8 @@ public final class ModBlocks {
             BlockBehaviour.Properties.of()
                     .mapColor(MapColor.METAL)
                     .sound(SoundType.METAL)
-                    .strength(-1.0F, 3_600_000.0F)
+                    .strength(50.0F, 6.0F)
+                    .requiresCorrectToolForDrops()
                     .noLootTable()
                     .pushReaction(PushReaction.BLOCK));
 
