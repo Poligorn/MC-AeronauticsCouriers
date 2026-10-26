@@ -52,13 +52,13 @@ public final class BoardRowRenderer {
         } else {
             BoardCustomerFace.draw(graphics, faceX, y, entry.customerId());
         }
-        cursor += BoardRowMetrics.CUSTOMER_FACE + 3;
+        cursor += BoardRowMetrics.CUSTOMER_FACE + BoardRowMetrics.FACE_NAME_GAP;
 
         int nameW = Math.max(8, x + width - cursor);
         String nameShown = clip(font, entry.customerName(), nameW);
         graphics.drawString(font, nameShown, cursor, y, TabletGui.TEXT, false);
         Component customerTip = null;
-        if (mouseOver(mouseX, mouseY, faceX, y, BoardRowMetrics.CUSTOMER_FACE + 3 + nameW)) {
+        if (mouseOver(mouseX, mouseY, faceX, y, BoardRowMetrics.CUSTOMER_FACE + BoardRowMetrics.FACE_NAME_GAP + nameW)) {
             customerTip = Component.translatable("ui.aerocouriers.row.customer_tooltip", entry.customerName());
         } else if (!nameShown.equals(entry.customerName()) && mouseOver(mouseX, mouseY, cursor, y, nameW)) {
             clippedHover.accept(Component.literal(entry.customerName()), nameW);
@@ -79,9 +79,11 @@ public final class BoardRowRenderer {
     }
 
     private static int drawStat(GuiGraphics graphics, Font font, ResourceLocation icon, String value, int x, int y) {
-        graphics.blitSprite(icon, x, y, BoardRowMetrics.LINE2_ICON, BoardRowMetrics.LINE2_ICON);
-        int textX = x + BoardRowMetrics.LINE2_ICON + BoardRowMetrics.ICON_TEXT_GAP;
-        graphics.drawString(font, value, textX, y, TabletGui.TEXT_MUTED, false);
+        int iconW = BoardRowMetrics.LINE2_ICON;
+        graphics.blitSprite(icon, x, y, iconW, iconW);
+        int textX = x + iconW + BoardRowMetrics.ICON_TEXT_GAP;
+        int textY = y + Math.max(0, iconW - 8);
+        graphics.drawString(font, value, textX, textY, TabletGui.TEXT_MUTED, false);
         return textX + font.width(value) + BoardRowMetrics.PAIR_GAP;
     }
 

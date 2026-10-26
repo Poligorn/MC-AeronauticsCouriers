@@ -30,6 +30,22 @@ DETAILS_PAD = 10
 SECONDARY_W = 76
 LIST_PAD_RIGHT = 8
 
+FONT_CANDIDATES = (
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+    "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf",
+    "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+)
+
+
+def load_font(size: int = 11) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
+    for path in FONT_CANDIDATES:
+        if Path(path).is_file():
+            font = ImageFont.truetype(path, size)
+            # Fail fast if Cyrillic is missing
+            if font.getbbox("Абв")[2] > 0:
+                return font
+    raise RuntimeError("No Cyrillic-capable font found; install fonts-dejavu-core")
+
 
 def load_metrics() -> dict[str, int]:
     text = METRICS_JAVA.read_text(encoding="utf-8")
@@ -44,6 +60,8 @@ def load_metrics() -> dict[str, int]:
         "PAIR_GAP",
         "ID_STATUS_GAP",
         "BUTTON_HEIGHT",
+        "CUSTOMER_FACE",
+        "FACE_NAME_GAP",
     ):
         m = re.search(rf"public static final int {name} = (\d+);", text)
         if m:
@@ -55,14 +73,18 @@ def row_height(m: dict[str, int]) -> int:
     return m["PAD_TOP"] + m["LINE1_HEIGHT"] + m["LINE_GAP"] + m["LINE2_ICON"] + m["PAD_BOTTOM"]
 
 
-def clip(font: ImageFont.FreeTypeFont | ImageFont.ImageFont, raw: str, width: int) -> str:
+def text_width(font, text: str) -> int:
+    return int(font.getlength(text))
+
+
+def clip(font, raw: str, width: int) -> str:
     if width <= 0:
         return ""
     shown = raw
-    while shown and font.getlength(shown) > width:
+    while shown and text_width(font, shown) > width:
         shown = shown[:-1]
     if shown != raw:
-        while font.getlength(shown + "…") > width and shown:
+        while text_width(font, shown + "…") > width and shown:
             shown = shown[:-1]
         shown = shown + "…"
     return shown
@@ -74,10 +96,10 @@ def layout_for_row(font, sw: int, details_label: str, has_secondary: bool) -> di
     details_right = secondary_x - GAP if has_secondary else right
     text_room = DETAILS_MAX - DETAILS_PAD
     shown = clip(font, details_label, text_room)
-    details_w = min(DETAILS_MAX, max(DETAILS_MIN, int(font.getlength(shown)) + DETAILS_PAD))
-    if int(font.getlength(shown)) + DETAILS_PAD > details_w:
+    details_w = min(DETAILS_MAX, max(DETAILS_MIN, text_width(font, shown) + DETAILS_PAD))
+    if text_width(font, shown) + DETAILS_PAD > details_w:
         shown = clip(font, details_label, details_w - DETAILS_PAD)
-        details_w = max(DETAILS_MIN, int(font.getlength(shown)) + DETAILS_PAD)
+        details_w = max(DETAILS_MIN, text_width(font, shown) + DETAILS_PAD)
     details_x = details_right - details_w
     crate_x = details_x - GAP - ICON
     map_x = crate_x - GAP - ICON
@@ -97,22 +119,37 @@ def load_icon(stem: str) -> Image.Image:
     return Image.open(SPRITES / "icon" / f"{stem}.png").convert("RGBA")
 
 
-def draw_stat(draw: ImageDraw.ImageDraw, base: Image.Image, icons: dict, key: str, value: str, x: int, y: int, m: dict) -> int:
-    ic = icons[key]
+def icon_scaled(icons: dict[str, Image.Image], key: str, size: int) -> Image.Image:
+    return icons[key].resize((size, size), Image.Resampling.NEAREST)
+
+
+def draw_stat(
+    draw: ImageDraw.ImageDraw,
+    base: Image.Image,
+    font,
+    icons: dict[str, Image.Image],
+    key: str,
+    value: str,
+    x: int,
+    y: int,
+    m: dict[str, int],
+) -> int:
+    icon_size = m["LINE2_ICON"]
+    ic = icon_scaled(icons, key, icon_size)
     base.paste(ic, (x, y), ic)
-    text_x = x + m["LINE2_ICON"] + m["ICON_TEXT_GAP"]
-    draw.text((text_x, y), value, fill=MUTED)
-    return text_x + int(draw.textlength(value)) + m["PAIR_GAP"]
+    text_x = x + ic.width + m["ICON_TEXT_GAP"]
+    text_y = y + max(0, ic.height - 9)
+    draw.text((text_x, text_y), value, font=font, fill=MUTED)
+    return text_x + text_width(font, value) + m["PAIR_GAP"]
 
 
 def draw_row(
     base: Image.Image,
     draw: ImageDraw.ImageDraw,
     font,
-    m: dict,
+    m: dict[str, int],
     y: int,
     sw: int,
-    line1: str,
     id_part: str,
     status: str,
     customer: str,
@@ -133,43 +170,42 @@ def draw_row(
     btn_y = y + (rh - m["BUTTON_HEIGHT"]) // 2
 
     x = 14
-    draw.text((x, line1_y), id_part, fill=TEXT)
-    x += int(draw.textlength(id_part)) + m["ID_STATUS_GAP"]
+    draw.text((x, line1_y), id_part, font=font, fill=TEXT)
+    x += text_width(font, id_part) + m["ID_STATUS_GAP"]
     status_shown = clip(font, status, 88)
-    draw.text((x, line1_y), status_shown, fill=MUTED)
-    x += int(draw.textlength(status_shown)) + 4
-    base.paste(icons["village_tablet"], (x, line1_y), icons["village_tablet"])
-    x += m["LINE2_ICON"] + 3
+    draw.text((x, line1_y), status_shown, font=font, fill=MUTED)
+    x += text_width(font, status_shown) + 4
+    face = icon_scaled(icons, "village_tablet", m["CUSTOMER_FACE"])
+    base.paste(face, (x, line1_y), face)
+    x += face.width + m["FACE_NAME_GAP"]
     name_w = max(8, lay["text_right"] - x)
     name_shown = clip(font, customer, name_w)
-    draw.text((x, line1_y), name_shown, fill=TEXT)
+    draw.text((x, line1_y), name_shown, font=font, fill=TEXT)
 
     stat_x = 14
-    stat_x = draw_stat(draw, base, icons, "coin_tablet", reward, stat_x, line2_y, m)
-    stat_x = draw_stat(draw, base, icons, "lock_tablet", collateral, stat_x, line2_y, m)
-    stat_x = draw_stat(draw, base, icons, "clock_tablet", time, stat_x, line2_y, m)
+    stat_x = draw_stat(draw, base, font, icons, "coin_tablet", reward, stat_x, line2_y, m)
+    stat_x = draw_stat(draw, base, font, icons, "lock_tablet", collateral, stat_x, line2_y, m)
+    stat_x = draw_stat(draw, base, font, icons, "clock_tablet", time, stat_x, line2_y, m)
     if my_order:
-        base.paste(icons["star_badge_tablet"], (stat_x + 2, line2_y), icons["star_badge_tablet"])
+        star = icon_scaled(icons, "star_badge_tablet", m["LINE2_ICON"])
+        base.paste(star, (stat_x + 2, line2_y), star)
 
     for key, bx in (("map_pin_tablet", lay["map_x"]), ("crate_tablet", lay["crate_x"])):
-        base.paste(icons[key], (bx, btn_y), icons[key])
+        ic = icon_scaled(icons, key, ICON)
+        base.paste(ic, (bx, btn_y), ic)
     dx, dw = lay["details_x"], lay["details_w"]
     draw.rectangle((dx, btn_y, dx + dw, btn_y + m["BUTTON_HEIGHT"]), outline=OUTLINE)
-    inner = dw - DETAILS_PAD
-    label = clip(font, lay["details_shown"], inner)
-    draw.text((dx + 5, btn_y + 5), label, fill=TEXT)
+    label = clip(font, lay["details_shown"], dw - DETAILS_PAD)
+    draw.text((dx + 5, btn_y + 5), label, font=font, fill=TEXT)
 
 
 def render(filename: str, stretch: float, details_label: str) -> None:
+    font = load_font(11)
     m = load_metrics()
     rh = row_height(m)
     width, height = 720, 20 + rh * 2 + 16
     img = Image.new("RGBA", (width, height), BG)
     draw = ImageDraw.Draw(img)
-    try:
-        font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 11)
-    except OSError:
-        font = ImageFont.load_default()
 
     icons = {name: load_icon(name) for name in (
         "coin_tablet", "lock_tablet", "clock_tablet", "star_badge_tablet",
@@ -177,13 +213,13 @@ def render(filename: str, stretch: float, details_label: str) -> None:
     )}
 
     customer = "Александр" if stretch <= 1.0 else "Александр-Константинопольский"
-    long_details = details_label if stretch <= 1.0 else "Подробнее…" * 2
+    long_details = "ПодробнееПодробнее" if stretch > 1.0 else details_label
     draw_row(
-        img, draw, font, m, 16, width - 16, "", "#a3f2", "открыт", customer,
-        "10", "0", "28м", stretch <= 1.0, icons, long_details if stretch > 1 else details_label, True,
+        img, draw, font, m, 16, width - 16, "#a3f2", "открыт", customer,
+        "10", "0", "28м", stretch <= 1.0, icons, long_details, True,
     )
     draw_row(
-        img, draw, font, m, 16 + rh + 8, width - 16, "", "#b91c", "в пути", "Деревня Сосновка",
+        img, draw, font, m, 16 + rh + 8, width - 16, "#b91c", "в пути", "Деревня Сосновка",
         "120", "15", "6м", False, icons, details_label, True,
     )
     OUT.mkdir(parents=True, exist_ok=True)
@@ -191,32 +227,49 @@ def render(filename: str, stretch: float, details_label: str) -> None:
 
 
 def render_tooltips_demo() -> None:
+    font = load_font(11)
     m = load_metrics()
     rh = row_height(m)
-    width, height = 720, 200
+    width, height = 720, 220
     img = Image.new("RGBA", (width, height), BG)
     draw = ImageDraw.Draw(img)
-    try:
-        font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 11)
-    except OSError:
-        font = ImageFont.load_default()
     icons = {name: load_icon(name) for name in (
         "coin_tablet", "lock_tablet", "clock_tablet", "star_badge_tablet",
         "map_pin_tablet", "crate_tablet", "village_tablet",
     )}
     draw_row(
-        img, draw, font, m, 24, width - 16, "", "#a3f2", "принят", "Игрок",
+        img, draw, font, m, 24, width - 16, "#a3f2", "принят", "Игрок",
         "10", "0", "28м", False, icons, "Подробнее", True,
     )
-    draw.rectangle((420, 8, 700, 78), fill=(0x1A, 0x0A, 0x04), outline=OUTLINE)
+    draw.rectangle((400, 8, 700, 78), fill=(0x1A, 0x0A, 0x04), outline=OUTLINE)
     draw.multiline_text(
-        (430, 14),
+        (410, 14),
         "Погрузка: 357 70 1469\nДоставка: 405 76 1416\nДистанция: 512 блоков\nНажмите, чтобы открыть карту",
+        font=font,
         fill=TEXT,
         spacing=4,
     )
-    draw.rectangle((420, 88, 700, 188), fill=(0x1A, 0x0A, 0x04), outline=OUTLINE)
-    draw.text((430, 94), "Груз · 3.2 / 256", fill=TEXT)
+    # Cargo tooltip mock (BoardCargoClientTooltip: 18px slots, 9 cols)
+    tx, ty = 400, 88
+    tw, th = 300, 120
+    draw.rectangle((tx, ty, tx + tw, ty + th), fill=(0x1A, 0x0A, 0x04), outline=OUTLINE)
+    draw.text((tx + 8, ty + 6), "Груз", font=font, fill=TEXT)
+    slot = 18
+    pad = 4
+    grid_y = ty + 22
+    colors = (
+        (0x6B, 0x8E, 0x23), (0x8B, 0x45, 0x13), (0x4A, 0x6F, 0xA5),
+        (0x9A, 0x4A, 0x4A), (0x7A, 0x5A, 0xC4), (0xC4, 0xA0, 0x35),
+    )
+    for i, color in enumerate(colors):
+        col = i % 9
+        row = i // 9
+        sx = tx + pad + col * slot
+        sy = grid_y + row * slot
+        draw.rectangle((sx, sy, sx + 16, sy + 16), fill=color, outline=OUTLINE)
+        draw.text((sx + 4, sy + 2), str((i + 1) * 8), font=font, fill=(255, 255, 255))
+    draw.text((tx + pad, grid_y + slot + 2), "3.2 / 256", font=font, fill=TEXT)
+    draw.text((tx + pad, grid_y + slot + 16), "+2 ещё", font=font, fill=MUTED)
     OUT.mkdir(parents=True, exist_ok=True)
     img.save(OUT / "board_row_tooltips_preview.png")
 

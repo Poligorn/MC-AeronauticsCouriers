@@ -785,7 +785,8 @@ public final class CourierBoardScreen extends Screen {
             }
             int faceStart = sx + 8 + font.width("#" + entry.shortId()) + BoardRowMetrics.ID_STATUS_GAP
                     + Math.min(font.width(entry.state().displayName().getString()), 88) + 4;
-            int faceEnd = faceStart + BoardRowMetrics.CUSTOMER_FACE + 3 + font.width(entry.customerName());
+            int faceEnd = faceStart + BoardRowMetrics.CUSTOMER_FACE + BoardRowMetrics.FACE_NAME_GAP
+                    + font.width(entry.customerName());
             if (mouseX >= faceStart && mouseX < Math.min(faceEnd, textRight)) {
                 return entry;
             }
