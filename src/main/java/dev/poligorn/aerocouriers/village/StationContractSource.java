@@ -158,7 +158,7 @@ public final class StationContractSource implements ContractSource {
         }
         double distance = Math.sqrt(from.pos().distSqr(to.pos()));
         long reward = Pricing.npcReward(distance, weight, random);
-        long collateral = Pricing.npcCollateral(weight);
+        long collateral = Pricing.npcCollateral(manifest, weight);
         return ContractManager.get(level.getServer()).publishVillage(level, from, to, spot.get(), manifest, size.get(),
                 weight, reward, collateral, DEFAULT_DEADLINE_MINUTES);
     }

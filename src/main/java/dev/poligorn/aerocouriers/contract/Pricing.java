@@ -1,7 +1,9 @@
 package dev.poligorn.aerocouriers.contract;
 
 import dev.poligorn.aerocouriers.config.CouriersServerConfig;
+import java.util.List;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.item.ItemStack;
 
 /** P2P money rules (GDD §7.1, §9.6) and NPC station formulas (GDD §6.3). Amounts are spurs. */
 public final class Pricing {
@@ -38,8 +40,12 @@ public final class Pricing {
         return Math.max(1, Math.round(base * factor));
     }
 
-    /** Stand-in for item_values.json (not in this iteration): roughly 2 sp per weight unit. */
-    public static long npcCollateral(double weight) {
+    /** NPC collateral from cargo value (GDD §8.3) or {@code ≈2×} weight when value is zero. */
+    public static long npcCollateral(List<ItemStack> manifest, double weight) {
+        long value = ItemValues.of(manifest);
+        if (value > 0) {
+            return Math.max(1, Math.round(value * ItemValues.collateralFactor()));
+        }
         return Math.max(1, Math.round(weight * 2.0));
     }
 }
