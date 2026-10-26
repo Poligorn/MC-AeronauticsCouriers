@@ -73,7 +73,6 @@ public final class TabletButton extends Button {
     @Override
     protected void renderWidget(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         RenderSystem.enableBlend();
-        RenderSystem.enableDepthTest();
         ResourceLocation sprite = sprites.get(active, isHoveredOrFocused());
         graphics.blitSprite(sprite, getX(), getY(), getWidth(), getHeight());
         Font font = Minecraft.getInstance().font;

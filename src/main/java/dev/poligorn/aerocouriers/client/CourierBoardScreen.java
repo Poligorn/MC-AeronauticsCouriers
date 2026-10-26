@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.Locale;
+import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
@@ -56,27 +57,37 @@ public final class CourierBoardScreen extends Screen {
             selected = null;
             pendingAccept = null;
         }
-        if (needsWidgetRebuild(previous, payload)) {
+        if (previous != null && previous.operator() != payload.operator()) {
             listRowButtonKey = listRowButtonKey(payload);
             rebuildWidgets();
+        } else if (needsContentWidgetRefresh(previous, payload)) {
+            listRowButtonKey = listRowButtonKey(payload);
+            refreshContentWidgets();
         }
     }
 
-    private boolean needsWidgetRebuild(@Nullable BoardSnapshotPayload previous, BoardSnapshotPayload payload) {
+    private boolean needsContentWidgetRefresh(@Nullable BoardSnapshotPayload previous, BoardSnapshotPayload payload) {
         if (previous == null) {
-            return true;
-        }
-        if (previous.operator() != payload.operator()) {
             return true;
         }
         if (tab == Tab.BOARD && previous.page() != payload.page()) {
             return true;
         }
         String nextKey = listRowButtonKey(payload);
-        if (nextKey != null && !nextKey.equals(listRowButtonKey)) {
-            return true;
+        return nextKey != null && !nextKey.equals(listRowButtonKey);
+    }
+
+    /** Drops and rebuilds row/test {@link TabletButton}s only; tabs and mail stay mounted. */
+    private void refreshContentWidgets() {
+        renderables.removeIf(TabletButton.class::isInstance);
+        if (snapshot == null) {
+            return;
         }
-        return false;
+        if (tab == Tab.TEST) {
+            initTest();
+        } else if (tab == Tab.BOARD || tab == Tab.MINE) {
+            initListButtons(tab == Tab.BOARD ? snapshot.board() : snapshot.mine(), tab == Tab.BOARD);
+        }
     }
 
     /**
@@ -89,7 +100,7 @@ public final class CourierBoardScreen extends Screen {
         List<BoardSnapshotPayload.BoardEntry> all = tab == Tab.BOARD ? payload.board() : payload.mine();
         int visible = visibleRows();
         StringBuilder key = new StringBuilder(visible * 48);
-        key.append(scroll).append('|');
+        key.append(scroll).append('|').append(pendingAccept).append('|');
         for (int i = 0; i < visible && scroll + i < all.size(); i++) {
             BoardSnapshotPayload.BoardEntry entry = all.get(scroll + i);
             key.append(entry.id()).append(':').append(entry.state()).append(':').append(entry.role()).append(';');
@@ -198,7 +209,8 @@ public final class CourierBoardScreen extends Screen {
             pendingAccept = null;
         } else {
             pendingAccept = entry.id();
-            rebuildWidgets();
+            listRowButtonKey = snapshot == null ? null : listRowButtonKey(snapshot);
+            refreshContentWidgets();
         }
     }
 
@@ -238,9 +250,10 @@ public final class CourierBoardScreen extends Screen {
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         hoverTip = null;
+        RenderSystem.disableDepthTest();
         TabletGui.drawScreenBackground(graphics, screenLeft(), screenTop(), screenW(), screenH());
-        super.render(graphics, mouseX, mouseY, partialTick);
         TabletGui.drawFrameChrome(graphics, left(), top(), panelW(), panelH());
+        super.render(graphics, mouseX, mouseY, partialTick);
         int sx = screenLeft();
         int sy = screenTop();
         graphics.drawString(font, title, sx + 6, sy + 22, TabletGui.TEXT, false);
@@ -467,7 +480,7 @@ public final class CourierBoardScreen extends Screen {
                     PacketDistributor.sendToServer(new OpenBoardPayload(snapshot.page() + 1));
                 }
                 listRowButtonKey = listRowButtonKey(snapshot);
-                rebuildWidgets();
+                refreshContentWidgets();
                 return true;
             }
         }
