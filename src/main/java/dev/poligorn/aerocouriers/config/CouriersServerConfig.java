@@ -38,6 +38,7 @@ public final class CouriersServerConfig {
     public static final ModConfigSpec.DoubleValue ACE_MIN_SUCCESS;
     public static final ModConfigSpec.IntValue TRAINEE_FREE_CONTRACTS;
     public static final ModConfigSpec.IntValue TRAINEE_BONUS;
+    public static final ModConfigSpec.IntValue TRAINEE_MAX_DISTANCE;
 
     public static final ModConfigSpec.IntValue EMERALD_VALUE_SPURS;
 
@@ -94,6 +95,8 @@ public final class CouriersServerConfig {
         TRAINEE_FREE_CONTRACTS = b.defineInRange("trainee_free_contracts", 3, 0, 100);
         TRAINEE_BONUS = b.comment("One-time advance paid after the trainee contracts, spurs")
                 .defineInRange("trainee_bonus", 100, 0, 1_000_000);
+        TRAINEE_MAX_DISTANCE = b.comment("While trainee_free_contracts remain, NPC orders longer than this cannot be accepted (0 = no limit)")
+                .defineInRange("trainee_max_distance", 800, 0, 50_000);
         b.pop();
 
         b.push("economy");

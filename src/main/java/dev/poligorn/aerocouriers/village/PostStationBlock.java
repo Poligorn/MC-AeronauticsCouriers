@@ -22,6 +22,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.phys.BlockHitResult;
+import java.util.Optional;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -80,10 +81,11 @@ public class PostStationBlock extends BaseEntityBlock {
             return InteractionResult.SUCCESS;
         }
         if (player instanceof ServerPlayer serverPlayer) {
-            if (level.getBlockEntity(pos) instanceof PostStationBlockEntity station) {
-                serverPlayer.sendSystemMessage(Component.translatable("station.aerocouriers.info", station.name()));
+            Optional<Component> stationNotice = Optional.empty();
+            if (level.getBlockEntity(pos) instanceof PostStationBlockEntity station && !station.name().isEmpty()) {
+                stationNotice = Optional.of(Component.translatable("station.aerocouriers.info", station.name()));
             }
-            BoardPackets.open(serverPlayer);
+            BoardPackets.open(serverPlayer, 0, true, stationNotice);
         }
         return InteractionResult.CONSUME;
     }

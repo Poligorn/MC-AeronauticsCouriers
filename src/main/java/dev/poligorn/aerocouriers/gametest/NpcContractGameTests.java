@@ -167,6 +167,27 @@ public final class NpcContractGameTests {
                 .thenSucceed();
     }
 
+    @GameTest(template = CouriersGameTests.EMPTY, batch = "aerocouriers.npc", timeoutTicks = 200)
+    public static void npcTraineeRejectsLongRoute(GameTestHelper helper) {
+        Fixture f = new Fixture(helper);
+        BlockPos far = new BlockPos(900, 1, 1);
+        helper.setBlock(far, ModBlocks.POST_STATION.get());
+        helper.startSequence()
+                .thenIdle(2)
+                .thenExecute(() -> {
+                    StationAtlas.Station near = f.station(A);
+                    StationAtlas.Station distant = f.station(far);
+                    Contract contract = f.publish(near, distant);
+                    helper.assertTrue(contract.distance() > CouriersServerConfig.TRAINEE_MAX_DISTANCE.get(),
+                            "contract distance should exceed trainee cap");
+                    f.expect(f.manager.accept(f.courier, contract.id()), false, "trainee long route");
+                    f.cleanup();
+                    helper.setBlock(far, Blocks.AIR);
+                })
+                .thenIdle(SABLE_SETTLE_TICKS)
+                .thenSucceed();
+    }
+
     private static final class Fixture {
         final GameTestHelper helper;
         final ServerPlayer courier;

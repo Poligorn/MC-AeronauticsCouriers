@@ -131,7 +131,10 @@ public final class BoardPackets {
                 stats.delivered(),
                 stats.failed(),
                 stats.distance(),
-                stats.rewardSum());
+                stats.rewardSum(),
+                stats.villageDelivered(),
+                CouriersServerConfig.TRAINEE_FREE_CONTRACTS.get(),
+                CouriersServerConfig.TRAINEE_MAX_DISTANCE.get());
     }
 
     public static void handleOpen(ServerPlayer player, OpenBoardPayload payload) {

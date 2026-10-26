@@ -454,9 +454,17 @@ public final class ContractManager extends SavedData {
             return Outcome.error("too_many_active", maxActive, ids);
         }
         long collateralDue = contract.collateral();
-        if (contract.type().isNpc()
-                && Licenses.profile(courier).villageDelivered() < CouriersServerConfig.TRAINEE_FREE_CONTRACTS.get()) {
-            collateralDue = 0;
+        CourierProfile profile = Licenses.profile(courier);
+        if (contract.type().isNpc()) {
+            int traineeFree = CouriersServerConfig.TRAINEE_FREE_CONTRACTS.get();
+            if (TraineeRules.onTraineeVillageContracts(profile.villageDelivered(), traineeFree)
+                    && !TraineeRules.villageDistanceAllowed(contract.distance(), profile.villageDelivered(),
+                    traineeFree, CouriersServerConfig.TRAINEE_MAX_DISTANCE.get())) {
+                return Outcome.error("trainee_too_far", CouriersServerConfig.TRAINEE_MAX_DISTANCE.get());
+            }
+            if (profile.villageDelivered() < traineeFree) {
+                collateralDue = 0;
+            }
         }
         Economy economy = Economies.get(server);
         if (collateralDue > 0 && !economy.withdraw(courier.getUUID(), collateralDue, "collateral:" + id)) {

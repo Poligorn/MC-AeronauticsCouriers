@@ -71,18 +71,40 @@ public record BoardSnapshotPayload(
             int delivered,
             int failed,
             long distance,
-            long rewardSum
+            long rewardSum,
+            int villageDelivered,
+            int traineeFreeContracts,
+            int traineeMaxDistance
     ) {
-        public static final BoardProfile EMPTY = new BoardProfile("", LicenseRank.RANK1, 0, 0, 0L, 0L);
+        public static final BoardProfile EMPTY = new BoardProfile("", LicenseRank.RANK1, 0, 0, 0L, 0L, 0, 3, 800);
 
-        public static final StreamCodec<RegistryFriendlyByteBuf, BoardProfile> STREAM_CODEC = StreamCodec.composite(
-                ByteBufCodecs.STRING_UTF8, BoardProfile::playerName,
-                LicenseRank.STREAM_CODEC, BoardProfile::rank,
-                ByteBufCodecs.VAR_INT, BoardProfile::delivered,
-                ByteBufCodecs.VAR_INT, BoardProfile::failed,
-                ByteBufCodecs.VAR_LONG, BoardProfile::distance,
-                ByteBufCodecs.VAR_LONG, BoardProfile::rewardSum,
-                BoardProfile::new);
+        public static final StreamCodec<RegistryFriendlyByteBuf, BoardProfile> STREAM_CODEC =
+                StreamCodec.of(BoardProfile::write, BoardProfile::read);
+
+        private static void write(RegistryFriendlyByteBuf buf, BoardProfile p) {
+            ByteBufCodecs.STRING_UTF8.encode(buf, p.playerName);
+            LicenseRank.STREAM_CODEC.encode(buf, p.rank);
+            ByteBufCodecs.VAR_INT.encode(buf, p.delivered);
+            ByteBufCodecs.VAR_INT.encode(buf, p.failed);
+            ByteBufCodecs.VAR_LONG.encode(buf, p.distance);
+            ByteBufCodecs.VAR_LONG.encode(buf, p.rewardSum);
+            ByteBufCodecs.VAR_INT.encode(buf, p.villageDelivered);
+            ByteBufCodecs.VAR_INT.encode(buf, p.traineeFreeContracts);
+            ByteBufCodecs.VAR_INT.encode(buf, p.traineeMaxDistance);
+        }
+
+        private static BoardProfile read(RegistryFriendlyByteBuf buf) {
+            return new BoardProfile(
+                    ByteBufCodecs.STRING_UTF8.decode(buf),
+                    LicenseRank.STREAM_CODEC.decode(buf),
+                    ByteBufCodecs.VAR_INT.decode(buf),
+                    ByteBufCodecs.VAR_INT.decode(buf),
+                    ByteBufCodecs.VAR_LONG.decode(buf),
+                    ByteBufCodecs.VAR_LONG.decode(buf),
+                    ByteBufCodecs.VAR_INT.decode(buf),
+                    ByteBufCodecs.VAR_INT.decode(buf),
+                    ByteBufCodecs.VAR_INT.decode(buf));
+        }
     }
 
     public record BoardEntry(

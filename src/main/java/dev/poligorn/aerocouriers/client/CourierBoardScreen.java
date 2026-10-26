@@ -345,6 +345,12 @@ public final class CourierBoardScreen extends Screen {
         int sy = screenTop();
         int headingY = headingY();
         graphics.drawString(font, tabHeading(), sx + 6, headingY, TabletGui.TEXT, false);
+        if (snapshot != null && tab == Tab.BOARD && showsTraineeHint(snapshot.profile())) {
+            Component hint = Component.translatable("ui.aerocouriers.trainee.hint",
+                    snapshot.profile().traineeFreeContracts() - snapshot.profile().villageDelivered(),
+                    snapshot.profile().traineeMaxDistance());
+            drawWrapped(graphics, hint, sx + 6, headingY + font.lineHeight + 2, screenW() - 12, TabletGui.TEXT_MUTED);
+        }
         if (snapshot != null) {
             long balance = snapshot.balance();
             Component balanceLine = Component.translatable("ui.aerocouriers.balance", balance);
@@ -965,8 +971,17 @@ public final class CourierBoardScreen extends Screen {
         return screenTop() + TAB_Y + TAB_H + HEADING_GAP;
     }
 
+    private static boolean showsTraineeHint(BoardSnapshotPayload.BoardProfile profile) {
+        return profile.traineeMaxDistance() > 0
+                && profile.villageDelivered() < profile.traineeFreeContracts();
+    }
+
     private int listTop() {
-        return headingY() + 10;
+        int extra = 0;
+        if (snapshot != null && tab == Tab.BOARD && showsTraineeHint(snapshot.profile())) {
+            extra = font.lineHeight + 4;
+        }
+        return headingY() + 10 + extra;
     }
 
     private int contentBottom() {

@@ -107,6 +107,17 @@ public final class StationContractSource implements ContractSource {
                 pairs.add(new StationAtlas.Station[] {from, to});
             }
         }
+        int traineeMax = CouriersServerConfig.TRAINEE_MAX_DISTANCE.get();
+        pairs.sort((a, b) -> {
+            double da = Math.sqrt(a[0].pos().distSqr(a[1].pos()));
+            double db = Math.sqrt(b[0].pos().distSqr(b[1].pos()));
+            boolean shortA = traineeMax > 0 && da <= traineeMax;
+            boolean shortB = traineeMax > 0 && db <= traineeMax;
+            if (shortA != shortB) {
+                return shortB ? 1 : -1;
+            }
+            return Double.compare(da, db);
+        });
         Collections.shuffle(pairs, new java.util.Random(random.nextLong()));
         int created = 0;
         for (StationAtlas.Station[] pair : pairs) {

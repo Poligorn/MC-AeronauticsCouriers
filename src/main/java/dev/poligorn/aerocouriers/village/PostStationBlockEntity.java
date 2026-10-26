@@ -13,6 +13,8 @@ import net.minecraft.server.TickTask;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.Nameable;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.structure.Structure;
@@ -25,7 +27,7 @@ import org.jetbrains.annotations.Nullable;
  * same village start, or within {@code stations.village_dedup_radius}, becomes a cartography table.
  * Operator-placed stations are never replaced.
  */
-public class PostStationBlockEntity extends BlockEntity {
+public class PostStationBlockEntity extends BlockEntity implements Nameable {
     private static final String[] VILLAGE_STRUCTURES = {
             "village_plains", "village_desert", "village_savanna", "village_snowy", "village_taiga"
     };
@@ -172,6 +174,19 @@ public class PostStationBlockEntity extends BlockEntity {
             }
         }
         return null;
+    }
+
+    @Override
+    public Component getName() {
+        if (!name.isEmpty()) {
+            return Component.literal(name);
+        }
+        return getBlockState().getBlock().getName();
+    }
+
+    @Override
+    public @Nullable Component getCustomName() {
+        return name.isEmpty() ? null : Component.literal(name);
     }
 
     /** Operator rename (GDD §6.0). */
