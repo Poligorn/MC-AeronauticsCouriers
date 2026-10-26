@@ -11,10 +11,10 @@ public final class StampCreateGui {
     public static final int TEXT_WARN = 0xA56A28;
     public static final int TEXT_BAD = 0xA04A3A;
 
-    public static final int CLIP_W = 64;
-    public static final int CLIP_H = 24;
-    /** Pixels the clip extends above the wooden panel top. */
-    public static final int CLIP_OVERHANG = 12;
+    public static final int CLIP_W = 128;
+    public static final int CLIP_H = 38;
+    /** Pixels the clip sprite extends above the wooden panel top (lever / ring). */
+    public static final int CLIP_OVERHANG = 20;
     /** Wood border thickness before the paper sheet. */
     public static final int FRAME_PAD = 6;
 

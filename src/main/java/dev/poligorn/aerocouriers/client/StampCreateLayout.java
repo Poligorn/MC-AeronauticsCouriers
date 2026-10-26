@@ -142,7 +142,7 @@ public final class StampCreateLayout {
         int panelH = clamp(screenH - 24, Math.min(220, maxH), Math.min(440, maxH));
         panelH = Math.min(panelH, maxH);
         int left = Math.max(0, (screenW - panelW) / 2);
-        int top = Math.max(StampCreateGui.CLIP_OVERHANG + 4, (screenH - panelH) / 2);
+        int top = Math.max(StampCreateGui.CLIP_OVERHANG + 6, (screenH - panelH) / 2);
         int paperLeft = left + StampCreateGui.FRAME_PAD;
         int paperTop = top + StampCreateGui.FRAME_PAD;
         int paperW = panelW - StampCreateGui.FRAME_PAD * 2;
@@ -157,7 +157,7 @@ public final class StampCreateLayout {
         int sectionGap = panelH < 200 ? 2 : compact ? 3 : 5;
 
         int buttonY = paperTop + paperH - PAD - FIELD_H;
-        int y = paperTop + StampCreateGui.CLIP_H / 2 + 4;
+        int y = clipY + StampCreateGui.CLIP_H + 4;
         int headerY = y;
         y += line + (compact ? 2 : 4);
         int originY = y;

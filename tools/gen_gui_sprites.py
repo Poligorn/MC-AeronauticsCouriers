@@ -275,23 +275,42 @@ def gen_paper_field(focused: bool) -> None:
 
 
 def gen_clipboard_clip() -> None:
-    w, h = 64, 24
+    w, h = 128, 38
     img = Image.new("RGBA", (w, h), TRANSPARENT)
     d = ImageDraw.Draw(img)
-    # back plate
-    fill_rect(img, 8, 10, w - 8, h - 2, METAL_DK)
-    fill_rect(img, 9, 11, w - 9, h - 3, METAL)
-    # side jaws
-    fill_rect(img, 4, 8, 12, h - 4, METAL_DK)
-    fill_rect(img, w - 12, 8, w - 4, h - 4, METAL_DK)
-    fill_rect(img, 5, 9, 11, h - 5, METAL)
-    fill_rect(img, w - 11, 9, w - 5, h - 5, METAL)
-    # brass spring / top highlight
-    fill_rect(img, 10, 4, w - 10, 12, BRASS_DK)
-    fill_rect(img, 12, 5, w - 12, 11, BRASS)
-    fill_rect(img, 14, 6, w - 14, 9, BRASS_HI)
-    fill_rect(img, 22, 2, w - 22, 7, METAL_HI)
-    d.rectangle((6, 7, w - 6, h - 2), outline=BLACK)
+    # Wide base plate bolted to the wooden frame
+    fill_rect(img, 8, 24, w - 8, h - 1, METAL_DK)
+    fill_rect(img, 10, 25, w - 10, h - 2, METAL)
+    fill_rect(img, 10, 25, w - 10, 28, METAL_HI)
+    fill_rect(img, 10, h - 4, w - 10, h - 2, (0x35, 0x35, 0x35, 255))
+    for rx in (34, w - 34):
+        d.ellipse((rx - 4, 28, rx + 4, 36), fill=METAL_DK, outline=BLACK)
+        d.ellipse((rx - 2, 30, rx + 2, 34), fill=METAL_HI)
+        d.point((rx, 32), fill=BLACK)
+    # Side jaws gripping the stack
+    fill_rect(img, 4, 20, 16, h - 4, METAL_DK)
+    fill_rect(img, w - 16, 20, w - 4, h - 4, METAL_DK)
+    fill_rect(img, 6, 21, 14, h - 5, METAL)
+    fill_rect(img, w - 14, 21, w - 6, h - 5, METAL)
+    # Brass spring block under the lever
+    fill_rect(img, 22, 16, w - 22, 26, BRASS_DK)
+    fill_rect(img, 26, 17, w - 26, 25, BRASS)
+    fill_rect(img, 32, 18, w - 32, 22, BRASS_HI)
+    # Raised lever with rounded top
+    d.rounded_rectangle((38, 8, w - 38, 20), radius=5, fill=BRASS_DK, outline=BLACK, width=1)
+    d.rounded_rectangle((40, 9, w - 40, 18), radius=4, fill=BRASS)
+    d.rounded_rectangle((44, 10, w - 44, 15), radius=3, fill=BRASS_HI)
+    # Finger ring / hole at the top
+    cx = w // 2
+    d.ellipse((cx - 9, 0, cx + 9, 14), fill=METAL_DK, outline=BLACK, width=1)
+    d.ellipse((cx - 5, 3, cx + 5, 11), fill=(0x55, 0x55, 0x55, 255), outline=BLACK)
+    px = img.load()
+    for yy in range(5, 10):
+        for xx in range(cx - 2, cx + 3):
+            if (xx - cx) ** 2 + (yy - 7) ** 2 <= 6:
+                px[xx, yy] = TRANSPARENT
+    d = ImageDraw.Draw(img)
+    d.rectangle((8, 24, w - 8, h - 2), outline=BLACK)
     save_sprite("clipboard_clip", img, None)
 
 

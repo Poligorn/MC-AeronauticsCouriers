@@ -68,16 +68,16 @@ def render(screen_w: int, screen_h: int) -> Image.Image:
     fnt = font(11)
     fnt_sm = font(9)
     canvas = Image.new("RGBA", (screen_w, screen_h), (32, 32, 48, 255))
+    clip_w, clip_h, clip_over = 128, 38, 20
     panel_w, panel_h = min(480, screen_w - 40), min(360, screen_h - 24)
     left = (screen_w - panel_w) // 2
-    top = max(16, (screen_h - panel_h) // 2)
+    top = max(clip_over + 6, (screen_h - panel_h) // 2)
     frame_pad = 6
-    clip_over = 12
     paper_l = left + frame_pad
     paper_t = top + frame_pad
     paper_w = panel_w - frame_pad * 2
     paper_h = panel_h - frame_pad * 2
-    clip_x = left + (panel_w - 64) // 2
+    clip_x = left + (panel_w - clip_w) // 2
     clip_y = top - clip_over
 
     nine_slice(canvas, load("panel"), left, top, panel_w, panel_h, (4, 6, 4, 4))
@@ -86,7 +86,7 @@ def render(screen_w: int, screen_h: int) -> Image.Image:
 
     pad = 8
     tx = paper_l + pad
-    y = paper_t + 16
+    y = clip_y + clip_h + 4
     d = ImageDraw.Draw(canvas)
     d.text((tx, y), "Создать заказ", fill=TEXT, font=fnt)
     d.text((paper_l + paper_w - pad - 90, y), "Баланс: 200 сп", fill=TEXT_MUTED, font=fnt_sm)
