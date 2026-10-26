@@ -121,7 +121,7 @@
   "ui.aerocouriers.profile.rank": "Ранг: %s",
   "ui.aerocouriers.profile.delivered": "Успешных заказов: %s",
   "ui.aerocouriers.profile.failed": "Проваленных: %s",
-  "ui.aerocouriers.profile.avg_reward": "Средняя награда за успешный заказ: %s сп",
+  "ui.aerocouriers.profile.avg_reward": "Ср. награда (успешн.): %s сп",
   "ui.aerocouriers.profile.avg_distance": "Средняя дистанция: %s б",
   "ui.aerocouriers.profile.success_rate": "Успешность: %s",
   "ui.aerocouriers.profile.dash": "—",

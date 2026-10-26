@@ -237,31 +237,41 @@ def render_board(w: int, h: int, tab: int) -> tuple[Image.Image, tuple[int, int,
     elif tab == 2:
         top = sy + 44
         bottom = sy + sh - 12
-        box_h = bottom - top
-        box_w = max(72, sw // 2 - 20)
+        box_h = max(48, bottom - top)
+        inner_w = sw - 16
+        box_w = max(96, inner_w * 42 // 100)
         box_x = sx + 8
-        draw_list_panel(canvas, box_x, top, box_w, box_h)
-        # Placeholder silhouette (skin preview stand-in)
-        cx = box_x + box_w // 2
-        d.ellipse((cx - 10, top + 18, cx + 10, top + 38), fill=(0x87, 0x3B, 0x00))
-        d.rectangle((cx - 14, top + 38, cx + 14, top + 78), fill=(0x6B, 0x2E, 0x00))
-        d.rectangle((cx - 18, top + 44, cx - 8, top + 70), fill=(0x5A, 0x28, 0x00))
-        d.rectangle((cx + 8, top + 44, cx + 18, top + 70), fill=(0x5A, 0x28, 0x00))
         text_x = box_x + box_w + 12
+        stats_w = max(48, sx + sw - 8 - text_x)
+        draw_list_panel(canvas, box_x, top, box_w, box_h)
+        cx = box_x + box_w // 2
+        sil_h = int(box_h * 0.82)
+        sil_w = int(sil_h * 0.35)
+        foot = top + box_h - 8
+        head = foot - sil_h
+        d.ellipse((cx - sil_w // 4, head, cx + sil_w // 4, head + sil_h // 5), fill=(0x87, 0x3B, 0x00))
+        d.rectangle((cx - sil_w // 2, head + sil_h // 5, cx + sil_w // 2, foot), fill=(0x6B, 0x2E, 0x00))
+        d.rectangle((cx - sil_w // 2 - 4, head + sil_h // 3, cx - sil_w // 4, foot - 8), fill=(0x5A, 0x28, 0x00))
+        d.rectangle((cx + sil_w // 4, head + sil_h // 3, cx + sil_w // 2 + 4, foot - 8), fill=(0x5A, 0x28, 0x00))
         ty = top + 4
-        d.text((text_x, ty), "Poligorn", fill=C_BRIGHT, font=font)
-        ty += 12
-        d.text((text_x + 14, ty), "Ранг: Второй пилот", fill=C_MAIN, font=font_sm)
-        d.rectangle((text_x, ty - 1, text_x + 10, ty + 9), outline=(0xB3, 0x68, 0x33))
-        ty += 12
+        d.text((text_x, ty), "Tester2", fill=C_BRIGHT, font=font)
+        ty += 14
+        d.rectangle((text_x, ty, text_x + 14, ty + 14), outline=(0xB3, 0x68, 0x33))
+        d.text((text_x + 20, ty + 4), "Ранг: I Стажёр", fill=C_MAIN, font=font_sm)
+        ty += 22
         for line in [
-            "Успешных заказов: 42",
-            "Проваленных: 3",
-            "Средняя награда за успешный заказ: 118 сп",
-            "Средняя дистанция: 640 б",
-            "Успешность: 93%",
+            "Успешных заказов: 3",
+            "Проваленных: 1",
+            "Ср. награда (успешн.): 0 сп",
+            "Средняя дистанция: 62 б",
+            "Успешность: 75%",
         ]:
-            d.text((text_x, ty), line, fill=C_MAIN, font=font_sm)
+            shown = line
+            if d.textlength(shown, font=font_sm) > stats_w:
+                while shown and d.textlength(shown + "…", font=font_sm) > stats_w:
+                    shown = shown[:-1]
+                shown = shown + "…"
+            d.text((text_x, ty), shown, fill=C_MAIN, font=font_sm)
             ty += 11
     else:
         draw_tablet_button(canvas, sx + 8, sy + 48, 220, 20)
@@ -302,7 +312,7 @@ def render_stamp(w: int, h: int) -> Image.Image:
 def main() -> None:
     out = Path(os.environ.get("ARTIFACTS", "/opt/cursor/artifacts"))
     out.mkdir(parents=True, exist_ok=True)
-    for width, height in [(400, 240), (480, 300)]:
+    for width, height in [(400, 240), (480, 300), (560, 400)]:
         for tab in range(4):
             path = out / f"board_tab{tab}_{width}x{height}.png"
             img, screen = render_board(width, height, tab)

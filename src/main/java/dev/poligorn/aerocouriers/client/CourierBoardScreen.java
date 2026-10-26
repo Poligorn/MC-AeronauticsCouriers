@@ -8,10 +8,12 @@ import dev.poligorn.aerocouriers.registry.ModItems;
 import dev.poligorn.aerocouriers.net.ContractIntentPayload;
 import dev.poligorn.aerocouriers.net.OpenBoardPayload;
 import dev.poligorn.aerocouriers.net.OperatorBoardPayload;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.Locale;
+import net.minecraft.client.gui.components.Renderable;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
@@ -30,6 +32,8 @@ import org.jetbrains.annotations.Nullable;
 public final class CourierBoardScreen extends Screen {
     /** Width reserved on the right of each list row for action buttons (px from screen right edge). */
     private static final int ROW_ACTION_RESERVE = 158;
+    private static final int PROFILE_ICON_SIZE = 16;
+    private static final int PROFILE_LINE_HEIGHT = 11;
 
     enum Tab {
         BOARD, MINE, PROFILE, TEST
@@ -77,9 +81,17 @@ public final class CourierBoardScreen extends Screen {
         return nextKey != null && !nextKey.equals(listRowButtonKey);
     }
 
+    private void selectTab(Tab value) {
+        tab = value;
+        scroll = 0;
+        pendingAccept = null;
+        listRowButtonKey = null;
+        rebuildWidgets();
+    }
+
     /** Drops and rebuilds row/test {@link TabletButton}s only; tabs and mail stay mounted. */
     private void refreshContentWidgets() {
-        renderables.removeIf(TabletButton.class::isInstance);
+        removeTabletButtons();
         if (snapshot == null) {
             return;
         }
@@ -87,6 +99,18 @@ public final class CourierBoardScreen extends Screen {
             initTest();
         } else if (tab == Tab.BOARD || tab == Tab.MINE) {
             initListButtons(tab == Tab.BOARD ? snapshot.board() : snapshot.mine(), tab == Tab.BOARD);
+        }
+    }
+
+    private void removeTabletButtons() {
+        List<TabletButton> remove = new ArrayList<>();
+        for (Renderable widget : renderables) {
+            if (widget instanceof TabletButton button) {
+                remove.add(button);
+            }
+        }
+        for (TabletButton button : remove) {
+            removeWidget(button);
         }
     }
 
@@ -114,6 +138,7 @@ public final class CourierBoardScreen extends Screen {
             payload.notice().ifPresent(component -> notice = component);
             if (!payload.operator() && tab == Tab.TEST) {
                 tab = Tab.BOARD;
+                rebuildWidgets();
             }
         }
     }
@@ -151,13 +176,8 @@ public final class CourierBoardScreen extends Screen {
     /** Returns x position after this tab (for laying out the next one). */
     private int addTab(int x, int y, int w, Tab value, String key) {
         boolean on = tab == value;
-        addRenderableWidget(new TabletTabButton(x, y, w, 20, Component.translatable(key), () -> {
-            tab = value;
-            scroll = 0;
-            pendingAccept = null;
-            listRowButtonKey = snapshot == null ? null : listRowButtonKey(snapshot);
-            rebuildWidgets();
-        }).selected(on));
+        addRenderableWidget(new TabletTabButton(x, y, w, 20, Component.translatable(key), () -> selectTab(value))
+                .selected(on));
         return x + w;
     }
 
@@ -295,58 +315,74 @@ public final class CourierBoardScreen extends Screen {
                                int mouseX, int mouseY) {
         int top = listTop();
         int bottom = screenTop() + screenH() - 12;
-        int boxH = bottom - top;
-        int boxW = Math.max(72, screenW() / 2 - 20);
+        int boxH = Math.max(48, bottom - top);
+        int innerW = screenW() - 16;
+        int boxW = Math.max(96, innerW * 42 / 100);
         int boxX = sx + 8;
+        int statsX = boxX + boxW + 12;
+        int statsW = Math.max(48, sx + screenW() - 8 - statsX);
+
         TabletGui.drawListPanel(graphics, boxX, top, boxW, boxH);
         if (minecraft != null && minecraft.player != null) {
+            int entityScale = Mth.clamp((int) (boxH * 0.42F), 28, 140);
+            float yOffset = 0.0625F - Math.min(0.35F, boxH / 280.0F);
             InventoryScreen.renderEntityInInventoryFollowsMouse(
                     graphics,
                     boxX,
                     top,
                     boxX + boxW,
                     top + boxH,
-                    30,
-                    0.0625F,
+                    entityScale,
+                    yOffset,
                     mouseX,
                     mouseY,
                     minecraft.player);
         }
 
-        int textX = boxX + boxW + 12;
-        int textW = sx + screenW() - 8 - textX;
         int y = top + 4;
-        graphics.drawString(font, profile.playerName(), textX, y, TabletGui.TEXT_BRIGHT, false);
-        y += 12;
+        y = drawProfileStatBlock(graphics, Component.literal(profile.playerName()), statsX, y, statsW,
+                TabletGui.TEXT_BRIGHT);
+        y += 2;
 
         LicenseRank rank = profile.rank();
-        Component rankLine = Component.translatable("ui.aerocouriers.profile.rank", rank.displayName());
-        graphics.drawString(font, rankLine, textX + 14, y, TabletGui.TEXT, false);
         ItemStack licenseIcon = new ItemStack(ModItems.PILOT_LICENSE.get());
         licenseIcon.set(ModComponents.LICENSE_RANK.get(), rank);
-        graphics.renderItem(licenseIcon, textX, y - 2);
-        y += 12;
+        graphics.renderItem(licenseIcon, statsX, y);
+        Component rankLine = Component.translatable("ui.aerocouriers.profile.rank", rank.displayName());
+        int rankTextX = statsX + PROFILE_ICON_SIZE + 4;
+        drawClipped(graphics, rankLine, rankTextX, y + 4, statsW - PROFILE_ICON_SIZE - 4, TabletGui.TEXT, mouseX,
+                mouseY);
+        y += PROFILE_ICON_SIZE + 6;
 
-        y = drawProfileStat(graphics, textX, y, textW,
-                Component.translatable("ui.aerocouriers.profile.delivered", profile.delivered()));
-        y = drawProfileStat(graphics, textX, y, textW,
-                Component.translatable("ui.aerocouriers.profile.failed", profile.failed()));
-        y = drawProfileStat(graphics, textX, y, textW,
-                Component.translatable("ui.aerocouriers.profile.avg_reward", formatAverage(profile.rewardSum(), profile.delivered())));
-        y = drawProfileStat(graphics, textX, y, textW,
+        y = drawProfileStatBlock(graphics,
+                Component.translatable("ui.aerocouriers.profile.delivered", profile.delivered()), statsX, y, statsW,
+                TabletGui.TEXT);
+        y = drawProfileStatBlock(graphics,
+                Component.translatable("ui.aerocouriers.profile.failed", profile.failed()), statsX, y, statsW,
+                TabletGui.TEXT);
+        y = drawProfileStatBlock(graphics,
+                Component.translatable("ui.aerocouriers.profile.avg_reward",
+                        formatAverage(profile.rewardSum(), profile.delivered())),
+                statsX, y, statsW, TabletGui.TEXT);
+        y = drawProfileStatBlock(graphics,
                 Component.translatable("ui.aerocouriers.profile.avg_distance",
-                        formatAverage(profile.distance(), profile.delivered())));
+                        formatAverage(profile.distance(), profile.delivered())),
+                statsX, y, statsW, TabletGui.TEXT);
         int completed = profile.delivered() + profile.failed();
         String rate = completed == 0
                 ? String.format(Locale.ROOT, "%.0f%%", 100.0)
                 : String.format(Locale.ROOT, "%.0f%%", profile.delivered() * 100.0 / completed);
-        drawProfileStat(graphics, textX, y, textW,
-                Component.translatable("ui.aerocouriers.profile.success_rate", rate));
+        drawProfileStatBlock(graphics, Component.translatable("ui.aerocouriers.profile.success_rate", rate), statsX, y,
+                statsW, TabletGui.TEXT);
     }
 
-    private int drawProfileStat(GuiGraphics graphics, int x, int y, int width, Component line) {
-        drawWrapped(graphics, line, x, y, width, TabletGui.TEXT);
-        return y + 11;
+    private int drawProfileStatBlock(GuiGraphics graphics, Component line, int x, int y, int width, int color) {
+        List<FormattedCharSequence> lines = font.split(line, width);
+        for (FormattedCharSequence row : lines) {
+            graphics.drawString(font, row, x, y, color, false);
+            y += PROFILE_LINE_HEIGHT;
+        }
+        return y + 2;
     }
 
     private static Component formatAverage(long sum, int count) {

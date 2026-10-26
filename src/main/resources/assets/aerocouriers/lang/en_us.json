@@ -121,7 +121,7 @@
   "ui.aerocouriers.profile.rank": "Rank: %s",
   "ui.aerocouriers.profile.delivered": "Deliveries completed: %s",
   "ui.aerocouriers.profile.failed": "Failed: %s",
-  "ui.aerocouriers.profile.avg_reward": "Avg. reward per delivery: %s sp",
+  "ui.aerocouriers.profile.avg_reward": "Avg. reward (delivered): %s sp",
   "ui.aerocouriers.profile.avg_distance": "Avg. distance: %s blocks",
   "ui.aerocouriers.profile.success_rate": "Success rate: %s",
   "ui.aerocouriers.profile.dash": "—",
