@@ -7,6 +7,7 @@ import dev.poligorn.aerocouriers.net.OpenStampPayload;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.BlockPos;
@@ -227,14 +228,17 @@ public final class StampCreateScreen extends Screen {
     @Override
     public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         InGamePauseBackground.render(this, graphics, mouseX, mouseY, partialTick);
+        RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+        StampCreateGui.drawWoodenFrame(graphics, layout.left, layout.top, layout.panelW, layout.panelH);
+        StampCreateGui.drawPaperSheet(graphics, layout.paperLeft, layout.paperTop, layout.paperW, layout.paperH);
     }
 
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         hoverTip = null;
-        StampCreateGui.drawWoodenFrame(graphics, layout.left, layout.top, layout.panelW, layout.panelH);
-        StampCreateGui.drawPaperSheet(graphics, layout.paperLeft, layout.paperTop, layout.paperW, layout.paperH);
+        RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
         super.render(graphics, mouseX, mouseY, partialTick);
+        RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
         StampCreateGui.drawClip(graphics, layout.clipX, layout.clipY);
         int textX = layout.paperLeft + StampCreateLayout.PAD;
         int titleW = Math.max(32, layout.balanceX - textX - 8);
