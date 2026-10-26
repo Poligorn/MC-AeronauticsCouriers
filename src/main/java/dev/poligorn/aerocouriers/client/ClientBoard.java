@@ -45,6 +45,7 @@ public final class ClientBoard {
 
     public static void apply(BoardSnapshotPayload payload) {
         requireTablet = payload.requireTablet();
+        XaeroOrderBridge.onBoardSnapshot(payload);
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.screen instanceof CourierBoardScreen screen) {
             screen.apply(payload);

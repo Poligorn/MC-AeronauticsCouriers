@@ -6,6 +6,9 @@
 - Xaero licence: All Rights Reserved (mods.toml + Modrinth). No public API docs; there is an official maven:
   https://chocolateminecraft.com/maven  ->  xaero.minimap:xaerominimap-neoforge-1.21.1:26.6.0, xaero.map:xaeroworldmap-neoforge-1.21.1:1.47.0
 
+## Waypoint “icons” (ICON mode)
+Xaero has no separate third-party texture hook on `Waypoint` — the minimap marker is the **symbol / initials string** (`getSymbol()`, ctor arg). Mods (e.g. Create: Marketplace, GPL — studied for behaviour only) set `waypointSymbolMode = ICON` by passing a **Unicode emoji** (e.g. shopping basket) as that string; Xaero draws it like a built-in icon. Alternatives: `FIRST_LETTER` of the name, or any single character / short string (`CUSTOM`). `XaeroIcon` / atlases exist for Xaero’s own UI, not exposed for arbitrary third-party waypoint textures without unsupported hacks. Aeronautics Couriers: client config `[waypoints] waypointSymbolMode` + `customWaypointSymbol`; delivery 📦 / pickup 🚚 in ICON mode.
+
 ## Create: Marketplace (how it does it)
 - client/XaeroCompat.java: pure REFLECTION, no compile dep in code. Xaero jars are committed into libs/ (ARR redistribution; don't copy that) and pulled via `implementation fileTree('libs')`.
 - Chain: xaero.common.XaeroMinimapSession.getCurrentSession() -> getWaypointsManager() (legacy WaypointsManager extends MinimapSession)

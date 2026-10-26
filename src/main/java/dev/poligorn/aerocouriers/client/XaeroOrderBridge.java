@@ -1,5 +1,6 @@
 package dev.poligorn.aerocouriers.client;
 
+import dev.poligorn.aerocouriers.net.BoardSnapshotPayload;
 import dev.poligorn.aerocouriers.net.ZoneSyncPayload;
 import java.util.HashSet;
 import java.util.List;
@@ -31,9 +32,29 @@ public final class XaeroOrderBridge {
         XaeroOrderWaypoints.hidePeek(orderId);
     }
 
+    /** Map-pin click: temporary preview waypoint (at most one) plus optional world map. */
+    public static void onPreviewDestination(UUID orderId, ResourceKey<Level> dimension, BlockPos pos, String label) {
+        XaeroOrderWaypoints.setPreview(orderId, dimension, pos, label);
+    }
+
     /** @return whether the world map opened and camera centering succeeded */
     public static boolean openWorldMapAt(BlockPos pos) {
         return XaeroOrderWaypoints.openWorldMapAt(pos);
+    }
+
+    public static void onBoardSnapshot(BoardSnapshotPayload payload) {
+        Set<UUID> relevant = new HashSet<>();
+        for (BoardSnapshotPayload.BoardEntry entry : payload.board()) {
+            if (!entry.state().isFinal()) {
+                relevant.add(entry.id());
+            }
+        }
+        for (BoardSnapshotPayload.BoardEntry entry : payload.mine()) {
+            if (!entry.state().isFinal()) {
+                relevant.add(entry.id());
+            }
+        }
+        XaeroOrderWaypoints.prunePreview(relevant);
     }
 
     public static void syncActiveCourierZones(List<ZoneSyncPayload.Zone> zones) {
@@ -49,8 +70,7 @@ public final class XaeroOrderBridge {
             String label = zone.contract();
             XaeroOrderWaypoints.markPersistent(zone.orderId(), zone.dimension(), zone.pos(), label);
         }
-        // Drop stale persistent ids when contracts finish (zones list shrinks).
-        // Peek ids are cleared separately on hover leave.
+        XaeroOrderWaypoints.syncPersistent(seen);
     }
 
     public static void onLogout() {

@@ -19,8 +19,9 @@ public final class TabletGui {
     public static final int TEXT_BUTTON_HOVER = 0xFF9E00;
     public static final int TEXT_BUTTON_DISABLED = 0x873B00;
 
-    private static final int SCREEN_FILL = 0xFF2C0900;
-    private static final int GRID_LINE = 0xFF431A0F;
+    /** Dark cavity fill — lower contrast than early builds to reduce grid shimmer. */
+    private static final int SCREEN_FILL = 0xFF140400;
+    private static final int GRID_LINE = 0xFF1C0804;
     private static final int GRID_STEP = 9;
 
     /** Nine-slice brass + bevel before the screen cavity (matches {@code tablet_frame}). */
@@ -81,7 +82,7 @@ public final class TabletGui {
         if (w <= 0 || h <= 0) {
             return;
         }
-        graphics.fill(x, y, x + w, y + h, 0xCC2C0900);
+        graphics.fill(x, y, x + w, y + h, 0xCC140400);
         graphics.renderOutline(x, y, w, h, 0xFFB36833);
     }
 

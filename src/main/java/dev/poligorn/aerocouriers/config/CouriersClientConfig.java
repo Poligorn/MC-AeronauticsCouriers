@@ -19,6 +19,9 @@ public final class CouriersClientConfig {
 
     public static final ModConfigSpec.BooleanValue USE_VANILLA_SPRITES;
 
+    public static final ModConfigSpec.EnumValue<WaypointSymbolMode> WAYPOINT_SYMBOL_MODE;
+    public static final ModConfigSpec.ConfigValue<String> CUSTOM_WAYPOINT_SYMBOL;
+
     static {
         ModConfigSpec.Builder b = new ModConfigSpec.Builder();
         b.push("button");
@@ -45,6 +48,17 @@ public final class CouriersClientConfig {
                 .define("useVanillaSprites", false);
         b.pop();
 
+        b.push("waypoints");
+        WAYPOINT_SYMBOL_MODE = b.comment(
+                        "How order waypoints look on Xaero's minimap when this mod places them.",
+                        "ICON — crate (delivery) / truck (pickup) Unicode glyphs;",
+                        "FIRST_LETTER — first character of the order label;",
+                        "CUSTOM — customWaypointSymbol")
+                .defineEnum("waypointSymbolMode", WaypointSymbolMode.ICON);
+        CUSTOM_WAYPOINT_SYMBOL = b.comment("Single-character or emoji marker when waypointSymbolMode is CUSTOM")
+                .define("customWaypointSymbol", "\u2713");
+        b.pop();
+
         SPEC = b.build();
     }
 
@@ -54,6 +68,23 @@ public final class CouriersClientConfig {
             return USE_VANILLA_SPRITES.get();
         } catch (IllegalStateException ignored) {
             return false;
+        }
+    }
+
+    public static WaypointSymbolMode waypointSymbolMode() {
+        try {
+            return WAYPOINT_SYMBOL_MODE.get();
+        } catch (IllegalStateException ignored) {
+            return WaypointSymbolMode.ICON;
+        }
+    }
+
+    public static String customWaypointSymbol() {
+        try {
+            String raw = CUSTOM_WAYPOINT_SYMBOL.get();
+            return raw == null || raw.isEmpty() ? "?" : raw.substring(0, Math.min(2, raw.length()));
+        } catch (IllegalStateException ignored) {
+            return "?";
         }
     }
 
