@@ -90,24 +90,14 @@ def clip(font, raw: str, width: int) -> str:
     return shown
 
 
-def layout_for_row(font, sw: int, details_label: str, has_secondary: bool) -> dict:
+def layout_for_row(sw: int, has_secondary: bool) -> dict:
     right = sw - LIST_PAD_RIGHT
     secondary_x = right - SECONDARY_W
-    details_right = secondary_x - GAP if has_secondary else right
-    text_room = DETAILS_MAX - DETAILS_PAD
-    shown = clip(font, details_label, text_room)
-    details_w = min(DETAILS_MAX, max(DETAILS_MIN, text_width(font, shown) + DETAILS_PAD))
-    if text_width(font, shown) + DETAILS_PAD > details_w:
-        shown = clip(font, details_label, details_w - DETAILS_PAD)
-        details_w = max(DETAILS_MIN, text_width(font, shown) + DETAILS_PAD)
-    details_x = details_right - details_w
-    crate_x = details_x - GAP - ICON
+    icons_right = secondary_x - GAP if has_secondary else right
+    crate_x = icons_right - ICON
     map_x = crate_x - GAP - ICON
     text_right = map_x - 4
     return {
-        "details_x": details_x,
-        "details_w": details_w,
-        "details_shown": shown,
         "map_x": map_x,
         "crate_x": crate_x,
         "secondary_x": secondary_x,
@@ -158,11 +148,10 @@ def draw_row(
     time: str,
     my_order: bool,
     icons: dict[str, Image.Image],
-    details_label: str,
     has_secondary: bool,
 ) -> None:
     rh = row_height(m)
-    lay = layout_for_row(font, sw, details_label, has_secondary)
+    lay = layout_for_row(sw, has_secondary)
     draw.rectangle((8, y, sw - 8, y + rh), fill=ROW, outline=OUTLINE)
 
     line1_y = y + m["PAD_TOP"]
@@ -193,13 +182,13 @@ def draw_row(
     for key, bx in (("map_pin_tablet", lay["map_x"]), ("crate_tablet", lay["crate_x"])):
         ic = icon_scaled(icons, key, ICON)
         base.paste(ic, (bx, btn_y), ic)
-    dx, dw = lay["details_x"], lay["details_w"]
-    draw.rectangle((dx, btn_y, dx + dw, btn_y + m["BUTTON_HEIGHT"]), outline=OUTLINE)
-    label = clip(font, lay["details_shown"], dw - DETAILS_PAD)
-    draw.text((dx + 5, btn_y + 5), label, font=font, fill=TEXT)
+    if has_secondary:
+        sx_btn = lay["secondary_x"]
+        draw.rectangle((sx_btn, btn_y, sx_btn + SECONDARY_W, btn_y + m["BUTTON_HEIGHT"]), outline=OUTLINE)
+        draw.text((sx_btn + 8, btn_y + 5), "Принять", font=font, fill=TEXT)
 
 
-def render(filename: str, stretch: float, details_label: str) -> None:
+def render(filename: str, stretch: float) -> None:
     font = load_font(11)
     m = load_metrics()
     rh = row_height(m)
@@ -213,14 +202,13 @@ def render(filename: str, stretch: float, details_label: str) -> None:
     )}
 
     customer = "Александр" if stretch <= 1.0 else "Александр-Константинопольский"
-    long_details = "ПодробнееПодробнее" if stretch > 1.0 else details_label
     draw_row(
         img, draw, font, m, 16, width - 16, "#a3f2", "открыт", customer,
-        "10", "0", "28м", stretch <= 1.0, icons, long_details, True,
+        "10", "0", "28м", stretch <= 1.0, icons, True,
     )
     draw_row(
         img, draw, font, m, 16 + rh + 8, width - 16, "#b91c", "в пути", "Деревня Сосновка",
-        "120", "15", "6м", False, icons, details_label, True,
+        "120", "15", "6м", False, icons, True,
     )
     OUT.mkdir(parents=True, exist_ok=True)
     img.save(OUT / filename)
@@ -275,7 +263,7 @@ def render_tooltips_demo() -> None:
 
 
 if __name__ == "__main__":
-    render("board_row_preview_ru_ru.png", 1.0, "Подробнее")
-    render("board_row_preview_long_strings.png", 1.4, "Подробнее")
+    render("board_row_preview_ru_ru.png", 1.0)
+    render("board_row_preview_long_strings.png", 1.4)
     render_tooltips_demo()
     print(f"Wrote previews to {OUT} (row height {row_height(load_metrics())}px)")

@@ -52,7 +52,6 @@ public final class CourierBoardScreen extends Screen {
     private static final int HEADING_GAP = 7;
     private static final int SCREEN_BOTTOM_PAD = 12;
     private static final int SCROLL_COUNTER_H = 12;
-    private static final int DETAILS_BLOCK_H = 56;
     private static final int BALANCE_MAIL_GAP = 8;
 
     /** Left edge of the balance strip (right of last tab). */
@@ -66,7 +65,6 @@ public final class CourierBoardScreen extends Screen {
     private Tab tab = Tab.BOARD;
     private int scroll;
     private @Nullable UUID selected;
-    private @Nullable UUID pendingAccept;
     private @Nullable Component notice;
     private @Nullable Component hoverTip;
     private @Nullable List<Component> hoverTipLines;
@@ -86,7 +84,6 @@ public final class CourierBoardScreen extends Screen {
         applySnapshot(payload);
         if (selected != null && payload.find(selected).isEmpty()) {
             selected = null;
-            pendingAccept = null;
         }
         if (previous != null && previous.operator() != payload.operator()) {
             listRowButtonKey = listRowButtonKey(payload);
@@ -111,7 +108,6 @@ public final class CourierBoardScreen extends Screen {
     private void selectTab(Tab value) {
         tab = value;
         scroll = 0;
-        pendingAccept = null;
         listRowButtonKey = null;
         rebuildWidgets();
     }
@@ -151,7 +147,7 @@ public final class CourierBoardScreen extends Screen {
         List<BoardSnapshotPayload.BoardEntry> all = tab == Tab.BOARD ? payload.board() : payload.mine();
         int visible = visibleRows();
         StringBuilder key = new StringBuilder(visible * 48);
-        key.append(scroll).append('|').append(pendingAccept).append('|');
+        key.append(scroll).append('|');
         for (int i = 0; i < visible && scroll + i < all.size(); i++) {
             BoardSnapshotPayload.BoardEntry entry = all.get(scroll + i);
             key.append(entry.id()).append(':').append(entry.state()).append(':').append(entry.role()).append(';');
@@ -215,30 +211,21 @@ public final class CourierBoardScreen extends Screen {
         int visible = visibleRows();
         scroll = Mth.clamp(scroll, 0, Math.max(0, all.size() - visible));
         int rowTop = listTop();
-        String detailsLabel = Component.translatable("ui.aerocouriers.details").getString();
         for (int i = 0; i < visible && scroll + i < all.size(); i++) {
             BoardSnapshotPayload.BoardEntry entry = all.get(scroll + i);
             int rowY = rowTop + i * rowH();
             int btnY = BoardRowMetrics.buttonY(rowY);
             boolean hasSecondary = hasSecondaryAction(entry, boardTab);
-            BoardRowLayout layout = BoardRowLayout.forRow(sx, sw, font, detailsLabel, hasSecondary);
-            addRenderableWidget(TabletButton.create(
-                    layout.detailsX(), btnY, layout.detailsW(), BoardRowMetrics.BUTTON_HEIGHT,
-                    Component.literal(layout.detailsLabelShown()), b -> {
-                        selected = entry.id();
-                        pendingAccept = null;
-                    }));
+            BoardRowLayout layout = BoardRowLayout.forRow(sx, sw, hasSecondary);
             addRenderableWidget(new TabletRowIconButton(
                     layout.mapX(), btnY, entry.id(), TabletRowIconButton.Kind.MAP, this::onMapIconClick));
             addRenderableWidget(new TabletRowIconButton(
                     layout.crateX(), btnY, entry.id(), TabletRowIconButton.Kind.CRATE, null));
             if (boardTab && entry.state() == ContractState.OPEN
                     && (!"issuer".equals(entry.role()) || snapshot.allowSelfAccept())) {
-                boolean confirm = entry.id().equals(pendingAccept);
                 TabletButton accept = TabletButton.create(
                         layout.secondaryX(), btnY, layout.secondaryW(), BoardRowMetrics.BUTTON_HEIGHT,
-                        Component.translatable(confirm ? "ui.aerocouriers.accept.confirm" : "ui.aerocouriers.accept",
-                                entry.collateral()),
+                        Component.translatable("ui.aerocouriers.accept", entry.collateral()),
                         b -> onAccept(entry));
                 accept.active = snapshot != null && snapshot.licensed();
                 if (!accept.active) {
@@ -285,13 +272,8 @@ public final class CourierBoardScreen extends Screen {
 
     private void onAccept(BoardSnapshotPayload.BoardEntry entry) {
         selected = entry.id();
-        if (entry.id().equals(pendingAccept)) {
-            PacketDistributor.sendToServer(new ContractIntentPayload(ContractIntentPayload.Kind.ACCEPT, entry.id()));
-            pendingAccept = null;
-        } else {
-            pendingAccept = entry.id();
-            listRowButtonKey = snapshot == null ? null : listRowButtonKey(snapshot);
-            refreshContentWidgets();
+        if (minecraft != null) {
+            minecraft.setScreen(new BoardAcceptConfirmScreen(this, entry));
         }
     }
 
@@ -551,8 +533,7 @@ public final class CourierBoardScreen extends Screen {
         int sw = screenW();
         int frameLeft = sx + BoardRowMetrics.ROW_FRAME_SIDE;
         int textLeft = frameLeft + BoardRowMetrics.ROW_INSET_LEFT;
-        String detailsLabel = Component.translatable("ui.aerocouriers.details").getString();
-        BoardRowLayout reserve = BoardRowLayout.forRow(sx, sw, font, detailsLabel, true);
+        BoardRowLayout reserve = BoardRowLayout.forRow(sx, sw, true);
         int textRight = reserve.textRight();
         int textW = Math.max(8, textRight - textLeft);
         int listY = listTop();
@@ -564,10 +545,10 @@ public final class CourierBoardScreen extends Screen {
                 BoardSnapshotPayload.BoardEntry entry = all.get(scroll + i);
                 int rowY = listY + i * rowH();
                 boolean hasSecondary = hasSecondaryAction(entry, tab == Tab.BOARD);
-                BoardRowLayout layout = BoardRowLayout.forRow(sx, sw, font, detailsLabel, hasSecondary);
+                BoardRowLayout layout = BoardRowLayout.forRow(sx, sw, hasSecondary);
                 int frameRight = layout.hasSecondary()
                         ? layout.secondaryX() + BoardRowLayout.SECONDARY_W
-                        : layout.detailsX() + layout.detailsW();
+                        : layout.crateX() + BoardRowLayout.ICON;
                 int frameW = Math.max(8, frameRight - frameLeft);
                 TabletGui.drawRow(graphics, frameLeft, rowY, frameW, rowH(), entry.id().equals(selected));
                 renderOrderRow(graphics, entry, rowY, textLeft, textW, mouseX, mouseY);
@@ -583,8 +564,6 @@ public final class CourierBoardScreen extends Screen {
                         textRight,
                         layout.mapX(),
                         layout.crateX(),
-                        layout.detailsX(),
-                        layout.detailsW(),
                         BoardRowMetrics.buttonY(rowY));
             }
         } finally {
@@ -600,26 +579,6 @@ public final class CourierBoardScreen extends Screen {
             TabletGui.drawScrollbar(graphics, sx + screenW() - 10, listTop(), visible * rowH(), progress, thumb);
         }
 
-        if (selected == null) {
-            return;
-        }
-        snapshot.find(selected).ifPresent(entry -> {
-            int y = detailsTop();
-            String cargo = entry.manifest().isEmpty()
-                    ? "—"
-                    : entry.manifest().stream()
-                    .map(line -> line.count() + " × " + line.name())
-                    .reduce((a, b) -> a + ", " + b)
-                    .orElse("—");
-            drawWrapped(graphics, Component.translatable("ui.aerocouriers.details.line",
-                            entry.requiredRank().displayName(), entry.deadlineMinutes(), cargo),
-                    sx + 8, y, screenW() - 16, TabletGui.TEXT);
-            if (entry.state() == ContractState.OPEN) {
-                drawWrapped(graphics, Component.translatable("contract.aerocouriers.risk",
-                                entry.collateral(), entry.reward()),
-                        sx + 8, y + 22, screenW() - 16, TabletGui.TEXT_WARN);
-            }
-        });
     }
 
     private void drawClipped(GuiGraphics graphics, Component text, int x, int y, int width, int color,
@@ -688,9 +647,8 @@ public final class CourierBoardScreen extends Screen {
         int visible = visibleRows();
         int listY = listTop();
         int sx = screenLeft();
-        String detailsLabel = Component.translatable("ui.aerocouriers.details").getString();
         int sw = screenW();
-        BoardRowLayout layout = BoardRowLayout.forRow(sx, sw, font, detailsLabel, true);
+        BoardRowLayout layout = BoardRowLayout.forRow(sx, sw, true);
         int textRight = layout.textRight();
         for (int i = 0; i < visible && scroll + i < all.size(); i++) {
             BoardSnapshotPayload.BoardEntry entry = all.get(scroll + i);
@@ -698,12 +656,14 @@ public final class CourierBoardScreen extends Screen {
             if (mouseX < sx + 6 || mouseX >= textRight || mouseY < y || mouseY >= y + rowH()) {
                 continue;
             }
-            if (isOverRowAction(mouseX, mouseY)) {
+            if (isOverRowAction(mouseX, mouseY) || isOverCustomerArea(entry, y, textRight, mouseX, mouseY)) {
                 continue;
             }
             hoverTipLines = List.of(
                     Component.translatable("ui.aerocouriers.row.summary.reward", entry.reward()),
                     Component.translatable("ui.aerocouriers.row.summary.collateral", entry.collateral()),
+                    Component.translatable("ui.aerocouriers.row.summary.rank", entry.requiredRank().displayName()),
+                    Component.translatable("ui.aerocouriers.row.summary.deadline", entry.deadlineMinutes()),
                     Component.translatable("ui.aerocouriers.row.summary.time", entry.minutesLeft()),
                     Component.translatable("ui.aerocouriers.row.summary.cargo", entry.weight(), entry.size()),
                     Component.translatable("ui.aerocouriers.row.summary.distance", entry.distance()),
@@ -728,7 +688,6 @@ public final class CourierBoardScreen extends Screen {
         int listY = listTop();
         int sx = screenLeft();
         int sw = screenW();
-        String detailsLabel = Component.translatable("ui.aerocouriers.details").getString();
         int textLeft = sx + BoardRowMetrics.ROW_FRAME_SIDE + BoardRowMetrics.ROW_INSET_LEFT;
         for (int i = 0; i < visible && scroll + i < all.size(); i++) {
             BoardSnapshotPayload.BoardEntry entry = all.get(scroll + i);
@@ -737,7 +696,7 @@ public final class CourierBoardScreen extends Screen {
                 continue;
             }
             boolean hasSecondary = hasSecondaryAction(entry, tab == Tab.BOARD);
-            BoardRowLayout layout = BoardRowLayout.forRow(sx, sw, font, detailsLabel, hasSecondary);
+            BoardRowLayout layout = BoardRowLayout.forRow(sx, sw, hasSecondary);
             if (mouseX < textLeft || mouseX >= layout.textRight()) {
                 return;
             }
@@ -858,10 +817,19 @@ public final class CourierBoardScreen extends Screen {
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (button == 0 && snapshot != null && (tab == Tab.BOARD || tab == Tab.MINE)) {
-            BoardSnapshotPayload.BoardEntry customer = hitCustomerRow((int) mouseX, (int) mouseY);
-            if (customer != null) {
-                onCustomerClick(customer);
-                return true;
+            int mx = (int) mouseX;
+            int my = (int) mouseY;
+            if (!isOverRowAction(mx, my)) {
+                BoardSnapshotPayload.BoardEntry customer = hitCustomerRow(mx, my);
+                if (customer != null) {
+                    onCustomerClick(customer);
+                    return true;
+                }
+                BoardSnapshotPayload.BoardEntry row = hitRowBody(mx, my);
+                if (row != null) {
+                    selected = row.id();
+                    return true;
+                }
             }
         }
         return super.mouseClicked(mouseX, mouseY, button);
@@ -877,22 +845,58 @@ public final class CourierBoardScreen extends Screen {
         int visible = visibleRows();
         int listY = listTop();
         int sx = screenLeft();
-        String detailsLabel = Component.translatable("ui.aerocouriers.details").getString();
-        BoardRowLayout layout = BoardRowLayout.forRow(sx, screenW(), font, detailsLabel, true);
+        BoardRowLayout layout = BoardRowLayout.forRow(sx, screenW(), true);
         int textRight = layout.textRight();
         for (int i = 0; i < visible && scroll + i < all.size(); i++) {
             BoardSnapshotPayload.BoardEntry entry = all.get(scroll + i);
             int rowY = listY + i * rowH();
-            int line1Y = BoardRowMetrics.line1Y(rowY);
-            if (mouseY < line1Y || mouseY >= line1Y + 9) {
+            if (isOverCustomerArea(entry, rowY, textRight, mouseX, mouseY)) {
+                return entry;
+            }
+        }
+        return null;
+    }
+
+    private boolean isOverCustomerArea(BoardSnapshotPayload.BoardEntry entry, int rowY, int textRight, int mouseX,
+                                       int mouseY) {
+        int line1Y = BoardRowMetrics.line1Y(rowY);
+        if (mouseY < line1Y || mouseY >= line1Y + 9) {
+            return false;
+        }
+        int sx = screenLeft();
+        int textLeft = sx + BoardRowMetrics.ROW_FRAME_SIDE + BoardRowMetrics.ROW_INSET_LEFT;
+        int faceStart = textLeft + font.width("#" + entry.shortId()) + BoardRowMetrics.ID_STATUS_GAP
+                + Math.min(font.width(entry.state().displayName().getString()), 88) + 4;
+        int faceEnd = faceStart + BoardRowMetrics.CUSTOMER_FACE + BoardRowMetrics.FACE_NAME_GAP
+                + font.width(entry.customerName());
+        return mouseX >= faceStart && mouseX < Math.min(faceEnd, textRight);
+    }
+
+    private @Nullable BoardSnapshotPayload.BoardEntry hitRowBody(int mouseX, int mouseY) {
+        List<BoardSnapshotPayload.BoardEntry> all = tab == Tab.BOARD ? snapshot.board() : snapshot.mine();
+        int visible = visibleRows();
+        int listY = listTop();
+        int sx = screenLeft();
+        int sw = screenW();
+        int frameLeft = sx + BoardRowMetrics.ROW_FRAME_SIDE;
+        for (int i = 0; i < visible && scroll + i < all.size(); i++) {
+            BoardSnapshotPayload.BoardEntry entry = all.get(scroll + i);
+            int rowY = listY + i * rowH();
+            if (mouseY < rowY || mouseY >= rowY + rowH()) {
                 continue;
             }
-            int textLeft = sx + BoardRowMetrics.ROW_FRAME_SIDE + BoardRowMetrics.ROW_INSET_LEFT;
-            int faceStart = textLeft + font.width("#" + entry.shortId()) + BoardRowMetrics.ID_STATUS_GAP
-                    + Math.min(font.width(entry.state().displayName().getString()), 88) + 4;
-            int faceEnd = faceStart + BoardRowMetrics.CUSTOMER_FACE + BoardRowMetrics.FACE_NAME_GAP
-                    + font.width(entry.customerName());
-            if (mouseX >= faceStart && mouseX < Math.min(faceEnd, textRight)) {
+            if (isOverCustomerArea(entry, rowY, Integer.MAX_VALUE, mouseX, mouseY)) {
+                continue;
+            }
+            boolean hasSecondary = hasSecondaryAction(entry, tab == Tab.BOARD);
+            BoardRowLayout layout = BoardRowLayout.forRow(sx, sw, hasSecondary);
+            if (mouseX >= layout.mapX()) {
+                continue;
+            }
+            int frameRight = layout.hasSecondary()
+                    ? layout.secondaryX() + BoardRowLayout.SECONDARY_W
+                    : layout.crateX() + BoardRowLayout.ICON;
+            if (mouseX >= frameLeft && mouseX < frameRight) {
                 return entry;
             }
         }
@@ -992,16 +996,8 @@ public final class CourierBoardScreen extends Screen {
         return contentBottom() - SCROLL_COUNTER_H;
     }
 
-    private int detailsTop() {
-        int bottom = contentBottom();
-        if (selected != null && snapshot != null && (tab == Tab.BOARD || tab == Tab.MINE)) {
-            return bottom - DETAILS_BLOCK_H;
-        }
-        return bottom;
-    }
-
     private int listBottom() {
-        int bottom = detailsTop() - 4;
+        int bottom = contentBottom() - 4;
         if (snapshot != null && (tab == Tab.BOARD || tab == Tab.MINE)) {
             List<BoardSnapshotPayload.BoardEntry> all = tab == Tab.BOARD ? snapshot.board() : snapshot.mine();
             int rowsWithoutCounter = Math.max(3, (bottom - listTop()) / rowH());

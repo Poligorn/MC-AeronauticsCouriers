@@ -198,7 +198,6 @@ def render_board(w: int, h: int, tab: int) -> tuple[Image.Image, tuple[int, int,
     list_top = heading_y + 10
     bottom_pad = 12
     scroll_h = 12
-    details_h = 56
     content_bottom = sy + sh - bottom_pad
     headings = ["Доска заказов", "Мои заказы", "Профиль курьера", "Тестовые заказы"]
     tabs = ["Заказы", "Мои", "Профиль", "Тест"]
@@ -219,9 +218,8 @@ def render_board(w: int, h: int, tab: int) -> tuple[Image.Image, tuple[int, int,
     canvas.alpha_composite(load("icon/envelope_tablet"), (mail_x, sy + tab_y))
     d.text((sx + 6, heading_y), headings[tab], fill=C_MAIN, font=font)
 
-    def visible_rows(show_details: bool, scroll_counter: bool) -> int:
-        details_top = content_bottom - details_h if show_details else content_bottom
-        bottom = details_top - 4
+    def visible_rows(scroll_counter: bool) -> int:
+        bottom = content_bottom - 4
         if scroll_counter:
             bottom -= scroll_h
         return max(3, (bottom - list_top) // 24)
@@ -230,7 +228,7 @@ def render_board(w: int, h: int, tab: int) -> tuple[Image.Image, tuple[int, int,
     text_max = sw - ROW_ACTION_RESERVE - 8
 
     if tab == 0:
-        vis = visible_rows(show_details=True, scroll_counter=False)
+        vis = visible_rows(scroll_counter=False)
         list_h = vis * 24
         draw_list_panel(canvas, sx + 4, list_top - 2, sw - 8, list_h + 2)
         rows = [
@@ -243,15 +241,10 @@ def render_board(w: int, h: int, tab: int) -> tuple[Image.Image, tuple[int, int,
             draw_row(canvas, sx + 6, y - 1, sw - ROW_ACTION_RESERVE - 6, 22, selected=i == 0)
             d.text((text_left, y + 3), ellipsize(d, main, font_sm, text_max), fill=C_MAIN, font=font_sm)
             d.text((text_left, y + 12), ellipsize(d, meta, font_sm, text_max), fill=C_MUTED, font=font_sm)
-            draw_tablet_button(canvas, sx + sw - 156, y + 1, 68, 18)
-            d.text((sx + sw - 148, y + 5), "Подробнее", fill=C_MAIN, font=font_sm)
             draw_tablet_button(canvas, sx + sw - 84, y + 1, 76, 18, highlighted=i == 0)
             d.text((sx + sw - 78, y + 5), "Принять", fill=C_WARN if i == 0 else C_MAIN, font=font_sm)
-        det_y = content_bottom - details_h
-        d.text((sx + 8, det_y), "Ранг II · срок 30 мин · груз: 8× булыжник", fill=C_MAIN, font=font_sm)
-        d.text((sx + 8, det_y + 12), "При провале залог 40 сп и награда 120 сп уходят заказчику.", fill=C_WARN, font=font_sm)
     elif tab == 1:
-        vis = visible_rows(show_details=False, scroll_counter=True)
+        vis = visible_rows(scroll_counter=True)
         list_h = vis * 24
         draw_list_panel(canvas, sx + 4, list_top - 2, sw - 8, list_h + 2)
         for i in range(min(vis, 8)):
@@ -261,8 +254,6 @@ def render_board(w: int, h: int, tab: int) -> tuple[Image.Image, tuple[int, int,
             draw_row(canvas, sx + 6, y - 1, sw - ROW_ACTION_RESERVE - 6, 22, selected=i == 0)
             d.text((text_left, y + 3), ellipsize(d, main, font_sm, text_max), fill=C_MAIN, font=font_sm)
             d.text((text_left, y + 12), ellipsize(d, meta, font_sm, text_max), fill=C_MUTED, font=font_sm)
-            draw_tablet_button(canvas, sx + sw - 156, y + 1, 68, 18)
-            d.text((sx + sw - 148, y + 5), "Подробнее", fill=C_MAIN, font=font_sm)
             if i == 0:
                 draw_tablet_button(canvas, sx + sw - 84, y + 1, 76, 18)
                 d.text((sx + sw - 72, y + 5), "Отказ", fill=C_MAIN, font=font_sm)
