@@ -14,7 +14,7 @@ import net.neoforged.neoforge.network.PacketDistributor;
 
 /** Tablet-style confirmation before accepting a contract (GDD §7.2 risk transparency). */
 public final class BoardAcceptConfirmScreen extends Screen {
-    private static final int PAD = 10;
+    private static final int PAD = TabletGui.CONTENT_INSET;
     private static final int FOOTER = 36;
     private static final int LINE_GAP = 4;
 

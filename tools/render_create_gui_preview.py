@@ -12,6 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SPRITES = ROOT / "src/main/resources/assets/aerocouriers/textures/gui/sprites"
 
 FRAME_BORDER = 8
+CONTENT_INSET = 9
 ANTENNA_OVERHANG_TOP = 22
 GEAR_OVERHANG_LEFT = 14
 ANTENNA_W, ANTENNA_H = 10, 28
@@ -185,7 +186,11 @@ def render_board(w: int, h: int, tab: int) -> tuple[Image.Image, tuple[int, int,
     fw = max(320, fw)
     fh = max(220, fh)
     fx, fy = frame_pos(w, h, fw, fh)
-    sx, sy, sw, sh = draw_monitor(canvas, fx, fy, fw, fh)
+    cavity_x, cavity_y, cavity_w, cavity_h = draw_monitor(canvas, fx, fy, fw, fh)
+    sx = cavity_x + CONTENT_INSET
+    sy = cavity_y + CONTENT_INSET
+    sw = cavity_w - CONTENT_INSET * 2
+    sh = cavity_h - CONTENT_INSET * 2
     font = try_font(8)
     font_sm = try_font(7)
     d = ImageDraw.Draw(canvas)
@@ -201,7 +206,7 @@ def render_board(w: int, h: int, tab: int) -> tuple[Image.Image, tuple[int, int,
     content_bottom = sy + sh - bottom_pad
     headings = ["Доска заказов", "Мои заказы", "Профиль курьера", "Тестовые заказы"]
     tabs = ["Заказы", "Мои", "Профиль", "Тест"]
-    tab_x = sx + 4
+    tab_x = sx
     for i, label in enumerate(tabs):
         draw_tablet_tab(canvas, tab_x, sy + tab_y, tab_w, i == tab)
         color = C_BRIGHT if i == tab else C_MUTED
@@ -216,7 +221,7 @@ def render_board(w: int, h: int, tab: int) -> tuple[Image.Image, tuple[int, int,
     bal_x = max(bal_left, bal_right - bal_w)
     d.text((bal_x, sy + 8), ellipsize(d, bal, font, bal_right - bal_left), fill=C_MAIN, font=font)
     canvas.alpha_composite(load("icon/envelope_tablet"), (mail_x, sy + tab_y))
-    d.text((sx + 6, heading_y), headings[tab], fill=C_MAIN, font=font)
+    d.text((sx, heading_y), headings[tab], fill=C_MAIN, font=font)
 
     def visible_rows(scroll_counter: bool) -> int:
         bottom = content_bottom - 4
@@ -309,7 +314,7 @@ def render_board(w: int, h: int, tab: int) -> tuple[Image.Image, tuple[int, int,
         d.text((sx + 8, y + 72), "Выбран: #a3f2", fill=C_MAIN, font=font_sm)
         d.text((sx + 8, y + 118), "Сначала «Подробнее» у заказа, затем forcespawn / forcedeliver.", fill=C_MUTED, font=font_sm)
 
-    return canvas, (sx, sy, sw, sh)
+    return canvas, (cavity_x, cavity_y, cavity_w, cavity_h)
 
 
 def draw_window(canvas: Image.Image, x: int, y: int, w: int, h: int) -> None:

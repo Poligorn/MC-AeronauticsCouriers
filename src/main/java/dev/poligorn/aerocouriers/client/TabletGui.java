@@ -29,6 +29,8 @@ public final class TabletGui {
 
     /** Nine-slice brass + bevel before the screen cavity (matches {@code tablet_frame}). */
     public static final int FRAME_BORDER = 8;
+    /** Inset from the inner screen cavity to tabs, headings, lists, and chrome (all tablet UIs). */
+    public static final int CONTENT_INSET = 9;
     public static final int ANTENNA_W = 10;
     public static final int ANTENNA_H = 28;
     /** Pixels the antenna sprite extends above the frame top. */
@@ -142,5 +144,37 @@ public final class TabletGui {
     public static int frameTop(int screenH, int frameH) {
         int totalH = frameH + ANTENNA_OVERHANG_TOP;
         return Math.max(ANTENNA_OVERHANG_TOP + 2, (screenH - totalH) / 2 + ANTENNA_OVERHANG_TOP);
+    }
+
+    public static int cavityLeft(int frameLeft) {
+        return frameLeft + FRAME_BORDER;
+    }
+
+    public static int cavityTop(int frameTop) {
+        return frameTop + FRAME_BORDER;
+    }
+
+    public static int cavityWidth(int frameWidth) {
+        return frameWidth - FRAME_BORDER * 2;
+    }
+
+    public static int cavityHeight(int frameHeight) {
+        return frameHeight - FRAME_BORDER * 2;
+    }
+
+    public static int contentLeft(int frameLeft) {
+        return cavityLeft(frameLeft) + CONTENT_INSET;
+    }
+
+    public static int contentTop(int frameTop) {
+        return cavityTop(frameTop) + CONTENT_INSET;
+    }
+
+    public static int contentWidth(int frameWidth) {
+        return cavityWidth(frameWidth) - CONTENT_INSET * 2;
+    }
+
+    public static int contentHeight(int frameHeight) {
+        return cavityHeight(frameHeight) - CONTENT_INSET * 2;
     }
 }

@@ -15,7 +15,6 @@ import net.neoforged.neoforge.network.PacketDistributor;
 /** Tablet-style notification list (newest first). */
 public final class CourierNotificationsScreen extends Screen {
     private static final int ROW_H = 22;
-    private static final int PAD = 8;
 
     private final Screen parent;
     private int scroll;
@@ -29,7 +28,7 @@ public final class CourierNotificationsScreen extends Screen {
     protected void init() {
         super.init();
         PacketDistributor.sendToServer(MarkNotificationsReadPayload.INSTANCE);
-        addRenderableWidget(TabletButton.create(panelLeft() + panelW() - 76, panelTop() + 6, 68, 20,
+        addRenderableWidget(TabletButton.create(contentLeft() + contentW() - 68, contentTop(), 68, 20,
                 Component.translatable("gui.done"), b -> onClose()));
     }
 
@@ -68,38 +67,38 @@ public final class CourierNotificationsScreen extends Screen {
     @Override
     public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         InGamePauseBackground.render(this, graphics, mouseX, mouseY, partialTick);
-        TabletGui.drawScreenBackground(graphics, panelLeft(), panelTop(), panelW(), panelH());
+        TabletGui.drawScreenBackground(graphics, cavityLeft(), cavityTop(), cavityW(), cavityH());
     }
 
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         super.render(graphics, mouseX, mouseY, partialTick);
-        int left = panelLeft();
-        int top = panelTop();
-        graphics.drawString(font, title, left + PAD, top + PAD, TabletGui.TEXT, false);
+        int cx = contentLeft();
+        int cy = contentTop();
+        graphics.drawString(font, title, cx, cy, TabletGui.TEXT, false);
         TabletGui.drawFrameChrome(graphics, panelLeft(), panelTop(), panelW(), panelH());
 
         List<NotificationSyncPayload.Line> entries = ClientNotifications.entries();
         if (entries.isEmpty()) {
             graphics.drawString(font, Component.translatable("ui.aerocouriers.notifications.empty"),
-                    left + PAD, listTop(), TabletGui.TEXT_MUTED, false);
+                    contentLeft(), listTop(), TabletGui.TEXT_MUTED, false);
             return;
         }
 
-        int listW = panelW() - PAD * 2;
+        int listW = contentW();
         int y = listTop();
         int visible = visibleRows();
         for (int i = 0; i < visible && scroll + i < entries.size(); i++) {
             NotificationSyncPayload.Line line = entries.get(scroll + i);
             int rowY = y + i * ROW_H;
-            boolean hover = mouseX >= left + PAD && mouseX < left + PAD + listW
+            boolean hover = mouseX >= cx && mouseX < cx + listW
                     && mouseY >= rowY && mouseY < rowY + ROW_H - 2;
-            TabletGui.drawRow(graphics, left + PAD, rowY, listW, ROW_H - 2, hover);
+            TabletGui.drawRow(graphics, cx, rowY, listW, ROW_H - 2, hover);
             String time = formatAge(line.at());
             Component timeLine = Component.literal(time);
-            graphics.drawString(font, timeLine, left + PAD + 4, rowY + 2, TabletGui.TEXT_MUTED, false);
-            int textX = left + PAD + 4 + font.width(time) + 6;
-            int textW = listW - (textX - left - PAD) - 4;
+            graphics.drawString(font, timeLine, cx + 4, rowY + 2, TabletGui.TEXT_MUTED, false);
+            int textX = cx + 4 + font.width(time) + 6;
+            int textW = listW - (textX - cx) - 4;
             List<FormattedCharSequence> wrapped = font.split(line.text(), textW);
             int ty = rowY + 2;
             for (int lineIdx = 0; lineIdx < Math.min(2, wrapped.size()); lineIdx++) {
@@ -110,8 +109,8 @@ public final class CourierNotificationsScreen extends Screen {
     }
 
     private int rowAt(double mouseX, double mouseY) {
-        int left = panelLeft() + PAD;
-        int listW = panelW() - PAD * 2;
+        int left = contentLeft();
+        int listW = contentW();
         if (mouseX < left || mouseX >= left + listW) {
             return -1;
         }
@@ -149,11 +148,43 @@ public final class CourierNotificationsScreen extends Screen {
     }
 
     private int listTop() {
-        return panelTop() + 32;
+        return contentTop() + font.lineHeight + 6;
     }
 
     private int listBottom() {
-        return panelTop() + panelH() - PAD;
+        return contentTop() + contentH();
+    }
+
+    private int cavityLeft() {
+        return TabletGui.cavityLeft(panelLeft());
+    }
+
+    private int cavityTop() {
+        return TabletGui.cavityTop(panelTop());
+    }
+
+    private int cavityW() {
+        return TabletGui.cavityWidth(panelW());
+    }
+
+    private int cavityH() {
+        return TabletGui.cavityHeight(panelH());
+    }
+
+    private int contentLeft() {
+        return TabletGui.contentLeft(panelLeft());
+    }
+
+    private int contentTop() {
+        return TabletGui.contentTop(panelTop());
+    }
+
+    private int contentW() {
+        return TabletGui.contentWidth(panelW());
+    }
+
+    private int contentH() {
+        return TabletGui.contentHeight(panelH());
     }
 
     private int panelLeft() {

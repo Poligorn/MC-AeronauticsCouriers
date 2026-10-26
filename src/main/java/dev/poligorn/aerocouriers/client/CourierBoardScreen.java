@@ -185,7 +185,7 @@ public final class CourierBoardScreen extends Screen {
         int sx = screenLeft();
         int sy = screenTop();
         int tabW = Math.max(64, screenW() / 7);
-        int tabX = sx + 4;
+        int tabX = sx;
         tabX = addTab(tabX, sy + TAB_Y, tabW, Tab.BOARD, "ui.aerocouriers.tab.board") + 4;
         tabX = addTab(tabX, sy + TAB_Y, tabW, Tab.MINE, "ui.aerocouriers.tab.mine") + 4;
         tabX = addTab(tabX, sy + TAB_Y, tabW, Tab.PROFILE, "ui.aerocouriers.tab.profile") + 4;
@@ -353,7 +353,7 @@ public final class CourierBoardScreen extends Screen {
     @Override
     public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         InGamePauseBackground.render(this, graphics, mouseX, mouseY, partialTick);
-        TabletGui.drawScreenBackground(graphics, screenLeft(), screenTop(), screenW(), screenH());
+        TabletGui.drawScreenBackground(graphics, cavityLeft(), cavityTop(), cavityW(), cavityH());
     }
 
     @Override
@@ -368,12 +368,12 @@ public final class CourierBoardScreen extends Screen {
         int sx = screenLeft();
         int sy = screenTop();
         int headingY = headingY();
-        graphics.drawString(font, tabHeading(), sx + 6, headingY, TabletGui.TEXT, false);
+        graphics.drawString(font, tabHeading(), sx, headingY, TabletGui.TEXT, false);
         if (snapshot != null && tab == Tab.BOARD && showsTraineeHint(snapshot.profile())) {
             Component hint = Component.translatable("ui.aerocouriers.trainee.hint",
                     snapshot.profile().traineeFreeContracts() - snapshot.profile().villageDelivered(),
                     snapshot.profile().traineeMaxDistance());
-            drawWrapped(graphics, hint, sx + 6, headingY + font.lineHeight + 2, screenW() - 12, TabletGui.TEXT_MUTED);
+            drawWrapped(graphics, hint, sx, headingY + font.lineHeight + 2, screenW(), TabletGui.TEXT_MUTED);
         }
         if (snapshot != null) {
             long balance = snapshot.balance();
@@ -387,7 +387,7 @@ public final class CourierBoardScreen extends Screen {
 
         if (snapshot == null) {
             graphics.drawString(font, Component.translatable("ui.aerocouriers.loading"),
-                    sx + 8, sy + 48, TabletGui.TEXT_MUTED, false);
+                    sx, sy + 40, TabletGui.TEXT_MUTED, false);
             renderTopLayerTooltips(graphics, mouseX, mouseY);
             return;
         }
@@ -402,18 +402,18 @@ public final class CourierBoardScreen extends Screen {
             String id = selected == null ? "—" : snapshot.find(selected).map(BoardSnapshotPayload.BoardEntry::shortId)
                     .orElse(selected.toString().substring(0, 8));
             graphics.drawString(font, Component.translatable("ui.aerocouriers.test.selected", id),
-                    sx + 8, testY + 72, TabletGui.TEXT, false);
+                    sx, testY + 72, TabletGui.TEXT, false);
             drawWrapped(graphics, Component.translatable("ui.aerocouriers.test.hint"),
-                    sx + 8, testY + 118, screenW() - 16, TabletGui.TEXT_MUTED);
+                    sx, testY + 118, screenW(), TabletGui.TEXT_MUTED);
         }
 
         RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
         TabletGui.drawFrameChrome(graphics, left(), top(), panelW(), panelH());
 
         if (notice != null) {
-            int noticeY = screenTop() + screenH() - 28;
-            TabletGui.drawListPanel(graphics, sx + 6, noticeY - 2, Math.min(screenW() - 12, font.width(notice) + 24), 18);
-            drawWrapped(graphics, notice, sx + 12, noticeY, screenW() - 24, TabletGui.TEXT_WARN);
+            int noticeY = screenTop() + screenH() - 20;
+            TabletGui.drawListPanel(graphics, sx, noticeY - 2, Math.min(screenW(), font.width(notice) + 16), 18);
+            drawWrapped(graphics, notice, sx + 4, noticeY, screenW() - 8, TabletGui.TEXT_WARN);
         }
         updateRowIconHover(mouseX, mouseY);
         captureRowLine1HoverTips(mouseX, mouseY);
@@ -438,11 +438,11 @@ public final class CourierBoardScreen extends Screen {
         int top = listTop();
         int bottom = screenTop() + screenH() - 12;
         int boxH = Math.max(48, bottom - top);
-        int innerW = screenW() - 16;
+        int innerW = screenW();
         int boxW = Math.max(96, innerW * 42 / 100);
-        int boxX = sx + 8;
+        int boxX = sx;
         int statsX = boxX + boxW + 12;
-        int statsW = Math.max(48, sx + screenW() - 8 - statsX);
+        int statsW = Math.max(48, sx + screenW() - statsX);
 
         TabletGui.drawListPanel(graphics, boxX, top, boxW, boxH);
         if (minecraft != null && minecraft.player != null) {
@@ -568,7 +568,7 @@ public final class CourierBoardScreen extends Screen {
                             int mouseX, int mouseY) {
         if (all.isEmpty()) {
             graphics.drawString(font, Component.translatable("contract.aerocouriers.list.none"),
-                    sx + 8, listTop() + 4, TabletGui.TEXT_MUTED, false);
+                    sx, listTop() + 4, TabletGui.TEXT_MUTED, false);
             return;
         }
         int visible = visibleRows();
@@ -581,8 +581,8 @@ public final class CourierBoardScreen extends Screen {
         int textW = Math.max(8, textRight - textLeft);
         int listY = listTop();
         int listH = visible * rowH();
-        TabletGui.drawListPanel(graphics, sx + 4, listY - 2, sw - 8, listH + 2);
-        graphics.enableScissor(sx + 4, listY - 2, sx + sw - 4, listY + listH);
+        TabletGui.drawListPanel(graphics, sx + 2, listY - 2, sw - 4, listH + 2);
+        graphics.enableScissor(sx + 2, listY - 2, sx + sw - 2, listY + listH);
         try {
             for (int i = 0; i < visible && scroll + i < all.size(); i++) {
                 BoardSnapshotPayload.BoardEntry entry = all.get(scroll + i);
@@ -616,10 +616,10 @@ public final class CourierBoardScreen extends Screen {
         if (all.size() > visible) {
             graphics.drawString(font, Component.translatable("ui.aerocouriers.scroll",
                             scroll + 1, Math.min(scroll + visible, all.size()), all.size()),
-                    sx + 8, scrollCounterY(), TabletGui.TEXT_MUTED, false);
+                    sx, scrollCounterY(), TabletGui.TEXT_MUTED, false);
             float thumb = visible / (float) all.size();
             float progress = scroll / (float) Math.max(1, all.size() - visible);
-            TabletGui.drawScrollbar(graphics, sx + screenW() - 10, listTop(), visible * rowH(), progress, thumb);
+            TabletGui.drawScrollbar(graphics, sx + screenW() - 6, listTop(), visible * rowH(), progress, thumb);
         }
 
     }
@@ -985,20 +985,37 @@ public final class CourierBoardScreen extends Screen {
         return TabletGui.frameTop(height, panelH());
     }
 
+    private int cavityLeft() {
+        return TabletGui.cavityLeft(left());
+    }
+
+    private int cavityTop() {
+        return TabletGui.cavityTop(top());
+    }
+
+    private int cavityW() {
+        return TabletGui.cavityWidth(panelW());
+    }
+
+    private int cavityH() {
+        return TabletGui.cavityHeight(panelH());
+    }
+
+    /** Padded content area inside the screen cavity (tabs, lists, profile). */
     private int screenLeft() {
-        return left() + TabletGui.FRAME_BORDER;
+        return TabletGui.contentLeft(left());
     }
 
     private int screenTop() {
-        return top() + TabletGui.FRAME_BORDER;
+        return TabletGui.contentTop(top());
     }
 
     private int screenW() {
-        return panelW() - TabletGui.FRAME_BORDER * 2;
+        return TabletGui.contentWidth(panelW());
     }
 
     private int screenH() {
-        return panelH() - TabletGui.FRAME_BORDER * 2;
+        return TabletGui.contentHeight(panelH());
     }
 
     private int rowH() {

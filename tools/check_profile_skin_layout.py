@@ -10,6 +10,7 @@ BODY_HEIGHT_FRAC = 0.85
 FEET_MARGIN_FRAC = 0.06
 HEAD_MARGIN_FRAC = 0.07
 FRAME_BORDER = 8
+CONTENT_INSET = 9
 ANTENNA_OVERHANG_TOP = 22
 GEAR_OVERHANG_LEFT = 14
 TAB_Y = 2
@@ -61,8 +62,8 @@ def margins_ok(panel_top: int, box_h: int, head_top: int, feet_bottom: int) -> b
 def check_window(width: int, height: int) -> None:
     ph = panel_h(height)
     pw = panel_w(width)
-    screen_top = frame_top(height, ph) + FRAME_BORDER
-    screen_h = ph - FRAME_BORDER * 2
+    screen_top = frame_top(height, ph) + FRAME_BORDER + CONTENT_INSET
+    screen_h = ph - FRAME_BORDER * 2 - CONTENT_INSET * 2
     top = list_top(screen_top)
     box_h = profile_box_h(screen_top, screen_h)
     scale, head_top, feet_bottom, _ = layout(top, box_h)

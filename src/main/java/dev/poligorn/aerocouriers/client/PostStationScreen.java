@@ -28,8 +28,6 @@ import org.jetbrains.annotations.Nullable;
 
 /** Post station window: reputation, NPC orders from this station, operator rename (GDD §6.0). */
 public final class PostStationScreen extends Screen {
-    private static final int PAD = 8;
-
     private final StationSnapshotPayload snapshot;
     private int scroll;
     private @Nullable EditBox nameField;
@@ -47,22 +45,22 @@ public final class PostStationScreen extends Screen {
     @Override
     protected void init() {
         super.init();
-        int left = panelLeft();
-        int top = panelTop();
-        int innerW = panelW() - PAD * 2;
+        int cx = contentLeft();
+        int cy = contentTop();
+        int cw = contentW();
         if (snapshot.canRename()) {
-            nameField = new EditBox(font, left + PAD, top + 28, innerW - 80, 18,
+            nameField = new EditBox(font, cx, cy + 20, cw - 80, 18,
                     Component.translatable("ui.aerocouriers.station.rename"));
             nameField.setValue(snapshot.name());
             nameField.setMaxLength(48);
             addRenderableWidget(nameField);
-            addRenderableWidget(TabletButton.create(left + PAD + innerW - 72, top + 26, 72, 20,
+            addRenderableWidget(TabletButton.create(cx + cw - 72, cy + 18, 72, 20,
                     Component.translatable("ui.aerocouriers.station.rename.action"), b -> rename()));
         }
-        int btnY = panelTop() + panelH() - 28;
-        addRenderableWidget(TabletButton.create(left + PAD, btnY, 120, 20,
+        int btnY = contentTop() + contentH() - 28;
+        addRenderableWidget(TabletButton.create(contentLeft(), btnY, 120, 20,
                 Component.translatable("ui.aerocouriers.station.open_board"), b -> openBoard()));
-        addRenderableWidget(TabletButton.create(left + panelW() - PAD - 68, btnY, 68, 20,
+        addRenderableWidget(TabletButton.create(contentLeft() + contentW() - 68, btnY, 68, 20,
                 Component.translatable("gui.done"), b -> onClose()));
         rebuildRowIcons();
     }
@@ -107,7 +105,7 @@ public final class PostStationScreen extends Screen {
     @Override
     public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         InGamePauseBackground.render(this, graphics, mouseX, mouseY, partialTick);
-        TabletGui.drawScreenBackground(graphics, panelLeft(), panelTop(), panelW(), panelH());
+        TabletGui.drawScreenBackground(graphics, cavityLeft(), cavityTop(), cavityW(), cavityH());
     }
 
     @Override
@@ -116,19 +114,19 @@ public final class PostStationScreen extends Screen {
         hoverTipLines = null;
         hoverCargoComponent = null;
         super.render(graphics, mouseX, mouseY, partialTick);
-        int left = panelLeft();
-        int top = panelTop();
-        graphics.drawString(font, title, left + PAD, top + PAD, TabletGui.TEXT, false);
+        int cx = contentLeft();
+        int cy = contentTop();
+        graphics.drawString(font, title, cx, cy, TabletGui.TEXT, false);
         Component rep = Component.translatable("ui.aerocouriers.station.reputation",
                 snapshot.reputation(), snapshot.bonusPercent());
-        graphics.drawString(font, rep, left + PAD, top + (snapshot.canRename() ? 50 : 28), TabletGui.TEXT_MUTED, false);
+        graphics.drawString(font, rep, cx, cy + (snapshot.canRename() ? 42 : 20), TabletGui.TEXT_MUTED, false);
 
         renderOrderList(graphics, mouseX, mouseY);
         renderRowIconsOnTop(graphics, mouseX, mouseY, partialTick);
         updateRowIconHover(mouseX, mouseY);
         captureRowHoverTips(mouseX, mouseY);
         renderTooltips(graphics, mouseX, mouseY);
-        TabletGui.drawFrameChrome(graphics, left, top, panelW(), panelH());
+        TabletGui.drawFrameChrome(graphics, panelLeft(), panelTop(), panelW(), panelH());
     }
 
     private void renderOrderList(GuiGraphics graphics, int mouseX, int mouseY) {
@@ -136,13 +134,13 @@ public final class PostStationScreen extends Screen {
         List<BoardSnapshotPayload.BoardEntry> orders = snapshot.orders();
         if (orders.isEmpty()) {
             graphics.drawString(font, Component.translatable("ui.aerocouriers.station.orders.empty"),
-                    panelLeft() + PAD, listTop, TabletGui.TEXT_MUTED, false);
+                    contentLeft(), listTop, TabletGui.TEXT_MUTED, false);
             return;
         }
         graphics.drawString(font, Component.translatable("ui.aerocouriers.station.orders.header"),
-                panelLeft() + PAD, listTop - font.lineHeight - 2, TabletGui.TEXT, false);
-        int sx = panelLeft() + 4;
-        int sw = panelW() - 8;
+                contentLeft(), listTop - font.lineHeight - 2, TabletGui.TEXT, false);
+        int sx = contentLeft() + 2;
+        int sw = contentW() - 4;
         int visible = visibleRows();
         scroll = Mth.clamp(scroll, 0, Math.max(0, orders.size() - visible));
         int rowH = rowH();
@@ -174,8 +172,8 @@ public final class PostStationScreen extends Screen {
         }
         int visible = visibleRows();
         scroll = Mth.clamp(scroll, 0, Math.max(0, orders.size() - visible));
-        int sx = panelLeft() + 4;
-        int sw = panelW() - 8;
+        int sx = contentLeft() + 2;
+        int sw = contentW() - 4;
         int listY = listTopY();
         int rowH = rowH();
         for (int i = 0; i < visible && scroll + i < orders.size(); i++) {
@@ -325,8 +323,8 @@ public final class PostStationScreen extends Screen {
     }
 
     private int rowAt(double mouseX, double mouseY) {
-        int sx = panelLeft() + 4;
-        int sw = panelW() - 8;
+        int sx = contentLeft() + 2;
+        int sw = contentW() - 4;
         int listY = listTopY();
         int rowH = rowH();
         int frameLeft = sx + BoardRowMetrics.ROW_FRAME_SIDE;
@@ -346,16 +344,48 @@ public final class PostStationScreen extends Screen {
     }
 
     private int listTopY() {
-        return panelTop() + (snapshot.canRename() ? 66 : 44) + font.lineHeight + 6;
+        return contentTop() + (snapshot.canRename() ? 58 : 36) + font.lineHeight + 6;
     }
 
     private int visibleRows() {
-        int bottom = panelTop() + panelH() - 40;
+        int bottom = contentTop() + contentH() - 36;
         return Math.max(1, (bottom - listTopY()) / rowH());
     }
 
     private static int rowH() {
         return BoardRowMetrics.rowHeight();
+    }
+
+    private int cavityLeft() {
+        return TabletGui.cavityLeft(panelLeft());
+    }
+
+    private int cavityTop() {
+        return TabletGui.cavityTop(panelTop());
+    }
+
+    private int cavityW() {
+        return TabletGui.cavityWidth(panelW());
+    }
+
+    private int cavityH() {
+        return TabletGui.cavityHeight(panelH());
+    }
+
+    private int contentLeft() {
+        return TabletGui.contentLeft(panelLeft());
+    }
+
+    private int contentTop() {
+        return TabletGui.contentTop(panelTop());
+    }
+
+    private int contentW() {
+        return TabletGui.contentWidth(panelW());
+    }
+
+    private int contentH() {
+        return TabletGui.contentHeight(panelH());
     }
 
     private int panelLeft() {
