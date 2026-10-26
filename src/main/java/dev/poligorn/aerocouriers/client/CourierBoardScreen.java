@@ -1,6 +1,10 @@
 package dev.poligorn.aerocouriers.client;
 
 import dev.poligorn.aerocouriers.AeronauticsCouriers;
+import dev.poligorn.aerocouriers.client.board.BoardCargoTooltip;
+import dev.poligorn.aerocouriers.client.board.BoardCustomerFace;
+import dev.poligorn.aerocouriers.client.board.BoardRowLayout;
+import dev.poligorn.aerocouriers.client.board.TabletRowIconButton;
 import dev.poligorn.aerocouriers.contract.ContractState;
 import dev.poligorn.aerocouriers.license.LicenseRank;
 import dev.poligorn.aerocouriers.net.BoardSnapshotPayload;
@@ -11,9 +15,14 @@ import dev.poligorn.aerocouriers.net.OpenBoardPayload;
 import dev.poligorn.aerocouriers.net.OperatorBoardPayload;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.Locale;
+import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.core.BlockPos;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.level.Level;
 import net.minecraft.client.gui.components.Renderable;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.gui.GuiGraphics;
@@ -33,8 +42,9 @@ import org.jetbrains.annotations.Nullable;
  * Chrome: brass order-tablet monitor ({@link TabletGui}); stamp screen unchanged.
  */
 public final class CourierBoardScreen extends Screen {
-    /** Width reserved on the right of each list row for action buttons (px from screen right edge). */
-    private static final int ROW_ACTION_RESERVE = 158;
+    private static final int CUSTOMER_FACE = 8;
+    private static final int LINE2_ICON = 8;
+    private static final int LINE2_GAP = 3;
     private static final int PROFILE_ICON_SIZE = 16;
     private static final int PROFILE_LINE_HEIGHT = 11;
     private static final int TAB_Y = 2;
@@ -60,6 +70,9 @@ public final class CourierBoardScreen extends Screen {
     private @Nullable UUID pendingAccept;
     private @Nullable Component notice;
     private @Nullable Component hoverTip;
+    private @Nullable BoardCargoTooltip hoverCargoComponent;
+    private @Nullable UUID mapHoverOrder;
+    private @Nullable UUID crateHoverOrder;
     /** Visible list rows whose action buttons depend on {@link #initListButtons}; avoids rebuild on timer-only updates. */
     private @Nullable String listRowButtonKey;
 
@@ -117,13 +130,13 @@ public final class CourierBoardScreen extends Screen {
     }
 
     private void removeTabletButtons() {
-        List<TabletButton> remove = new ArrayList<>();
+        List<AbstractWidget> remove = new ArrayList<>();
         for (Renderable widget : renderables) {
-            if (widget instanceof TabletButton button) {
-                remove.add(button);
+            if (widget instanceof TabletButton || widget instanceof TabletRowIconButton) {
+                remove.add((AbstractWidget) widget);
             }
         }
-        for (TabletButton button : remove) {
+        for (AbstractWidget button : remove) {
             removeWidget(button);
         }
     }
@@ -202,22 +215,29 @@ public final class CourierBoardScreen extends Screen {
         int visible = visibleRows();
         scroll = Mth.clamp(scroll, 0, Math.max(0, all.size() - visible));
         int rowTop = listTop();
+        String detailsLabel = Component.translatable("ui.aerocouriers.details").getString();
         for (int i = 0; i < visible && scroll + i < all.size(); i++) {
             BoardSnapshotPayload.BoardEntry entry = all.get(scroll + i);
             int y = rowTop + i * rowH();
+            boolean hasSecondary = hasSecondaryAction(entry, boardTab);
+            BoardRowLayout layout = BoardRowLayout.forRow(sx, sw, font, detailsLabel, hasSecondary);
             addRenderableWidget(TabletButton.create(
-                    sx + sw - 156, y, 68, 18, Component.translatable("ui.aerocouriers.details"), b -> {
+                    layout.detailsX(), y, layout.detailsW(), 18, Component.translatable("ui.aerocouriers.details"), b -> {
                         selected = entry.id();
                         pendingAccept = null;
                     }));
+            addRenderableWidget(new TabletRowIconButton(
+                    layout.mapX(), y, entry.id(), TabletRowIconButton.Kind.MAP, this::onMapIconClick));
+            addRenderableWidget(new TabletRowIconButton(
+                    layout.crateX(), y, entry.id(), TabletRowIconButton.Kind.CRATE, null));
             if (boardTab && entry.state() == ContractState.OPEN
                     && (!"issuer".equals(entry.role()) || snapshot.allowSelfAccept())) {
                 boolean confirm = entry.id().equals(pendingAccept);
                 TabletButton accept = TabletButton.create(
-                                sx + sw - 84, y, 76, 18,
-                                Component.translatable(confirm ? "ui.aerocouriers.accept.confirm" : "ui.aerocouriers.accept",
-                                        entry.collateral()),
-                                b -> onAccept(entry));
+                        layout.secondaryX(), y, layout.secondaryW(), 18,
+                        Component.translatable(confirm ? "ui.aerocouriers.accept.confirm" : "ui.aerocouriers.accept",
+                                entry.collateral()),
+                        b -> onAccept(entry));
                 accept.active = snapshot != null && snapshot.licensed();
                 if (!accept.active) {
                     accept.hint(Component.translatable("contract.aerocouriers.error.no_license"));
@@ -225,16 +245,40 @@ public final class CourierBoardScreen extends Screen {
                 addRenderableWidget(accept);
             } else if (!boardTab && "issuer".equals(entry.role()) && entry.state() == ContractState.OPEN) {
                 addRenderableWidget(TabletButton.create(
-                        sx + sw - 84, y, 76, 18, Component.translatable("ui.aerocouriers.cancel"), b ->
+                        layout.secondaryX(), y, layout.secondaryW(), 18, Component.translatable("ui.aerocouriers.cancel"), b ->
                                 PacketDistributor.sendToServer(
                                         new ContractIntentPayload(ContractIntentPayload.Kind.CANCEL, entry.id()))));
             } else if (!boardTab && "courier".equals(entry.role()) && entry.state().isActive()) {
                 addRenderableWidget(TabletButton.create(
-                        sx + sw - 84, y, 76, 18, Component.translatable("ui.aerocouriers.abandon"), b ->
+                        layout.secondaryX(), y, layout.secondaryW(), 18, Component.translatable("ui.aerocouriers.abandon"), b ->
                                 PacketDistributor.sendToServer(
                                         new ContractIntentPayload(ContractIntentPayload.Kind.ABANDON, entry.id()))));
             }
         }
+    }
+
+    private boolean hasSecondaryAction(BoardSnapshotPayload.BoardEntry entry, boolean boardTab) {
+        if (boardTab && entry.state() == ContractState.OPEN
+                && (!"issuer".equals(entry.role()) || snapshot != null && snapshot.allowSelfAccept())) {
+            return true;
+        }
+        if (!boardTab && "issuer".equals(entry.role()) && entry.state() == ContractState.OPEN) {
+            return true;
+        }
+        return !boardTab && "courier".equals(entry.role()) && entry.state().isActive();
+    }
+
+    private void onMapIconClick(UUID orderId) {
+        if (snapshot == null) {
+            return;
+        }
+        snapshot.find(orderId).ifPresent(entry -> {
+            if (XaeroOrderBridge.openWorldMapAt(entry.destinationPos())) {
+                return;
+            }
+            XaeroOrderBridge.onHoverDestination(entry.id(), entry.destinationDimension(), entry.destinationPos(),
+                    entry.shortId());
+        });
     }
 
     private void onAccept(BoardSnapshotPayload.BoardEntry entry) {
@@ -289,6 +333,7 @@ public final class CourierBoardScreen extends Screen {
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         hoverTip = null;
+        hoverCargoComponent = null;
         RenderSystem.disableDepthTest();
         RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
         super.render(graphics, mouseX, mouseY, partialTick);
@@ -309,7 +354,7 @@ public final class CourierBoardScreen extends Screen {
         if (snapshot == null) {
             graphics.drawString(font, Component.translatable("ui.aerocouriers.loading"),
                     sx + 8, sy + 48, TabletGui.TEXT_MUTED, false);
-            drawHoverTip(graphics, mouseX, mouseY);
+            renderTopLayerTooltips(graphics, mouseX, mouseY);
             return;
         }
 
@@ -336,7 +381,18 @@ public final class CourierBoardScreen extends Screen {
             drawWrapped(graphics, notice, sx + 12, noticeY, screenW() - 24, TabletGui.TEXT_WARN);
         }
         captureButtonHint(mouseX, mouseY);
-        drawHoverTip(graphics, mouseX, mouseY);
+        updateRowIconHover(mouseX, mouseY);
+        captureRowHoverTips(mouseX, mouseY);
+        renderTopLayerTooltips(graphics, mouseX, mouseY);
+    }
+
+    @Override
+    public void removed() {
+        if (mapHoverOrder != null) {
+            XaeroOrderBridge.onLeaveDestination(mapHoverOrder);
+            mapHoverOrder = null;
+        }
+        super.removed();
     }
 
     private void renderProfile(GuiGraphics graphics, BoardSnapshotPayload.BoardProfile profile, int sx,
@@ -468,7 +524,9 @@ public final class CourierBoardScreen extends Screen {
         scroll = Mth.clamp(scroll, 0, Math.max(0, all.size() - visible));
         int sw = screenW();
         int textLeft = sx + 8;
-        int textRight = sx + sw - ROW_ACTION_RESERVE;
+        String detailsLabel = Component.translatable("ui.aerocouriers.details").getString();
+        BoardRowLayout reserve = BoardRowLayout.forRow(sx, sw, font, detailsLabel, true);
+        int textRight = reserve.textRight();
         int textW = Math.max(8, textRight - textLeft);
         int listY = listTop();
         int listH = visible * rowH();
@@ -478,20 +536,9 @@ public final class CourierBoardScreen extends Screen {
             for (int i = 0; i < visible && scroll + i < all.size(); i++) {
                 BoardSnapshotPayload.BoardEntry entry = all.get(scroll + i);
                 int y = listY + i * rowH();
-                TabletGui.drawRow(graphics, sx + 6, y - 1, sw - ROW_ACTION_RESERVE - 6, rowH() - 2,
+                TabletGui.drawRow(graphics, sx + 6, y - 1, textRight - sx - 6, rowH() - 2,
                         entry.id().equals(selected));
-                Component main = Component.translatable("ui.aerocouriers.row.main",
-                        entry.shortId(), entry.originLabel(), entry.destinationLabel(), entry.distance());
-                Component meta = Component.translatable("ui.aerocouriers.row.meta",
-                        entry.state().displayName(),
-                        entry.reward(),
-                        entry.collateral(),
-                        entry.minutesLeft(),
-                        entry.weight(),
-                        entry.size(),
-                        Component.translatable("contract.aerocouriers.role." + entry.role()));
-                drawClipped(graphics, main, textLeft, y, textW, TabletGui.TEXT, mouseX, mouseY);
-                drawClipped(graphics, meta, textLeft, y + 10, textW, TabletGui.TEXT_MUTED, mouseX, mouseY);
+                renderOrderRow(graphics, entry, textLeft, y, textW, mouseX, mouseY);
             }
         } finally {
             graphics.disableScissor();
@@ -561,10 +608,219 @@ public final class CourierBoardScreen extends Screen {
         });
     }
 
-    private void drawHoverTip(GuiGraphics graphics, int mouseX, int mouseY) {
-        if (hoverTip != null) {
-            TabletGui.drawSpeechTooltip(graphics, font, hoverTip, mouseX, mouseY, 240);
+    private void renderTopLayerTooltips(GuiGraphics graphics, int mouseX, int mouseY) {
+        if (hoverCargoComponent != null) {
+            List<Component> lines = hoverTip == null ? List.of() : List.of(hoverTip);
+            graphics.renderTooltip(font, lines, Optional.of(hoverCargoComponent), mouseX, mouseY);
+            return;
         }
+        if (hoverTip != null) {
+            graphics.renderTooltip(font, List.of(hoverTip), Optional.empty(), mouseX, mouseY);
+        }
+    }
+
+    private void renderOrderRow(GuiGraphics graphics, BoardSnapshotPayload.BoardEntry entry, int x, int y, int width,
+                                int mouseX, int mouseY) {
+        int cursor = x;
+        String idText = "#" + entry.shortId();
+        graphics.drawString(font, idText, cursor, y, TabletGui.TEXT, false);
+        cursor += font.width(idText) + 4;
+        Component status = entry.state().displayName();
+        drawClipped(graphics, status, cursor, y, Math.max(8, width - (cursor - x)), TabletGui.TEXT_MUTED, mouseX, mouseY);
+        int statusW = Math.min(font.width(status.getString()), Math.max(8, width - (cursor - x)));
+        cursor += statusW + 4;
+
+        int faceX = cursor;
+        int faceY = y;
+        if (entry.villageCustomer()) {
+            BoardCustomerFace.drawVillageIcon(graphics, faceX, faceY);
+        } else {
+            BoardCustomerFace.draw(graphics, faceX, faceY, entry.customerId());
+        }
+        cursor += CUSTOMER_FACE + 3;
+        int nameW = Math.max(8, x + width - cursor);
+        drawClipped(graphics, Component.literal(entry.customerName()), cursor, y, nameW, TabletGui.TEXT, mouseX, mouseY);
+        if (mouseX >= faceX && mouseX < faceX + CUSTOMER_FACE + 3 + nameW && mouseY >= y && mouseY < y + 9) {
+            hoverTip = Component.translatable("ui.aerocouriers.row.customer_tooltip", entry.customerName());
+        }
+
+        int line2Y = y + 10;
+        int statX = x;
+        statX = drawLine2Stat(graphics, AerocouriersGuiSprites.ICON_COIN, Long.toString(entry.reward()), statX, line2Y);
+        statX = drawLine2Stat(graphics, AerocouriersGuiSprites.ICON_LOCK, Long.toString(entry.collateral()), statX, line2Y);
+        String time = Component.translatable("ui.aerocouriers.row.time_compact", entry.minutesLeft()).getString();
+        statX = drawLine2Stat(graphics, AerocouriersGuiSprites.ICON_CLOCK, time, statX, line2Y);
+        if ("issuer".equals(entry.role())) {
+            int starX = x + width - LINE2_ICON;
+            graphics.blitSprite(AerocouriersGuiSprites.ICON_STAR, starX, line2Y, LINE2_ICON, LINE2_ICON);
+        }
+    }
+
+    private int drawLine2Stat(GuiGraphics graphics, net.minecraft.resources.ResourceLocation icon, String value, int x,
+                              int y) {
+        graphics.blitSprite(icon, x, y, LINE2_ICON, LINE2_ICON);
+        int textX = x + LINE2_ICON + 1;
+        graphics.drawString(font, value, textX, y, TabletGui.TEXT_MUTED, false);
+        return textX + font.width(value) + LINE2_GAP + 4;
+    }
+
+    private void captureRowHoverTips(int mouseX, int mouseY) {
+        if (snapshot == null || tab != Tab.BOARD && tab != Tab.MINE) {
+            return;
+        }
+        if (hoverTip != null || hoverCargoComponent != null) {
+            return;
+        }
+        List<BoardSnapshotPayload.BoardEntry> all = tab == Tab.BOARD ? snapshot.board() : snapshot.mine();
+        int visible = visibleRows();
+        int listY = listTop();
+        int sx = screenLeft();
+        String detailsLabel = Component.translatable("ui.aerocouriers.details").getString();
+        int sw = screenW();
+        BoardRowLayout layout = BoardRowLayout.forRow(sx, sw, font, detailsLabel, true);
+        int textRight = layout.textRight();
+        for (int i = 0; i < visible && scroll + i < all.size(); i++) {
+            BoardSnapshotPayload.BoardEntry entry = all.get(scroll + i);
+            int y = listY + i * rowH();
+            if (mouseX < sx + 6 || mouseX >= textRight || mouseY < y || mouseY >= y + rowH()) {
+                continue;
+            }
+            if (isOverRowAction(mouseX, mouseY)) {
+                continue;
+            }
+            hoverTip = Component.translatable("ui.aerocouriers.row.summary_tooltip",
+                    entry.reward(), entry.collateral(), entry.minutesLeft(), entry.weight(), entry.size(),
+                    entry.distance(), Component.translatable("contract.aerocouriers.role." + entry.role()));
+            return;
+        }
+    }
+
+    private boolean isOverRowAction(int mouseX, int mouseY) {
+        for (Renderable widget : renderables) {
+            if (widget instanceof AbstractWidget w && w.isMouseOver(mouseX, mouseY)) {
+                if (w instanceof TabletButton || w instanceof TabletRowIconButton) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private void updateRowIconHover(int mouseX, int mouseY) {
+        UUID nextMap = null;
+        UUID nextCrate = null;
+        for (Renderable widget : renderables) {
+            if (widget instanceof TabletRowIconButton icon && icon.isMouseOver(mouseX, mouseY)) {
+                if (icon.kind() == TabletRowIconButton.Kind.MAP) {
+                    nextMap = icon.orderId();
+                } else {
+                    nextCrate = icon.orderId();
+                }
+            }
+        }
+        if (!Objects.equals(mapHoverOrder, nextMap)) {
+            if (mapHoverOrder != null && snapshot != null) {
+                snapshot.find(mapHoverOrder).ifPresent(e -> {
+                    if (!keepsPersistentWaypoint(e)) {
+                        XaeroOrderBridge.onLeaveDestination(e.id());
+                    }
+                });
+            }
+            mapHoverOrder = nextMap;
+            if (nextMap != null && snapshot != null) {
+                snapshot.find(nextMap).ifPresent(this::onMapHover);
+            }
+        }
+        if (!Objects.equals(crateHoverOrder, nextCrate)) {
+            crateHoverOrder = nextCrate;
+            hoverCargoComponent = null;
+            if (nextCrate != null && snapshot != null) {
+                snapshot.find(nextCrate).ifPresent(this::onCrateHover);
+            }
+        }
+    }
+
+    private void onMapHover(BoardSnapshotPayload.BoardEntry entry) {
+        hoverTip = buildMapTooltip(entry);
+        XaeroOrderBridge.onHoverDestination(entry.id(), entry.destinationDimension(), entry.destinationPos(),
+                entry.shortId());
+    }
+
+    private void onCrateHover(BoardSnapshotPayload.BoardEntry entry) {
+        List<net.minecraft.world.item.ItemStack> stacks = entry.cargoStacks();
+        int shown = Math.min(BoardCargoTooltip.MAX_SHOWN, stacks.size());
+        int hidden = Math.max(0, entry.manifest().size() - shown);
+        hoverCargoComponent = new BoardCargoTooltip(
+                stacks.subList(0, shown),
+                hidden,
+                entry.weight());
+        hoverTip = Component.translatable("ui.aerocouriers.row.cargo_heading");
+    }
+
+    private Component buildMapTooltip(BoardSnapshotPayload.BoardEntry entry) {
+        int distance = XaeroOrderBridge.distanceBlocks(entry.destinationPos(), entry.destinationDimension());
+        if (distance < 0) {
+            distance = entry.distance();
+        }
+        Component pickup = formatPos(entry.originPos(), entry.originDimension());
+        Component delivery = formatPos(entry.destinationPos(), entry.destinationDimension());
+        if (XaeroOrderBridge.xaeroMinimapPresent()) {
+            return Component.translatable("ui.aerocouriers.row.map_tooltip.xaero",
+                    pickup, delivery, distance,
+                    Component.translatable("ui.aerocouriers.row.map_open_hint"));
+        }
+        return Component.translatable("ui.aerocouriers.row.map_tooltip", pickup, delivery, distance);
+    }
+
+    private static Component formatPos(BlockPos pos, ResourceKey<Level> dimension) {
+        return Component.translatable("ui.aerocouriers.row.coords",
+                pos.getX(), pos.getY(), pos.getZ(), dimension.location().toString());
+    }
+
+    private boolean keepsPersistentWaypoint(BoardSnapshotPayload.BoardEntry entry) {
+        return "courier".equals(entry.role()) && entry.state().isActive()
+                && ClientZones.get().stream().anyMatch(z -> z.orderId().equals(entry.id()) && z.delivery());
+    }
+
+    @Override
+    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (button == 0 && snapshot != null && (tab == Tab.BOARD || tab == Tab.MINE)) {
+            BoardSnapshotPayload.BoardEntry customer = hitCustomerRow((int) mouseX, (int) mouseY);
+            if (customer != null) {
+                onCustomerClick(customer);
+                return true;
+            }
+        }
+        return super.mouseClicked(mouseX, mouseY, button);
+    }
+
+    /** TODO(profile): open the customer's profile when cross-player profiles exist. */
+    private void onCustomerClick(BoardSnapshotPayload.BoardEntry entry) {
+        entry.customerId();
+    }
+
+    private @Nullable BoardSnapshotPayload.BoardEntry hitCustomerRow(int mouseX, int mouseY) {
+        List<BoardSnapshotPayload.BoardEntry> all = tab == Tab.BOARD ? snapshot.board() : snapshot.mine();
+        int visible = visibleRows();
+        int listY = listTop();
+        int sx = screenLeft();
+        String detailsLabel = Component.translatable("ui.aerocouriers.details").getString();
+        BoardRowLayout layout = BoardRowLayout.forRow(sx, screenW(), font, detailsLabel, true);
+        int textRight = layout.textRight();
+        for (int i = 0; i < visible && scroll + i < all.size(); i++) {
+            BoardSnapshotPayload.BoardEntry entry = all.get(scroll + i);
+            int y = listY + i * rowH();
+            if (mouseY < y || mouseY >= y + 9) {
+                continue;
+            }
+            int faceStart = sx + 8 + font.width("#" + entry.shortId()) + 4
+                    + Math.min(font.width(entry.state().displayName().getString()), 48) + 4;
+            int faceEnd = faceStart + CUSTOMER_FACE + 3 + font.width(entry.customerName());
+            if (mouseX >= faceStart && mouseX < Math.min(faceEnd, textRight)) {
+                return entry;
+            }
+        }
+        return null;
     }
 
     @Override

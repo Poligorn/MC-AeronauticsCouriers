@@ -3,6 +3,8 @@ package dev.poligorn.aerocouriers.net;
 import dev.poligorn.aerocouriers.AeronauticsCouriers;
 import io.netty.buffer.ByteBuf;
 import java.util.List;
+import java.util.UUID;
+import net.minecraft.core.UUIDUtil;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.codec.ByteBufCodecs;
@@ -19,8 +21,10 @@ public record ZoneSyncPayload(List<Zone> zones) implements CustomPacketPayload {
     public static final Type<ZoneSyncPayload> TYPE = new Type<>(AeronauticsCouriers.id("zone_sync"));
 
     /** @param delivery {@code false} = pickup zone (contract accepted), {@code true} = destination (in transit) */
-    public record Zone(String contract, ResourceKey<Level> dimension, BlockPos pos, int radius, boolean delivery) {
+    public record Zone(UUID orderId, String contract, ResourceKey<Level> dimension, BlockPos pos, int radius,
+                       boolean delivery) {
         public static final StreamCodec<ByteBuf, Zone> STREAM_CODEC = StreamCodec.composite(
+                UUIDUtil.STREAM_CODEC, Zone::orderId,
                 ByteBufCodecs.STRING_UTF8, Zone::contract,
                 ResourceKey.streamCodec(Registries.DIMENSION), Zone::dimension,
                 BlockPos.STREAM_CODEC, Zone::pos,

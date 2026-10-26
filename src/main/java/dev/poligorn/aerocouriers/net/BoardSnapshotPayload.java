@@ -10,13 +10,16 @@ import java.util.Optional;
 import java.util.UUID;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.UUIDUtil;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.ComponentSerialization;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
 
 /**
  * S2C snapshot of the job board (GDD §14). The client never computes eligibility; it just displays what the
@@ -40,6 +43,8 @@ public record BoardSnapshotPayload(
 ) implements CustomPacketPayload {
     public static final Type<BoardSnapshotPayload> TYPE = new Type<>(AeronauticsCouriers.id("board_snapshot"));
     public static final int PAGE_SIZE = 20;
+    /** Max item stacks synced per board row for crate hover tooltips. */
+    public static final int CARGO_STACK_LIMIT = 54;
 
     public record CargoLine(int count, String name) {
         public static final StreamCodec<RegistryFriendlyByteBuf, CargoLine> STREAM_CODEC = StreamCodec.composite(
@@ -95,7 +100,15 @@ public record BoardSnapshotPayload(
             LicenseRank requiredRank,
             long deadlineMinutes,
             long minutesLeft,
-            List<CargoLine> manifest
+            List<CargoLine> manifest,
+            Optional<UUID> customerId,
+            String customerName,
+            boolean villageCustomer,
+            ResourceKey<Level> originDimension,
+            BlockPos originPos,
+            ResourceKey<Level> destinationDimension,
+            BlockPos destinationPos,
+            List<ItemStack> cargoStacks
     ) {
         public static final StreamCodec<RegistryFriendlyByteBuf, BoardEntry> STREAM_CODEC =
                 StreamCodec.of(BoardEntry::write, BoardEntry::read);
@@ -116,6 +129,14 @@ public record BoardSnapshotPayload(
             ByteBufCodecs.VAR_LONG.encode(buf, e.deadlineMinutes);
             ByteBufCodecs.VAR_LONG.encode(buf, e.minutesLeft);
             CargoLine.STREAM_CODEC.apply(ByteBufCodecs.list(27)).encode(buf, e.manifest);
+            ByteBufCodecs.optional(UUIDUtil.STREAM_CODEC).encode(buf, e.customerId);
+            ByteBufCodecs.STRING_UTF8.encode(buf, e.customerName);
+            buf.writeBoolean(e.villageCustomer);
+            ResourceKey.streamCodec(Registries.DIMENSION).encode(buf, e.originDimension);
+            BlockPos.STREAM_CODEC.encode(buf, e.originPos);
+            ResourceKey.streamCodec(Registries.DIMENSION).encode(buf, e.destinationDimension);
+            BlockPos.STREAM_CODEC.encode(buf, e.destinationPos);
+            ItemStack.STREAM_CODEC.apply(ByteBufCodecs.list(CARGO_STACK_LIMIT)).encode(buf, e.cargoStacks);
         }
 
         private static BoardEntry read(RegistryFriendlyByteBuf buf) {
@@ -134,7 +155,15 @@ public record BoardSnapshotPayload(
                     LicenseRank.STREAM_CODEC.decode(buf),
                     ByteBufCodecs.VAR_LONG.decode(buf),
                     ByteBufCodecs.VAR_LONG.decode(buf),
-                    CargoLine.STREAM_CODEC.apply(ByteBufCodecs.list(27)).decode(buf));
+                    CargoLine.STREAM_CODEC.apply(ByteBufCodecs.list(27)).decode(buf),
+                    ByteBufCodecs.optional(UUIDUtil.STREAM_CODEC).decode(buf),
+                    ByteBufCodecs.STRING_UTF8.decode(buf),
+                    buf.readBoolean(),
+                    ResourceKey.streamCodec(Registries.DIMENSION).decode(buf),
+                    BlockPos.STREAM_CODEC.decode(buf),
+                    ResourceKey.streamCodec(Registries.DIMENSION).decode(buf),
+                    BlockPos.STREAM_CODEC.decode(buf),
+                    ItemStack.STREAM_CODEC.apply(ByteBufCodecs.list(CARGO_STACK_LIMIT)).decode(buf));
         }
     }
 

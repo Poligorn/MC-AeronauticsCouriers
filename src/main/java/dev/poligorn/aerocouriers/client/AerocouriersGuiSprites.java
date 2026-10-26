@@ -28,6 +28,13 @@ public final class AerocouriersGuiSprites {
     public static final ResourceLocation TABLET_DECOR_ANTENNA = id("tablet_decor_antenna");
     public static final ResourceLocation TABLET_DECOR_GEAR = id("tablet_decor_gear");
     public static final ResourceLocation ENVELOPE_TABLET = id("icon/envelope_tablet");
+    public static final ResourceLocation ICON_MAP_PIN = id("icon/map_pin_tablet");
+    public static final ResourceLocation ICON_CRATE = id("icon/crate_tablet");
+    public static final ResourceLocation ICON_COIN = id("icon/coin_tablet");
+    public static final ResourceLocation ICON_LOCK = id("icon/lock_tablet");
+    public static final ResourceLocation ICON_CLOCK = id("icon/clock_tablet");
+    public static final ResourceLocation ICON_STAR = id("icon/star_badge_tablet");
+    public static final ResourceLocation ICON_VILLAGE = id("icon/village_tablet");
 
     private static final WidgetSprites VANILLA_BUTTON = new WidgetSprites(
             vanilla("button"),

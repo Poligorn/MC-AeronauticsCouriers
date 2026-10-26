@@ -535,6 +535,56 @@ def gen_tablet_gear() -> None:
     save_sprite("tablet_decor_gear", img, None)
 
 
+def _tablet_icon(draw_fn) -> None:
+    img = Image.new("RGBA", (16, 16), TRANSPARENT)
+    draw_fn(ImageDraw.Draw(img), img)
+    return img
+
+
+def gen_board_row_icons() -> None:
+    def map_pin(d: ImageDraw.ImageDraw, img: Image.Image) -> None:
+        d.ellipse((6, 2, 10, 6), fill=TB_ORANGE_ICON, outline=TB_OUTLINE)
+        d.polygon([(8, 6), (5, 13), (11, 13)], fill=TB_ORANGE_ICON_DK, outline=TB_OUTLINE)
+        d.rectangle((7, 12, 9, 14), fill=TB_SH, outline=TB_OUTLINE)
+
+    def crate(d: ImageDraw.ImageDraw, img: Image.Image) -> None:
+        d.rectangle((3, 5, 13, 13), fill=TB_ROW, outline=TB_OUTLINE)
+        d.line([(3, 8), (13, 8)], fill=TB_ORANGE_ICON_DK, width=1)
+        d.line([(8, 5), (8, 13)], fill=TB_ORANGE_ICON_DK, width=1)
+        d.polygon([(3, 5), (8, 2), (13, 5)], fill=TB_ORANGE_ICON, outline=TB_OUTLINE)
+
+    def coin(d: ImageDraw.ImageDraw, img: Image.Image) -> None:
+        d.ellipse((3, 3, 13, 13), fill=TB_ORANGE_ICON, outline=TB_OUTLINE)
+        d.ellipse((5, 5, 11, 11), outline=TB_SH)
+
+    def lock(d: ImageDraw.ImageDraw, img: Image.Image) -> None:
+        d.rectangle((5, 8, 11, 13), fill=TB_SH, outline=TB_OUTLINE)
+        d.arc((4, 3, 12, 10), 180, 0, fill=TB_ORANGE_ICON, width=2)
+
+    def clock(d: ImageDraw.ImageDraw, img: Image.Image) -> None:
+        d.ellipse((3, 3, 13, 13), outline=TB_ORANGE_ICON, width=1)
+        d.line([(8, 8), (8, 5)], fill=TB_ORANGE_ICON)
+        d.line([(8, 8), (11, 9)], fill=TB_ORANGE_ICON_DK)
+
+    def star(d: ImageDraw.ImageDraw, img: Image.Image) -> None:
+        d.polygon([(8, 2), (10, 7), (14, 7), (11, 10), (12, 14), (8, 12), (4, 14), (5, 10), (2, 7), (6, 7)],
+                  fill=TB_ORANGE_ICON, outline=TB_OUTLINE)
+
+    def village(d: ImageDraw.ImageDraw, img: Image.Image) -> None:
+        d.rectangle((3, 9, 7, 13), fill=TB_SH, outline=TB_OUTLINE)
+        d.rectangle((9, 7, 13, 13), fill=TB_ROW, outline=TB_OUTLINE)
+        d.polygon([(2, 9), (5, 5), (8, 9)], fill=TB_ORANGE_ICON_DK, outline=TB_OUTLINE)
+        d.polygon([(8, 7), (11, 3), (14, 7)], fill=TB_ORANGE_ICON, outline=TB_OUTLINE)
+
+    save_sprite("icon/map_pin_tablet", _tablet_icon(map_pin), None)
+    save_sprite("icon/crate_tablet", _tablet_icon(crate), None)
+    save_sprite("icon/coin_tablet", _tablet_icon(coin), None)
+    save_sprite("icon/lock_tablet", _tablet_icon(lock), None)
+    save_sprite("icon/clock_tablet", _tablet_icon(clock), None)
+    save_sprite("icon/star_badge_tablet", _tablet_icon(star), None)
+    save_sprite("icon/village_tablet", _tablet_icon(village), None)
+
+
 def gen_envelope_tablet() -> None:
     img = Image.new("RGBA", (16, 16), TRANSPARENT)
     d = ImageDraw.Draw(img)
@@ -555,6 +605,7 @@ def gen_tablet() -> None:
     gen_tablet_antenna()
     gen_tablet_gear()
     gen_envelope_tablet()
+    gen_board_row_icons()
 
 
 def main() -> None:

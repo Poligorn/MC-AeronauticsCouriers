@@ -20,6 +20,7 @@ import dev.poligorn.aerocouriers.contract.RankRules;
 import dev.poligorn.aerocouriers.registry.ModComponents;
 import dev.poligorn.aerocouriers.registry.ModItems;
 import dev.poligorn.aerocouriers.village.StationAtlas;
+import com.mojang.authlib.GameProfile;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
@@ -74,7 +75,7 @@ public final class BoardPackets {
         List<BoardSnapshotPayload.BoardEntry> open = manager.open()
                 .filter(c -> visibleOnBoard(c, self, atlas, allStations))
                 .sorted(Comparator.comparingLong(c -> c.timing().createdAt()))
-                .map(c -> entry(c, self, atlas, escrow, now))
+                .map(c -> entry(c, self, atlas, escrow, now, server))
                 .toList();
         int safePage = Math.max(0, page);
         int from = Math.min(safePage * BoardSnapshotPayload.PAGE_SIZE, open.size());
@@ -83,7 +84,7 @@ public final class BoardPackets {
         List<BoardSnapshotPayload.BoardEntry> mine = manager.all()
                 .filter(c -> c.issuer().equals(self) || c.isCourier(self))
                 .sorted(Comparator.comparingLong(c -> c.timing().createdAt()))
-                .map(c -> entry(c, self, atlas, escrow, now))
+                .map(c -> entry(c, self, atlas, escrow, now, server))
                 .limit(64)
                 .toList();
         List<BoardSnapshotPayload.StationHint> stations = atlas.all().stream()
@@ -291,15 +292,27 @@ public final class BoardPackets {
     }
 
     private static BoardSnapshotPayload.BoardEntry entry(Contract contract, UUID viewer, StationAtlas atlas,
-                                                        Escrow escrow, long now) {
+                                                        Escrow escrow, long now, MinecraftServer server) {
         String role = contract.roleFor(viewer);
         long ticksLeft = contract.state().isActive()
                 ? contract.timing().dueAt() - now
                 : contract.state() == ContractState.OPEN ? contract.timing().expiresAt() - now : 0;
-        List<BoardSnapshotPayload.CargoLine> manifest = escrow.holding(contract.id()).items().stream()
+        List<ItemStack> cargoItems = escrow.holding(contract.id()).items().stream()
                 .filter(stack -> !stack.isEmpty())
+                .limit(BoardSnapshotPayload.CARGO_STACK_LIMIT)
+                .map(ItemStack::copy)
+                .toList();
+        List<BoardSnapshotPayload.CargoLine> manifest = cargoItems.stream()
                 .map(BoardSnapshotPayload.CargoLine::of)
                 .toList();
+        boolean villageCustomer = contract.type().isNpc();
+        Optional<UUID> customerId = villageCustomer ? Optional.empty() : Optional.of(contract.issuer());
+        String customerName = villageCustomer
+                ? label(atlas, contract.origin())
+                : server.getProfileCache()
+                        .get(contract.issuer())
+                        .map(GameProfile::getName)
+                        .orElse(contract.issuer().toString().substring(0, 8));
         return new BoardSnapshotPayload.BoardEntry(
                 contract.id(),
                 contract.shortId(),
@@ -315,7 +328,15 @@ public final class BoardPackets {
                 contract.requiredRank(),
                 contract.timing().deadline() / Pricing.TICKS_PER_MINUTE,
                 Math.max(0, ticksLeft / Pricing.TICKS_PER_MINUTE),
-                manifest);
+                manifest,
+                customerId,
+                customerName,
+                villageCustomer,
+                contract.origin().dimension(),
+                contract.origin().pos(),
+                contract.destination().dimension(),
+                contract.destination().pos(),
+                cargoItems);
     }
 
     private static String label(StationAtlas atlas, Destination dest) {

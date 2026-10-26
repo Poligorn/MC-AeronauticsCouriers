@@ -980,7 +980,8 @@ public final class ContractManager extends SavedData {
                 .map(c -> {
                     boolean delivery = c.state() == ContractState.IN_TRANSIT;
                     Destination zone = delivery ? c.destination() : c.origin();
-                    return new ZoneSyncPayload.Zone(c.shortId(), zone.dimension(), zone.pos(), zone.radius(), delivery);
+                    return new ZoneSyncPayload.Zone(c.id(), c.shortId(), zone.dimension(), zone.pos(), zone.radius(),
+                            delivery);
                 })
                 .toList();
         PacketDistributor.sendToPlayer(courier, new ZoneSyncPayload(zones));
