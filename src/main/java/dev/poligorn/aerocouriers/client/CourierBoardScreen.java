@@ -41,6 +41,8 @@ public final class CourierBoardScreen extends Screen {
     private @Nullable UUID pendingAccept;
     private @Nullable Component notice;
     private @Nullable Component hoverTip;
+    /** Visible list rows whose action buttons depend on {@link #initListButtons}; avoids rebuild on timer-only updates. */
+    private @Nullable String listRowButtonKey;
 
     public CourierBoardScreen(@Nullable BoardSnapshotPayload snapshot) {
         super(Component.translatable("ui.aerocouriers.board.title"));
@@ -55,6 +57,7 @@ public final class CourierBoardScreen extends Screen {
             pendingAccept = null;
         }
         if (needsWidgetRebuild(previous, payload)) {
+            listRowButtonKey = listRowButtonKey(payload);
             rebuildWidgets();
         }
     }
@@ -66,13 +69,32 @@ public final class CourierBoardScreen extends Screen {
         if (previous.operator() != payload.operator()) {
             return true;
         }
-        if (tab == Tab.BOARD && (previous.page() != payload.page() || previous.board().size() != payload.board().size())) {
+        if (tab == Tab.BOARD && previous.page() != payload.page()) {
             return true;
         }
-        if (tab == Tab.MINE && previous.mine().size() != payload.mine().size()) {
+        String nextKey = listRowButtonKey(payload);
+        if (nextKey != null && !nextKey.equals(listRowButtonKey)) {
             return true;
         }
         return false;
+    }
+
+    /**
+     * Signature of scroll-visible rows that affect which per-row buttons exist (not minutes/reward text).
+     */
+    private @Nullable String listRowButtonKey(BoardSnapshotPayload payload) {
+        if (tab != Tab.BOARD && tab != Tab.MINE) {
+            return null;
+        }
+        List<BoardSnapshotPayload.BoardEntry> all = tab == Tab.BOARD ? payload.board() : payload.mine();
+        int visible = visibleRows();
+        StringBuilder key = new StringBuilder(visible * 48);
+        key.append(scroll).append('|');
+        for (int i = 0; i < visible && scroll + i < all.size(); i++) {
+            BoardSnapshotPayload.BoardEntry entry = all.get(scroll + i);
+            key.append(entry.id()).append(':').append(entry.state()).append(':').append(entry.role()).append(';');
+        }
+        return key.toString();
     }
 
     private void applySnapshot(@Nullable BoardSnapshotPayload payload) {
@@ -107,8 +129,11 @@ public final class CourierBoardScreen extends Screen {
         }
         if (tab == Tab.TEST) {
             initTest();
-        } else {
+        } else if (tab == Tab.BOARD || tab == Tab.MINE) {
             initListButtons(tab == Tab.BOARD ? snapshot.board() : snapshot.mine(), tab == Tab.BOARD);
+        }
+        if (tab == Tab.BOARD || tab == Tab.MINE) {
+            listRowButtonKey = listRowButtonKey(snapshot);
         }
     }
 
@@ -119,6 +144,7 @@ public final class CourierBoardScreen extends Screen {
             tab = value;
             scroll = 0;
             pendingAccept = null;
+            listRowButtonKey = snapshot == null ? null : listRowButtonKey(snapshot);
             rebuildWidgets();
         }).selected(on));
         return x + w;
@@ -137,7 +163,6 @@ public final class CourierBoardScreen extends Screen {
                     sx + sw - 156, y, 68, 18, Component.translatable("ui.aerocouriers.details"), b -> {
                         selected = entry.id();
                         pendingAccept = null;
-                        rebuildWidgets();
                     }));
             if (boardTab && entry.state() == ContractState.OPEN
                     && (!"issuer".equals(entry.role()) || snapshot.allowSelfAccept())) {
@@ -331,27 +356,32 @@ public final class CourierBoardScreen extends Screen {
         int textLeft = sx + 8;
         int textRight = sx + sw - ROW_ACTION_RESERVE;
         int textW = Math.max(8, textRight - textLeft);
-        TabletGui.drawListPanel(graphics, sx + 4, listTop() - 2, sw - 8, visible * rowH() + 2);
-        graphics.enableScissor(sx + 4, listTop() - 2, sx + sw - 4, listTop() + visible * rowH());
-        for (int i = 0; i < visible && scroll + i < all.size(); i++) {
-            BoardSnapshotPayload.BoardEntry entry = all.get(scroll + i);
-            int y = listTop() + i * rowH();
-            TabletGui.drawRow(graphics, sx + 6, y - 1, sw - ROW_ACTION_RESERVE - 6, rowH() - 2, entry.id().equals(selected));
-            Component main = Component.translatable("ui.aerocouriers.row.main",
-                    entry.shortId(), entry.originLabel(), entry.destinationLabel(), entry.distance());
-            Component meta = Component.translatable("ui.aerocouriers.row.meta",
-                    entry.state().displayName(),
-                    entry.reward(),
-                    entry.collateral(),
-                    entry.minutesLeft(),
-                    entry.weight(),
-                    entry.size(),
-                    Component.translatable("contract.aerocouriers.role." + entry.role()));
-            graphics.enableScissor(textLeft, y, textRight, y + rowH() - 2);
-            drawClipped(graphics, main, textLeft, y, textW, TabletGui.TEXT, mouseX, mouseY);
-            drawClipped(graphics, meta, textLeft, y + 10, textW, TabletGui.TEXT_MUTED, mouseX, mouseY);
+        int listY = listTop();
+        int listH = visible * rowH();
+        TabletGui.drawListPanel(graphics, sx + 4, listY - 2, sw - 8, listH + 2);
+        graphics.enableScissor(sx + 4, listY - 2, sx + sw - 4, listY + listH);
+        try {
+            for (int i = 0; i < visible && scroll + i < all.size(); i++) {
+                BoardSnapshotPayload.BoardEntry entry = all.get(scroll + i);
+                int y = listY + i * rowH();
+                TabletGui.drawRow(graphics, sx + 6, y - 1, sw - ROW_ACTION_RESERVE - 6, rowH() - 2,
+                        entry.id().equals(selected));
+                Component main = Component.translatable("ui.aerocouriers.row.main",
+                        entry.shortId(), entry.originLabel(), entry.destinationLabel(), entry.distance());
+                Component meta = Component.translatable("ui.aerocouriers.row.meta",
+                        entry.state().displayName(),
+                        entry.reward(),
+                        entry.collateral(),
+                        entry.minutesLeft(),
+                        entry.weight(),
+                        entry.size(),
+                        Component.translatable("contract.aerocouriers.role." + entry.role()));
+                drawClipped(graphics, main, textLeft, y, textW, TabletGui.TEXT, mouseX, mouseY);
+                drawClipped(graphics, meta, textLeft, y + 10, textW, TabletGui.TEXT_MUTED, mouseX, mouseY);
+            }
+        } finally {
+            graphics.disableScissor();
         }
-        graphics.disableScissor();
 
         if (all.size() > visible) {
             graphics.drawString(font, Component.translatable("ui.aerocouriers.scroll",
@@ -436,6 +466,7 @@ public final class CourierBoardScreen extends Screen {
                         && scroll >= Math.max(0, all.size() - visibleRows()) && scrollY < 0) {
                     PacketDistributor.sendToServer(new OpenBoardPayload(snapshot.page() + 1));
                 }
+                listRowButtonKey = listRowButtonKey(snapshot);
                 rebuildWidgets();
                 return true;
             }
