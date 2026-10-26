@@ -96,6 +96,26 @@ public final class StampGameTests {
     }
 
     @GameTest(template = CouriersGameTests.EMPTY)
+    public static void stampDeliveryRestoresSourceChestAtDestination(GameTestHelper helper) {
+        Fixture f = new Fixture(helper);
+        ServerPlayer courier = FakePlayerFactory.get(helper.getLevel(), new GameProfile(UUID.randomUUID(), "courier"));
+        CuriosApi.getCuriosInventory(courier).orElseThrow()
+                .setEquippedCurio(Licenses.CURIOS_SLOT, 0, new ItemStack(ModItems.PILOT_LICENSE.get()));
+        Licenses.tickWorn(courier, Licenses.findLicense(courier).orElseThrow());
+        ContractManager.registerTestPlayer(courier);
+        Economies.get(f.server()).deposit(courier.getUUID(), 50, "test");
+        Contract contract = f.stamp(20, 30).contract().orElseThrow();
+        f.expect(f.manager.accept(courier, contract.id()), true, "accept stamp");
+        courier.setPos(Vec3.atCenterOf(helper.absolutePos(TARGET)));
+        f.expect(f.manager.forceDeliver(f.server(), contract.id()), true, "force deliver");
+        helper.assertValueEqual(f.manager.byId(contract.id()).orElseThrow().state(), ContractState.DELIVERED,
+                "delivered");
+        helper.assertTrue(helper.getBlockState(TARGET).is(Blocks.CHEST), "original chest block at destination");
+        helper.assertValueEqual(Mailbox.get(f.server()).contents(f.issuer.getUUID()).size(), 0, "not mailed");
+        helper.succeed();
+    }
+
+    @GameTest(template = CouriersGameTests.EMPTY)
     public static void stampCreateLayoutFitsGuiScales(GameTestHelper helper) {
         java.util.List<String> failures = StampCreateLayout.checkCommonScales();
         helper.assertTrue(failures.isEmpty(), "stamp layout overlaps at GUI scales 2–4: " + failures);

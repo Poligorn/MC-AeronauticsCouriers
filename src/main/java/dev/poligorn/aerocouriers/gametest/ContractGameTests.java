@@ -59,7 +59,7 @@ public final class ContractGameTests {
     }
 
     @GameTest(template = CouriersGameTests.EMPTY)
-    public static void deliveryPaysCourierAndMailsCargo(GameTestHelper helper) {
+    public static void deliveryPaysCourierAndRestoresCargoAtDestination(GameTestHelper helper) {
         Fixture f = new Fixture(helper);
         f.economy.deposit(f.issuer.getUUID(), 100, "test");
         f.economy.deposit(f.courier.getUUID(), 50, "test");
@@ -93,7 +93,11 @@ public final class ContractGameTests {
         f.check(contract, atTarget, 0, ContractManager.Verdict.REMOVE, "a delivered container removes itself");
         helper.assertValueEqual(f.economy.balance(f.courier.getUUID()), 70L, "courier after reward + collateral");
         helper.assertValueEqual(f.state(contract), ContractState.DELIVERED, "state");
-        helper.assertValueEqual(Mailbox.get(f.server()).contents(f.issuer.getUUID()).size(), 2, "issuer mailbox");
+        helper.assertTrue(helper.getBlockState(TARGET).is(Blocks.CHEST), "cargo chest restored at destination");
+        ChestBlockEntity restored = (ChestBlockEntity) helper.getBlockEntity(TARGET);
+        helper.assertFalse(restored.isEmpty(), "restored chest holds the cargo");
+        helper.assertValueEqual(Mailbox.get(f.server()).contents(f.issuer.getUUID()).size(), 0,
+                "delivered cargo is not mailed");
         helper.assertValueEqual(Licenses.profile(f.courier).delivered(), 1, "delivered count");
         helper.assertValueEqual(Licenses.profile(f.courier).rewardSum(), 20L, "reward_sum");
         // floor(10 + 7.07/200 + (32 × 1.0 + 5 × 0.11)/50) = 10

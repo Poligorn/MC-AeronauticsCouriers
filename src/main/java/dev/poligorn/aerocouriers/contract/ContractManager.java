@@ -263,6 +263,10 @@ public final class ContractManager extends SavedData {
         if (!economy.withdraw(issuer.getUUID(), reward + fee, "create:" + id)) {
             return Outcome.error("not_enough_money", reward + fee, economy.balance(issuer.getUUID()));
         }
+        Optional<OriginContainerSnapshot> originSnapshot = Optional.empty();
+        if (issuer.level() instanceof ServerLevel originLevel) {
+            originSnapshot = OriginContainerSnapshot.capture(originLevel, sourcePos);
+        }
         for (int slot = 0; slot < source.getContainerSize(); slot++) {
             source.setItem(slot, ItemStack.EMPTY);
         }
@@ -272,7 +276,8 @@ public final class ContractManager extends SavedData {
         Contract contract = new Contract(id, ContractType.PLAYER, issuer.getUUID(), issuer.getUUID(), Optional.empty(),
                 origin, destination, size.get(), weight, reward, collateral,
                 RankRules.requiredRank(collateral, size.get(), distance),
-                new Contract.Timing(now, now + deadline, deadline, -1, 0), ContractState.OPEN, false);
+                new Contract.Timing(now, now + deadline, deadline, -1, 0), ContractState.OPEN, false,
+                originSnapshot);
         Escrow.get(server).open(id, manifest, reward);
         put(contract);
         AeronauticsCouriers.LOGGER.info("[contract] {} created by {}: {} stacks, W={}, D={}, reward={}, fee={}, collateral={}",
@@ -351,6 +356,7 @@ public final class ContractManager extends SavedData {
             return Outcome.error("not_enough_money", reward + fee, economy.balance(issuer.getUUID()));
         }
 
+        Optional<OriginContainerSnapshot> originSnapshot = OriginContainerSnapshot.capture(level, access);
         Direction facing = CargoSpawner.facingFromReplacedBlock(level, sourcePos, issuer.getDirection().getOpposite());
         CargoContainers.clear(access);
         CargoContainers.removeWithoutDrop(level, access);
@@ -367,7 +373,8 @@ public final class ContractManager extends SavedData {
         Contract contract = new Contract(id, ContractType.PLAYER, issuer.getUUID(), issuer.getUUID(), Optional.empty(),
                 origin, destination, size.get(), weight, reward, collateral,
                 RankRules.requiredRank(collateral, size.get(), distance),
-                new Contract.Timing(now, now + deadline, deadline, -1, 0), ContractState.OPEN, true);
+                new Contract.Timing(now, now + deadline, deadline, -1, 0), ContractState.OPEN, true,
+                originSnapshot);
         Escrow.get(server).open(id, manifest, reward);
         put(contract);
         level.playSound(null, sourcePos, SoundEvents.BARREL_CLOSE, SoundSource.BLOCKS, 1.0F, 0.8F);
@@ -402,7 +409,7 @@ public final class ContractManager extends SavedData {
                 RankRules.requiredRank(collateral, size, distance),
                 new Contract.Timing(now, now + deadlineMinutes * Pricing.TICKS_PER_MINUTE,
                         deadlineMinutes * Pricing.TICKS_PER_MINUTE, -1, 0),
-                ContractState.OPEN, true);
+                ContractState.OPEN, true, Optional.empty());
         Escrow.get(server).open(id, manifest, reward);
         put(contract);
         AeronauticsCouriers.LOGGER.info(
@@ -588,7 +595,7 @@ public final class ContractManager extends SavedData {
             return Verdict.KEEP;
         }
         stillChecks.remove(id);
-        completeDelivery(server, contract, courier);
+        completeDelivery(server, contract, courier, position);
         return Verdict.REMOVE;
     }
 
@@ -609,11 +616,14 @@ public final class ContractManager extends SavedData {
         if (courier == null) {
             return Outcome.error("courier_offline");
         }
-        return completeDelivery(server, contract, courier);
+        Vec3 at = CargoTracker.get(id)
+                .map(s -> new Vec3(s.position().x(), s.position().y(), s.position().z()))
+                .orElse(Vec3.atCenterOf(contract.destination().pos()));
+        return completeDelivery(server, contract, courier, at);
     }
 
     /** Successful delivery (GDD §9.3, §9.6). */
-    private Outcome completeDelivery(MinecraftServer server, Contract contract, ServerPlayer courier) {
+    private Outcome completeDelivery(MinecraftServer server, Contract contract, ServerPlayer courier, Vec3 deliveryAt) {
         UUID id = contract.id();
         long now = now(server);
         if (now > contract.timing().lateUntil(Pricing.lateWindow())) {
@@ -629,8 +639,13 @@ public final class ContractManager extends SavedData {
         economy.deposit(courier.getUUID(), paid, (late ? "reward_late:" : "reward:") + id);
         economy.deposit(courier.getUUID(), escrow.takeCollateral(id), "collateral_back:" + id);
         List<ItemStack> deliveredCargo = escrow.takeItems(id);
-        if (!contract.type().isNpc()) {
-            Mailbox.get(server).post(contract.recipient(), deliveredCargo);
+        Optional<BlockPos> placedAt = Optional.empty();
+        if (contract.type().isNpc()) {
+            DeliveryPlacement.consumeNpcDelivery(server, contract);
+        } else {
+            DeliveryPlacement.Outcome placement =
+                    DeliveryPlacement.restorePlayerDelivery(server, contract, deliveryAt, deliveredCargo);
+            placedAt = placement.anchor();
         }
 
         int repeats = contract.type().isNpc() ? 0 : repeatsToday(courier.getUUID(), contract.issuer(), now);
@@ -653,13 +668,21 @@ public final class ContractManager extends SavedData {
 
         Contract delivered = contract.withState(ContractState.DELIVERED);
         put(delivered);
-        CargoTracker.forget(id);
         Component message = Component.translatable(
                 late ? "contract.aerocouriers.delivered_late" : "contract.aerocouriers.delivered",
                 contract.shortId(), paid, xp);
         courier.sendSystemMessage(message);
-        notify(server, contract.recipient(), Component.translatable("contract.aerocouriers.notify.delivered",
-                contract.shortId(), courier.getDisplayName()));
+        if (contract.type().isNpc()) {
+            String stationName = StationAtlas.get(server).byId(contract.recipient())
+                    .map(StationAtlas.Station::name)
+                    .orElse("?");
+            courier.sendSystemMessage(Component.translatable("contract.aerocouriers.notify.delivered_village",
+                    contract.shortId(), stationName));
+        } else {
+            String where = placedAt.map(BlockPos::toShortString).orElse("?");
+            notify(server, contract.recipient(), Component.translatable("contract.aerocouriers.notify.delivered",
+                    contract.shortId(), courier.getDisplayName(), where));
+        }
         AeronauticsCouriers.LOGGER.info("[contract] {} delivered by {}: paid={}, late={}, xp={}, repeats={}",
                 id, courier.getGameProfile().getName(), paid, late, xp, repeats);
         return Outcome.ok(delivered, message);

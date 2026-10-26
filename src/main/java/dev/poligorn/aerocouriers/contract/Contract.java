@@ -13,14 +13,15 @@ import net.minecraft.core.UUIDUtil;
  * Times are overworld game ticks, so contracts do not tick down while the server is stopped.
  *
  * @param issuer    player UUID for {@link ContractType#PLAYER}; station UUID for {@link ContractType#VILLAGE}
- * @param recipient who receives the cargo in the mailbox (defaults to the issuer)
+ * @param recipient player who gets delivery notices (defaults to the issuer); village orders use the destination station id
  * @param weight    total cargo weight (GDD §8.2), the {@code W} of the XP formula
  * @param preplaced {@code true} when the cargo container already stands at the pickup point (stamp orders)
+ * @param originSnapshot block(s) that held the cargo at creation; restored at P2P delivery
  */
 public record Contract(UUID id, ContractType type, UUID issuer, UUID recipient, Optional<UUID> courier,
                        Destination origin, Destination destination, CargoSize size, double weight,
                        long reward, long collateral, LicenseRank requiredRank, Timing timing, ContractState state,
-                       boolean preplaced) {
+                       boolean preplaced, Optional<OriginContainerSnapshot> originSnapshot) {
 
     public static final Codec<Contract> CODEC = RecordCodecBuilder.create(instance -> instance.group(
             UUIDUtil.CODEC.fieldOf("id").forGetter(Contract::id),
@@ -37,7 +38,8 @@ public record Contract(UUID id, ContractType type, UUID issuer, UUID recipient, 
             LicenseRank.CODEC.fieldOf("required_rank").forGetter(Contract::requiredRank),
             Timing.CODEC.fieldOf("timing").forGetter(Contract::timing),
             ContractState.CODEC.fieldOf("state").forGetter(Contract::state),
-            Codec.BOOL.optionalFieldOf("preplaced", false).forGetter(Contract::preplaced)
+            Codec.BOOL.optionalFieldOf("preplaced", false).forGetter(Contract::preplaced),
+            OriginContainerSnapshot.CODEC.optionalFieldOf("origin_snapshot").forGetter(Contract::originSnapshot)
     ).apply(instance, Contract::new));
 
     /**
@@ -95,20 +97,21 @@ public record Contract(UUID id, ContractType type, UUID issuer, UUID recipient, 
             throw new IllegalStateException("Contract " + id + ": " + state + " -> " + next);
         }
         return new Contract(id, type, issuer, recipient, courier, origin, destination, size, weight, reward,
-                collateral, requiredRank, timing, next, preplaced);
+                collateral, requiredRank, timing, next, preplaced, originSnapshot);
     }
 
     Contract accepted(UUID courierId, long now) {
         Contract next = withState(ContractState.ACCEPTED);
         return new Contract(id, type, issuer, recipient, Optional.of(courierId), origin, destination, size, weight,
                 reward, collateral, requiredRank,
-                new Timing(timing.createdAt(), timing.expiresAt(), timing.deadline(), now, 0), next.state, preplaced);
+                new Timing(timing.createdAt(), timing.expiresAt(), timing.deadline(), now, 0), next.state, preplaced,
+                originSnapshot);
     }
 
     Contract withPause(long extraTicks) {
         return new Contract(id, type, issuer, recipient, courier, origin, destination, size, weight, reward,
                 collateral, requiredRank,
                 new Timing(timing.createdAt(), timing.expiresAt(), timing.deadline(), timing.acceptedAt(),
-                        timing.paused() + extraTicks), state, preplaced);
+                        timing.paused() + extraTicks), state, preplaced, originSnapshot);
     }
 }
