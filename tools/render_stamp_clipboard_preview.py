@@ -11,9 +11,9 @@ from PIL import Image, ImageDraw, ImageFont
 ROOT = Path(__file__).resolve().parents[1]
 SPRITES = ROOT / "src/main/resources/assets/aerocouriers/textures/gui/sprites"
 
-TEXT = (0x3E, 0x28, 0x12, 255)
-TEXT_MUTED = (0x6B, 0x45, 0x3E, 255)
-BTN_TEXT = (255, 255, 255, 255)
+CLIP_W, CLIP_H, CLIP_OVER = 128, 38, 20
+FIELD_H = 20
+BOTTOM_MARGIN = 6
 
 
 def load(name: str) -> Image.Image:
@@ -30,37 +30,59 @@ def font(size: int = 12) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
     return ImageFont.load_default()
 
 
+TEXT = (0x3E, 0x28, 0x12, 255)
+TEXT_MUTED = (0x6B, 0x45, 0x3E, 255)
+BTN_TEXT = (255, 255, 255, 255)
+
+
+def clamp(value: int, lo: int, hi: int) -> int:
+    return max(lo, min(hi, value))
+
+
+def stamp_panel_geometry(screen_w: int, screen_h: int) -> tuple[int, int, int, int, int, int]:
+    """Match StampCreateLayout vertical fit: panel size, left, top, clipY."""
+    max_w = max(16, screen_w - 8)
+    max_h = max(16, screen_h - 8)
+    panel_w = clamp(screen_w - 40, min(360, max_w), min(520, max_w))
+    panel_w = min(panel_w, max_w)
+    panel_h = clamp(screen_h - 24, min(220, max_h), min(440, max_h))
+    panel_h = min(panel_h, max_h)
+    max_panel_h = screen_h - 2 * CLIP_OVER - 2 - BOTTOM_MARGIN
+    if panel_h > max_panel_h:
+        panel_h = max(FIELD_H * 6, max_panel_h)
+    left = max(0, (screen_w - panel_w) // 2)
+    clip_y = max(CLIP_OVER + 2, (screen_h - panel_h - CLIP_OVER) // 2)
+    top = clip_y + CLIP_OVER
+    return panel_w, panel_h, left, top, clip_y, clip_y + CLIP_H + 4
+
+
 def nine_slice(canvas: Image.Image, patch: Image.Image, x: int, y: int, w: int, h: int, border: tuple[int, int, int, int]) -> None:
-    left, top, right, bottom = border
+    left, top_b, right, bottom = border
     pw, ph = patch.size
-    mid_w, mid_h = max(1, pw - left - right), max(1, ph - top - bottom)
+    mid_w, mid_h = max(1, pw - left - right), max(1, ph - top_b - bottom)
 
     def blit(sx: int, sy: int, sw: int, sh: int, dx: int, dy: int, dw: int, dh: int) -> None:
         region = patch.crop((sx, sy, sx + sw, sy + sh)).resize((dw, dh), Image.Resampling.NEAREST)
         canvas.alpha_composite(region, (dx, dy))
 
-    blit(0, 0, left, top, x, y, left, top)
-    blit(pw - right, 0, right, top, x + w - right, y, right, top)
+    blit(0, 0, left, top_b, x, y, left, top_b)
+    blit(pw - right, 0, right, top_b, x + w - right, y, right, top_b)
     blit(0, ph - bottom, left, bottom, x, y + h - bottom, left, bottom)
     blit(pw - right, ph - bottom, right, bottom, x + w - right, y + h - bottom, right, bottom)
     if w > left + right:
-        blit(left, 0, mid_w, top, x + left, y, w - left - right, top)
+        blit(left, 0, mid_w, top_b, x + left, y, w - left - right, top_b)
         blit(left, ph - bottom, mid_w, bottom, x + left, y + h - bottom, w - left - right, bottom)
-    if h > top + bottom:
-        blit(0, top, left, mid_h, x, y + top, left, h - top - bottom)
-        blit(pw - right, top, right, mid_h, x + w - right, y + top, right, h - top - bottom)
-    if w > left + right and h > top + bottom:
-        blit(left, top, mid_w, mid_h, x + left, y + top, w - left - right, h - top - bottom)
+    if h > top_b + bottom:
+        blit(0, top_b, left, mid_h, x, y + top_b, left, h - top_b - bottom)
+        blit(pw - right, top_b, right, mid_h, x + w - right, y + top_b, right, h - top_b - bottom)
+    if w > left + right and h > top_b + bottom:
+        blit(left, top_b, mid_w, mid_h, x + left, y + top_b, w - left - right, h - top_b - bottom)
 
 
 def draw_button(canvas: Image.Image, x: int, y: int, w: int, h: int, label: str, fnt: ImageFont.ImageFont) -> None:
     nine_slice(canvas, load("button"), x, y, w, h, (3, 4, 3, 3))
-    tw = fnt.getlength(label)
-    canvas.alpha_composite(
-        Image.new("RGBA", (1, 1)),
-        (0, 0),
-    )
     d = ImageDraw.Draw(canvas)
+    tw = fnt.getlength(label)
     d.text((x + (w - tw) / 2, y + (h - 12) / 2), label, fill=BTN_TEXT, font=fnt)
 
 
@@ -68,17 +90,13 @@ def render(screen_w: int, screen_h: int) -> Image.Image:
     fnt = font(11)
     fnt_sm = font(9)
     canvas = Image.new("RGBA", (screen_w, screen_h), (32, 32, 48, 255))
-    clip_w, clip_h, clip_over = 128, 38, 20
-    panel_w, panel_h = min(480, screen_w - 40), min(360, screen_h - 24)
-    left = (screen_w - panel_w) // 2
-    top = max(clip_over + 6, (screen_h - panel_h) // 2)
+    panel_w, panel_h, left, top, clip_y, header_y = stamp_panel_geometry(screen_w, screen_h)
     frame_pad = 6
     paper_l = left + frame_pad
     paper_t = top + frame_pad
     paper_w = panel_w - frame_pad * 2
     paper_h = panel_h - frame_pad * 2
-    clip_x = left + (panel_w - clip_w) // 2
-    clip_y = top - clip_over
+    clip_x = left + (panel_w - CLIP_W) // 2
 
     nine_slice(canvas, load("panel"), left, top, panel_w, panel_h, (4, 6, 4, 4))
     nine_slice(canvas, load("paper_sheet"), paper_l, paper_t, paper_w, paper_h, (5, 5, 5, 5))
@@ -86,7 +104,7 @@ def render(screen_w: int, screen_h: int) -> Image.Image:
 
     pad = 8
     tx = paper_l + pad
-    y = clip_y + clip_h + 4
+    y = header_y
     d = ImageDraw.Draw(canvas)
     d.text((tx, y), "Создать заказ", fill=TEXT, font=fnt)
     d.text((paper_l + paper_w - pad - 90, y), "Баланс: 200 сп", fill=TEXT_MUTED, font=fnt_sm)
@@ -115,16 +133,16 @@ def render(screen_w: int, screen_h: int) -> Image.Image:
         nine_slice(canvas, load("paper_field"), mx, y + 11, mw, 20, (2, 2, 2, 2))
     y += 44
     d.text((tx, y), "Залог и награда уходят заказчику при провале.", fill=TEXT_MUTED, font=fnt_sm)
-    by = paper_t + paper_h - pad - 20
-    draw_button(canvas, tx, by, 80, 20, "Отмена", fnt_sm)
-    draw_button(canvas, paper_l + paper_w - pad - 100, by, 100, 20, "Создать", fnt_sm)
+    by = paper_t + paper_h - pad - FIELD_H
+    draw_button(canvas, tx, by, 80, FIELD_H, "Отмена", fnt_sm)
+    draw_button(canvas, paper_l + paper_w - pad - 100, by, 100, FIELD_H, "Создать", fnt_sm)
     return canvas
 
 
 def main() -> None:
     out = Path(os.environ.get("ARTIFACTS", "/opt/cursor/artifacts"))
     out.mkdir(parents=True, exist_ok=True)
-    for w, h in [(400, 300), (480, 360)]:
+    for w, h in [(400, 300), (480, 360), (427, 240)]:
         path = out / f"stamp_clipboard_{w}x{h}.png"
         render(w, h).save(path)
         print(path)

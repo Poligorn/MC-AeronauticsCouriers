@@ -135,24 +135,26 @@ public final class StampCreateLayout {
             int screenW, int screenH, int lineH, int cargoCount,
             boolean showMapButton, boolean showWaypointList, int mapLabelW) {
         int line = Math.max(8, lineH);
-        int clipMargin = StampCreateGui.CLIP_OVERHANG + 6;
+        int over = StampCreateGui.CLIP_OVERHANG;
+        int bottomMargin = 6;
         int maxW = Math.max(16, screenW - 8);
         int maxH = Math.max(16, screenH - 8);
         int panelW = clamp(screenW - 40, Math.min(360, maxW), Math.min(520, maxW));
         panelW = Math.min(panelW, maxW);
         int panelH = clamp(screenH - 24, Math.min(220, maxH), Math.min(440, maxH));
         panelH = Math.min(panelH, maxH);
-        int left = Math.max(0, (screenW - panelW) / 2);
-        int top = Math.max(clipMargin, (screenH - panelH) / 2);
-        if (top + panelH > screenH) {
-            panelH = Math.max(StampCreateLayout.FIELD_H * 6, screenH - top);
+        int maxPanelH = screenH - 2 * over - 2 - bottomMargin;
+        if (panelH > maxPanelH) {
+            panelH = Math.max(StampCreateLayout.FIELD_H * 6, maxPanelH);
         }
+        int left = Math.max(0, (screenW - panelW) / 2);
+        int clipY = Math.max(over + 2, (screenH - panelH - over) / 2);
+        int top = clipY + over;
         int paperLeft = left + StampCreateGui.FRAME_PAD;
         int paperTop = top + StampCreateGui.FRAME_PAD;
         int paperW = panelW - StampCreateGui.FRAME_PAD * 2;
         int paperH = panelH - StampCreateGui.FRAME_PAD * 2;
         int clipX = left + (panelW - StampCreateGui.CLIP_W) / 2;
-        int clipY = top - StampCreateGui.CLIP_OVERHANG;
         int innerW = Math.max(32, paperW - PAD * 2);
         int cargoRows = Math.max(1, (Math.max(0, cargoCount) + 8) / 9);
         boolean compact = panelH < 280;
@@ -301,6 +303,9 @@ public final class StampCreateLayout {
         }
         if (clipY < 0) {
             failures.add(id + ": clipboard clip above screen (clipY=" + clipY + ")");
+        }
+        if (top + panelH > screenH + 1) {
+            failures.add(id + ": panel bottom below screen (bottom=" + (top + panelH) + ", screenH=" + screenH + ")");
         }
         if (coordLabelY + lineH > coordFieldY) {
             failures.add(id + ": XYZ labels overlap coord fields (" + coordLabelY + "+" + lineH + ">" + coordFieldY + ")");
