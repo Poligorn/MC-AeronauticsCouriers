@@ -2,7 +2,7 @@
 
 > Живой документ. Обновлять при каждом завершённом шаге итерации или изменении решения (см. `.cursor/rules/90-maintaining-docs.mdc`).
 
-**Обновлено:** 26.10.2026 · **Версия:** 0.1.0-alpha · **Текущая итерация:** 5 + планшет заказов — `./gradlew compileJava build` OK; GameTest в этой среде не гоняли (нет Create/Sable в `run/mods`). PR на базе #9 (`cursor/csi-original-gui-sprites-b456`). Jar: `/opt/cursor/artifacts/aerocouriers-0.1.0-alpha.jar`.
+**Обновлено:** 26.10.2026 · **Версия:** 0.1.0-alpha · **Текущая итерация:** 5 + планшет заказов — `./gradlew compileJava build` OK; GameTest в этой среде не гоняли (нет Create/Sable в `run/mods`). Доска заказов: UI «латунный монитор планшета» (ветка `cursor/tablet-board-monitor-ui-85ca` от #10). Jar: `/opt/cursor/artifacts/aerocouriers-0.1.0-alpha.jar`.
 
 ## Сделано
 
@@ -114,10 +114,10 @@
 - GameTest: `boardRequiresOrderTabletUnlessEquipped` (+1 к 30).
 
 ### CSI GUI на экранах (26.10.2026, только клиентский рендер)
-- **Доска:** собственные CSI nine-slice спрайты (`panel`, `inset`, `title_label`, кнопки…). **Окно штампа (создание заказа):** деревянная рамка `panel` + лист `paper_sheet` + зажим `clipboard_clip` сверху (`StampCreateGui`); тёмный текст на бумаге `#3E2812` / `#6B453E`, поля `paper_field`. Генерация `tools/gen_gui_sprites.py`; PNG пака не копируем.
-- Кнопки/вкладки — `CourierButton` / `CourierTabButton` через `WidgetSprites` и `guiGraphics.blitSprite`; почта — `MailIconButton` 20×20 (конверт + бейдж непрочитанного), тултип «Почта». Текст на кнопках `#FFFFFF`, на панели `#F8F8EC` / `#CDBCA8`.
-- Клиентский конфиг `[gui] useVanillaSprites` (по умолчанию `false`) — кнопки/вкладки на `minecraft:widget/*` для игроков с установленным CSI.
-- Превью: доска — `tools/render_create_gui_preview.py`; штамп-клипборд — `tools/render_stamp_clipboard_preview.py` → `stamp_clipboard_*.png`. Раскладка штампа учитывает вылет зажима (`CLIP_OVERHANG`); логика заказа без изменений.
+- **Доска заказов:** латунный монитор планшета — `TabletGui` (рамка `tablet_frame`, экран `tablet_grid` + свечение/сканлайны, декор `tablet_decor_antenna` / `tablet_decor_gear`, вылет `ANTENNA_OVERHANG_TOP` / `GEAR_OVERHANG_LEFT`). Кнопки/вкладки — `TabletButton` / `TabletTabButton` (`tablet_button*`, `tablet_tab*`, строки `tablet_list_row`, скролл `tablet_scroller*`). Текст на экране оранжевый (`#FFAF55` / `#FF7A2F` / `#C87A3A`, без белого). Почта — `icon/envelope_tablet`. Генерация `tools/gen_gui_sprites.py`; PNG FTB Create не копируем.
+- **Окно штампа (создание заказа):** без изменений — деревянная рамка `panel` + `paper_sheet` + `clipboard_clip` (`StampCreateGui`, `CourierButton`); тёмный текст на бумаге.
+- Клиентский конфиг `[gui] useVanillaSprites` (по умолчанию `false`) — кнопки/вкладки доски на `minecraft:widget/*`.
+- Превью: доска (3 вкладки, русский текст) — `tools/render_create_gui_preview.py` → `/opt/cursor/artifacts/board_tab{0,1,2}_400x240.png`, `480x300`; штамп — `tools/render_stamp_clipboard_preview.py`. Раскладка штампа: `CLIP_OVERHANG`.
 
 ### Итерация 4 — тестовый UI доски (код готов, в клиенте не проверено)
 - Экран `CourierBoardScreen`: хром CSI (см. выше), без кода Create: Marketplace. Крупнее, адаптивен к GUI scale, списки с прокруткой, длинный текст обрезается с тултипом.

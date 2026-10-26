@@ -20,6 +20,14 @@ public final class AerocouriersGuiSprites {
     public static final ResourceLocation PAPER_FIELD_FOCUSED = id("paper_field_highlighted");
     public static final ResourceLocation PAPER_SLOT = id("paper_slot");
     public static final ResourceLocation CLIPBOARD_CLIP = id("clipboard_clip");
+    public static final ResourceLocation TABLET_FRAME = id("tablet_frame");
+    public static final ResourceLocation TABLET_GRID = id("tablet_grid");
+    public static final ResourceLocation TABLET_LIST_ROW = id("tablet_list_row");
+    public static final ResourceLocation TABLET_SCROLLER = id("tablet_scroller");
+    public static final ResourceLocation TABLET_SCROLLER_TRACK = id("tablet_scroller_track");
+    public static final ResourceLocation TABLET_DECOR_ANTENNA = id("tablet_decor_antenna");
+    public static final ResourceLocation TABLET_DECOR_GEAR = id("tablet_decor_gear");
+    public static final ResourceLocation ENVELOPE_TABLET = id("icon/envelope_tablet");
 
     private static final WidgetSprites VANILLA_BUTTON = new WidgetSprites(
             vanilla("button"),
@@ -51,6 +59,21 @@ public final class AerocouriersGuiSprites {
             id("tab"),
             id("tab_highlighted"),
             id("tab_highlighted"));
+    private static final WidgetSprites TABLET_BUTTON = new WidgetSprites(
+            id("tablet_button"),
+            id("tablet_button_disabled"),
+            id("tablet_button_highlighted"),
+            id("tablet_button_disabled"));
+    private static final WidgetSprites TABLET_TAB = new WidgetSprites(
+            id("tablet_tab"),
+            id("tablet_tab"),
+            id("tablet_tab_highlighted"),
+            id("tablet_tab_highlighted"));
+    private static final WidgetSprites TABLET_TAB_SELECTED = new WidgetSprites(
+            id("tablet_tab_selected"),
+            id("tablet_tab"),
+            id("tablet_tab_highlighted"),
+            id("tablet_tab_highlighted"));
 
     private AerocouriersGuiSprites() {
     }
@@ -64,6 +87,14 @@ public final class AerocouriersGuiSprites {
             return selected ? VANILLA_TAB_SELECTED : VANILLA_TAB;
         }
         return selected ? MOD_TAB_SELECTED : MOD_TAB;
+    }
+
+    public static WidgetSprites tabletButtonSprites() {
+        return TABLET_BUTTON;
+    }
+
+    public static WidgetSprites tabletTabSprites(boolean selected) {
+        return selected ? TABLET_TAB_SELECTED : TABLET_TAB;
     }
 
     private static ResourceLocation id(String path) {

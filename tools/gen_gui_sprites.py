@@ -334,6 +334,236 @@ def gen_envelope() -> None:
     save_sprite("icon/envelope", img, None)
 
 
+def hx(color: str) -> tuple[int, int, int, int]:
+    c = color.lstrip("#")
+    return (int(c[0:2], 16), int(c[2:4], 16), int(c[4:6], 16), 255)
+
+
+# --- Order tablet monitor (board screen only; original pixels) ---
+TB_HI = hx("#FFE97C")
+TB_MID = hx("#FFD25D")
+TB_MED = hx("#E8BB5C")
+TB_SH = hx("#B87E3C")
+TB_DK = hx("#8B5C33")
+TB_INNER = hx("#693826")
+TB_SCREEN = hx("#2C0900")
+TB_GRID = hx("#431A0F")
+TB_OUTLINE = hx("#B36833")
+TB_ROW = hx("#3E2614")
+TB_TAB_SEL = hx("#431A0F")
+TB_BTN_HOVER = hx("#1F0F02")
+TB_HOVER_OUT = hx("#FF9E00")
+TB_SEL_OUT = hx("#FFAF55")
+TB_SCROLL = hx("#FF7A2F")
+TB_TRACK = hx("#1A0A04")
+TB_COPPER_HI = hx("#E3826C")
+TB_COPPER = hx("#C87456")
+TB_COPPER_DK = hx("#A75A40")
+TB_COPPER_EDGE = hx("#794631")
+TB_GEAR_HI = hx("#82613A")
+TB_GEAR = hx("#70522E")
+TB_GEAR_DK = hx("#5A4424")
+TB_ORANGE_ICON = hx("#FFAF55")
+TB_ORANGE_ICON_DK = hx("#C87A3A")
+
+
+def _outline_rect(img: Image.Image, x0: int, y0: int, x1: int, y1: int, outline: tuple[int, ...]) -> None:
+    px = img.load()
+    for x in range(x0, x1):
+        px[x, y0] = outline
+        px[x, y1 - 1] = outline
+    for y in range(y0, y1):
+        px[x0, y] = outline
+        px[x1 - 1, y] = outline
+
+
+def _rivet(img: Image.Image, cx: int, cy: int) -> None:
+    d = ImageDraw.Draw(img)
+    d.ellipse((cx - 2, cy - 2, cx + 2, cy + 2), fill=TB_MED, outline=BLACK)
+    d.point((cx - 1, cy - 1), fill=TB_HI)
+
+
+def gen_tablet_frame() -> None:
+    w, h = 64, 64
+    b = 6
+    img = Image.new("RGBA", (w, h), TRANSPARENT)
+    # black outer shell
+    fill_rect(img, 0, 0, w, h, BLACK)
+    fill_rect(img, 1, 1, w - 1, h - 1, TB_INNER)
+    fill_rect(img, 1, 1, w - 1, 3, TB_HI)
+    fill_rect(img, 1, 1, 3, h - 1, TB_HI)
+    fill_rect(img, w - 3, 1, w - 1, h - 1, TB_DK)
+    fill_rect(img, 1, h - 3, w - 1, h - 1, TB_DK)
+    fill_rect(img, 2, 2, w - 2, h - 2, TB_SH)
+    fill_rect(img, 2, 2, w - 2, 4, TB_MID)
+    fill_rect(img, 2, 2, 4, h - 2, TB_MID)
+    fill_rect(img, w - 4, 2, w - 2, h - 2, TB_DK)
+    fill_rect(img, 2, h - 4, w - 2, h - 2, TB_DK)
+    fill_rect(img, 3, 3, w - 3, h - 3, TB_MED)
+    fill_rect(img, b, b, w - b, h - b, TB_INNER)
+    fill_rect(img, b, b, w - b, b + 1, (0x55, 0x2A, 0x1A, 255))
+    fill_rect(img, b, b, b + 1, h - b, (0x55, 0x2A, 0x1A, 255))
+    # screen hole (transparent — drawn separately)
+    fill_rect(img, b + 1, b + 1, w - b - 1, h - b - 1, TRANSPARENT)
+    for cx, cy in ((5, 5), (w - 6, 5), (5, h - 6), (w - 6, h - 6)):
+        _rivet(img, cx, cy)
+    save_sprite(
+        "tablet_frame",
+        img,
+        {"width": 64, "height": 64, "border": {"left": 6, "top": 6, "right": 6, "bottom": 6}},
+    )
+
+
+def gen_tablet_grid() -> None:
+    size = 18
+    img = Image.new("RGBA", (size, size), TB_SCREEN)
+    px = img.load()
+    for x in range(size):
+        if x % 9 == 0:
+            for y in range(size):
+                px[x, y] = TB_GRID
+    for y in range(size):
+        if y % 9 == 0:
+            for x in range(size):
+                px[x, y] = TB_GRID
+    save_sprite(
+        "tablet_grid",
+        img,
+        {"width": 18, "height": 18, "border": {"left": 0, "top": 0, "right": 0, "bottom": 0}},
+    )
+
+
+def _tablet_button(w: int, h: int, fill: tuple[int, ...] | None, outline: tuple[int, ...]) -> Image.Image:
+    img = Image.new("RGBA", (w, h), TRANSPARENT)
+    if fill is not None:
+        fill_rect(img, 1, 1, w - 1, h - 1, fill)
+    _outline_rect(img, 0, 0, w, h, outline)
+    return img
+
+
+def gen_tablet_buttons() -> None:
+    border = {"left": 2, "top": 2, "right": 2, "bottom": 2}
+    ns = {"width": 200, "height": 20, "border": border}
+    save_sprite("tablet_button", _tablet_button(200, 20, None, TB_OUTLINE), ns)
+    save_sprite("tablet_button_highlighted", _tablet_button(200, 20, TB_BTN_HOVER, TB_HOVER_OUT), ns)
+    save_sprite("tablet_button_disabled", _tablet_button(200, 20, (0x12, 0x08, 0x04, 255), hx("#873B00")), ns)
+
+
+def _tablet_tab(w: int, h: int, fill: tuple[int, ...] | None, outline: tuple[int, ...]) -> Image.Image:
+    img = Image.new("RGBA", (w, h), TRANSPARENT)
+    if fill is not None:
+        fill_rect(img, 1, 1, w - 1, h, fill)
+    for x in range(w):
+        img.putpixel((x, 0), outline)
+    for y in range(h):
+        img.putpixel((0, y), outline)
+        img.putpixel((w - 1, y), outline)
+    return img
+
+
+def gen_tablet_tabs() -> None:
+    border = {"left": 2, "top": 2, "right": 2, "bottom": 0}
+    ns = {"width": 130, "height": 24, "border": border}
+    tab_off = Image.new("RGBA", (130, 24), TRANSPARENT)
+    tab_off.alpha_composite(_tablet_tab(130, 20, None, TB_OUTLINE), (0, 0))
+    save_sprite("tablet_tab", tab_off, ns)
+    save_sprite("tablet_tab_selected", _tablet_tab(130, 24, TB_TAB_SEL, TB_SEL_OUT), ns)
+    save_sprite("tablet_tab_highlighted", _tablet_tab(130, 24, TB_BTN_HOVER, TB_HOVER_OUT), ns)
+
+
+def gen_tablet_list_row() -> None:
+    w, h = 32, 22
+    img = Image.new("RGBA", (w, h), TRANSPARENT)
+    fill_rect(img, 0, 0, w, h, TB_ROW)
+    _outline_rect(img, 0, 0, w, h, TB_OUTLINE)
+    save_sprite(
+        "tablet_list_row",
+        img,
+        {"width": 32, "height": 22, "border": {"left": 2, "top": 2, "right": 2, "bottom": 2}},
+    )
+
+
+def gen_tablet_scroller() -> None:
+    track = Image.new("RGBA", (6, 32), TRANSPARENT)
+    fill_rect(track, 0, 0, 6, 32, TB_TRACK)
+    _outline_rect(track, 0, 0, 6, 32, TB_INNER)
+    save_sprite(
+        "tablet_scroller_track",
+        track,
+        {"width": 6, "height": 32, "border": {"left": 1, "top": 2, "right": 1, "bottom": 2}},
+    )
+    thumb = Image.new("RGBA", (6, 9), TRANSPARENT)
+    fill_rect(thumb, 0, 0, 6, 9, TB_SCROLL)
+    fill_rect(thumb, 0, 0, 6, 2, hx("#FFAF55"))
+    fill_rect(thumb, 0, 7, 6, 9, TB_COPPER_DK)
+    save_sprite(
+        "tablet_scroller",
+        thumb,
+        {"width": 6, "height": 9, "border": {"left": 1, "top": 2, "right": 1, "bottom": 2}},
+    )
+
+
+def gen_tablet_antenna() -> None:
+    w, h = 28, 22
+    img = Image.new("RGBA", (w, h), TRANSPARENT)
+    d = ImageDraw.Draw(img)
+    # grey mount on frame edge
+    fill_rect(img, 10, h - 5, 18, h, METAL_DK)
+    fill_rect(img, 11, h - 4, 17, h - 1, METAL)
+    # copper square loop
+    d.rectangle((4, 2, 20, 16), outline=TB_COPPER_EDGE, width=1)
+    d.rectangle((5, 3, 19, 15), outline=TB_COPPER, width=1)
+    fill_rect(img, 6, 4, 19, 5, TB_COPPER_HI)
+    fill_rect(img, 6, 4, 7, 14, TB_COPPER_HI)
+    fill_rect(img, 17, 5, 19, 14, TB_COPPER_DK)
+    fill_rect(img, 6, 13, 19, 14, TB_COPPER_DK)
+    save_sprite("tablet_decor_antenna", img, None)
+
+
+def gen_tablet_gear() -> None:
+    w, h = 22, 36
+    img = Image.new("RGBA", (w, h), TRANSPARENT)
+    d = ImageDraw.Draw(img)
+    cx, cy = w - 4, h // 2
+    r_outer = 14
+    r_inner = 5
+    teeth = 6
+    import math
+
+    pts = []
+    for i in range(teeth * 2):
+        ang = math.pi * 2 * i / (teeth * 2) - math.pi / 2
+        r = r_outer if i % 2 == 0 else r_outer - 4
+        pts.append((cx + r * math.cos(ang), cy + r * math.sin(ang)))
+    d.polygon(pts, fill=TB_GEAR_DK, outline=BLACK)
+    d.ellipse((cx - r_inner, cy - r_inner, cx + r_inner, cy + r_inner), fill=TB_GEAR_DK, outline=BLACK)
+    d.ellipse((cx - r_inner + 2, cy - r_inner + 2, cx + r_inner - 2, cy + r_inner - 2), fill=TB_GEAR)
+    d.arc((cx - 10, cy - 10, cx + 6, cy + 10), 90, 270, fill=TB_GEAR_HI, width=2)
+    save_sprite("tablet_decor_gear", img, None)
+
+
+def gen_envelope_tablet() -> None:
+    img = Image.new("RGBA", (16, 16), TRANSPARENT)
+    d = ImageDraw.Draw(img)
+    d.rectangle((1, 4, 14, 13), fill=TB_ROW, outline=TB_OUTLINE)
+    d.polygon([(1, 4), (8, 9), (15, 4)], fill=TB_ORANGE_ICON, outline=TB_OUTLINE)
+    d.line([(1, 13), (8, 8)], fill=TB_ORANGE_ICON_DK, width=1)
+    d.line([(15, 13), (8, 8)], fill=TB_ORANGE_ICON_DK, width=1)
+    save_sprite("icon/envelope_tablet", img, None)
+
+
+def gen_tablet() -> None:
+    gen_tablet_frame()
+    gen_tablet_grid()
+    gen_tablet_buttons()
+    gen_tablet_tabs()
+    gen_tablet_list_row()
+    gen_tablet_scroller()
+    gen_tablet_antenna()
+    gen_tablet_gear()
+    gen_envelope_tablet()
+
+
 def main() -> None:
     gen_buttons()
     gen_tabs()
@@ -350,6 +580,7 @@ def main() -> None:
     gen_clipboard_clip()
     gen_paper_slot()
     gen_envelope()
+    gen_tablet()
     print(f"Wrote sprites to {OUT}")
 
 
