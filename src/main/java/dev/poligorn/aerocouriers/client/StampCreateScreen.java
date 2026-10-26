@@ -226,16 +226,16 @@ public final class StampCreateScreen extends Screen {
 
     @Override
     public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        super.renderBackground(graphics, mouseX, mouseY, partialTick);
-        StampCreateGui.drawWoodenFrame(graphics, layout.left, layout.top, layout.panelW, layout.panelH);
-        StampCreateGui.drawPaperSheet(graphics, layout.paperLeft, layout.paperTop, layout.paperW, layout.paperH);
-        StampCreateGui.drawClip(graphics, layout.clipX, layout.clipY);
+        InGamePauseBackground.render(this, graphics, mouseX, mouseY, partialTick);
     }
 
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         hoverTip = null;
+        StampCreateGui.drawWoodenFrame(graphics, layout.left, layout.top, layout.panelW, layout.panelH);
+        StampCreateGui.drawPaperSheet(graphics, layout.paperLeft, layout.paperTop, layout.paperW, layout.paperH);
         super.render(graphics, mouseX, mouseY, partialTick);
+        StampCreateGui.drawClip(graphics, layout.clipX, layout.clipY);
         int textX = layout.paperLeft + StampCreateLayout.PAD;
         int titleW = Math.max(32, layout.balanceX - textX - 8);
         drawClipped(graphics, title, textX, layout.headerY, titleW, StampCreateGui.TEXT, mouseX, mouseY);

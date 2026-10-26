@@ -48,12 +48,31 @@ public final class CourierBoardScreen extends Screen {
     }
 
     void apply(BoardSnapshotPayload payload) {
+        BoardSnapshotPayload previous = snapshot;
         applySnapshot(payload);
         if (selected != null && payload.find(selected).isEmpty()) {
             selected = null;
             pendingAccept = null;
         }
-        rebuildWidgets();
+        if (needsWidgetRebuild(previous, payload)) {
+            rebuildWidgets();
+        }
+    }
+
+    private boolean needsWidgetRebuild(@Nullable BoardSnapshotPayload previous, BoardSnapshotPayload payload) {
+        if (previous == null) {
+            return true;
+        }
+        if (previous.operator() != payload.operator()) {
+            return true;
+        }
+        if (tab == Tab.BOARD && (previous.page() != payload.page() || previous.board().size() != payload.board().size())) {
+            return true;
+        }
+        if (tab == Tab.MINE && previous.mine().size() != payload.mine().size()) {
+            return true;
+        }
+        return false;
     }
 
     private void applySnapshot(@Nullable BoardSnapshotPayload payload) {
@@ -188,14 +207,15 @@ public final class CourierBoardScreen extends Screen {
 
     @Override
     public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        super.renderBackground(graphics, mouseX, mouseY, partialTick);
-        TabletGui.drawMonitor(graphics, left(), top(), panelW(), panelH());
+        InGamePauseBackground.render(this, graphics, mouseX, mouseY, partialTick);
     }
 
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         hoverTip = null;
+        TabletGui.drawScreenBackground(graphics, screenLeft(), screenTop(), screenW(), screenH());
         super.render(graphics, mouseX, mouseY, partialTick);
+        TabletGui.drawFrameChrome(graphics, left(), top(), panelW(), panelH());
         int sx = screenLeft();
         int sy = screenTop();
         graphics.drawString(font, title, sx + 6, sy + 22, TabletGui.TEXT, false);

@@ -41,12 +41,18 @@ public final class TabletGui {
      * Draw order: screen fill inside the inner rect, brass frame on top (transparent center),
      * gear half outside the left edge, antenna on top-left.
      */
+    /** Full device: inner grid, then brass frame and decor (used by offline previews). */
     public static void drawMonitor(GuiGraphics graphics, int frameX, int frameY, int frameW, int frameH) {
         int sx = frameX + FRAME_BORDER;
         int sy = frameY + FRAME_BORDER;
         int sw = frameW - FRAME_BORDER * 2;
         int sh = frameH - FRAME_BORDER * 2;
         drawScreenBackground(graphics, sx, sy, sw, sh);
+        drawFrameChrome(graphics, frameX, frameY, frameW, frameH);
+    }
+
+    /** Brass bezel, gear and antenna — draw after widgets so blur/sprite state cannot drop them. */
+    public static void drawFrameChrome(GuiGraphics graphics, int frameX, int frameY, int frameW, int frameH) {
         if (frameW > 0 && frameH > 0) {
             graphics.blitSprite(AerocouriersGuiSprites.TABLET_FRAME, frameX, frameY, frameW, frameH);
         }
