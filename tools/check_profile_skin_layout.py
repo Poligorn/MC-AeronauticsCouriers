@@ -24,13 +24,17 @@ def panel_w(width: int) -> int:
 
 
 def panel_h(height: int) -> int:
-    margin = 24 + (ANTENNA_H - ANTENNA_BASE_H)
-    return min(max(int(height * 0.80), 280), max(280, height - margin))
+    over = ANTENNA_H - ANTENNA_BASE_H
+    max_h = max(200, height - over - 12)
+    preferred = int(height * 0.80)
+    return min(max_h, max(200, preferred))
 
 
 def frame_top(screen_h: int, frame_h: int) -> int:
     over = ANTENNA_H - ANTENNA_BASE_H
-    return max(over + 2, (screen_h - frame_h) // 2)
+    block_h = over + frame_h
+    block_top = max(2, (screen_h - block_h) // 2)
+    return block_top + over
 
 
 def list_top(screen_top: int) -> int:

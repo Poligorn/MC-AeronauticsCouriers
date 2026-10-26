@@ -79,7 +79,8 @@ def nine_slice_hollow(canvas: Image.Image, patch: Image.Image, x: int, y: int, w
 def frame_pos(screen_w: int, screen_h: int, frame_w: int, frame_h: int) -> tuple[int, int]:
     over = ANTENNA_H - ANTENNA_BASE_H
     fx = max(2, (screen_w - frame_w) // 2)
-    fy = max(over + 2, (screen_h - frame_h) // 2)
+    block_top = max(2, (screen_h - frame_h - over) // 2)
+    fy = block_top + over
     return fx, fy
 
 

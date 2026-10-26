@@ -18,7 +18,9 @@ import dev.poligorn.aerocouriers.net.ContractIntentPayload;
 import dev.poligorn.aerocouriers.net.OpenBoardPayload;
 import dev.poligorn.aerocouriers.net.OperatorBoardPayload;
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
@@ -61,6 +63,7 @@ public final class CourierBoardScreen extends Screen {
     /** Left edge of the balance strip (right of last tab). */
     private int balanceStripLeft;
     private final List<AbstractWidget> mineSubToggles = new ArrayList<>();
+    private final Map<Tab, TabletTabButton> mainTabs = new EnumMap<>(Tab.class);
 
     enum Tab {
         BOARD, MINE, PROFILE, TEST
@@ -99,6 +102,7 @@ public final class CourierBoardScreen extends Screen {
             } else {
                 tab = Tab.BOARD;
             }
+            syncMainTabSelection();
             scroll = 0;
             listRowButtonKey = null;
             refreshBoardContent();
@@ -116,7 +120,7 @@ public final class CourierBoardScreen extends Screen {
         }
         if (previous == null || previous.mailCount() != payload.mailCount()
                 || previous.notificationUnread() != payload.notificationUnread()) {
-            refreshHeaderIcons(screenLeft(), screenTop());
+            refreshHeaderIcons(screenLeft(), mainTabRowY());
         }
     }
 
@@ -135,7 +139,14 @@ public final class CourierBoardScreen extends Screen {
         tab = value;
         scroll = 0;
         listRowButtonKey = null;
+        syncMainTabSelection();
         refreshBoardContent();
+    }
+
+    private void syncMainTabSelection() {
+        for (var entry : mainTabs.entrySet()) {
+            entry.getValue().selected(tab == entry.getKey());
+        }
     }
 
     private void selectMineSection(MineListSection section) {
@@ -234,18 +245,20 @@ public final class CourierBoardScreen extends Screen {
     @Override
     protected void init() {
         super.init();
+        mainTabs.clear();
         int sx = screenLeft();
-        int sy = screenTop();
+        int tabRowY = mainTabRowY();
         int tabW = Math.max(64, screenW() / 7);
         int tabX = sx;
-        tabX = addTab(tabX, sy + TAB_Y, tabW, Tab.BOARD, "ui.aerocouriers.tab.board") + 4;
-        tabX = addTab(tabX, sy + TAB_Y, tabW, Tab.MINE, "ui.aerocouriers.tab.mine") + 4;
-        tabX = addTab(tabX, sy + TAB_Y, tabW, Tab.PROFILE, "ui.aerocouriers.tab.profile") + 4;
+        tabX = addTab(tabX, tabRowY, tabW, Tab.BOARD, "ui.aerocouriers.tab.board") + 4;
+        tabX = addTab(tabX, tabRowY, tabW, Tab.MINE, "ui.aerocouriers.tab.mine") + 4;
+        tabX = addTab(tabX, tabRowY, tabW, Tab.PROFILE, "ui.aerocouriers.tab.profile") + 4;
         if (snapshot != null && snapshot.operator()) {
-            tabX = addTab(tabX, sy + TAB_Y, tabW, Tab.TEST, "ui.aerocouriers.tab.test") + 4;
+            tabX = addTab(tabX, tabRowY, tabW, Tab.TEST, "ui.aerocouriers.tab.test") + 4;
         }
         balanceStripLeft = tabX + 4;
-        refreshHeaderIcons(sx, sy);
+        syncMainTabSelection();
+        refreshHeaderIcons(sx, tabRowY);
 
         if (snapshot == null) {
             return;
@@ -293,10 +306,10 @@ public final class CourierBoardScreen extends Screen {
     }
 
     void onNotificationsChanged() {
-        refreshHeaderIcons(screenLeft(), screenTop());
+        refreshHeaderIcons(screenLeft(), mainTabRowY());
     }
 
-    private void refreshHeaderIcons(int sx, int sy) {
+    private void refreshHeaderIcons(int sx, int tabRowY) {
         for (Renderable widget : new ArrayList<>(renderables)) {
             if (widget instanceof MailIconButton || widget instanceof NotificationsIconButton) {
                 removeWidget((AbstractWidget) widget);
@@ -308,16 +321,22 @@ public final class CourierBoardScreen extends Screen {
         int unread = snapshot == null
                 ? ClientNotifications.unreadCount()
                 : Math.max(snapshot.notificationUnread(), ClientNotifications.unreadCount());
-        addRenderableWidget(new NotificationsIconButton(bellX, sy + TAB_Y, unread, true));
-        addRenderableWidget(new MailIconButton(mailX, sy + TAB_Y, mail, true));
+        addRenderableWidget(new NotificationsIconButton(bellX, tabRowY + 4, unread, true));
+        addRenderableWidget(new MailIconButton(mailX, tabRowY + 4, mail, true));
     }
 
     /** Returns x position after this tab (for laying out the next one). */
     private int addTab(int x, int y, int w, Tab value, String key) {
-        boolean on = tab == value;
-        addRenderableWidget(new TabletTabButton(x, y, w, 20, Component.translatable(key), () -> selectTab(value))
-                .selected(on));
+        TabletTabButton button = new TabletTabButton(x, y, w, TAB_H, Component.translatable(key), () -> selectTab(value));
+        button.selected(tab == value);
+        mainTabs.put(value, button);
+        addRenderableWidget(button);
         return x + w;
+    }
+
+    /** Main tabs sit slightly above the content top so the selected tab can raise into the inset band. */
+    private int mainTabRowY() {
+        return screenTop() - 4;
     }
 
     private void initListButtons(List<BoardSnapshotPayload.BoardEntry> all, boolean boardTab) {
@@ -466,7 +485,7 @@ public final class CourierBoardScreen extends Screen {
             int bellX = mailX - 24;
             int balanceRight = bellX - BALANCE_MAIL_GAP;
             int maxW = Math.max(8, balanceRight - balanceStripLeft);
-            drawClipped(graphics, balanceLine, balanceStripLeft, sy + 8, maxW, TabletGui.TEXT, mouseX, mouseY);
+            drawClipped(graphics, balanceLine, balanceStripLeft, mainTabRowY() + 8, maxW, TabletGui.TEXT, mouseX, mouseY);
         }
 
         if (snapshot == null) {
@@ -1055,8 +1074,9 @@ public final class CourierBoardScreen extends Screen {
     }
 
     private int panelH() {
-        int margin = 24 + TabletGui.antennaOverhangTop();
-        return Mth.clamp((int) (height * 0.80), 280, Math.max(280, height - margin));
+        int maxH = TabletGui.maxFrameHeight(height);
+        int preferred = (int) (height * 0.80);
+        return Math.min(maxH, Math.max(200, preferred));
     }
 
     private int left() {
@@ -1114,7 +1134,7 @@ public final class CourierBoardScreen extends Screen {
     }
 
     private int headingY() {
-        return screenTop() + TAB_Y + TAB_H + HEADING_GAP;
+        return mainTabRowY() + TAB_H + HEADING_GAP;
     }
 
     private static boolean showsTraineeHint(BoardSnapshotPayload.BoardProfile profile) {
@@ -1123,14 +1143,22 @@ public final class CourierBoardScreen extends Screen {
     }
 
     private int listTop() {
-        int extra = 0;
-        if (snapshot != null && tab == Tab.BOARD && showsTraineeHint(snapshot.profile())) {
-            extra = font.lineHeight + 4;
-        }
+        int extra = traineeHintBlockHeight();
         if (tab == Tab.MINE) {
             extra += font.lineHeight + MINE_SUB_GAP + MINE_SUB_TOGGLE_H + MINE_SUB_GAP;
         }
-        return headingY() + 10 + extra;
+        return headingY() + font.lineHeight + 6 + extra;
+    }
+
+    private int traineeHintBlockHeight() {
+        if (snapshot == null || tab != Tab.BOARD || !showsTraineeHint(snapshot.profile())) {
+            return 0;
+        }
+        Component hint = Component.translatable("ui.aerocouriers.trainee.hint",
+                snapshot.profile().traineeFreeContracts() - snapshot.profile().villageDelivered(),
+                snapshot.profile().traineeMaxDistance());
+        int lines = font.split(hint, screenW()).size();
+        return lines * font.lineHeight + 4;
     }
 
     private int mineSubToggleY() {

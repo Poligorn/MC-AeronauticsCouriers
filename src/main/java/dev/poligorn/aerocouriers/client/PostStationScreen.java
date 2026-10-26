@@ -401,7 +401,7 @@ public final class PostStationScreen extends Screen {
     }
 
     private int panelH() {
-        return Math.min(360, Math.max(220, height - 48 - TabletGui.antennaOverhangTop()));
+        return Math.min(360, Math.max(220, TabletGui.maxFrameHeight(height)));
     }
 
     @Override

@@ -148,12 +148,20 @@ public final class TabletGui {
         return Math.max(2, (screenW - frameW) / 2);
     }
 
-    /** Frame top Y; leaves room for the antenna mast above the bezel on small screens. */
+    /**
+     * Frame top Y; centers antenna + frame as one block so the mast is not clipped.
+     * Antenna tip is at {@code frameTop - antennaOverhangTop()}.
+     */
     public static int frameTop(int screenH, int frameH) {
         int over = antennaOverhangTop();
-        int minTop = over + 2;
-        int centered = (screenH - frameH) / 2;
-        return Math.max(minTop, centered);
+        int blockH = over + frameH;
+        int blockTop = Math.max(2, (screenH - blockH) / 2);
+        return blockTop + over;
+    }
+
+    /** Max frame height that fits below the antenna on this screen. */
+    public static int maxFrameHeight(int screenH) {
+        return Math.max(160, screenH - antennaOverhangTop() - 12);
     }
 
     public static int cavityLeft(int frameLeft) {
