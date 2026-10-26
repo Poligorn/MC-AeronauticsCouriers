@@ -19,9 +19,9 @@ public final class TabletGui {
     public static final int TEXT_BUTTON_HOVER = 0xFF9E00;
     public static final int TEXT_BUTTON_DISABLED = 0x873B00;
 
-    /** Dark cavity fill — lower contrast than early builds to reduce grid shimmer. */
-    private static final int SCREEN_FILL = 0xFF140400;
-    private static final int GRID_LINE = 0xFF1C0804;
+    /** Dark cavity fill — grid readable without the high-contrast shimmer of early builds. */
+    private static final int SCREEN_FILL = 0xFF1E0803;
+    private static final int GRID_LINE = 0xFF3A140A;
     private static final int GRID_STEP = 9;
 
     /** Nine-slice brass + bevel before the screen cavity (matches {@code tablet_frame}). */
@@ -82,7 +82,7 @@ public final class TabletGui {
         if (w <= 0 || h <= 0) {
             return;
         }
-        graphics.fill(x, y, x + w, y + h, 0xCC140400);
+        graphics.fill(x, y, x + w, y + h, 0xCC1E0803);
         graphics.renderOutline(x, y, w, h, 0xFFB36833);
     }
 
@@ -90,7 +90,7 @@ public final class TabletGui {
         if (w <= 0 || h <= 0) {
             return;
         }
-        graphics.fill(x, y, x + w, y + h, 0xFF3E2614);
+        graphics.fill(x, y, x + w, y + h, 0xFF482B18);
         graphics.renderOutline(x, y, w, h, 0xFFB36833);
         if (selected) {
             graphics.fill(x + 1, y + 1, x + w - 1, y + h - 1, 0x30FFAF55);
@@ -121,7 +121,7 @@ public final class TabletGui {
         int boxH = lines.size() * 10 + pad * 2;
         int x = mouseX + 8;
         int y = mouseY - 12;
-        graphics.fill(x, y, x + boxW, y + boxH, 0xF02C0900);
+        graphics.fill(x, y, x + boxW, y + boxH, 0xF0380C03);
         graphics.renderOutline(x, y, boxW, boxH, 0xFFB36833);
         int drawY = y + pad;
         for (FormattedCharSequence line : lines) {

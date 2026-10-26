@@ -1,18 +1,20 @@
 #!/usr/bin/env python3
-"""Crop preview of TabletGui.drawScreenBackground colors (mirrors TabletGui.java constants)."""
+"""Before/after crop of TabletGui screen fill + grid (mirrors TabletGui.java constants)."""
 from pathlib import Path
 
 try:
-    from PIL import Image
+    from PIL import Image, ImageDraw, ImageFont
 except ImportError:
     raise SystemExit("pip install pillow")
 
-SCREEN_FILL = (0x14, 0x04, 0x00)
-GRID_LINE = (0x1C, 0x08, 0x04)
-OLD_FILL = (0x2C, 0x09, 0x00)
-OLD_GRID = (0x43, 0x1A, 0x0F)
+# PR #14 (too flat)
+BEFORE_FILL = (0x14, 0x04, 0x00)
+BEFORE_GRID = (0x1C, 0x08, 0x04)
+# This branch
+AFTER_FILL = (0x1E, 0x08, 0x03)
+AFTER_GRID = (0x3A, 0x14, 0x0A)
 STEP = 9
-W, H = 280, 160
+W, H = 200, 120
 
 
 def draw_grid(fill, line):
@@ -28,12 +30,21 @@ def draw_grid(fill, line):
 
 
 def main():
-    out = Path("/opt/cursor/artifacts/tablet_bg_preview.png")
-    new = draw_grid(SCREEN_FILL, GRID_LINE)
-    old = draw_grid(OLD_FILL, OLD_GRID)
-    combo = Image.new("RGB", (W * 2 + 8, H + 24), (32, 32, 32))
-    combo.paste(old, (0, 12))
-    combo.paste(new, (W + 8, 12))
+    out = Path("/opt/cursor/artifacts/tablet_bg_before_after.png")
+    before = draw_grid(BEFORE_FILL, BEFORE_GRID)
+    after = draw_grid(AFTER_FILL, AFTER_GRID)
+    pad = 8
+    label_h = 18
+    combo = Image.new("RGB", (W * 2 + pad * 3, H + label_h + pad * 2), (48, 48, 48))
+    draw = ImageDraw.Draw(combo)
+    try:
+        font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 11)
+    except OSError:
+        font = ImageFont.load_default()
+    draw.text((pad, 2), "before (#14)", fill=(200, 200, 200), font=font)
+    draw.text((W + pad * 2, 2), "after (PR #15)", fill=(200, 200, 200), font=font)
+    combo.paste(before, (pad, label_h + pad))
+    combo.paste(after, (W + pad * 2, label_h + pad))
     out.parent.mkdir(parents=True, exist_ok=True)
     combo.save(out)
     print(f"wrote {out}")
