@@ -1,6 +1,7 @@
 package dev.poligorn.aerocouriers.client;
 
 import dev.poligorn.aerocouriers.AeronauticsCouriers;
+import dev.poligorn.aerocouriers.client.tablet.OrderTabletVisuals;
 import dev.poligorn.aerocouriers.license.LicenseRank;
 import dev.poligorn.aerocouriers.registry.ModComponents;
 import dev.poligorn.aerocouriers.registry.ModItems;
@@ -27,6 +28,7 @@ public final class AeroCouriersClient {
 
     private static void onClientSetup(FMLClientSetupEvent event) {
         event.enqueueWork(() -> {
+            OrderTabletVisuals.register();
             CuriosRendererRegistry.register(ModItems.PILOT_LICENSE.get(), EpauletteRenderer::new);
             // Item icon per rank: models/item/pilot_license.json overrides on aerocouriers:rank (= level, admin = 0).
             ItemProperties.register(ModItems.PILOT_LICENSE.get(), AeronauticsCouriers.id("rank"),

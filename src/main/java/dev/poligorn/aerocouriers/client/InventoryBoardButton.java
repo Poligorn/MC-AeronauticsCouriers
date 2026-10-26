@@ -22,7 +22,14 @@ public final class InventoryBoardButton extends Button {
     private final InventoryScreen inventory;
 
     private InventoryBoardButton(InventoryScreen inventory, int x, int y) {
-        super(x, y, 20, 20, Component.empty(), pressed -> ClientBoard.requestOpen(0), DEFAULT_NARRATION);
+        super(x, y, 20, 20, Component.empty(), pressed -> {
+            if (ClientBoard.canRequestOpen()) {
+                ClientBoard.requestOpen(0);
+            } else if (Minecraft.getInstance().player != null) {
+                Minecraft.getInstance().player.displayClientMessage(
+                        Component.translatable("ui.aerocouriers.error.need_tablet"), true);
+            }
+        }, DEFAULT_NARRATION);
         this.inventory = inventory;
         setTooltip(Tooltip.create(Component.translatable("ui.aerocouriers.open")));
     }
@@ -43,11 +50,16 @@ public final class InventoryBoardButton extends Button {
         int[] pos = position(inventory);
         setX(pos[0]);
         setY(pos[1]);
+        boolean enabled = ClientBoard.canRequestOpen();
+        active = enabled;
         RenderSystem.enableBlend();
         WidgetSprites sprites = AerocouriersGuiSprites.buttonSprites();
         ResourceLocation sprite = sprites.get(active, isHoveredOrFocused());
         graphics.blitSprite(sprite, getX(), getY(), getWidth(), getHeight());
-        graphics.renderFakeItem(new ItemStack(ModItems.PILOT_LICENSE.get()), getX() + 2, getY() + 2);
+        if (!enabled) {
+            graphics.fill(getX(), getY(), getX() + getWidth(), getY() + getHeight(), 0x99000000);
+        }
+        graphics.renderFakeItem(new ItemStack(ModItems.ORDER_TABLET.get()), getX() + 2, getY() + 2);
     }
 
     static int[] position(InventoryScreen screen) {

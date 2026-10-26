@@ -31,6 +31,7 @@ public record BoardSnapshotPayload(
         boolean operator,
         boolean licensed,
         boolean allowSelfAccept,
+        boolean requireTablet,
         Optional<Component> notice,
         List<BoardEntry> board,
         List<BoardEntry> mine,
@@ -127,6 +128,7 @@ public record BoardSnapshotPayload(
         buf.writeBoolean(p.operator);
         buf.writeBoolean(p.licensed);
         buf.writeBoolean(p.allowSelfAccept);
+        buf.writeBoolean(p.requireTablet);
         buf.writeBoolean(p.notice.isPresent());
         p.notice.ifPresent(component -> ComponentSerialization.STREAM_CODEC.encode(buf, component));
         BoardEntry.STREAM_CODEC.apply(ByteBufCodecs.list(PAGE_SIZE)).encode(buf, p.board);
@@ -143,11 +145,12 @@ public record BoardSnapshotPayload(
         boolean operator = buf.readBoolean();
         boolean licensed = buf.readBoolean();
         boolean allowSelfAccept = buf.readBoolean();
+        boolean requireTablet = buf.readBoolean();
         Optional<Component> notice = buf.readBoolean()
                 ? Optional.of(ComponentSerialization.STREAM_CODEC.decode(buf))
                 : Optional.empty();
         return new BoardSnapshotPayload(openScreen, page, boardTotal, balance, mailCount, operator, licensed,
-                allowSelfAccept, notice,
+                allowSelfAccept, requireTablet, notice,
                 BoardEntry.STREAM_CODEC.apply(ByteBufCodecs.list(PAGE_SIZE)).decode(buf),
                 BoardEntry.STREAM_CODEC.apply(ByteBufCodecs.list(64)).decode(buf),
                 StationHint.STREAM_CODEC.apply(ByteBufCodecs.list(64)).decode(buf));

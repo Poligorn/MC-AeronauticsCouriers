@@ -1,5 +1,6 @@
 package dev.poligorn.aerocouriers.net;
 
+import dev.poligorn.aerocouriers.access.OrderTablets;
 import dev.poligorn.aerocouriers.config.CouriersServerConfig;
 import dev.poligorn.aerocouriers.contract.CargoContainers;
 import dev.poligorn.aerocouriers.contract.Contract;
@@ -49,6 +50,10 @@ public final class BoardPackets {
             player.sendSystemMessage(Component.translatable("ui.aerocouriers.error.no_client"));
             return;
         }
+        if (openScreen && !OrderTablets.canAccessBoard(player)) {
+            denyTablet(player);
+            return;
+        }
         PacketDistributor.sendToPlayer(player, snapshot(player, page, openScreen, notice));
     }
 
@@ -84,6 +89,7 @@ public final class BoardPackets {
                 .limit(64)
                 .toList();
 
+        boolean requireTablet = CouriersServerConfig.SPEC.isLoaded() && CouriersServerConfig.REQUIRE_TABLET.get();
         return new BoardSnapshotPayload(
                 openScreen,
                 safePage,
@@ -93,6 +99,7 @@ public final class BoardPackets {
                 player.hasPermissions(OP),
                 Licenses.isLicensedCourier(player),
                 CouriersServerConfig.ALLOW_SELF_ACCEPT.get(),
+                requireTablet,
                 notice,
                 List.copyOf(open.subList(from, to)),
                 mine,
@@ -104,6 +111,10 @@ public final class BoardPackets {
     }
 
     public static void handleClaim(ServerPlayer player) {
+        if (!OrderTablets.canAccessBoard(player)) {
+            denyTablet(player);
+            return;
+        }
         Mailbox mailbox = Mailbox.get(player.server);
         int moved = mailbox.claim(player.getUUID(), player.getInventory());
         int left = mailbox.contents(player.getUUID()).size();
@@ -111,6 +122,10 @@ public final class BoardPackets {
     }
 
     public static void handleIntent(ServerPlayer player, ContractIntentPayload payload) {
+        if (!OrderTablets.canAccessBoard(player)) {
+            denyTablet(player);
+            return;
+        }
         ContractManager manager = ContractManager.get(player.server);
         ContractManager.Outcome outcome = switch (payload.kind()) {
             case ACCEPT -> manager.accept(player, payload.id());
@@ -183,6 +198,12 @@ public final class BoardPackets {
         } catch (RuntimeException ignored) {
             return false;
         }
+    }
+
+    private static void denyTablet(ServerPlayer player) {
+        Component message = Component.translatable("ui.aerocouriers.error.need_tablet");
+        player.displayClientMessage(message, true);
+        player.sendSystemMessage(message);
     }
 
     private static void reply(ServerPlayer player, Component message) {

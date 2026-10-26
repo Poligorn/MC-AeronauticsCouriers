@@ -5,7 +5,9 @@ import dev.poligorn.aerocouriers.AeronauticsCouriers;
 import dev.poligorn.aerocouriers.contract.Contract;
 import dev.poligorn.aerocouriers.contract.ContractManager;
 import dev.poligorn.aerocouriers.economy.Economies;
+import dev.poligorn.aerocouriers.access.OrderTablets;
 import dev.poligorn.aerocouriers.license.Licenses;
+import dev.poligorn.aerocouriers.registry.ModItems;
 import dev.poligorn.aerocouriers.net.BoardPackets;
 import dev.poligorn.aerocouriers.net.BoardSnapshotPayload;
 import dev.poligorn.aerocouriers.net.OperatorBoardPayload;
@@ -85,6 +87,23 @@ public final class BoardGameTests {
         helper.assertFalse(denied.success(), "operator tab is gated on the server");
         helper.assertValueEqual(Economies.get(helper.getLevel().getServer()).balance(courier.getUUID()), 0L,
                 "non-op did not receive test money");
+
+        helper.succeed();
+    }
+
+    @GameTest(template = CouriersGameTests.EMPTY)
+    public static void boardRequiresOrderTabletUnlessEquipped(GameTestHelper helper) {
+        ServerPlayer player = FakePlayerFactory.get(helper.getLevel(), new GameProfile(UUID.randomUUID(), "tablet"));
+        helper.assertFalse(OrderTablets.canAccessBoard(player), "no tablet by default");
+
+        var tabletCurios = CuriosApi.getCuriosInventory(player).orElseThrow();
+        tabletCurios.setEquippedCurio(OrderTablets.CURIOS_SLOT, 0,
+                new ItemStack(ModItems.ORDER_TABLET.get()));
+        helper.assertTrue(OrderTablets.canAccessBoard(player), "tablet in Curios slot");
+
+        tabletCurios.setEquippedCurio(OrderTablets.CURIOS_SLOT, 0, ItemStack.EMPTY);
+        player.getInventory().setItem(0, new ItemStack(ModItems.ORDER_TABLET.get()));
+        helper.assertTrue(OrderTablets.canAccessBoard(player), "tablet in main hand");
 
         helper.succeed();
     }

@@ -1,0 +1,6 @@
+{
+  "size": 1,
+  "order": 201,
+  "icon": "aerocouriers:slot/order_tablet",
+  "validators": ["curios:tag"]
+}

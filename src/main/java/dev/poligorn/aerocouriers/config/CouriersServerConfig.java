@@ -48,6 +48,8 @@ public final class CouriersServerConfig {
 
     public static final ModConfigSpec.BooleanValue ALLOW_SELF_ACCEPT;
 
+    public static final ModConfigSpec.BooleanValue REQUIRE_TABLET;
+
     static {
         ModConfigSpec.Builder b = new ModConfigSpec.Builder();
 
@@ -131,6 +133,11 @@ public final class CouriersServerConfig {
         b.push("debug");
         ALLOW_SELF_ACCEPT = b.comment("Test-only: allow a player to accept their own contract (singleplayer loop)")
                 .define("allow_self_accept", false);
+        b.pop();
+
+        b.push("access");
+        REQUIRE_TABLET = b.comment("Job board (J, inventory button, /couriers ui, post station, tablet use) requires the order tablet")
+                .define("require_tablet", true);
         b.pop();
 
         SPEC = b.build();

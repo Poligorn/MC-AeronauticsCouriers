@@ -444,7 +444,8 @@ if (v == Verdict.REMOVE) level.removeBlock(worldPosition, false);  // заказ
 ## 10. Интерфейс
 
 ### 10.1 Вход
-- **Кнопка в инвентаре** (иконка — погон). **Фишка из Create: Marketplace: место кнопки меняется в конфиге** ✅.
+- **Планшет заказов** `aerocouriers:order_tablet`: слот Curios `order_tablet` (1) или любая рука. Без планшета доска не открывается (J, кнопка, `/couriers ui`, ПКМ по почтовой станции, ПКМ по предмету). Окно штампа по контейнеру **не** требует планшета. Серверный `[access] require_tablet` (по умолчанию `true`) отключает проверку для админов/тестов.
+- **Кнопка в инвентаре** (иконка — планшет; без планшета затемнена). **Фишка из Create: Marketplace: место кнопки меняется в конфиге** ✅.
   - Клиентский конфиг `aerocouriers-client.toml`, раздел `[button]`:
     ```toml
     [button]
@@ -702,6 +703,9 @@ drop_ratio = 0.5
 [stations]
 register_radius = 32
 generate_in_villages = true
+
+[access]
+require_tablet = true            # доска заказов только с планшетом в Curios или в руке
 
 [debug]
 allow_self_accept = false        # только для тестов: заказчик может принять свой заказ

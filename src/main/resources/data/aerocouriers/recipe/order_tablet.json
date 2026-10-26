@@ -1,0 +1,20 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "pattern": [
+    " C ",
+    "BGB",
+    "APA"
+  ],
+  "key": {
+    "C": { "item": "create:cogwheel" },
+    "B": { "item": "create:brass_sheet" },
+    "G": { "item": "minecraft:glass_pane" },
+    "A": { "item": "minecraft:copper_ingot" },
+    "P": { "item": "create:precision_mechanism" }
+  },
+  "result": {
+    "id": "aerocouriers:order_tablet",
+    "count": 1
+  }
+}
