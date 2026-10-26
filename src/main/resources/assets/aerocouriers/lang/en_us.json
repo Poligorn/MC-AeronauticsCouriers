@@ -162,6 +162,7 @@
   "ui.aerocouriers.accept.confirm.collateral": "Collateral (held on accept): %s sp",
   "ui.aerocouriers.accept.confirm.deadline": "Deadline: %s min · %s min left",
   "ui.aerocouriers.accept.confirm.rank": "Required rank: %s",
+  "ui.aerocouriers.accept.confirm.cargo_damage": "If the container is damaged (explosions, pirates, or combat), part of the cargo can drop into the world before the contract fails.",
   "ui.aerocouriers.row.summary.rank": "Rank: %s",
   "ui.aerocouriers.row.summary.deadline": "Deadline: %s min",
   "ui.aerocouriers.cancel": "Cancel",

@@ -304,6 +304,12 @@ public final class BoardPackets {
                 .orElse(false);
     }
 
+    public static BoardSnapshotPayload.BoardEntry boardEntry(ServerPlayer viewer, Contract contract) {
+        MinecraftServer server = viewer.server;
+        return entry(contract, viewer.getUUID(), StationAtlas.get(server), Escrow.get(server),
+                ContractManager.now(server), server);
+    }
+
     private static BoardSnapshotPayload.BoardEntry entry(Contract contract, UUID viewer, StationAtlas atlas,
                                                         Escrow escrow, long now, MinecraftServer server) {
         String role = contract.roleFor(viewer);

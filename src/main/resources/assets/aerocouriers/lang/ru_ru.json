@@ -162,6 +162,7 @@
   "ui.aerocouriers.accept.confirm.collateral": "Залог (удержится при принятии): %s сп",
   "ui.aerocouriers.accept.confirm.deadline": "Срок: %s мин · осталось %s мин",
   "ui.aerocouriers.accept.confirm.rank": "Требуемый ранг: %s",
+  "ui.aerocouriers.accept.confirm.cargo_damage": "При повреждении контейнера (взрыв, пираты, бой) часть груза может выпасть в мир ещё до провала заказа.",
   "ui.aerocouriers.row.summary.rank": "Ранг: %s",
   "ui.aerocouriers.row.summary.deadline": "Срок: %s мин",
   "ui.aerocouriers.cancel": "Снять",

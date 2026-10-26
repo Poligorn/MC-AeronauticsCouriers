@@ -1,8 +1,6 @@
 package dev.poligorn.aerocouriers.net;
 
-import dev.poligorn.aerocouriers.contract.Contract;
 import dev.poligorn.aerocouriers.contract.ContractManager;
-import dev.poligorn.aerocouriers.contract.ContractState;
 import dev.poligorn.aerocouriers.contract.ContractType;
 import dev.poligorn.aerocouriers.village.PostStationBlockEntity;
 import dev.poligorn.aerocouriers.village.StationAtlas;
@@ -33,12 +31,12 @@ public final class StationPackets {
         StationAtlas atlas = StationAtlas.get(player.server);
         int reputation = atlas.reputation(stationId);
         int bonus = StationReputation.bonusPercent(reputation);
-        List<StationSnapshotPayload.OrderLine> orders = ContractManager.get(player.server).open()
+        List<BoardSnapshotPayload.BoardEntry> orders = ContractManager.get(player.server).open()
                 .filter(c -> c.type() == ContractType.VILLAGE)
                 .filter(c -> c.issuer().equals(stationId) || c.recipient().equals(stationId))
                 .sorted(Comparator.comparingLong(c -> c.timing().createdAt()))
                 .limit(StationSnapshotPayload.MAX_ORDERS)
-                .map(c -> orderLine(c, atlas))
+                .map(c -> BoardPackets.boardEntry(player, c))
                 .toList();
         PacketDistributor.sendToPlayer(player, new StationSnapshotPayload(
                 pos.immutable(),
@@ -78,21 +76,4 @@ public final class StationPackets {
         open(player, level, payload.pos());
     }
 
-    private static StationSnapshotPayload.OrderLine orderLine(Contract contract, StationAtlas atlas) {
-        String origin = label(atlas, contract.origin());
-        String dest = label(atlas, contract.destination());
-        String route = origin + " → " + dest;
-        if (contract.state() != ContractState.OPEN) {
-            route = route + " · " + contract.state().displayName().getString();
-        }
-        return new StationSnapshotPayload.OrderLine(contract.shortId(), route, contract.reward(), contract.id());
-    }
-
-    private static String label(StationAtlas atlas, dev.poligorn.aerocouriers.contract.Destination dest) {
-        return atlas.all().stream()
-                .filter(s -> s.dimension().equals(dest.dimension()) && s.pos().equals(dest.pos()))
-                .map(StationAtlas.Station::name)
-                .findFirst()
-                .orElse(dest.pos().toShortString());
-    }
 }

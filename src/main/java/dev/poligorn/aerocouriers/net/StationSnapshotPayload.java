@@ -16,19 +16,10 @@ public record StationSnapshotPayload(
         int reputation,
         int bonusPercent,
         boolean canRename,
-        List<OrderLine> orders
+        List<BoardSnapshotPayload.BoardEntry> orders
 ) implements CustomPacketPayload {
     public static final Type<StationSnapshotPayload> TYPE = new Type<>(AeronauticsCouriers.id("station_snapshot"));
     public static final int MAX_ORDERS = 32;
-
-    public record OrderLine(String shortId, String route, long reward, java.util.UUID contractId) {
-        public static final StreamCodec<RegistryFriendlyByteBuf, OrderLine> STREAM_CODEC = StreamCodec.composite(
-                ByteBufCodecs.STRING_UTF8, OrderLine::shortId,
-                ByteBufCodecs.STRING_UTF8, OrderLine::route,
-                ByteBufCodecs.VAR_LONG, OrderLine::reward,
-                net.minecraft.core.UUIDUtil.STREAM_CODEC, OrderLine::contractId,
-                OrderLine::new);
-    }
 
     public static final StreamCodec<RegistryFriendlyByteBuf, StationSnapshotPayload> STREAM_CODEC =
             StreamCodec.composite(
@@ -37,7 +28,8 @@ public record StationSnapshotPayload(
                     ByteBufCodecs.VAR_INT, StationSnapshotPayload::reputation,
                     ByteBufCodecs.VAR_INT, StationSnapshotPayload::bonusPercent,
                     ByteBufCodecs.BOOL, StationSnapshotPayload::canRename,
-                    OrderLine.STREAM_CODEC.apply(ByteBufCodecs.list(MAX_ORDERS)), StationSnapshotPayload::orders,
+                    BoardSnapshotPayload.BoardEntry.STREAM_CODEC.apply(ByteBufCodecs.list(MAX_ORDERS)),
+                    StationSnapshotPayload::orders,
                     StationSnapshotPayload::new);
 
     public static void handle(StationSnapshotPayload payload,

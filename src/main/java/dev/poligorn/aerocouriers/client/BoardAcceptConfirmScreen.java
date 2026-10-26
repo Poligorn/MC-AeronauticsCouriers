@@ -4,20 +4,27 @@ import dev.poligorn.aerocouriers.net.BoardSnapshotPayload;
 import dev.poligorn.aerocouriers.net.ContractIntentPayload;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.Renderable;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.FormattedCharSequence;
 import net.neoforged.neoforge.network.PacketDistributor;
-import org.jetbrains.annotations.Nullable;
 
 /** Tablet-style confirmation before accepting a contract (GDD §7.2 risk transparency). */
 public final class BoardAcceptConfirmScreen extends Screen {
+    private static final int PAD = 10;
+    private static final int FOOTER = 36;
+    private static final int LINE_GAP = 4;
+
     private final Screen parent;
     private final BoardSnapshotPayload.BoardEntry entry;
 
-    private @Nullable Component hoverTip;
+    private int boxW;
+    private int boxH;
+    private int boxX;
+    private int boxY;
+    private int btnY;
 
     public BoardAcceptConfirmScreen(Screen parent, BoardSnapshotPayload.BoardEntry entry) {
         super(Component.translatable("ui.aerocouriers.accept.confirm.title"));
@@ -28,16 +35,34 @@ public final class BoardAcceptConfirmScreen extends Screen {
     @Override
     protected void init() {
         super.init();
-        int boxW = Math.min(360, width - 48);
-        int boxH = Math.min(280, height - 48);
-        int boxX = (width - boxW) / 2;
-        int boxY = (height - boxH) / 2;
+        relayout();
         int btnW = (boxW - 24) / 2;
-        int btnY = boxY + boxH - 28;
+        clearWidgets();
         addRenderableWidget(TabletButton.create(boxX + 8, btnY, btnW, 20,
                 Component.translatable("ui.aerocouriers.accept.confirm.action"), b -> confirm()));
         addRenderableWidget(TabletButton.create(boxX + 16 + btnW, btnY, btnW, 20,
                 Component.translatable("gui.cancel"), b -> onClose()));
+    }
+
+    private void relayout() {
+        boxW = Math.min(360, width - 48);
+        int textW = boxW - PAD * 2;
+        int contentH = PAD + font.lineHeight + 6;
+        for (Component line : bodyLines()) {
+            contentH += wrappedHeight(line, textW) + LINE_GAP;
+        }
+        contentH += LINE_GAP;
+        contentH += wrappedHeight(riskLine(), textW) + LINE_GAP;
+        contentH += wrappedHeight(Component.translatable("ui.aerocouriers.accept.confirm.cargo_damage"), textW);
+        contentH += PAD;
+        boxH = Math.min(Math.max(contentH + FOOTER, 140), height - 48);
+        boxY = (height - boxH) / 2;
+        boxX = (width - boxW) / 2;
+        btnY = boxY + boxH - 28;
+    }
+
+    private int wrappedHeight(Component text, int maxWidth) {
+        return font.split(text, maxWidth).size() * font.lineHeight;
     }
 
     private void confirm() {
@@ -63,32 +88,33 @@ public final class BoardAcceptConfirmScreen extends Screen {
 
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        hoverTip = null;
+        relayout();
         graphics.fill(0, 0, width, height, 0xC0000000);
-        int boxW = Math.min(360, width - 48);
-        int boxH = Math.min(280, height - 48);
-        int boxX = (width - boxW) / 2;
-        int boxY = (height - boxH) / 2;
         TabletGui.drawListPanel(graphics, boxX, boxY, boxW, boxH);
-        graphics.drawString(font, title, boxX + 10, boxY + 8, TabletGui.TEXT_HEADER, false);
+        graphics.drawString(font, title, boxX + PAD, boxY + PAD, TabletGui.TEXT_HEADER, false);
 
-        int textX = boxX + 10;
-        int textW = boxW - 20;
-        int y = boxY + 24;
+        int textX = boxX + PAD;
+        int textW = boxW - PAD * 2;
+        int y = boxY + PAD + font.lineHeight + 6;
         for (Component line : bodyLines()) {
-            y = drawWrappedClipped(graphics, line, textX, y, textW, TabletGui.TEXT, mouseX, mouseY) + 4;
+            y = drawWrapped(graphics, line, textX, y, textW, TabletGui.TEXT) + LINE_GAP;
         }
+        y = drawWrapped(graphics, riskLine(), textX, y + LINE_GAP, textW, TabletGui.TEXT_WARN) + LINE_GAP;
+        drawWrapped(graphics, Component.translatable("ui.aerocouriers.accept.confirm.cargo_damage"),
+                textX, y, textW, TabletGui.TEXT_WARN);
 
-        Component risk = entry.villageCustomer()
+        for (Renderable widget : renderables) {
+            if (widget instanceof TabletButton button) {
+                button.setY(btnY);
+            }
+        }
+        super.render(graphics, mouseX, mouseY, partialTick);
+    }
+
+    private Component riskLine() {
+        return entry.villageCustomer()
                 ? Component.translatable("contract.aerocouriers.risk.npc", entry.collateral(), entry.reward())
                 : Component.translatable("contract.aerocouriers.risk", entry.collateral(), entry.reward());
-        y = drawWrappedClipped(graphics, risk, textX, y + 4, textW, TabletGui.TEXT_WARN, mouseX, mouseY) + 4;
-
-        super.render(graphics, mouseX, mouseY, partialTick);
-
-        if (hoverTip != null) {
-            TabletGui.drawSpeechTooltip(graphics, font, hoverTip, mouseX, mouseY, textW);
-        }
     }
 
     private List<Component> bodyLines() {
@@ -105,18 +131,12 @@ public final class BoardAcceptConfirmScreen extends Screen {
         return lines;
     }
 
-    private int drawWrappedClipped(GuiGraphics graphics, Component text, int x, int y, int maxWidth, int color,
-                                   int mouseX, int mouseY) {
+    private int drawWrapped(GuiGraphics graphics, Component text, int x, int y, int maxWidth, int color) {
         List<FormattedCharSequence> lines = font.split(text, maxWidth);
         int drawY = y;
         for (FormattedCharSequence line : lines) {
             graphics.drawString(font, line, x, drawY, color, false);
-            drawY += 10;
-        }
-        String raw = text.getString();
-        String oneLine = font.plainSubstrByWidth(raw, maxWidth);
-        if (!oneLine.equals(raw) && mouseX >= x && mouseX < x + maxWidth && mouseY >= y && mouseY < drawY) {
-            hoverTip = text;
+            drawY += font.lineHeight;
         }
         return drawY;
     }
