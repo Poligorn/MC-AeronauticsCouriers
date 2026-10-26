@@ -1,6 +1,7 @@
 package dev.poligorn.aerocouriers.client;
 
 import dev.poligorn.aerocouriers.access.OrderTablets;
+import dev.poligorn.aerocouriers.client.board.MineListSection;
 import dev.poligorn.aerocouriers.net.BoardSnapshotPayload;
 import dev.poligorn.aerocouriers.net.OpenBoardPayload;
 import dev.poligorn.aerocouriers.net.OpenWaybillCreatePayload;
@@ -17,6 +18,7 @@ import org.jetbrains.annotations.Nullable;
 public final class ClientBoard {
     private static boolean requireTablet = true;
     private static @Nullable java.util.UUID pendingContractFocus;
+    private static MineListSection mineSection = MineListSection.CURRENT;
 
     private ClientBoard() {
     }
@@ -55,6 +57,14 @@ public final class ClientBoard {
         UUID id = pendingContractFocus;
         pendingContractFocus = null;
         return id;
+    }
+
+    public static MineListSection mineSection() {
+        return mineSection;
+    }
+
+    public static void setMineSection(MineListSection section) {
+        mineSection = section;
     }
 
     public static void apply(BoardSnapshotPayload payload) {

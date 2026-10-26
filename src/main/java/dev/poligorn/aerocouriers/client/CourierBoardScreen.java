@@ -6,6 +6,7 @@ import dev.poligorn.aerocouriers.client.board.BoardRowDebug;
 import dev.poligorn.aerocouriers.client.board.BoardRowLayout;
 import dev.poligorn.aerocouriers.client.board.BoardRowMetrics;
 import dev.poligorn.aerocouriers.client.board.BoardRowRenderer;
+import dev.poligorn.aerocouriers.client.board.MineListSection;
 import dev.poligorn.aerocouriers.client.board.TabletRowIconButton;
 import dev.poligorn.aerocouriers.contract.ContractState;
 import dev.poligorn.aerocouriers.license.LicenseRank;
@@ -54,9 +55,12 @@ public final class CourierBoardScreen extends Screen {
     private static final int SCREEN_BOTTOM_PAD = 12;
     private static final int SCROLL_COUNTER_H = 12;
     private static final int BALANCE_MAIL_GAP = 8;
+    private static final int MINE_SUB_TOGGLE_H = 18;
+    private static final int MINE_SUB_GAP = 4;
 
     /** Left edge of the balance strip (right of last tab). */
     private int balanceStripLeft;
+    private final List<AbstractWidget> mineSubToggles = new ArrayList<>();
 
     enum Tab {
         BOARD, MINE, PROFILE, TEST
@@ -86,17 +90,26 @@ public final class CourierBoardScreen extends Screen {
         UUID focus = ClientBoard.takePendingContractFocus();
         if (focus != null && payload.find(focus).isPresent()) {
             selected = focus;
-            tab = payload.mine().stream().anyMatch(e -> e.id().equals(focus)) ? Tab.MINE : Tab.BOARD;
+            Optional<BoardSnapshotPayload.BoardEntry> mineHit = payload.mine().stream()
+                    .filter(e -> e.id().equals(focus))
+                    .findFirst();
+            if (mineHit.isPresent()) {
+                tab = Tab.MINE;
+                ClientBoard.setMineSection(MineListSection.forState(mineHit.get().state()));
+            } else {
+                tab = Tab.BOARD;
+            }
             scroll = 0;
             listRowButtonKey = null;
-            rebuildWidgets();
+            refreshBoardContent();
+            focusScrollToSelected();
         }
         if (selected != null && payload.find(selected).isEmpty()) {
             selected = null;
         }
         if (previous != null && previous.operator() != payload.operator()) {
             listRowButtonKey = listRowButtonKey(payload);
-            rebuildWidgets();
+            refreshBoardContent();
         } else if (needsContentWidgetRefresh(previous, payload)) {
             listRowButtonKey = listRowButtonKey(payload);
             refreshContentWidgets();
@@ -122,11 +135,22 @@ public final class CourierBoardScreen extends Screen {
         tab = value;
         scroll = 0;
         listRowButtonKey = null;
-        rebuildWidgets();
+        refreshBoardContent();
     }
 
-    /** Drops and rebuilds row/test {@link TabletButton}s only; tabs and mail stay mounted. */
-    private void refreshContentWidgets() {
+    private void selectMineSection(MineListSection section) {
+        ClientBoard.setMineSection(section);
+        scroll = 0;
+        listRowButtonKey = null;
+        if (selected != null && snapshot != null
+                && listEntries().stream().noneMatch(e -> e.id().equals(selected))) {
+            selected = null;
+        }
+        refreshBoardContent();
+    }
+
+    private void refreshBoardContent() {
+        removeMineSubToggles();
         removeTabletButtons();
         if (snapshot == null) {
             return;
@@ -134,7 +158,30 @@ public final class CourierBoardScreen extends Screen {
         if (tab == Tab.TEST) {
             initTest();
         } else if (tab == Tab.BOARD || tab == Tab.MINE) {
-            initListButtons(tab == Tab.BOARD ? snapshot.board() : snapshot.mine(), tab == Tab.BOARD);
+            if (tab == Tab.MINE) {
+                initMineSubToggles(screenLeft());
+            }
+            initListButtons(listEntries(), tab == Tab.BOARD);
+        }
+        if (tab == Tab.BOARD || tab == Tab.MINE) {
+            listRowButtonKey = listRowButtonKey(snapshot);
+        }
+    }
+
+    /** Drops and rebuilds row/test {@link TabletButton}s only; tabs and mail stay mounted. */
+    private void refreshContentWidgets() {
+        removeMineSubToggles();
+        removeTabletButtons();
+        if (snapshot == null) {
+            return;
+        }
+        if (tab == Tab.TEST) {
+            initTest();
+        } else if (tab == Tab.BOARD || tab == Tab.MINE) {
+            if (tab == Tab.MINE) {
+                initMineSubToggles(screenLeft());
+            }
+            initListButtons(listEntries(), tab == Tab.BOARD);
         }
     }
 
@@ -157,9 +204,14 @@ public final class CourierBoardScreen extends Screen {
         if (tab != Tab.BOARD && tab != Tab.MINE) {
             return null;
         }
-        List<BoardSnapshotPayload.BoardEntry> all = tab == Tab.BOARD ? payload.board() : payload.mine();
+        List<BoardSnapshotPayload.BoardEntry> all = listEntriesForTab(payload);
         int visible = visibleRows();
         StringBuilder key = new StringBuilder(visible * 48);
+        if (tab == Tab.MINE) {
+            key.append(ClientBoard.mineSection()).append(':')
+                    .append(MineListSection.count(payload.mine(), MineListSection.CURRENT)).append('/')
+                    .append(MineListSection.count(payload.mine(), MineListSection.HISTORY)).append('|');
+        }
         key.append(scroll).append('|');
         for (int i = 0; i < visible && scroll + i < all.size(); i++) {
             BoardSnapshotPayload.BoardEntry entry = all.get(scroll + i);
@@ -174,7 +226,7 @@ public final class CourierBoardScreen extends Screen {
             payload.notice().ifPresent(component -> notice = component);
             if (!payload.operator() && tab == Tab.TEST) {
                 tab = Tab.BOARD;
-                rebuildWidgets();
+                refreshBoardContent();
             }
         }
     }
@@ -201,11 +253,43 @@ public final class CourierBoardScreen extends Screen {
         if (tab == Tab.TEST) {
             initTest();
         } else if (tab == Tab.BOARD || tab == Tab.MINE) {
-            initListButtons(tab == Tab.BOARD ? snapshot.board() : snapshot.mine(), tab == Tab.BOARD);
+            if (tab == Tab.MINE) {
+                initMineSubToggles(sx);
+            }
+            initListButtons(listEntries(), tab == Tab.BOARD);
         }
         if (tab == Tab.BOARD || tab == Tab.MINE) {
             listRowButtonKey = listRowButtonKey(snapshot);
         }
+    }
+
+    private void initMineSubToggles(int sx) {
+        if (snapshot == null) {
+            return;
+        }
+        int y = mineSubToggleY();
+        int gap = MINE_SUB_GAP;
+        int eachW = (screenW() - gap) / 2;
+        MineListSection active = ClientBoard.mineSection();
+        int currentN = MineListSection.count(snapshot.mine(), MineListSection.CURRENT);
+        int historyN = MineListSection.count(snapshot.mine(), MineListSection.HISTORY);
+        TabletTabButton current = new TabletTabButton(sx, y, eachW, MINE_SUB_TOGGLE_H,
+                Component.translatable("ui.aerocouriers.mine.current", currentN),
+                () -> selectMineSection(MineListSection.CURRENT)).selected(active == MineListSection.CURRENT);
+        TabletTabButton history = new TabletTabButton(sx + eachW + gap, y, eachW, MINE_SUB_TOGGLE_H,
+                Component.translatable("ui.aerocouriers.mine.history", historyN),
+                () -> selectMineSection(MineListSection.HISTORY)).selected(active == MineListSection.HISTORY);
+        mineSubToggles.add(current);
+        mineSubToggles.add(history);
+        addRenderableWidget(current);
+        addRenderableWidget(history);
+    }
+
+    private void removeMineSubToggles() {
+        for (AbstractWidget widget : mineSubToggles) {
+            removeWidget(widget);
+        }
+        mineSubToggles.clear();
     }
 
     void onNotificationsChanged() {
@@ -393,7 +477,7 @@ public final class CourierBoardScreen extends Screen {
         }
 
         if (tab == Tab.BOARD || tab == Tab.MINE) {
-            renderList(graphics, tab == Tab.BOARD ? snapshot.board() : snapshot.mine(), sx, mouseX, mouseY);
+            renderList(graphics, listEntries(), sx, mouseX, mouseY);
             renderListActionWidgetsOnTop(graphics, mouseX, mouseY, partialTick);
         } else if (tab == Tab.PROFILE) {
             renderProfile(graphics, snapshot.profile(), sx, mouseX, mouseY);
@@ -567,8 +651,7 @@ public final class CourierBoardScreen extends Screen {
     private void renderList(GuiGraphics graphics, List<BoardSnapshotPayload.BoardEntry> all, int sx,
                             int mouseX, int mouseY) {
         if (all.isEmpty()) {
-            graphics.drawString(font, Component.translatable("contract.aerocouriers.list.none"),
-                    sx, listTop() + 4, TabletGui.TEXT_MUTED, false);
+            graphics.drawString(font, listEmptyMessage(), sx, listTop() + 4, TabletGui.TEXT_MUTED, false);
             return;
         }
         int visible = visibleRows();
@@ -686,7 +769,7 @@ public final class CourierBoardScreen extends Screen {
         if (hoverTip != null || hoverTipLines != null || hoverCargoComponent != null || isOverRowIcon(mouseX, mouseY)) {
             return;
         }
-        List<BoardSnapshotPayload.BoardEntry> all = tab == Tab.BOARD ? snapshot.board() : snapshot.mine();
+        List<BoardSnapshotPayload.BoardEntry> all = listEntries();
         int visible = visibleRows();
         int listY = listTop();
         int sx = screenLeft();
@@ -726,7 +809,7 @@ public final class CourierBoardScreen extends Screen {
         if (isOverRowAction(mouseX, mouseY)) {
             return;
         }
-        List<BoardSnapshotPayload.BoardEntry> all = tab == Tab.BOARD ? snapshot.board() : snapshot.mine();
+        List<BoardSnapshotPayload.BoardEntry> all = listEntries();
         int visible = visibleRows();
         int listY = listTop();
         int sx = screenLeft();
@@ -884,7 +967,7 @@ public final class CourierBoardScreen extends Screen {
     }
 
     private @Nullable BoardSnapshotPayload.BoardEntry hitCustomerRow(int mouseX, int mouseY) {
-        List<BoardSnapshotPayload.BoardEntry> all = tab == Tab.BOARD ? snapshot.board() : snapshot.mine();
+        List<BoardSnapshotPayload.BoardEntry> all = listEntries();
         int visible = visibleRows();
         int listY = listTop();
         int sx = screenLeft();
@@ -916,7 +999,7 @@ public final class CourierBoardScreen extends Screen {
     }
 
     private @Nullable BoardSnapshotPayload.BoardEntry hitRowBody(int mouseX, int mouseY) {
-        List<BoardSnapshotPayload.BoardEntry> all = tab == Tab.BOARD ? snapshot.board() : snapshot.mine();
+        List<BoardSnapshotPayload.BoardEntry> all = listEntries();
         int visible = visibleRows();
         int listY = listTop();
         int sx = screenLeft();
@@ -949,7 +1032,7 @@ public final class CourierBoardScreen extends Screen {
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
         if (snapshot != null && (tab == Tab.BOARD || tab == Tab.MINE)) {
-            List<BoardSnapshotPayload.BoardEntry> all = tab == Tab.BOARD ? snapshot.board() : snapshot.mine();
+            List<BoardSnapshotPayload.BoardEntry> all = listEntries();
             int before = scroll;
             scroll = Mth.clamp(scroll - (int) Math.signum(scrollY), 0, Math.max(0, all.size() - visibleRows()));
             if (scroll != before) {
@@ -1044,7 +1127,54 @@ public final class CourierBoardScreen extends Screen {
         if (snapshot != null && tab == Tab.BOARD && showsTraineeHint(snapshot.profile())) {
             extra = font.lineHeight + 4;
         }
+        if (tab == Tab.MINE) {
+            extra += font.lineHeight + MINE_SUB_GAP + MINE_SUB_TOGGLE_H + MINE_SUB_GAP;
+        }
         return headingY() + 10 + extra;
+    }
+
+    private int mineSubToggleY() {
+        return headingY() + font.lineHeight + MINE_SUB_GAP;
+    }
+
+    private List<BoardSnapshotPayload.BoardEntry> listEntries() {
+        if (snapshot == null) {
+            return List.of();
+        }
+        return listEntriesForTab(snapshot);
+    }
+
+    private List<BoardSnapshotPayload.BoardEntry> listEntriesForTab(BoardSnapshotPayload payload) {
+        if (tab == Tab.BOARD) {
+            return payload.board();
+        }
+        if (tab == Tab.MINE) {
+            return MineListSection.entries(payload.mine(), ClientBoard.mineSection());
+        }
+        return List.of();
+    }
+
+    private Component listEmptyMessage() {
+        if (tab == Tab.MINE) {
+            return ClientBoard.mineSection() == MineListSection.CURRENT
+                    ? Component.translatable("ui.aerocouriers.mine.empty.current")
+                    : Component.translatable("ui.aerocouriers.mine.empty.history");
+        }
+        return Component.translatable("contract.aerocouriers.list.none");
+    }
+
+    private void focusScrollToSelected() {
+        if (selected == null || snapshot == null) {
+            return;
+        }
+        List<BoardSnapshotPayload.BoardEntry> all = listEntries();
+        for (int i = 0; i < all.size(); i++) {
+            if (all.get(i).id().equals(selected)) {
+                int visible = visibleRows();
+                scroll = Mth.clamp(i - visible / 2, 0, Math.max(0, all.size() - visible));
+                return;
+            }
+        }
     }
 
     private int contentBottom() {
@@ -1058,7 +1188,7 @@ public final class CourierBoardScreen extends Screen {
     private int listBottom() {
         int bottom = contentBottom() - 4;
         if (snapshot != null && (tab == Tab.BOARD || tab == Tab.MINE)) {
-            List<BoardSnapshotPayload.BoardEntry> all = tab == Tab.BOARD ? snapshot.board() : snapshot.mine();
+            List<BoardSnapshotPayload.BoardEntry> all = listEntries();
             int rowsWithoutCounter = Math.max(3, (bottom - listTop()) / rowH());
             if (all.size() > rowsWithoutCounter) {
                 bottom -= SCROLL_COUNTER_H;
