@@ -147,6 +147,16 @@ tasks.withType(JavaCompile).configureEach {
     options.compilerArgs << '-Xlint:deprecation'
 }
 
+tasks.register('checkScreenRenderGuard', Exec) {
+    group = 'verification'
+    description = 'Ensures Screen subclasses do not call renderWithTooltip (StackOverflow on 1.21.1).'
+    commandLine 'python3', layout.projectDirectory.file('tools/check_screen_render_guard.py')
+}
+
+tasks.named('build') {
+    dependsOn tasks.named('checkScreenRenderGuard')
+}
+
 idea {
     module {
         downloadSources = true

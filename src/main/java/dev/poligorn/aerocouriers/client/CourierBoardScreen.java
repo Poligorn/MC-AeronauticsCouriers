@@ -280,6 +280,7 @@ public final class CourierBoardScreen extends Screen {
     @Override
     public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         InGamePauseBackground.render(this, graphics, mouseX, mouseY, partialTick);
+        TabletGui.drawScreenBackground(graphics, screenLeft(), screenTop(), screenW(), screenH());
     }
 
     @Override
@@ -287,10 +288,8 @@ public final class CourierBoardScreen extends Screen {
         hoverTip = null;
         RenderSystem.disableDepthTest();
         RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
-        renderBackground(graphics, mouseX, mouseY, partialTick);
-        TabletGui.drawScreenBackground(graphics, screenLeft(), screenTop(), screenW(), screenH());
+        super.render(graphics, mouseX, mouseY, partialTick);
         RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
-        renderWithTooltip(graphics, mouseX, mouseY, partialTick);
         int sx = screenLeft();
         int sy = screenTop();
         int headingY = headingY();
