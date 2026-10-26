@@ -11,15 +11,18 @@ from PIL import Image, ImageDraw, ImageFont
 ROOT = Path(__file__).resolve().parents[1]
 SPRITES = ROOT / "src/main/resources/assets/aerocouriers/textures/gui/sprites"
 
-FRAME_BORDER = 6
-ANTENNA_OVERHANG_TOP = 16
-GEAR_OVERHANG_LEFT = 12
-ANTENNA_W, ANTENNA_H = 28, 22
-GEAR_W, GEAR_H = 22, 36
+FRAME_BORDER = 8
+ANTENNA_OVERHANG_TOP = 22
+GEAR_OVERHANG_LEFT = 14
+ANTENNA_W, ANTENNA_H = 10, 28
+GEAR_W, GEAR_H = 28, 28
+ROW_ACTION_RESERVE = 158
+GRID_STEP = 9
+SCREEN_FILL = (0x2C, 0x09, 0x00)
+GRID_LINE = (0x43, 0x1A, 0x0F)
 
-# Tablet text palette (ARGB for PIL fill on separate overlay — we draw hex colors)
-C_HEADER = (0xFF, 0x7A, 0x2F)
 C_MAIN = (0xFF, 0xAF, 0x55)
+C_BRIGHT = (0xFF, 0xD2, 0x5D)
 C_MUTED = (0xC8, 0x7A, 0x3A)
 C_WARN = (0xFF, 0x9E, 0x00)
 
@@ -59,31 +62,36 @@ def frame_pos(screen_w: int, screen_h: int, frame_w: int, frame_h: int) -> tuple
     return fx, fy
 
 
+def draw_screen_background(canvas: Image.Image, x: int, y: int, w: int, h: int) -> None:
+    d = ImageDraw.Draw(canvas)
+    d.rectangle((x, y, x + w, y + h), fill=SCREEN_FILL)
+    for gx in range(x, x + w, GRID_STEP):
+        d.line([(gx, y), (gx, y + h)], fill=GRID_LINE, width=1)
+    for gy in range(y, y + h, GRID_STEP):
+        d.line([(x, gy), (x + w, gy)], fill=GRID_LINE, width=1)
+    for sy in range(y, y + h, 2):
+        d.line([(x, sy), (x + w, sy)], fill=(0, 0, 0, 26), width=1)
+
+
 def draw_monitor(canvas: Image.Image, fx: int, fy: int, fw: int, fh: int) -> tuple[int, int, int, int]:
     gear_x = fx - GEAR_OVERHANG_LEFT
     gear_y = fy + (fh - GEAR_H) // 2
     canvas.alpha_composite(load("tablet_decor_gear"), (gear_x, gear_y))
-    nine_slice(canvas, load("tablet_frame"), fx, fy, fw, fh, (6, 6, 6, 6))
+    nine_slice(canvas, load("tablet_frame"), fx, fy, fw, fh, (8, 8, 8, 8))
     sx, sy = fx + FRAME_BORDER, fy + FRAME_BORDER
     sw, sh = fw - FRAME_BORDER * 2, fh - FRAME_BORDER * 2
-    grid = load("tablet_grid")
-    gw, gh = grid.size
-    for gy in range(sy, sy + sh, gh):
-        for gx in range(sx, sx + sw, gw):
-            tw = min(gw, sx + sw - gx)
-            th = min(gh, sy + sh - gy)
-            canvas.alpha_composite(grid.crop((0, 0, tw, th)), (gx, gy))
-    glow = Image.new("RGBA", (sw, sh), (0, 0, 0, 0))
-    gd = ImageDraw.Draw(glow)
-    gd.rectangle((0, 0, sw, 2), fill=(255, 122, 47, 51))
-    gd.rectangle((0, sh - 2, sw, sh), fill=(255, 122, 47, 51))
-    gd.rectangle((0, 0, 2, sh), fill=(255, 122, 47, 51))
-    gd.rectangle((sw - 2, 0, sw, sh), fill=(255, 122, 47, 51))
-    canvas.alpha_composite(glow, (sx, sy))
-    for y in range(sy + 3, sy + sh, 4):
-        ImageDraw.Draw(canvas).line([(sx, y), (sx + sw, y)], fill=(0, 0, 0, 24))
-    canvas.alpha_composite(load("tablet_decor_antenna"), (fx + 4, fy - ANTENNA_OVERHANG_TOP))
+    draw_screen_background(canvas, sx, sy, sw, sh)
+    canvas.alpha_composite(load("tablet_decor_antenna"), (fx + 6, fy - ANTENNA_OVERHANG_TOP))
     return sx, sy, sw, sh
+
+
+def ellipsize(d: ImageDraw.ImageDraw, text: str, font: ImageFont.ImageFont, max_w: float) -> str:
+    if d.textlength(text, font=font) <= max_w:
+        return text
+    ell = "…"
+    while text and d.textlength(text + ell, font=font) > max_w:
+        text = text[:-1]
+    return text + ell if text else ell
 
 
 def draw_tablet_button(canvas: Image.Image, x: int, y: int, w: int, h: int, highlighted: bool = False) -> None:
@@ -135,14 +143,17 @@ def render_board(w: int, h: int, tab: int) -> Image.Image:
     tabs = ["Заказы", "Мои", "Тест"]
     for i, label in enumerate(tabs):
         draw_tablet_tab(canvas, sx + 4 + i * (tab_w + 4), sy + 2, tab_w, i == tab)
-        color = C_MAIN if i == tab else C_MUTED
+        color = C_BRIGHT if i == tab else C_MUTED
         tw = d.textlength(label, font=font)
         d.text((sx + 4 + i * (tab_w + 4) + (tab_w - tw) / 2, sy + 8), label, fill=color, font=font)
 
     canvas.alpha_composite(load("icon/envelope_tablet"), (sx + sw - 24, sy + 2))
-    d.text((sx + 6, sy + 22), "Доска заказов", fill=C_HEADER, font=font)
+    d.text((sx + 6, sy + 22), "Доска заказов", fill=C_MAIN, font=font)
     bal = "Баланс: 1 247 сп"
-    d.text((sx + sw - 6 - d.textlength(bal, font=font), sy + 22), bal, fill=C_MUTED, font=font)
+    d.text((sx + sw - 6 - d.textlength(bal, font=font), sy + 22), bal, fill=C_MAIN, font=font)
+
+    text_left = sx + 8
+    text_max = sw - ROW_ACTION_RESERVE - 8
 
     if tab == 0:
         draw_list_panel(canvas, sx + 4, sy + 44, sw - 8, 96)
@@ -153,9 +164,9 @@ def render_board(w: int, h: int, tab: int) -> Image.Image:
         ]
         for i, (main, meta) in enumerate(rows):
             y = sy + 46 + i * 24
-            draw_row(canvas, sx + 6, y, sw - 164, 22, selected=i == 0)
-            d.text((sx + 10, y + 4), main[: int((sw - 180) / 5)], fill=C_MAIN, font=font_sm)
-            d.text((sx + 10, y + 13), meta, fill=C_MUTED, font=font_sm)
+            draw_row(canvas, sx + 6, y, sw - ROW_ACTION_RESERVE - 6, 22, selected=i == 0)
+            d.text((text_left, y + 4), ellipsize(d, main, font_sm, text_max), fill=C_MAIN, font=font_sm)
+            d.text((text_left, y + 13), ellipsize(d, meta, font_sm, text_max), fill=C_MUTED, font=font_sm)
             draw_tablet_button(canvas, sx + sw - 156, y + 2, 68, 18)
             d.text((sx + sw - 148, y + 6), "Подробнее", fill=C_MAIN, font=font_sm)
             draw_tablet_button(canvas, sx + sw - 84, y + 2, 76, 18, highlighted=i == 0)
@@ -164,9 +175,11 @@ def render_board(w: int, h: int, tab: int) -> Image.Image:
         d.text((sx + 8, sy + sh - 56), "При провале залог 40 сп и награда 120 сп уходят заказчику.", fill=C_WARN, font=font_sm)
     elif tab == 1:
         draw_list_panel(canvas, sx + 4, sy + 44, sw - 8, 72)
-        draw_row(canvas, sx + 6, sy + 46, sw - 164, 22, selected=True)
-        d.text((sx + 10, sy + 50), "#d77a · везу я · Станция → Бухта · 520 б", fill=C_MAIN, font=font_sm)
-        d.text((sx + 10, sy + 59), "в пути · 90 сп · залог 20 · 12 мин · 6 кг · S", fill=C_MUTED, font=font_sm)
+        draw_row(canvas, sx + 6, sy + 46, sw - ROW_ACTION_RESERVE - 6, 22, selected=True)
+        main = "#d77a · везу я · Станция → Бухта · 520 б"
+        meta = "в пути · 90 сп · залог 20 · 12 мин · 6 кг · S"
+        d.text((text_left, sy + 50), ellipsize(d, main, font_sm, text_max), fill=C_MAIN, font=font_sm)
+        d.text((text_left, sy + 59), ellipsize(d, meta, font_sm, text_max), fill=C_MUTED, font=font_sm)
         draw_tablet_button(canvas, sx + sw - 156, sy + 48, 68, 18)
         draw_tablet_button(canvas, sx + sw - 84, sy + 48, 76, 18)
         d.text((sx + sw - 72, sy + 52), "Отказ", fill=C_MAIN, font=font_sm)

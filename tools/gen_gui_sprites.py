@@ -384,53 +384,43 @@ def _rivet(img: Image.Image, cx: int, cy: int) -> None:
 
 
 def gen_tablet_frame() -> None:
+    """8px nine-slice: 1 black + 6 brass + 1 inner bevel; transparent screen hole."""
     w, h = 64, 64
-    b = 6
+    border = 8
     img = Image.new("RGBA", (w, h), TRANSPARENT)
-    # black outer shell
     fill_rect(img, 0, 0, w, h, BLACK)
-    fill_rect(img, 1, 1, w - 1, h - 1, TB_INNER)
+    # 6px brass band (pixels 1..6 from each edge)
+    fill_rect(img, 1, 1, w - 1, h - 1, TB_MID)
     fill_rect(img, 1, 1, w - 1, 3, TB_HI)
     fill_rect(img, 1, 1, 3, h - 1, TB_HI)
+    fill_rect(img, 2, 2, w - 2, 4, TB_MED)
+    fill_rect(img, 2, 2, 4, h - 2, TB_MED)
     fill_rect(img, w - 3, 1, w - 1, h - 1, TB_DK)
     fill_rect(img, 1, h - 3, w - 1, h - 1, TB_DK)
-    fill_rect(img, 2, 2, w - 2, h - 2, TB_SH)
-    fill_rect(img, 2, 2, w - 2, 4, TB_MID)
-    fill_rect(img, 2, 2, 4, h - 2, TB_MID)
-    fill_rect(img, w - 4, 2, w - 2, h - 2, TB_DK)
-    fill_rect(img, 2, h - 4, w - 2, h - 2, TB_DK)
-    fill_rect(img, 3, 3, w - 3, h - 3, TB_MED)
-    fill_rect(img, b, b, w - b, h - b, TB_INNER)
-    fill_rect(img, b, b, w - b, b + 1, (0x55, 0x2A, 0x1A, 255))
-    fill_rect(img, b, b, b + 1, h - b, (0x55, 0x2A, 0x1A, 255))
-    # screen hole (transparent — drawn separately)
-    fill_rect(img, b + 1, b + 1, w - b - 1, h - b - 1, TRANSPARENT)
-    for cx, cy in ((5, 5), (w - 6, 5), (5, h - 6), (w - 6, h - 6)):
+    fill_rect(img, w - 4, 3, w - 2, h - 3, TB_SH)
+    fill_rect(img, 3, h - 4, w - 3, h - 2, TB_SH)
+    # inner dark bevel (pixel row/col 7)
+    fill_rect(img, 7, 7, w - 7, h - 7, TB_INNER)
+    fill_rect(img, 8, 8, w - 8, h - 8, TRANSPARENT)
+    for cx, cy in ((4, 4), (w - 5, 4), (4, h - 5), (w - 5, h - 5)):
         _rivet(img, cx, cy)
     save_sprite(
         "tablet_frame",
         img,
-        {"width": 64, "height": 64, "border": {"left": 6, "top": 6, "right": 6, "bottom": 6}},
+        {"width": 64, "height": 64, "border": {"left": border, "top": border, "right": border, "bottom": border}},
     )
 
 
 def gen_tablet_grid() -> None:
-    size = 18
+    """9×9 tile for optional blit; board screen draws grid procedurally to avoid stretch stripes."""
+    size = 9
     img = Image.new("RGBA", (size, size), TB_SCREEN)
     px = img.load()
-    for x in range(size):
-        if x % 9 == 0:
-            for y in range(size):
-                px[x, y] = TB_GRID
     for y in range(size):
-        if y % 9 == 0:
-            for x in range(size):
+        for x in range(size):
+            if x == 0 or y == 0:
                 px[x, y] = TB_GRID
-    save_sprite(
-        "tablet_grid",
-        img,
-        {"width": 18, "height": 18, "border": {"left": 0, "top": 0, "right": 0, "bottom": 0}},
-    )
+    save_sprite("tablet_grid", img, None)
 
 
 def _tablet_button(w: int, h: int, fill: tuple[int, ...] | None, outline: tuple[int, ...]) -> Image.Image:
@@ -504,41 +494,44 @@ def gen_tablet_scroller() -> None:
 
 
 def gen_tablet_antenna() -> None:
-    w, h = 28, 22
+    w, h = 10, 28
     img = Image.new("RGBA", (w, h), TRANSPARENT)
     d = ImageDraw.Draw(img)
-    # grey mount on frame edge
-    fill_rect(img, 10, h - 5, 18, h, METAL_DK)
-    fill_rect(img, 11, h - 4, 17, h - 1, METAL)
-    # copper square loop
-    d.rectangle((4, 2, 20, 16), outline=TB_COPPER_EDGE, width=1)
-    d.rectangle((5, 3, 19, 15), outline=TB_COPPER, width=1)
-    fill_rect(img, 6, 4, 19, 5, TB_COPPER_HI)
-    fill_rect(img, 6, 4, 7, 14, TB_COPPER_HI)
-    fill_rect(img, 17, 5, 19, 14, TB_COPPER_DK)
-    fill_rect(img, 6, 13, 19, 14, TB_COPPER_DK)
+    # brass base on frame top
+    fill_rect(img, 0, h - 4, w, h, TB_SH)
+    fill_rect(img, 1, h - 4, w - 1, h - 1, TB_MID)
+    fill_rect(img, 1, h - 3, w - 1, h - 2, TB_HI)
+    # copper rod
+    fill_rect(img, 4, 6, 6, h - 4, TB_COPPER_DK)
+    fill_rect(img, 3, 7, 7, h - 5, TB_COPPER)
+    fill_rect(img, 3, 7, 4, h - 6, TB_COPPER_HI)
+    # ring + ball tip
+    d.ellipse((1, 0, 9, 6), outline=TB_COPPER, width=1)
+    d.ellipse((3, 1, 7, 5), fill=TB_COPPER_HI, outline=TB_COPPER_EDGE)
+    d.ellipse((4, 0, 6, 2), fill=TB_COPPER_HI, outline=BLACK)
     save_sprite("tablet_decor_antenna", img, None)
 
 
 def gen_tablet_gear() -> None:
-    w, h = 22, 36
-    img = Image.new("RGBA", (w, h), TRANSPARENT)
-    d = ImageDraw.Draw(img)
-    cx, cy = w - 4, h // 2
-    r_outer = 14
-    r_inner = 5
-    teeth = 6
     import math
 
+    w, h = 28, 28
+    img = Image.new("RGBA", (w, h), TRANSPARENT)
+    d = ImageDraw.Draw(img)
+    cx, cy = w - 6, h // 2
+    r_outer = 12
+    r_inner = 4
+    teeth = 8
     pts = []
     for i in range(teeth * 2):
         ang = math.pi * 2 * i / (teeth * 2) - math.pi / 2
-        r = r_outer if i % 2 == 0 else r_outer - 4
+        r = r_outer if i % 2 == 0 else r_outer - 3
         pts.append((cx + r * math.cos(ang), cy + r * math.sin(ang)))
     d.polygon(pts, fill=TB_GEAR_DK, outline=BLACK)
     d.ellipse((cx - r_inner, cy - r_inner, cx + r_inner, cy + r_inner), fill=TB_GEAR_DK, outline=BLACK)
-    d.ellipse((cx - r_inner + 2, cy - r_inner + 2, cx + r_inner - 2, cy + r_inner - 2), fill=TB_GEAR)
-    d.arc((cx - 10, cy - 10, cx + 6, cy + 10), 90, 270, fill=TB_GEAR_HI, width=2)
+    d.ellipse((cx - r_inner + 1, cy - r_inner + 1, cx + r_inner - 1, cy + r_inner - 1), fill=TB_GEAR)
+    d.point((cx, cy), fill=BLACK)
+    d.arc((cx - 11, cy - 11, cx + 3, cy + 11), 90, 270, fill=TB_GEAR_HI, width=2)
     save_sprite("tablet_decor_gear", img, None)
 
 

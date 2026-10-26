@@ -9,7 +9,7 @@ import net.minecraft.util.FormattedCharSequence;
 /** Brass handheld monitor chrome for {@link CourierBoardScreen} only. */
 public final class TabletGui {
     public static final int TEXT = 0xFFAF55;
-    public static final int TEXT_HEADER = 0xFF7A2F;
+    public static final int TEXT_HEADER = 0xFFAF55;
     public static final int TEXT_BRIGHT = 0xFFD25D;
     public static final int TEXT_MUTED = 0xC87A3A;
     public static final int TEXT_WARN = 0xFF9E00;
@@ -19,16 +19,21 @@ public final class TabletGui {
     public static final int TEXT_BUTTON_HOVER = 0xFF9E00;
     public static final int TEXT_BUTTON_DISABLED = 0x873B00;
 
-    /** Brass border thickness (nine-slice). */
-    public static final int FRAME_BORDER = 6;
-    public static final int ANTENNA_W = 28;
-    public static final int ANTENNA_H = 22;
+    private static final int SCREEN_FILL = 0xFF2C0900;
+    private static final int GRID_LINE = 0xFF431A0F;
+    private static final int SCANLINE = 0x1A000000;
+    private static final int GRID_STEP = 9;
+
+    /** Nine-slice brass + bevel before the screen cavity (matches {@code tablet_frame}). */
+    public static final int FRAME_BORDER = 8;
+    public static final int ANTENNA_W = 10;
+    public static final int ANTENNA_H = 28;
     /** Pixels the antenna sprite extends above the frame top. */
-    public static final int ANTENNA_OVERHANG_TOP = 16;
-    public static final int GEAR_W = 22;
-    public static final int GEAR_H = 36;
+    public static final int ANTENNA_OVERHANG_TOP = 22;
+    public static final int GEAR_W = 28;
+    public static final int GEAR_H = 28;
     /** Pixels the gear sprite extends left of the frame. */
-    public static final int GEAR_OVERHANG_LEFT = 12;
+    public static final int GEAR_OVERHANG_LEFT = 14;
 
     private TabletGui() {
     }
@@ -40,23 +45,27 @@ public final class TabletGui {
         if (frameW > 0 && frameH > 0) {
             graphics.blitSprite(AerocouriersGuiSprites.TABLET_FRAME, frameX, frameY, frameW, frameH);
         }
-        int sx = frameX + FRAME_BORDER;
-        int sy = frameY + FRAME_BORDER;
-        int sw = frameW - FRAME_BORDER * 2;
-        int sh = frameH - FRAME_BORDER * 2;
-        if (sw > 0 && sh > 0) {
-            graphics.blitSprite(AerocouriersGuiSprites.TABLET_GRID, sx, sy, sw, sh);
-            graphics.fill(sx, sy, sx + sw, sy + 2, 0x33FF7A2F);
-            graphics.fill(sx, sy + sh - 2, sx + sw, sy + sh, 0x33FF7A2F);
-            graphics.fill(sx, sy, sx + 2, sy + sh, 0x33FF7A2F);
-            graphics.fill(sx + sw - 2, sy, sx + sw, sy + sh, 0x33FF7A2F);
-            for (int y = sy + 3; y < sy + sh; y += 4) {
-                graphics.fill(sx, y, sx + sw, y + 1, 0x18000000);
-            }
-        }
-        int ax = frameX + 4;
+        drawScreenBackground(graphics, frameX + FRAME_BORDER, frameY + FRAME_BORDER,
+                frameW - FRAME_BORDER * 2, frameH - FRAME_BORDER * 2);
+        int ax = frameX + 6;
         int ay = frameY - ANTENNA_OVERHANG_TOP;
         graphics.blitSprite(AerocouriersGuiSprites.TABLET_DECOR_ANTENNA, ax, ay, ANTENNA_W, ANTENNA_H);
+    }
+
+    public static void drawScreenBackground(GuiGraphics graphics, int x, int y, int w, int h) {
+        if (w <= 0 || h <= 0) {
+            return;
+        }
+        graphics.fill(x, y, x + w, y + h, SCREEN_FILL);
+        for (int gx = x; gx < x + w; gx += GRID_STEP) {
+            graphics.fill(gx, y, gx + 1, y + h, GRID_LINE);
+        }
+        for (int gy = y; gy < y + h; gy += GRID_STEP) {
+            graphics.fill(x, gy, x + w, gy + 1, GRID_LINE);
+        }
+        for (int sy = y; sy < y + h; sy += 2) {
+            graphics.fill(x, sy, x + w, sy + 1, SCANLINE);
+        }
     }
 
     public static void drawListPanel(GuiGraphics graphics, int x, int y, int w, int h) {

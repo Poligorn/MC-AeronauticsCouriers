@@ -39,8 +39,8 @@ public final class TabletTabButton extends Button {
             color = tabletChrome ? TabletGui.TEXT_BUTTON_DISABLED : CreateGui.TEXT_BUTTON_DISABLED;
         } else if (selected) {
             color = tabletChrome ? TabletGui.TEXT_BRIGHT : CreateGui.TEXT_BUTTON;
-        } else if (isHoveredOrFocused()) {
-            color = tabletChrome ? TabletGui.TEXT_BUTTON_HOVER : CreateGui.TEXT_MUTED;
+        } else if (isHoveredOrFocused() && tabletChrome) {
+            color = TabletGui.TEXT;
         } else {
             color = tabletChrome ? TabletGui.TEXT_MUTED : CreateGui.TEXT_MUTED;
         }

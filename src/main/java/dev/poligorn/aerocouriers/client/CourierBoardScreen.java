@@ -21,6 +21,9 @@ import org.jetbrains.annotations.Nullable;
  * Chrome: brass order-tablet monitor ({@link TabletGui}); stamp screen unchanged.
  */
 public final class CourierBoardScreen extends Screen {
+    /** Width reserved on the right of each list row for action buttons (px from screen right edge). */
+    private static final int ROW_ACTION_RESERVE = 158;
+
     enum Tab {
         BOARD, MINE, TEST
     }
@@ -185,11 +188,11 @@ public final class CourierBoardScreen extends Screen {
         super.render(graphics, mouseX, mouseY, partialTick);
         int sx = screenLeft();
         int sy = screenTop();
-        graphics.drawString(font, title, sx + 6, sy + 22, TabletGui.TEXT_HEADER, false);
+        graphics.drawString(font, title, sx + 6, sy + 22, TabletGui.TEXT, false);
         long balance = snapshot == null ? 0 : snapshot.balance();
         Component balanceLine = Component.translatable("ui.aerocouriers.balance", balance);
-        graphics.drawString(font, balanceLine, sx + screenW() - 6 - font.width(balanceLine), sy + 22,
-                TabletGui.TEXT_MUTED, false);
+        graphics.drawString(font, balanceLine, sx + screenW() - 6 - font.width(balanceLine), sy + 22, TabletGui.TEXT,
+                false);
 
         if (snapshot == null) {
             graphics.drawString(font, Component.translatable("ui.aerocouriers.loading"),
@@ -227,13 +230,16 @@ public final class CourierBoardScreen extends Screen {
         }
         int visible = visibleRows();
         scroll = Mth.clamp(scroll, 0, Math.max(0, all.size() - visible));
-        int textW = screenW() - 168;
-        TabletGui.drawListPanel(graphics, sx + 4, listTop() - 2, screenW() - 8, visible * rowH() + 2);
-        graphics.enableScissor(sx + 4, listTop() - 2, sx + screenW() - 4, listTop() + visible * rowH());
+        int sw = screenW();
+        int textLeft = sx + 8;
+        int textRight = sx + sw - ROW_ACTION_RESERVE;
+        int textW = Math.max(8, textRight - textLeft);
+        TabletGui.drawListPanel(graphics, sx + 4, listTop() - 2, sw - 8, visible * rowH() + 2);
+        graphics.enableScissor(sx + 4, listTop() - 2, sx + sw - 4, listTop() + visible * rowH());
         for (int i = 0; i < visible && scroll + i < all.size(); i++) {
             BoardSnapshotPayload.BoardEntry entry = all.get(scroll + i);
             int y = listTop() + i * rowH();
-            TabletGui.drawRow(graphics, sx + 6, y - 1, screenW() - 164, rowH() - 2, entry.id().equals(selected));
+            TabletGui.drawRow(graphics, sx + 6, y - 1, sw - ROW_ACTION_RESERVE - 6, rowH() - 2, entry.id().equals(selected));
             Component main = Component.translatable("ui.aerocouriers.row.main",
                     entry.shortId(), entry.originLabel(), entry.destinationLabel(), entry.distance());
             Component meta = Component.translatable("ui.aerocouriers.row.meta",
@@ -244,8 +250,9 @@ public final class CourierBoardScreen extends Screen {
                     entry.weight(),
                     entry.size(),
                     Component.translatable("contract.aerocouriers.role." + entry.role()));
-            drawClipped(graphics, main, sx + 8, y, textW, TabletGui.TEXT, mouseX, mouseY);
-            drawClipped(graphics, meta, sx + 8, y + 10, textW, TabletGui.TEXT_MUTED, mouseX, mouseY);
+            graphics.enableScissor(textLeft, y, textRight, y + rowH() - 2);
+            drawClipped(graphics, main, textLeft, y, textW, TabletGui.TEXT, mouseX, mouseY);
+            drawClipped(graphics, meta, textLeft, y + 10, textW, TabletGui.TEXT_MUTED, mouseX, mouseY);
         }
         graphics.disableScissor();
 
