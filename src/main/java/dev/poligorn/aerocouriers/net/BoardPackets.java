@@ -22,6 +22,7 @@ import dev.poligorn.aerocouriers.contract.RankRules;
 import dev.poligorn.aerocouriers.registry.ModComponents;
 import dev.poligorn.aerocouriers.item.Waybills;
 import dev.poligorn.aerocouriers.village.StationAtlas;
+import dev.poligorn.aerocouriers.village.StationReputation;
 import com.mojang.authlib.GameProfile;
 import java.util.Comparator;
 import java.util.List;
@@ -325,6 +326,7 @@ public final class BoardPackets {
                         .get(contract.issuer())
                         .map(GameProfile::getName)
                         .orElse(contract.issuer().toString().substring(0, 8));
+        int customerStationReputation = villageCustomer ? atlas.reputation(contract.issuer()) : 0;
         return new BoardSnapshotPayload.BoardEntry(
                 contract.id(),
                 contract.shortId(),
@@ -348,7 +350,8 @@ public final class BoardPackets {
                 contract.origin().pos(),
                 contract.destination().dimension(),
                 contract.destination().pos(),
-                cargoItems);
+                cargoItems,
+                customerStationReputation);
     }
 
     private static String label(StationAtlas atlas, Destination dest) {

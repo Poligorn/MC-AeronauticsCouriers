@@ -218,6 +218,8 @@
   "ui.aerocouriers.error.not_operator": "Operator permission required",
   "ui.aerocouriers.error.no_selection": "Select a contract first",
   "station.aerocouriers.info": "Post station «%s»",
+  "station.aerocouriers.info_reputation": "Post station «%s» · reputation %s · orders up to +%s%% reward",
+  "ui.aerocouriers.row.customer_tooltip_village": "Village customer «%s» · station reputation %s · up to +%s%% reward",
   "station.aerocouriers.discovered": "Post station «%s» added to your atlas",
   "station.aerocouriers.list.header": "Post stations: %s",
   "station.aerocouriers.list.line": "«%s» %s %s · discovered by %s",

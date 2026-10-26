@@ -227,7 +227,7 @@ def render_tooltips_demo() -> None:
     )}
     draw_row(
         img, draw, font, m, 24, width - 16, "#a3f2", "принят", "Игрок",
-        "10", "0", "28м", False, icons, "Подробнее", True,
+        "10", "0", "28м", False, icons, True,
     )
     draw.rectangle((400, 8, 700, 78), fill=(0x1A, 0x0A, 0x04), outline=OUTLINE)
     draw.multiline_text(

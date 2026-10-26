@@ -17,6 +17,7 @@ import dev.poligorn.aerocouriers.license.Licenses;
 import dev.poligorn.aerocouriers.net.ZoneSyncPayload;
 import dev.poligorn.aerocouriers.village.StationAtlas;
 import dev.poligorn.aerocouriers.village.StationContractSource;
+import dev.poligorn.aerocouriers.village.StationReputation;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -652,6 +653,14 @@ public final class ContractManager extends SavedData {
         Economy economy = Economies.get(server);
         long reward = escrow.takeReward(id);
         long paid = late ? Pricing.lateReward(reward) : reward;
+        if (contract.type().isNpc()) {
+            StationAtlas atlas = StationAtlas.get(server);
+            atlas.adjustReputation(contract.issuer(), StationReputation.DELIVERY_DELTA);
+            atlas.adjustReputation(contract.recipient(), StationReputation.DELIVERY_DELTA);
+            int originRep = atlas.reputation(contract.issuer());
+            int destRep = atlas.reputation(contract.recipient());
+            paid = Math.max(1, Math.round(paid * StationReputation.rewardMultiplier(originRep, destRep)));
+        }
         economy.deposit(courier.getUUID(), paid, (late ? "reward_late:" : "reward:") + id);
         economy.deposit(courier.getUUID(), escrow.takeCollateral(id), "collateral_back:" + id);
         List<ItemStack> deliveredCargo = escrow.takeItems(id);
@@ -807,6 +816,10 @@ public final class ContractManager extends SavedData {
         if (!contract.type().isNpc()) {
             economy.deposit(contract.issuer(), seized, "collateral_forfeit:" + id);
             economy.deposit(contract.issuer(), refunded, "reward_refund:" + id);
+        } else {
+            StationAtlas atlas = StationAtlas.get(server);
+            atlas.adjustReputation(contract.issuer(), StationReputation.FAILURE_DELTA);
+            atlas.adjustReputation(contract.recipient(), StationReputation.FAILURE_DELTA);
         }
         Contract failed = contract.withState(ContractState.FAILED);
         put(failed);

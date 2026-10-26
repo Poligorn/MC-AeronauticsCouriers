@@ -37,14 +37,22 @@ public final class StationAtlas extends SavedData {
     private static final String NAME = "aerocouriers_stations";
     private static final int TICK_INTERVAL = 20;
 
-    public record Station(UUID id, String name, ResourceKey<Level> dimension, BlockPos pos, Set<UUID> discoveredBy) {
+    public record Station(
+            UUID id,
+            String name,
+            ResourceKey<Level> dimension,
+            BlockPos pos,
+            Set<UUID> discoveredBy,
+            int reputation
+    ) {
         static final Codec<Station> CODEC = RecordCodecBuilder.create(instance -> instance.group(
                 UUIDUtil.STRING_CODEC.fieldOf("id").forGetter(Station::id),
                 Codec.STRING.fieldOf("name").forGetter(Station::name),
                 ResourceKey.codec(Registries.DIMENSION).fieldOf("dimension").forGetter(Station::dimension),
                 BlockPos.CODEC.fieldOf("pos").forGetter(Station::pos),
                 UUIDUtil.STRING_CODEC.listOf().xmap(Set::copyOf, List::copyOf)
-                        .optionalFieldOf("discovered_by", Set.of()).forGetter(Station::discoveredBy)
+                        .optionalFieldOf("discovered_by", Set.of()).forGetter(Station::discoveredBy),
+                Codec.INT.optionalFieldOf("reputation", 0).forGetter(Station::reputation)
         ).apply(instance, Station::new));
 
         public boolean discoveredBy(UUID player) {
@@ -86,7 +94,8 @@ public final class StationAtlas extends SavedData {
     public void register(UUID id, String name, ResourceKey<Level> dimension, BlockPos pos) {
         Station old = stations.get(id);
         Set<UUID> discovered = old == null ? Set.of() : old.discoveredBy();
-        Station updated = new Station(id, name, dimension, pos.immutable(), discovered);
+        int reputation = old == null ? 0 : old.reputation();
+        Station updated = new Station(id, name, dimension, pos.immutable(), discovered, reputation);
         if (!updated.equals(old)) {
             stations.put(id, updated);
             setDirty();
@@ -113,9 +122,24 @@ public final class StationAtlas extends SavedData {
         }
         Set<UUID> discovered = new HashSet<>(s.discoveredBy());
         discovered.add(player);
-        stations.put(station, new Station(s.id(), s.name(), s.dimension(), s.pos(), Set.copyOf(discovered)));
+        stations.put(station, new Station(s.id(), s.name(), s.dimension(), s.pos(), Set.copyOf(discovered), s.reputation()));
         setDirty();
         return true;
+    }
+
+    public int reputation(UUID stationId) {
+        Station s = stations.get(stationId);
+        return s == null ? 0 : s.reputation();
+    }
+
+    public void adjustReputation(UUID stationId, int delta) {
+        Station s = stations.get(stationId);
+        if (s == null || delta == 0) {
+            return;
+        }
+        stations.put(stationId, new Station(s.id(), s.name(), s.dimension(), s.pos(), s.discoveredBy(),
+                s.reputation() + delta));
+        setDirty();
     }
 
     public static void onServerTick(ServerTickEvent.Post event) {

@@ -2,6 +2,7 @@ package dev.poligorn.aerocouriers.client.board;
 
 import dev.poligorn.aerocouriers.client.AerocouriersGuiSprites;
 import dev.poligorn.aerocouriers.client.TabletGui;
+import dev.poligorn.aerocouriers.village.StationReputation;
 import dev.poligorn.aerocouriers.net.BoardSnapshotPayload;
 import java.util.Optional;
 import java.util.function.BiConsumer;
@@ -113,6 +114,11 @@ public final class BoardRowRenderer {
             BiConsumer<Component, Integer> clippedHover
     ) {
         if (mouseOver(mouseX, mouseY, faceX, y, BoardRowMetrics.CUSTOMER_FACE + BoardRowMetrics.FACE_NAME_GAP + nameW)) {
+            if (entry.villageCustomer()) {
+                int bonus = StationReputation.bonusPercent(entry.customerStationReputation());
+                return Component.translatable("ui.aerocouriers.row.customer_tooltip_village",
+                        entry.customerName(), entry.customerStationReputation(), bonus);
+            }
             return Component.translatable("ui.aerocouriers.row.customer_tooltip", entry.customerName());
         }
         if (!nameShown.equals(entry.customerName()) && mouseOver(mouseX, mouseY, nameX, y, nameW)) {

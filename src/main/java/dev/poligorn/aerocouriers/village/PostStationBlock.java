@@ -3,6 +3,7 @@ package dev.poligorn.aerocouriers.village;
 import com.mojang.serialization.MapCodec;
 import dev.poligorn.aerocouriers.contract.CouriersNotifications;
 import dev.poligorn.aerocouriers.net.BoardPackets;
+import dev.poligorn.aerocouriers.village.StationReputation;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
@@ -81,10 +82,14 @@ public class PostStationBlock extends BaseEntityBlock {
         if (level.isClientSide) {
             return InteractionResult.SUCCESS;
         }
-        if (player instanceof ServerPlayer serverPlayer) {
+        if (player instanceof ServerPlayer serverPlayer && level instanceof ServerLevel serverLevel) {
             Optional<Component> stationNotice = Optional.empty();
             if (level.getBlockEntity(pos) instanceof PostStationBlockEntity station && !station.name().isEmpty()) {
-                stationNotice = Optional.of(Component.translatable("station.aerocouriers.info", station.name()));
+                int rep = station.stationId() == null ? 0
+                        : StationAtlas.get(serverLevel.getServer()).reputation(station.stationId());
+                int bonus = StationReputation.bonusPercent(rep);
+                stationNotice = Optional.of(Component.translatable("station.aerocouriers.info_reputation",
+                        station.name(), rep, bonus));
             }
             stationNotice.ifPresent(notice -> CouriersNotifications.pushSilent(serverPlayer.server,
                     serverPlayer.getUUID(), notice, java.util.Optional.empty()));
