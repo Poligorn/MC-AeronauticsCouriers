@@ -226,5 +226,12 @@
   "station.aerocouriers.renamed": "Станция «%s» переименована в «%s»",
   "station.aerocouriers.error.name": "Название — от 1 до %s символов",
   "station.aerocouriers.error.not_station": "В %s нет почтовой станции",
-  "station.aerocouriers.generated": "Опубликовано NPC-заказов между станциями: %s"
+  "station.aerocouriers.generated": "Опубликовано NPC-заказов между станциями: %s",
+  "ui.aerocouriers.station.title": "Почтовая станция «%s»",
+  "ui.aerocouriers.station.reputation": "Репутация %s · до +%s%% к награде за доставки",
+  "ui.aerocouriers.station.orders.header": "Открытые заказы деревни с этой станции",
+  "ui.aerocouriers.station.orders.empty": "Сейчас нет открытых заказов.",
+  "ui.aerocouriers.station.open_board": "Доска заказов",
+  "ui.aerocouriers.station.rename": "Название станции",
+  "ui.aerocouriers.station.rename.action": "Переименовать"
 }

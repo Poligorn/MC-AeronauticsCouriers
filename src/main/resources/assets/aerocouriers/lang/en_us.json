@@ -226,5 +226,12 @@
   "station.aerocouriers.renamed": "Station «%s» renamed to «%s»",
   "station.aerocouriers.error.name": "The name must be 1 to %s characters",
   "station.aerocouriers.error.not_station": "There is no post station at %s",
-  "station.aerocouriers.generated": "Published %s NPC contracts between stations"
+  "station.aerocouriers.generated": "Published %s NPC contracts between stations",
+  "ui.aerocouriers.station.title": "Post station «%s»",
+  "ui.aerocouriers.station.reputation": "Reputation %s · up to +%s%% reward on deliveries",
+  "ui.aerocouriers.station.orders.header": "Open NPC orders from this station",
+  "ui.aerocouriers.station.orders.empty": "No open village orders here right now.",
+  "ui.aerocouriers.station.open_board": "Job board",
+  "ui.aerocouriers.station.rename": "Station name",
+  "ui.aerocouriers.station.rename.action": "Rename"
 }

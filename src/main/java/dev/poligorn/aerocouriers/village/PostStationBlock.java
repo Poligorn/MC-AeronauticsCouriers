@@ -1,12 +1,9 @@
 package dev.poligorn.aerocouriers.village;
 
 import com.mojang.serialization.MapCodec;
-import dev.poligorn.aerocouriers.contract.CouriersNotifications;
-import dev.poligorn.aerocouriers.net.BoardPackets;
-import dev.poligorn.aerocouriers.village.StationReputation;
+import dev.poligorn.aerocouriers.net.StationPackets;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionResult;
@@ -24,7 +21,6 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.phys.BlockHitResult;
-import java.util.Optional;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -83,17 +79,7 @@ public class PostStationBlock extends BaseEntityBlock {
             return InteractionResult.SUCCESS;
         }
         if (player instanceof ServerPlayer serverPlayer && level instanceof ServerLevel serverLevel) {
-            Optional<Component> stationNotice = Optional.empty();
-            if (level.getBlockEntity(pos) instanceof PostStationBlockEntity station && !station.name().isEmpty()) {
-                int rep = station.stationId() == null ? 0
-                        : StationAtlas.get(serverLevel.getServer()).reputation(station.stationId());
-                int bonus = StationReputation.bonusPercent(rep);
-                stationNotice = Optional.of(Component.translatable("station.aerocouriers.info_reputation",
-                        station.name(), rep, bonus));
-            }
-            stationNotice.ifPresent(notice -> CouriersNotifications.pushSilent(serverPlayer.server,
-                    serverPlayer.getUUID(), notice, java.util.Optional.empty()));
-            BoardPackets.open(serverPlayer, 0, true, stationNotice);
+            StationPackets.open(serverPlayer, serverLevel, pos);
         }
         return InteractionResult.CONSUME;
     }

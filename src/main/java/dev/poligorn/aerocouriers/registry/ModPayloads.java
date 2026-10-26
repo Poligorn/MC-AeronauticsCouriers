@@ -10,8 +10,12 @@ import dev.poligorn.aerocouriers.net.MarkNotificationsReadPayload;
 import dev.poligorn.aerocouriers.net.NotificationAlertPayload;
 import dev.poligorn.aerocouriers.net.NotificationSyncPayload;
 import dev.poligorn.aerocouriers.net.OpenBoardPayload;
+import dev.poligorn.aerocouriers.net.OpenStationPayload;
 import dev.poligorn.aerocouriers.net.OpenWaybillCreatePayload;
 import dev.poligorn.aerocouriers.net.OperatorBoardPayload;
+import dev.poligorn.aerocouriers.net.RenameStationPayload;
+import dev.poligorn.aerocouriers.net.StationPackets;
+import dev.poligorn.aerocouriers.net.StationSnapshotPayload;
 import dev.poligorn.aerocouriers.net.ZoneSyncPayload;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
@@ -35,6 +39,8 @@ public final class ModPayloads {
                 NotificationSyncPayload::handle);
         registrar.playToClient(NotificationAlertPayload.TYPE, NotificationAlertPayload.STREAM_CODEC,
                 NotificationAlertPayload::handle);
+        registrar.playToClient(StationSnapshotPayload.TYPE, StationSnapshotPayload.STREAM_CODEC,
+                StationSnapshotPayload::handle);
 
         registrar.playToServer(OpenBoardPayload.TYPE, OpenBoardPayload.STREAM_CODEC,
                 (payload, context) -> context.enqueueWork(() -> {
@@ -70,6 +76,18 @@ public final class ModPayloads {
                 (payload, context) -> context.enqueueWork(() -> {
                     if (context.player() instanceof ServerPlayer player) {
                         BoardPackets.handleOperator(player, payload);
+                    }
+                }));
+        registrar.playToServer(OpenStationPayload.TYPE, OpenStationPayload.STREAM_CODEC,
+                (payload, context) -> context.enqueueWork(() -> {
+                    if (context.player() instanceof ServerPlayer player) {
+                        StationPackets.handleOpen(player, payload);
+                    }
+                }));
+        registrar.playToServer(RenameStationPayload.TYPE, RenameStationPayload.STREAM_CODEC,
+                (payload, context) -> context.enqueueWork(() -> {
+                    if (context.player() instanceof ServerPlayer player) {
+                        StationPackets.handleRename(player, payload);
                     }
                 }));
     }
