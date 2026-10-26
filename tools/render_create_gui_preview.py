@@ -11,10 +11,10 @@ from PIL import Image, ImageDraw, ImageFont
 ROOT = Path(__file__).resolve().parents[1]
 SPRITES = ROOT / "src/main/resources/assets/aerocouriers/textures/gui/sprites"
 
-FRAME_BORDER = 8
+FRAME_BORDER = 16
 CONTENT_INSET = 9
 ANTENNA_OVERHANG_TOP = 22
-GEAR_OVERHANG_LEFT = 14
+GEAR_OVERHANG_LEFT = 8
 ANTENNA_W, ANTENNA_H = 10, 28
 GEAR_W, GEAR_H = 28, 28
 ROW_ACTION_RESERVE = 158
@@ -99,11 +99,11 @@ def draw_monitor(canvas: Image.Image, fx: int, fy: int, fw: int, fh: int) -> tup
     sx, sy = fx + FRAME_BORDER, fy + FRAME_BORDER
     sw, sh = fw - FRAME_BORDER * 2, fh - FRAME_BORDER * 2
     draw_screen_background(canvas, sx, sy, sw, sh)
-    nine_slice_hollow(canvas, load("tablet_frame"), fx, fy, fw, fh, (8, 8, 8, 8))
+    nine_slice_hollow(canvas, load("tablet_frame"), fx, fy, fw, fh, (FRAME_BORDER, FRAME_BORDER, FRAME_BORDER, FRAME_BORDER))
     gear_x = fx - GEAR_OVERHANG_LEFT
     gear_y = fy + (fh - GEAR_H) // 2
     canvas.alpha_composite(load("tablet_decor_gear"), (gear_x, gear_y))
-    canvas.alpha_composite(load("tablet_decor_antenna"), (fx + 6, fy - ANTENNA_OVERHANG_TOP))
+    canvas.alpha_composite(load("tablet_decor_antenna"), (fx + FRAME_BORDER * 3 // 4, fy - ANTENNA_OVERHANG_TOP))
     return sx, sy, sw, sh
 
 

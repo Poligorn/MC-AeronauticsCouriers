@@ -28,17 +28,21 @@ public final class TabletGui {
     private static final int GRID_STEP = 9;
 
     /** Nine-slice brass + bevel before the screen cavity (matches {@code tablet_frame}). */
-    public static final int FRAME_BORDER = 8;
+    public static final int FRAME_BORDER = 16;
     /** Inset from the inner screen cavity to tabs, headings, lists, and chrome (all tablet UIs). */
     public static final int CONTENT_INSET = 9;
     public static final int ANTENNA_W = 10;
-    public static final int ANTENNA_H = 28;
+    public static final int ANTENNA_H = 32;
     /** Pixels the antenna sprite extends above the frame top. */
     public static final int ANTENNA_OVERHANG_TOP = 22;
     public static final int GEAR_W = 28;
     public static final int GEAR_H = 28;
-    /** Pixels the gear sprite extends left of the frame. */
-    public static final int GEAR_OVERHANG_LEFT = 14;
+    /** Hub X in {@code tablet_decor_gear} (matches {@code gen_tablet_gear}). */
+    private static final int GEAR_HUB_SPRITE_X = 20;
+    /** Pixels the gear sprite extends left of the frame (keeps hub on the brass bezel). */
+    public static final int GEAR_OVERHANG_LEFT = GEAR_HUB_SPRITE_X - FRAME_BORDER * 3 / 4;
+    /** Antenna X offset from frame left (top-left clip on the bezel). */
+    public static final int ANTENNA_LEFT = FRAME_BORDER * 3 / 4;
 
     private TabletGui() {
     }
@@ -65,7 +69,7 @@ public final class TabletGui {
         int gearX = frameX - GEAR_OVERHANG_LEFT;
         int gearY = frameY + (frameH - GEAR_H) / 2;
         graphics.blitSprite(AerocouriersGuiSprites.TABLET_DECOR_GEAR, gearX, gearY, GEAR_W, GEAR_H);
-        int ax = frameX + 6;
+        int ax = frameX + ANTENNA_LEFT;
         int ay = frameY - ANTENNA_OVERHANG_TOP;
         graphics.blitSprite(AerocouriersGuiSprites.TABLET_DECOR_ANTENNA, ax, ay, ANTENNA_W, ANTENNA_H);
     }
