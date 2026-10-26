@@ -51,7 +51,7 @@ public final class CouriersClientConfig {
         b.push("waypoints");
         WAYPOINT_SYMBOL_MODE = b.comment(
                         "How order waypoints look on Xaero's minimap when this mod places them.",
-                        "ICON — crate (delivery) / truck (pickup) Unicode glyphs;",
+                        "ICON — crate (📦) Unicode glyph for every order waypoint;",
                         "FIRST_LETTER — first character of the order label;",
                         "CUSTOM — customWaypointSymbol")
                 .defineEnum("waypointSymbolMode", WaypointSymbolMode.ICON);

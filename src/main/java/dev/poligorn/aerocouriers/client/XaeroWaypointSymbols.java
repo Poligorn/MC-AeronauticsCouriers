@@ -5,10 +5,8 @@ import dev.poligorn.aerocouriers.config.WaypointSymbolMode;
 
 /** Resolves the Xaero waypoint marker string from client config (no GPL code — same idea as other mods: symbol field). */
 public final class XaeroWaypointSymbols {
-    /** Delivery / crate marker when {@link WaypointSymbolMode#ICON}. */
-    public static final String ICON_DELIVERY = "\uD83D\uDCE6";
-    /** Pickup / origin marker when {@link WaypointSymbolMode#ICON}. */
-    public static final String ICON_PICKUP = "\uD83D\uDE9A";
+    /** Crate marker when {@link WaypointSymbolMode#ICON} (all order waypoints). */
+    public static final String ICON_CRATE = "\uD83D\uDCE6";
 
     public enum Kind {
         DELIVERY,
@@ -29,6 +27,6 @@ public final class XaeroWaypointSymbols {
         if (mode == WaypointSymbolMode.CUSTOM) {
             return CouriersClientConfig.customWaypointSymbol();
         }
-        return kind == Kind.PICKUP ? ICON_PICKUP : ICON_DELIVERY;
+        return ICON_CRATE;
     }
 }
