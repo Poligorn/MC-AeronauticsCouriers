@@ -1,13 +1,16 @@
 package dev.poligorn.aerocouriers.client;
 
+import com.mojang.blaze3d.systems.RenderSystem;
 import dev.poligorn.aerocouriers.config.CouriersClientConfig;
 import dev.poligorn.aerocouriers.registry.ModItems;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.Tooltip;
+import net.minecraft.client.gui.components.WidgetSprites;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.client.event.ScreenEvent;
 
@@ -40,9 +43,10 @@ public final class InventoryBoardButton extends Button {
         int[] pos = position(inventory);
         setX(pos[0]);
         setY(pos[1]);
-        boolean pressed = isHovered && Minecraft.getInstance().mouseHandler.isLeftPressed();
-        CreateGui.drawButton(graphics, getX(), getY(), getWidth(), getHeight(),
-                active, isHoveredOrFocused(), pressed, false);
+        RenderSystem.enableBlend();
+        WidgetSprites sprites = AerocouriersGuiSprites.buttonSprites();
+        ResourceLocation sprite = sprites.get(active, isHoveredOrFocused());
+        graphics.blitSprite(sprite, getX(), getY(), getWidth(), getHeight());
         graphics.renderFakeItem(new ItemStack(ModItems.PILOT_LICENSE.get()), getX() + 2, getY() + 2);
     }
 

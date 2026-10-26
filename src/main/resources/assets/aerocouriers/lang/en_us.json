@@ -108,6 +108,7 @@
   "ui.aerocouriers.loading": "Loading…",
   "ui.aerocouriers.balance": "Balance: %s sp",
   "ui.aerocouriers.mail.claim": "Claim mail (%s)",
+  "ui.aerocouriers.mail.tooltip": "Mail",
   "ui.aerocouriers.tab.board": "Orders",
   "ui.aerocouriers.tab.mine": "Mine",
   "ui.aerocouriers.tab.create": "Create",

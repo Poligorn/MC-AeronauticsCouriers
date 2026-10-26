@@ -17,6 +17,8 @@ public final class CouriersClientConfig {
     public static final ModConfigSpec.DoubleValue ZONES_PARTICLE_DENSITY;
     public static final ModConfigSpec.IntValue ZONES_RENDER_DISTANCE;
 
+    public static final ModConfigSpec.BooleanValue USE_VANILLA_SPRITES;
+
     static {
         ModConfigSpec.Builder b = new ModConfigSpec.Builder();
         b.push("button");
@@ -36,7 +38,23 @@ public final class CouriersClientConfig {
         ZONES_RENDER_DISTANCE = b.comment("Zones farther than this are not drawn, blocks")
                 .defineInRange("render_distance", 128, 8, 1024);
         b.pop();
+
+        b.push("gui");
+        USE_VANILLA_SPRITES = b.comment(
+                        "Use minecraft:widget/* sprites for buttons and tabs (e.g. when Create Style Interface is installed)")
+                .define("useVanillaSprites", false);
+        b.pop();
+
         SPEC = b.build();
+    }
+
+    /** Client-only; safe when config is not loaded yet (defaults to mod sprites). */
+    public static boolean useVanillaSprites() {
+        try {
+            return USE_VANILLA_SPRITES.get();
+        } catch (IllegalStateException ignored) {
+            return false;
+        }
     }
 
     public enum ButtonPosition {

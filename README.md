@@ -84,4 +84,6 @@ Sable, Create и Aeronautics подключены только для компи
 ## Авторы и лицензия
 Автор — Poligorn (Егор). Рендер погон перенесён из собственного мода автора SkyPact Pilot Wings (MIT).
 
+GUI palette inspired by Create Style Interface by ogabasferr (original sprites in this repo; pack assets not redistributed).
+
 Лицензия — **MIT** (см. [`LICENSE`](LICENSE)). Код Create: Marketplace не используется и не копируется — только идея настраиваемой кнопки.

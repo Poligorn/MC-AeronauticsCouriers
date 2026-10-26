@@ -108,6 +108,7 @@
   "ui.aerocouriers.loading": "Загрузка…",
   "ui.aerocouriers.balance": "Баланс: %s сп",
   "ui.aerocouriers.mail.claim": "Забрать почту (%s)",
+  "ui.aerocouriers.mail.tooltip": "Почта",
   "ui.aerocouriers.tab.board": "Заказы",
   "ui.aerocouriers.tab.mine": "Мои",
   "ui.aerocouriers.tab.create": "Создать",

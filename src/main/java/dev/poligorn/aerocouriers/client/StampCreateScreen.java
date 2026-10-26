@@ -20,7 +20,7 @@ import org.jetbrains.annotations.Nullable;
 /**
  * Player-facing order creation: destination, money, deadline. Cargo and pickup come from the stamped container.
  * Layout is computed from the current scaled window and font (see {@link StampCreateLayout}).
- * Chrome is assembled from Create 6.0.10 GUI textures (see {@link CreateGui}).
+ * Chrome uses mod CSI-inspired GUI sprites (see {@link CreateGui}).
  */
 public final class StampCreateScreen extends Screen {
     private final OpenStampPayload preview;
@@ -71,7 +71,7 @@ public final class StampCreateScreen extends Screen {
         addRenderableWidget(coordBox(1, toY, v -> toY = v));
         addRenderableWidget(coordBox(2, toZ, v -> toZ = v));
         if (xaeroMap) {
-            addRenderableWidget(CreateStyleButton.create(
+            addRenderableWidget(CourierButton.create(
                             layout.mapBtnX, layout.mapBtnY, layout.mapBtnW, StampCreateLayout.FIELD_H,
                             Component.translatable("ui.aerocouriers.create.pick_on_map"),
                             b -> XaeroMapPicker.openMapForPick(this))
@@ -90,15 +90,12 @@ public final class StampCreateScreen extends Screen {
         addRenderableWidget(numberBox(2, minutes, v -> minutes = v));
         addRenderableWidget(numberBox(3, radius, v -> radius = v));
 
-        addRenderableWidget(CreateStyleButton.create(
-                        layout.submitX, layout.buttonY, layout.submitW, StampCreateLayout.FIELD_H,
-                        Component.translatable("ui.aerocouriers.create.submit"), b -> submit())
-                .icon(CreateGuiTextures.ICON_CONFIRM)
-                .green(true));
-        addRenderableWidget(CreateStyleButton.create(
-                        layout.cancelX, layout.buttonY, layout.cancelW, StampCreateLayout.FIELD_H,
-                        Component.translatable("gui.cancel"), b -> onClose())
-                .icon(CreateGuiTextures.ICON_CLOSE));
+        addRenderableWidget(CourierButton.create(
+                layout.submitX, layout.buttonY, layout.submitW, StampCreateLayout.FIELD_H,
+                Component.translatable("ui.aerocouriers.create.submit"), b -> submit()));
+        addRenderableWidget(CourierButton.create(
+                layout.cancelX, layout.buttonY, layout.cancelW, StampCreateLayout.FIELD_H,
+                Component.translatable("gui.cancel"), b -> onClose()));
     }
 
     private void addStationCycle() {
@@ -106,7 +103,7 @@ public final class StampCreateScreen extends Screen {
         List<Component> labels = new ArrayList<>();
         labels.add(Component.translatable("ui.aerocouriers.create.no_station"));
         stations.forEach(s -> labels.add(Component.literal(s.name())));
-        addRenderableWidget(CreateStyleButton.cycle(
+        addRenderableWidget(CourierButton.cycle(
                 layout.stationX, layout.stationY, Math.max(64, layout.stationW), StampCreateLayout.FIELD_H,
                 Component.translatable("ui.aerocouriers.create.station"), labels, index -> {
                     if (index <= 0 || index > stations.size()) {
@@ -124,7 +121,7 @@ public final class StampCreateScreen extends Screen {
         List<Component> labels = new ArrayList<>();
         labels.add(Component.translatable("ui.aerocouriers.create.no_waypoint"));
         waypoints.forEach(w -> labels.add(Component.literal(w.name())));
-        addRenderableWidget(CreateStyleButton.cycle(
+        addRenderableWidget(CourierButton.cycle(
                 layout.waypointX, layout.stationY, Math.max(64, layout.waypointW), StampCreateLayout.FIELD_H,
                 Component.translatable("ui.aerocouriers.create.waypoint"), labels, index -> {
                     if (index <= 0 || index > waypoints.size()) {
@@ -158,7 +155,7 @@ public final class StampCreateScreen extends Screen {
         EditBox box = new EditBox(font, x + 4, y + 2, Math.max(8, w - 8), h - 3, label) {
             @Override
             public void renderWidget(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-                CreateGui.drawField(graphics, x, y, w, h);
+                CreateGui.drawField(graphics, x, y, w, h, isFocused());
                 super.renderWidget(graphics, mouseX, mouseY, partialTick);
             }
 
@@ -241,7 +238,7 @@ public final class StampCreateScreen extends Screen {
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         hoverTip = null;
         super.render(graphics, mouseX, mouseY, partialTick);
-        CreateGui.drawParchmentStrip(graphics, layout.left + StampCreateLayout.PAD, layout.headerY - 2,
+        CreateGui.drawTitleLabel(graphics, layout.left + StampCreateLayout.PAD, layout.headerY - 2,
                 layout.innerW, layout.lineH + 4);
         int titleW = Math.max(32, layout.balanceX - layout.left - StampCreateLayout.PAD - 8);
         drawClipped(graphics, title, layout.left + StampCreateLayout.PAD, layout.headerY, titleW, CreateGui.TEXT_TITLE,
@@ -265,6 +262,11 @@ public final class StampCreateScreen extends Screen {
                     layout.innerW, CreateGui.TEXT_MUTED, mouseX, mouseY);
         }
 
+        if (layout.cargoRows > 0) {
+            int cargoH = layout.cargoRows * StampCreateLayout.SLOT + 4;
+            CreateGui.drawInset(graphics, layout.cargoX - 2, layout.cargoY - 2,
+                    Math.min(layout.innerW, 9 * StampCreateLayout.SLOT + 4), cargoH);
+        }
         renderCargo(graphics, mouseX, mouseY);
 
         if (layout.destTitleY + layout.lineH <= layout.coordLabelY) {
@@ -302,7 +304,7 @@ public final class StampCreateScreen extends Screen {
         }
         if (hoverTip == null) {
             getChildAt(mouseX, mouseY).ifPresent(widget -> {
-                if (widget instanceof CreateStyleButton button && button.hint() != null) {
+                if (widget instanceof CourierButton button && button.hint() != null) {
                     hoverTip = button.hint();
                 }
             });

@@ -2,7 +2,6 @@ package dev.poligorn.aerocouriers.client;
 
 import dev.poligorn.aerocouriers.contract.ContractState;
 import dev.poligorn.aerocouriers.net.BoardSnapshotPayload;
-import dev.poligorn.aerocouriers.net.ClaimMailPayload;
 import dev.poligorn.aerocouriers.net.ContractIntentPayload;
 import dev.poligorn.aerocouriers.net.OpenBoardPayload;
 import dev.poligorn.aerocouriers.net.OperatorBoardPayload;
@@ -14,13 +13,12 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.util.Mth;
-import net.minecraft.world.item.Items;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.jetbrains.annotations.Nullable;
 
 /**
  * Monitoring board: open orders and the viewer's own. Creation is the stamp item, not a tab.
- * Chrome is assembled from Create 6.0.10 GUI textures (see {@link CreateGui}).
+ * Chrome uses mod CSI-inspired GUI sprites (see {@link CreateGui}).
  */
 public final class CourierBoardScreen extends Screen {
     enum Tab {
@@ -72,13 +70,7 @@ public final class CourierBoardScreen extends Screen {
         }
 
         int mail = snapshot == null ? 0 : snapshot.mailCount();
-        Component mailText = Component.translatable("ui.aerocouriers.mail.claim", mail);
-        int mailW = Mth.clamp(26 + font.width(mailText), 88, Math.min(168, panelW() / 3));
-        addRenderableWidget(CreateStyleButton.create(
-                        left + panelW() - 8 - mailW, top + 6, mailW, 18, mailText,
-                        b -> PacketDistributor.sendToServer(ClaimMailPayload.INSTANCE))
-                .item(Items.PAPER)
-                .hint(mailText));
+        addRenderableWidget(new MailIconButton(left + panelW() - 28, top + 5, mail));
 
         if (snapshot == null) {
             return;
@@ -92,14 +84,12 @@ public final class CourierBoardScreen extends Screen {
 
     private void addTab(int x, int y, int w, Tab value, String key) {
         boolean on = tab == value;
-        addRenderableWidget(CreateStyleButton.create(x, y, w, 18, Component.translatable(key), b -> {
-                    tab = value;
-                    scroll = 0;
-                    pendingAccept = null;
-                    rebuildWidgets();
-                })
-                .selected(on)
-                .green(on));
+        addRenderableWidget(new CourierTabButton(x, y, w, 20, Component.translatable(key), () -> {
+            tab = value;
+            scroll = 0;
+            pendingAccept = null;
+            rebuildWidgets();
+        }).selected(on));
     }
 
     private void initListButtons(List<BoardSnapshotPayload.BoardEntry> all, boolean boardTab) {
@@ -110,7 +100,7 @@ public final class CourierBoardScreen extends Screen {
         for (int i = 0; i < visible && scroll + i < all.size(); i++) {
             BoardSnapshotPayload.BoardEntry entry = all.get(scroll + i);
             int y = rowTop + i * rowH();
-            addRenderableWidget(CreateStyleButton.create(
+            addRenderableWidget(CourierButton.create(
                     left + panelW() - 156, y, 68, 18, Component.translatable("ui.aerocouriers.details"), b -> {
                         selected = entry.id();
                         pendingAccept = null;
@@ -119,25 +109,23 @@ public final class CourierBoardScreen extends Screen {
             if (boardTab && entry.state() == ContractState.OPEN
                     && (!"issuer".equals(entry.role()) || snapshot.allowSelfAccept())) {
                 boolean confirm = entry.id().equals(pendingAccept);
-                CreateStyleButton accept = CreateStyleButton.create(
+                CourierButton accept = CourierButton.create(
                                 left + panelW() - 84, y, 76, 18,
                                 Component.translatable(confirm ? "ui.aerocouriers.accept.confirm" : "ui.aerocouriers.accept",
                                         entry.collateral()),
-                                b -> onAccept(entry))
-                        .green(confirm);
+                                b -> onAccept(entry));
                 accept.active = snapshot != null && snapshot.licensed();
                 if (!accept.active) {
                     accept.hint(Component.translatable("contract.aerocouriers.error.no_license"));
                 }
                 addRenderableWidget(accept);
             } else if (!boardTab && "issuer".equals(entry.role()) && entry.state() == ContractState.OPEN) {
-                addRenderableWidget(CreateStyleButton.create(
-                                left + panelW() - 84, y, 76, 18, Component.translatable("ui.aerocouriers.cancel"), b ->
+                addRenderableWidget(CourierButton.create(
+                        left + panelW() - 84, y, 76, 18, Component.translatable("ui.aerocouriers.cancel"), b ->
                                 PacketDistributor.sendToServer(
-                                        new ContractIntentPayload(ContractIntentPayload.Kind.CANCEL, entry.id())))
-                        .icon(CreateGuiTextures.ICON_TRASH));
+                                        new ContractIntentPayload(ContractIntentPayload.Kind.CANCEL, entry.id()))));
             } else if (!boardTab && "courier".equals(entry.role()) && entry.state().isActive()) {
-                addRenderableWidget(CreateStyleButton.create(
+                addRenderableWidget(CourierButton.create(
                         left + panelW() - 84, y, 76, 18, Component.translatable("ui.aerocouriers.abandon"), b ->
                                 PacketDistributor.sendToServer(
                                         new ContractIntentPayload(ContractIntentPayload.Kind.ABANDON, entry.id()))));
@@ -159,24 +147,24 @@ public final class CourierBoardScreen extends Screen {
     private void initTest() {
         int left = left();
         int top = top();
-        addRenderableWidget(CreateStyleButton.create(left + 8, top + 54, 220, 20,
+        addRenderableWidget(CourierButton.create(left + 8, top + 54, 220, 20,
                 Component.translatable("ui.aerocouriers.test.license"), b ->
                         PacketDistributor.sendToServer(new OperatorBoardPayload(
                                 OperatorBoardPayload.Action.GIVE_LICENSE, Optional.empty()))));
-        addRenderableWidget(CreateStyleButton.create(left + 8, top + 78, 220, 20,
+        addRenderableWidget(CourierButton.create(left + 8, top + 78, 220, 20,
                 Component.translatable("ui.aerocouriers.test.money", OperatorBoardPayload.TEST_MONEY), b ->
                         PacketDistributor.sendToServer(new OperatorBoardPayload(
                                 OperatorBoardPayload.Action.ADD_MONEY, Optional.empty()))));
-        addRenderableWidget(CreateStyleButton.create(left + 8, top + 102, 220, 20,
+        addRenderableWidget(CourierButton.create(left + 8, top + 102, 220, 20,
                 Component.translatable("ui.aerocouriers.test.stamp"), b ->
                         PacketDistributor.sendToServer(new OperatorBoardPayload(
                                 OperatorBoardPayload.Action.GIVE_STAMP, Optional.empty()))));
         Optional<UUID> id = Optional.ofNullable(selected);
-        CreateStyleButton spawn = CreateStyleButton.create(left + 8, top + 146, 120, 20,
+        CourierButton spawn = CourierButton.create(left + 8, top + 146, 120, 20,
                 Component.translatable("ui.aerocouriers.test.forcespawn"), b ->
                         PacketDistributor.sendToServer(new OperatorBoardPayload(
                                 OperatorBoardPayload.Action.FORCE_SPAWN, id)));
-        CreateStyleButton deliver = CreateStyleButton.create(left + 132, top + 146, 120, 20,
+        CourierButton deliver = CourierButton.create(left + 132, top + 146, 120, 20,
                 Component.translatable("ui.aerocouriers.test.forcedeliver"), b ->
                         PacketDistributor.sendToServer(new OperatorBoardPayload(
                                 OperatorBoardPayload.Action.FORCE_DELIVER, id)));
@@ -198,8 +186,8 @@ public final class CourierBoardScreen extends Screen {
         super.render(graphics, mouseX, mouseY, partialTick);
         int left = left();
         int top = top();
-        CreateGui.drawParchmentStrip(graphics, left + 6, top + 26, panelW() - 12, 20);
-        graphics.drawString(font, title, left + 8, top + 32, CreateGui.TEXT_TITLE, false);
+        CreateGui.drawTitleLabel(graphics, left + 6, top + 26, panelW() - 12, 18);
+        graphics.drawString(font, title, left + 10, top + 31, CreateGui.TEXT_TITLE, false);
         long balance = snapshot == null ? 0 : snapshot.balance();
         graphics.drawString(font, Component.translatable("ui.aerocouriers.balance", balance),
                 left + Math.min(panelW() - 200, 200), top + 32, CreateGui.TEXT_BRASS, false);
@@ -241,6 +229,7 @@ public final class CourierBoardScreen extends Screen {
         int visible = visibleRows();
         scroll = Mth.clamp(scroll, 0, Math.max(0, all.size() - visible));
         int textW = panelW() - 168;
+        CreateGui.drawInset(graphics, left + 6, listTop() - 2, panelW() - 12, visible * rowH() + 2);
         graphics.enableScissor(left + 6, listTop() - 2, left + panelW() - 6, listTop() + visible * rowH());
         for (int i = 0; i < visible && scroll + i < all.size(); i++) {
             BoardSnapshotPayload.BoardEntry entry = all.get(scroll + i);
@@ -256,7 +245,7 @@ public final class CourierBoardScreen extends Screen {
                     entry.weight(),
                     entry.size(),
                     Component.translatable("contract.aerocouriers.role." + entry.role()));
-            drawClipped(graphics, main, left + 8, y, textW, CreateGui.TEXT_TITLE, mouseX, mouseY);
+            drawClipped(graphics, main, left + 8, y, textW, CreateGui.TEXT, mouseX, mouseY);
             drawClipped(graphics, meta, left + 8, y + 10, textW, CreateGui.TEXT_MUTED, mouseX, mouseY);
         }
         graphics.disableScissor();
@@ -319,7 +308,7 @@ public final class CourierBoardScreen extends Screen {
             return;
         }
         getChildAt(mouseX, mouseY).ifPresent(widget -> {
-            if (widget instanceof CreateStyleButton button && button.hint() != null) {
+            if (widget instanceof CourierButton button && button.hint() != null) {
                 hoverTip = button.hint();
             }
         });

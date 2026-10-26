@@ -1,56 +1,48 @@
 package dev.poligorn.aerocouriers.client;
 
+import com.mojang.blaze3d.systems.RenderSystem;
 import java.util.function.Consumer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.WidgetSprites;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.ItemLike;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * Text / icon button painted with Create {@code widgets.png} (9-sliced) and optional
- * Create icons-atlas slice or an ItemStack. Same click contract as vanilla {@link Button}.
+ * Button painted with mod CSI-inspired sprites (or vanilla {@code widget/*} when configured).
  */
-public final class CreateStyleButton extends Button {
-    private @Nullable CreateGuiTextures atlasIcon;
+public final class CourierButton extends Button {
+    private final WidgetSprites sprites;
     private ItemStack itemIcon = ItemStack.EMPTY;
-    private boolean selected;
-    private boolean green;
+    private @Nullable ResourceLocation atlasIcon;
     private @Nullable Component hint;
 
-    private CreateStyleButton(int x, int y, int w, int h, Component message, OnPress onPress) {
+    private CourierButton(int x, int y, int w, int h, Component message, OnPress onPress, WidgetSprites sprites) {
         super(x, y, w, h, message, onPress, DEFAULT_NARRATION);
+        this.sprites = sprites;
     }
 
-    public CreateStyleButton icon(CreateGuiTextures icon) {
-        this.atlasIcon = icon;
+    public CourierButton icon(ResourceLocation sprite) {
+        this.atlasIcon = sprite;
         return this;
     }
 
-    public CreateStyleButton item(ItemLike item) {
+    public CourierButton item(ItemLike item) {
         this.itemIcon = new ItemStack(item);
         return this;
     }
 
-    public CreateStyleButton item(ItemStack stack) {
+    public CourierButton item(ItemStack stack) {
         this.itemIcon = stack;
         return this;
     }
 
-    public CreateStyleButton selected(boolean selected) {
-        this.selected = selected;
-        return this;
-    }
-
-    public CreateStyleButton green(boolean green) {
-        this.green = green;
-        return this;
-    }
-
-    public CreateStyleButton hint(Component hint) {
+    public CourierButton hint(Component hint) {
         this.hint = hint;
         return this;
     }
@@ -60,18 +52,18 @@ public final class CreateStyleButton extends Button {
         return hint;
     }
 
-    public static CreateStyleButton create(int x, int y, int w, int h, Component message, OnPress onPress) {
-        return new CreateStyleButton(x, y, w, h, message, onPress);
+    public static CourierButton create(int x, int y, int w, int h, Component message, OnPress onPress) {
+        return new CourierButton(x, y, w, h, message, onPress, AerocouriersGuiSprites.buttonSprites());
     }
 
-    public static CreateStyleButton cycle(int x, int y, int w, int h, Component prefix,
-                                         java.util.List<Component> labels, Consumer<Integer> onChange) {
+    public static CourierButton cycle(int x, int y, int w, int h, Component prefix,
+                                      java.util.List<Component> labels, Consumer<Integer> onChange) {
         int[] index = {0};
-        CreateStyleButton button = new CreateStyleButton(x, y, w, h, option(prefix, labels.getFirst()), b -> {
+        CourierButton button = new CourierButton(x, y, w, h, option(prefix, labels.getFirst()), b -> {
             index[0] = (index[0] + 1) % labels.size();
             b.setMessage(option(prefix, labels.get(index[0])));
             onChange.accept(index[0]);
-        });
+        }, AerocouriersGuiSprites.buttonSprites());
         return button;
     }
 
@@ -81,11 +73,10 @@ public final class CreateStyleButton extends Button {
 
     @Override
     protected void renderWidget(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        boolean pressed = selected
-                || (isHovered && Minecraft.getInstance().mouseHandler.isLeftPressed());
-        boolean useGreen = green && (active || selected);
-        CreateGui.drawButton(graphics, getX(), getY(), getWidth(), getHeight(),
-                active, isHoveredOrFocused(), pressed, useGreen);
+        RenderSystem.enableBlend();
+        RenderSystem.enableDepthTest();
+        ResourceLocation sprite = sprites.get(active, isHoveredOrFocused());
+        graphics.blitSprite(sprite, getX(), getY(), getWidth(), getHeight());
         Font font = Minecraft.getInstance().font;
         int textX = getX() + 4;
         int iconY = getY() + (getHeight() - 16) / 2;
@@ -93,10 +84,10 @@ public final class CreateStyleButton extends Button {
             graphics.renderFakeItem(itemIcon, getX() + 2, iconY);
             textX = getX() + 20;
         } else if (atlasIcon != null) {
-            atlasIcon.blit(graphics, getX() + 1, iconY);
-            textX = getX() + 18;
+            graphics.blitSprite(atlasIcon, getX() + 2, iconY, 16, 16);
+            textX = getX() + 20;
         }
-        int color = active ? CreateGui.TEXT_TITLE : CreateGui.TEXT_DISABLED;
+        int color = active ? CreateGui.TEXT_BUTTON : CreateGui.TEXT_BUTTON_DISABLED;
         int textW = Math.max(8, getX() + getWidth() - 4 - textX);
         String raw = getMessage().getString();
         String shown = font.plainSubstrByWidth(raw, textW);
