@@ -192,7 +192,7 @@ public final class CourierNotificationsScreen extends Screen {
     }
 
     private int panelTop() {
-        return (height - panelH()) / 2;
+        return TabletGui.frameTop(height, panelH());
     }
 
     private int panelW() {
@@ -200,7 +200,7 @@ public final class CourierNotificationsScreen extends Screen {
     }
 
     private int panelH() {
-        return Math.min(300, height - 48);
+        return Math.min(300, Math.max(200, height - 48 - TabletGui.antennaOverhangTop()));
     }
 
     @Override

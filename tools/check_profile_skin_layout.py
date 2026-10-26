@@ -11,8 +11,8 @@ FEET_MARGIN_FRAC = 0.06
 HEAD_MARGIN_FRAC = 0.07
 FRAME_BORDER = 16
 CONTENT_INSET = 9
-ANTENNA_OVERHANG_TOP = 22
-GEAR_OVERHANG_LEFT = 14
+ANTENNA_H = 64
+ANTENNA_BASE_H = FRAME_BORDER
 TAB_Y = 2
 TAB_H = 20
 HEADING_GAP = 7
@@ -20,18 +20,17 @@ SCREEN_BOTTOM_PAD = 12
 
 
 def panel_w(width: int) -> int:
-    margin = 24 + GEAR_OVERHANG_LEFT
-    return min(max(int(width * 0.72), 400), max(400, width - margin))
+    return min(max(int(width * 0.72), 400), max(400, width - 48))
 
 
 def panel_h(height: int) -> int:
-    margin = 24 + ANTENNA_OVERHANG_TOP
+    margin = 24 + (ANTENNA_H - ANTENNA_BASE_H)
     return min(max(int(height * 0.80), 280), max(280, height - margin))
 
 
 def frame_top(screen_h: int, frame_h: int) -> int:
-    total_h = frame_h + ANTENNA_OVERHANG_TOP
-    return max(ANTENNA_OVERHANG_TOP + 2, (screen_h - total_h) // 2 + ANTENNA_OVERHANG_TOP)
+    over = ANTENNA_H - ANTENNA_BASE_H
+    return max(over + 2, (screen_h - frame_h) // 2)
 
 
 def list_top(screen_top: int) -> int:

@@ -13,10 +13,8 @@ SPRITES = ROOT / "src/main/resources/assets/aerocouriers/textures/gui/sprites"
 
 FRAME_BORDER = 16
 CONTENT_INSET = 9
-ANTENNA_OVERHANG_TOP = 22
-GEAR_OVERHANG_LEFT = 8
-ANTENNA_W, ANTENNA_H = 10, 28
-GEAR_W, GEAR_H = 28, 28
+ANTENNA_W, ANTENNA_H = 20, 64
+ANTENNA_BASE_H = FRAME_BORDER
 ROW_ACTION_RESERVE = 158
 GRID_STEP = 9
 SCREEN_FILL = (0x0A, 0x02, 0x00)
@@ -79,10 +77,9 @@ def nine_slice_hollow(canvas: Image.Image, patch: Image.Image, x: int, y: int, w
 
 
 def frame_pos(screen_w: int, screen_h: int, frame_w: int, frame_h: int) -> tuple[int, int]:
-    total_w = frame_w + GEAR_OVERHANG_LEFT
-    total_h = frame_h + ANTENNA_OVERHANG_TOP
-    fx = max(GEAR_OVERHANG_LEFT + 2, (screen_w - total_w) // 2 + GEAR_OVERHANG_LEFT)
-    fy = max(ANTENNA_OVERHANG_TOP + 2, (screen_h - total_h) // 2 + ANTENNA_OVERHANG_TOP)
+    over = ANTENNA_H - ANTENNA_BASE_H
+    fx = max(2, (screen_w - frame_w) // 2)
+    fy = max(over + 2, (screen_h - frame_h) // 2)
     return fx, fy
 
 
@@ -100,10 +97,9 @@ def draw_monitor(canvas: Image.Image, fx: int, fy: int, fw: int, fh: int) -> tup
     sw, sh = fw - FRAME_BORDER * 2, fh - FRAME_BORDER * 2
     draw_screen_background(canvas, sx, sy, sw, sh)
     nine_slice_hollow(canvas, load("tablet_frame"), fx, fy, fw, fh, (FRAME_BORDER, FRAME_BORDER, FRAME_BORDER, FRAME_BORDER))
-    gear_x = fx - GEAR_OVERHANG_LEFT
-    gear_y = fy + (fh - GEAR_H) // 2
-    canvas.alpha_composite(load("tablet_decor_gear"), (gear_x, gear_y))
-    canvas.alpha_composite(load("tablet_decor_antenna"), (fx + FRAME_BORDER * 3 // 4, fy - ANTENNA_OVERHANG_TOP))
+    ax = fx + FRAME_BORDER // 2
+    ay = fy - (ANTENNA_H - ANTENNA_BASE_H)
+    canvas.alpha_composite(load("tablet_decor_antenna").resize((ANTENNA_W, ANTENNA_H), Image.Resampling.NEAREST), (ax, ay))
     return sx, sy, sw, sh
 
 
@@ -181,8 +177,9 @@ def try_font(size: int = 8) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
 def render_board(w: int, h: int, tab: int) -> tuple[Image.Image, tuple[int, int, int, int]]:
     canvas = Image.new("RGBA", (w, h), (32, 32, 48, 255))
     margin = 8
-    fw = min(int(w * 0.72), w - margin * 2 - GEAR_OVERHANG_LEFT)
-    fh = min(int(h * 0.80), h - margin * 2 - ANTENNA_OVERHANG_TOP)
+    over = ANTENNA_H - ANTENNA_BASE_H
+    fw = min(int(w * 0.72), w - margin * 2)
+    fh = min(int(h * 0.80), h - margin * 2 - over)
     fw = max(320, fw)
     fh = max(220, fh)
     fx, fy = frame_pos(w, h, fw, fh)

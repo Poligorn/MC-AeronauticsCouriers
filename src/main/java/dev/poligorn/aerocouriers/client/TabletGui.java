@@ -31,25 +31,33 @@ public final class TabletGui {
     public static final int FRAME_BORDER = 16;
     /** Inset from the inner screen cavity to tabs, headings, lists, and chrome (all tablet UIs). */
     public static final int CONTENT_INSET = 9;
-    public static final int ANTENNA_W = 10;
-    public static final int ANTENNA_H = 32;
-    /** Pixels the antenna sprite extends above the frame top. */
-    public static final int ANTENNA_OVERHANG_TOP = 22;
-    public static final int GEAR_W = 28;
-    public static final int GEAR_H = 28;
-    /** Hub X in {@code tablet_decor_gear} (matches {@code gen_tablet_gear}). */
-    private static final int GEAR_HUB_SPRITE_X = 20;
-    /** Pixels the gear sprite extends left of the frame (keeps hub on the brass bezel). */
-    public static final int GEAR_OVERHANG_LEFT = GEAR_HUB_SPRITE_X - FRAME_BORDER * 3 / 4;
-    /** Antenna X offset from frame left (top-left clip on the bezel). */
-    public static final int ANTENNA_LEFT = FRAME_BORDER * 3 / 4;
+    /** Antenna sprite size (2× legacy; matches {@code gen_tablet_antenna}). */
+    public static final int ANTENNA_W = 20;
+    public static final int ANTENNA_H = 64;
+    /** Brass foot height in the sprite; equals top {@link #FRAME_BORDER} bezel when drawn flush. */
+    public static final int ANTENNA_BASE_H = FRAME_BORDER;
+
+    /** Mast + bulb pixels drawn above the frame top (sprite extends upward from the bezel). */
+    public static int antennaOverhangTop() {
+        return ANTENNA_H - ANTENNA_BASE_H;
+    }
+
+    /** Antenna X offset from frame left (top-left on the bezel). */
+    public static int antennaLeft(int frameX) {
+        return frameX + FRAME_BORDER / 2;
+    }
+
+    /** Sprite Y so the foot covers {@code [frameY, frameY + ANTENNA_BASE_H)}. */
+    public static int antennaDrawY(int frameY) {
+        return frameY - antennaOverhangTop();
+    }
 
     private TabletGui() {
     }
 
     /**
      * Draw order: screen fill inside the inner rect, brass frame on top (transparent center),
-     * gear half outside the left edge, antenna on top-left.
+     * antenna on top-left bezel.
      */
     /** Full device: inner grid, then brass frame and decor (used by offline previews). */
     public static void drawMonitor(GuiGraphics graphics, int frameX, int frameY, int frameW, int frameH) {
@@ -61,17 +69,13 @@ public final class TabletGui {
         drawFrameChrome(graphics, frameX, frameY, frameW, frameH);
     }
 
-    /** Brass bezel, gear and antenna — draw after widgets so blur/sprite state cannot drop them. */
+    /** Brass bezel and antenna — draw after widgets so blur/sprite state cannot drop them. */
     public static void drawFrameChrome(GuiGraphics graphics, int frameX, int frameY, int frameW, int frameH) {
         if (frameW > 0 && frameH > 0) {
             graphics.blitSprite(AerocouriersGuiSprites.TABLET_FRAME, frameX, frameY, frameW, frameH);
         }
-        int gearX = frameX - GEAR_OVERHANG_LEFT;
-        int gearY = frameY + (frameH - GEAR_H) / 2;
-        graphics.blitSprite(AerocouriersGuiSprites.TABLET_DECOR_GEAR, gearX, gearY, GEAR_W, GEAR_H);
-        int ax = frameX + ANTENNA_LEFT;
-        int ay = frameY - ANTENNA_OVERHANG_TOP;
-        graphics.blitSprite(AerocouriersGuiSprites.TABLET_DECOR_ANTENNA, ax, ay, ANTENNA_W, ANTENNA_H);
+        graphics.blitSprite(AerocouriersGuiSprites.TABLET_DECOR_ANTENNA,
+                antennaLeft(frameX), antennaDrawY(frameY), ANTENNA_W, ANTENNA_H);
     }
 
     public static void drawScreenBackground(GuiGraphics graphics, int x, int y, int w, int h) {
@@ -141,13 +145,15 @@ public final class TabletGui {
 
     /** Frame top-left when centering the device (frame + decor) on the screen. */
     public static int frameLeft(int screenW, int frameW) {
-        int totalW = frameW + GEAR_OVERHANG_LEFT;
-        return Math.max(GEAR_OVERHANG_LEFT + 2, (screenW - totalW) / 2 + GEAR_OVERHANG_LEFT);
+        return Math.max(2, (screenW - frameW) / 2);
     }
 
+    /** Frame top Y; leaves room for the antenna mast above the bezel on small screens. */
     public static int frameTop(int screenH, int frameH) {
-        int totalH = frameH + ANTENNA_OVERHANG_TOP;
-        return Math.max(ANTENNA_OVERHANG_TOP + 2, (screenH - totalH) / 2 + ANTENNA_OVERHANG_TOP);
+        int over = antennaOverhangTop();
+        int minTop = over + 2;
+        int centered = (screenH - frameH) / 2;
+        return Math.max(minTop, centered);
     }
 
     public static int cavityLeft(int frameLeft) {

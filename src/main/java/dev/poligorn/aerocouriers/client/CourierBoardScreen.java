@@ -968,12 +968,11 @@ public final class CourierBoardScreen extends Screen {
     }
 
     private int panelW() {
-        int margin = 24 + TabletGui.GEAR_OVERHANG_LEFT;
-        return Mth.clamp((int) (width * 0.72), 400, Math.max(400, width - margin));
+        return Mth.clamp((int) (width * 0.72), 400, Math.max(400, width - 48));
     }
 
     private int panelH() {
-        int margin = 24 + TabletGui.ANTENNA_OVERHANG_TOP;
+        int margin = 24 + TabletGui.antennaOverhangTop();
         return Mth.clamp((int) (height * 0.80), 280, Math.max(280, height - margin));
     }
 

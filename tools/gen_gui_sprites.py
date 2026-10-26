@@ -360,9 +360,6 @@ TB_COPPER_HI = hx("#E3826C")
 TB_COPPER = hx("#C87456")
 TB_COPPER_DK = hx("#A75A40")
 TB_COPPER_EDGE = hx("#794631")
-TB_GEAR_HI = hx("#82613A")
-TB_GEAR = hx("#70522E")
-TB_GEAR_DK = hx("#5A4424")
 TB_ORANGE_ICON = hx("#FFAF55")
 TB_ORANGE_ICON_DK = hx("#C87A3A")
 
@@ -493,45 +490,24 @@ def gen_tablet_scroller() -> None:
 
 
 def gen_tablet_antenna() -> None:
-    w, h = 10, 32
+    """20×64: 16px brass foot (top bezel) + copper mast and bulb (2× legacy)."""
+    w, h = 20, 64
+    base = 16
     img = Image.new("RGBA", (w, h), TRANSPARENT)
     d = ImageDraw.Draw(img)
-    # brass base on frame top (2× height for 16px bezel)
-    fill_rect(img, 0, h - 8, w, h, TB_SH)
-    fill_rect(img, 1, h - 8, w - 1, h - 1, TB_MID)
-    fill_rect(img, 1, h - 6, w - 1, h - 2, TB_HI)
-    # copper rod
-    fill_rect(img, 4, 6, 6, h - 8, TB_COPPER_DK)
-    fill_rect(img, 3, 7, 7, h - 9, TB_COPPER)
-    fill_rect(img, 3, 7, 4, h - 10, TB_COPPER_HI)
-    # ring + ball tip
-    d.ellipse((1, 0, 9, 6), outline=TB_COPPER, width=1)
-    d.ellipse((3, 1, 7, 5), fill=TB_COPPER_HI, outline=TB_COPPER_EDGE)
-    d.ellipse((4, 0, 6, 2), fill=TB_COPPER_HI, outline=BLACK)
+    fill_rect(img, 0, h - base, w, h, TB_SH)
+    fill_rect(img, 1, h - base, w - 1, h - 1, TB_MID)
+    fill_rect(img, 2, h - base + 2, w - 2, h - 2, TB_HI)
+    fill_rect(img, 1, h - base, w - 1, h - base + 2, TB_DK)
+    cx = w // 2
+    rod_l, rod_r = cx - 3, cx + 3
+    fill_rect(img, rod_l, 12, rod_r, h - base, TB_COPPER_DK)
+    fill_rect(img, rod_l + 1, 13, rod_r - 1, h - base - 1, TB_COPPER)
+    fill_rect(img, rod_l + 1, 13, rod_l + 2, h - base - 2, TB_COPPER_HI)
+    d.ellipse((1, 0, 19, 16), outline=TB_COPPER, width=2)
+    d.ellipse((4, 3, 16, 15), fill=TB_COPPER_HI, outline=TB_COPPER_EDGE)
+    d.ellipse((6, 1, 14, 9), fill=TB_COPPER_HI, outline=BLACK)
     save_sprite("tablet_decor_antenna", img, None)
-
-
-def gen_tablet_gear() -> None:
-    import math
-
-    w, h = 28, 28
-    img = Image.new("RGBA", (w, h), TRANSPARENT)
-    d = ImageDraw.Draw(img)
-    cx, cy = w - 8, h // 2
-    r_outer = 13
-    r_inner = 5
-    teeth = 8
-    pts = []
-    for i in range(teeth * 2):
-        ang = math.pi * 2 * i / (teeth * 2) - math.pi / 2
-        r = r_outer if i % 2 == 0 else r_outer - 4
-        pts.append((cx + r * math.cos(ang), cy + r * math.sin(ang)))
-    d.polygon(pts, fill=hx("#614B2E"), outline=BLACK)
-    d.ellipse((cx - r_inner, cy - r_inner, cx + r_inner, cy + r_inner), fill=TB_GEAR_DK, outline=BLACK)
-    d.ellipse((cx - r_inner + 1, cy - r_inner + 1, cx + r_inner - 1, cy + r_inner - 1), fill=TB_GEAR)
-    d.ellipse((cx - 2, cy - 2, cx + 2, cy + 2), fill=TB_GEAR_HI)
-    d.arc((cx - 12, cy - 12, cx + 2, cy + 12), 80, 280, fill=hx("#82613A"), width=3)
-    save_sprite("tablet_decor_gear", img, None)
 
 
 def _tablet_icon(draw_fn) -> None:
@@ -617,7 +593,6 @@ def gen_tablet() -> None:
     gen_tablet_list_row()
     gen_tablet_scroller()
     gen_tablet_antenna()
-    gen_tablet_gear()
     gen_envelope_tablet()
     gen_bell_icons()
     gen_board_row_icons()
