@@ -91,9 +91,9 @@ public final class CouriersGameTests {
         helper.assertValueEqual(RankRules.rankFor(CourierProfile.EMPTY.withXp(299)), LicenseRank.RANK1, "299");
         helper.assertValueEqual(RankRules.rankFor(CourierProfile.EMPTY.withXp(300)), LicenseRank.RANK2, "300");
         helper.assertValueEqual(RankRules.rankFor(CourierProfile.EMPTY.withXp(5000)), LicenseRank.RANK4, "5000");
-        CourierProfile ace = new CourierProfile(15000, 9, 1, 0, 0L, 1, false, 0, false);
+        CourierProfile ace = new CourierProfile(15000, 9, 1, 0, 0L, 1, false, 0, false, 0L);
         helper.assertValueEqual(RankRules.rankFor(ace), LicenseRank.RANK5, "ace at 90%");
-        CourierProfile unreliable = new CourierProfile(15000, 8, 2, 0, 0L, 1, false, 0, false);
+        CourierProfile unreliable = new CourierProfile(15000, 8, 2, 0, 0L, 1, false, 0, false, 0L);
         helper.assertValueEqual(RankRules.rankFor(unreliable), LicenseRank.RANK4, "no ace below 90%");
         helper.assertValueEqual(LicenseRank.fromLegacySuffix("captain").orElseThrow(), LicenseRank.RANK4, "legacy");
         helper.succeed();
@@ -101,10 +101,22 @@ public final class CouriersGameTests {
 
     @GameTest(template = EMPTY)
     public static void profileCodecRoundTrip(GameTestHelper helper) {
-        CourierProfile profile = new CourierProfile(1234, 10, 2, 1, 98765L, 3, true, 2, true);
+        CourierProfile profile = new CourierProfile(1234, 10, 2, 1, 98765L, 3, true, 2, true, 555L);
         Tag encoded = CourierProfile.CODEC.encodeStart(NbtOps.INSTANCE, profile).getOrThrow();
         CourierProfile decoded = CourierProfile.CODEC.parse(NbtOps.INSTANCE, encoded).getOrThrow();
         helper.assertValueEqual(decoded, profile, "profile");
+        helper.succeed();
+    }
+
+    @GameTest(template = EMPTY)
+    public static void profileCodecMissingRewardSum(GameTestHelper helper) {
+        Tag encoded = CourierProfile.CODEC.encodeStart(NbtOps.INSTANCE, CourierProfile.EMPTY.withDelivery(0, 0, false, 0))
+                .getOrThrow();
+        if (encoded instanceof net.minecraft.nbt.CompoundTag compound) {
+            compound.remove("reward_sum");
+        }
+        CourierProfile decoded = CourierProfile.CODEC.parse(NbtOps.INSTANCE, encoded).getOrThrow();
+        helper.assertValueEqual(decoded.rewardSum(), 0L, "default reward_sum");
         helper.succeed();
     }
 

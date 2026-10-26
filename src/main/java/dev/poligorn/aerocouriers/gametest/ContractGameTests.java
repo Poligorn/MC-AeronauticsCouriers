@@ -95,6 +95,7 @@ public final class ContractGameTests {
         helper.assertValueEqual(f.state(contract), ContractState.DELIVERED, "state");
         helper.assertValueEqual(Mailbox.get(f.server()).contents(f.issuer.getUUID()).size(), 2, "issuer mailbox");
         helper.assertValueEqual(Licenses.profile(f.courier).delivered(), 1, "delivered count");
+        helper.assertValueEqual(Licenses.profile(f.courier).rewardSum(), 20L, "reward_sum");
         // floor(10 + 7.07/200 + (32 × 1.0 + 5 × 0.11)/50) = 10
         helper.assertValueEqual(Licenses.profile(f.courier).xp(), 10, "xp");
         helper.succeed();

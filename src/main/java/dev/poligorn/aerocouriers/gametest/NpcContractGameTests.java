@@ -107,9 +107,9 @@ public final class NpcContractGameTests {
                     Contract contract = f.publish(from, to);
                     f.economy.deposit(f.courier.getUUID(), 200, "test");
                     Licenses.setProfile(f.courier, Licenses.profile(f.courier)
-                            .withVillageDelivery(0, 0, false)
-                            .withVillageDelivery(0, 0, false)
-                            .withVillageDelivery(0, 0, false));
+                            .withVillageDelivery(0, 0, false, 0L)
+                            .withVillageDelivery(0, 0, false, 0L)
+                            .withVillageDelivery(0, 0, false, 0L));
                     helper.assertValueEqual(Licenses.profile(f.courier).villageDelivered(), 3, "past trainee");
                     long before = f.economy.balance(f.courier.getUUID());
                     f.expect(f.manager.accept(f.courier, contract.id()), true, "accept after trainee");
@@ -141,8 +141,8 @@ public final class NpcContractGameTests {
                     StationAtlas.Station to = f.station(B);
                     f.economy.deposit(f.courier.getUUID(), 50, "test");
                     Licenses.setProfile(f.courier, Licenses.profile(f.courier)
-                            .withVillageDelivery(0, 0, false)
-                            .withVillageDelivery(0, 0, false));
+                            .withVillageDelivery(0, 0, false, 0L)
+                            .withVillageDelivery(0, 0, false, 0L));
                     helper.assertValueEqual(Licenses.profile(f.courier).villageDelivered(), 2, "two village jobs");
                     helper.assertFalse(Licenses.profile(f.courier).traineeAdvancePaid(), "advance not yet");
 

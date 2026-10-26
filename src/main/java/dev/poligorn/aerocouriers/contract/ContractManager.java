@@ -638,8 +638,8 @@ public final class ContractManager extends SavedData {
         recentDeliveries.add(new Delivery(courier.getUUID(), contract.issuer(), now));
         CourierProfile profile = Licenses.profile(courier);
         profile = contract.type().isNpc()
-                ? profile.withVillageDelivery(xp, Math.round(contract.distance()), late)
-                : profile.withDelivery(xp, Math.round(contract.distance()), late);
+                ? profile.withVillageDelivery(xp, Math.round(contract.distance()), late, paid)
+                : profile.withDelivery(xp, Math.round(contract.distance()), late, paid);
         if (contract.type().isNpc() && !profile.traineeAdvancePaid()
                 && profile.villageDelivered() >= CouriersServerConfig.TRAINEE_FREE_CONTRACTS.get()) {
             long bonus = CouriersServerConfig.TRAINEE_BONUS.get();

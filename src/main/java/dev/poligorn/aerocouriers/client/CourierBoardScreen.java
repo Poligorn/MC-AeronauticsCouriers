@@ -1,16 +1,22 @@
 package dev.poligorn.aerocouriers.client;
 
 import dev.poligorn.aerocouriers.contract.ContractState;
+import dev.poligorn.aerocouriers.license.LicenseRank;
 import dev.poligorn.aerocouriers.net.BoardSnapshotPayload;
+import dev.poligorn.aerocouriers.registry.ModComponents;
+import dev.poligorn.aerocouriers.registry.ModItems;
 import dev.poligorn.aerocouriers.net.ContractIntentPayload;
 import dev.poligorn.aerocouriers.net.OpenBoardPayload;
 import dev.poligorn.aerocouriers.net.OperatorBoardPayload;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.Locale;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.util.Mth;
 import net.neoforged.neoforge.network.PacketDistributor;
@@ -25,7 +31,7 @@ public final class CourierBoardScreen extends Screen {
     private static final int ROW_ACTION_RESERVE = 158;
 
     enum Tab {
-        BOARD, MINE, TEST
+        BOARD, MINE, PROFILE, TEST
     }
 
     private @Nullable BoardSnapshotPayload snapshot;
@@ -65,11 +71,13 @@ public final class CourierBoardScreen extends Screen {
         super.init();
         int sx = screenLeft();
         int sy = screenTop();
-        int tabW = Math.max(70, screenW() / 6);
-        addTab(sx + 4, sy + 2, tabW, Tab.BOARD, "ui.aerocouriers.tab.board");
-        addTab(sx + 8 + tabW, sy + 2, tabW, Tab.MINE, "ui.aerocouriers.tab.mine");
+        int tabW = Math.max(64, screenW() / 7);
+        int tabX = sx + 4;
+        tabX = addTab(tabX, sy + 2, tabW, Tab.BOARD, "ui.aerocouriers.tab.board") + 4;
+        tabX = addTab(tabX, sy + 2, tabW, Tab.MINE, "ui.aerocouriers.tab.mine") + 4;
+        tabX = addTab(tabX, sy + 2, tabW, Tab.PROFILE, "ui.aerocouriers.tab.profile") + 4;
         if (snapshot != null && snapshot.operator()) {
-            addTab(sx + 12 + tabW * 2, sy + 2, tabW, Tab.TEST, "ui.aerocouriers.tab.test");
+            addTab(tabX, sy + 2, tabW, Tab.TEST, "ui.aerocouriers.tab.test");
         }
 
         int mail = snapshot == null ? 0 : snapshot.mailCount();
@@ -85,7 +93,8 @@ public final class CourierBoardScreen extends Screen {
         }
     }
 
-    private void addTab(int x, int y, int w, Tab value, String key) {
+    /** Returns x position after this tab (for laying out the next one). */
+    private int addTab(int x, int y, int w, Tab value, String key) {
         boolean on = tab == value;
         addRenderableWidget(new TabletTabButton(x, y, w, 20, Component.translatable(key), () -> {
             tab = value;
@@ -93,6 +102,7 @@ public final class CourierBoardScreen extends Screen {
             pendingAccept = null;
             rebuildWidgets();
         }).selected(on));
+        return x + w;
     }
 
     private void initListButtons(List<BoardSnapshotPayload.BoardEntry> all, boolean boardTab) {
@@ -203,6 +213,8 @@ public final class CourierBoardScreen extends Screen {
 
         if (tab == Tab.BOARD || tab == Tab.MINE) {
             renderList(graphics, tab == Tab.BOARD ? snapshot.board() : snapshot.mine(), sx, mouseX, mouseY);
+        } else if (tab == Tab.PROFILE) {
+            renderProfile(graphics, snapshot.profile(), sx, mouseX, mouseY);
         } else if (tab == Tab.TEST) {
             String id = selected == null ? "—" : snapshot.find(selected).map(BoardSnapshotPayload.BoardEntry::shortId)
                     .orElse(selected.toString().substring(0, 8));
@@ -219,6 +231,71 @@ public final class CourierBoardScreen extends Screen {
         }
         captureButtonHint(mouseX, mouseY);
         drawHoverTip(graphics, mouseX, mouseY);
+    }
+
+    private void renderProfile(GuiGraphics graphics, BoardSnapshotPayload.BoardProfile profile, int sx,
+                               int mouseX, int mouseY) {
+        int top = listTop();
+        int bottom = screenTop() + screenH() - 12;
+        int boxH = bottom - top;
+        int boxW = Math.max(72, screenW() / 2 - 20);
+        int boxX = sx + 8;
+        TabletGui.drawListPanel(graphics, boxX, top, boxW, boxH);
+        if (minecraft != null && minecraft.player != null) {
+            InventoryScreen.renderEntityInInventoryFollowsMouse(
+                    graphics,
+                    boxX,
+                    top,
+                    boxX + boxW,
+                    top + boxH,
+                    30,
+                    0.0625F,
+                    mouseX,
+                    mouseY,
+                    minecraft.player);
+        }
+
+        int textX = boxX + boxW + 12;
+        int textW = sx + screenW() - 8 - textX;
+        int y = top + 4;
+        graphics.drawString(font, profile.playerName(), textX, y, TabletGui.TEXT_BRIGHT, false);
+        y += 12;
+
+        LicenseRank rank = profile.rank();
+        Component rankLine = Component.translatable("ui.aerocouriers.profile.rank", rank.displayName());
+        graphics.drawString(font, rankLine, textX + 14, y, TabletGui.TEXT, false);
+        ItemStack licenseIcon = new ItemStack(ModItems.PILOT_LICENSE.get());
+        licenseIcon.set(ModComponents.LICENSE_RANK.get(), rank);
+        graphics.renderItem(licenseIcon, textX, y - 2);
+        y += 12;
+
+        y = drawProfileStat(graphics, textX, y, textW,
+                Component.translatable("ui.aerocouriers.profile.delivered", profile.delivered()));
+        y = drawProfileStat(graphics, textX, y, textW,
+                Component.translatable("ui.aerocouriers.profile.failed", profile.failed()));
+        y = drawProfileStat(graphics, textX, y, textW,
+                Component.translatable("ui.aerocouriers.profile.avg_reward", formatAverage(profile.rewardSum(), profile.delivered())));
+        y = drawProfileStat(graphics, textX, y, textW,
+                Component.translatable("ui.aerocouriers.profile.avg_distance",
+                        formatAverage(profile.distance(), profile.delivered())));
+        int completed = profile.delivered() + profile.failed();
+        String rate = completed == 0
+                ? String.format(Locale.ROOT, "%.0f%%", 100.0)
+                : String.format(Locale.ROOT, "%.0f%%", profile.delivered() * 100.0 / completed);
+        drawProfileStat(graphics, textX, y, textW,
+                Component.translatable("ui.aerocouriers.profile.success_rate", rate));
+    }
+
+    private int drawProfileStat(GuiGraphics graphics, int x, int y, int width, Component line) {
+        drawWrapped(graphics, line, x, y, width, TabletGui.TEXT);
+        return y + 11;
+    }
+
+    private static Component formatAverage(long sum, int count) {
+        if (count <= 0) {
+            return Component.translatable("ui.aerocouriers.profile.dash");
+        }
+        return Component.literal(String.format(Locale.ROOT, "%d", sum / count));
     }
 
     private void renderList(GuiGraphics graphics, List<BoardSnapshotPayload.BoardEntry> all, int sx,

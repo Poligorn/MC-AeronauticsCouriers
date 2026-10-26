@@ -17,10 +17,11 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
  * @param migrated            whether a legacy {@code kubejs:pilot_license_*} was already migrated
  * @param villageDelivered    successful NPC / station contracts (GDD §6.5 trainee)
  * @param traineeAdvancePaid  whether the one-time trainee bonus was already granted
+ * @param rewardSum           sum of spur rewards paid on successful deliveries (for board profile averages)
  */
 public record CourierProfile(int xp, int delivered, int failed, int late, long distance, int licensesIssued,
-                             boolean migrated, int villageDelivered, boolean traineeAdvancePaid) {
-    public static final CourierProfile EMPTY = new CourierProfile(0, 0, 0, 0, 0L, 0, false, 0, false);
+                             boolean migrated, int villageDelivered, boolean traineeAdvancePaid, long rewardSum) {
+    public static final CourierProfile EMPTY = new CourierProfile(0, 0, 0, 0, 0L, 0, false, 0, false, 0L);
 
     public static final Codec<CourierProfile> CODEC = RecordCodecBuilder.create(instance -> instance.group(
             Codec.INT.optionalFieldOf("xp", 0).forGetter(CourierProfile::xp),
@@ -31,7 +32,8 @@ public record CourierProfile(int xp, int delivered, int failed, int late, long d
             Codec.INT.optionalFieldOf("licenses_issued", 0).forGetter(CourierProfile::licensesIssued),
             Codec.BOOL.optionalFieldOf("migrated", false).forGetter(CourierProfile::migrated),
             Codec.INT.optionalFieldOf("village_delivered", 0).forGetter(CourierProfile::villageDelivered),
-            Codec.BOOL.optionalFieldOf("trainee_advance_paid", false).forGetter(CourierProfile::traineeAdvancePaid)
+            Codec.BOOL.optionalFieldOf("trainee_advance_paid", false).forGetter(CourierProfile::traineeAdvancePaid),
+            Codec.LONG.optionalFieldOf("reward_sum", 0L).forGetter(CourierProfile::rewardSum)
     ).apply(instance, CourierProfile::new));
 
     public int completed() {
@@ -46,36 +48,38 @@ public record CourierProfile(int xp, int delivered, int failed, int late, long d
 
     public CourierProfile withXp(int newXp) {
         return new CourierProfile(Math.max(0, newXp), delivered, failed, late, distance, licensesIssued, migrated,
-                villageDelivered, traineeAdvancePaid);
+                villageDelivered, traineeAdvancePaid, rewardSum);
     }
 
     public CourierProfile withLicensesIssued(int count) {
         return new CourierProfile(xp, delivered, failed, late, distance, count, migrated, villageDelivered,
-                traineeAdvancePaid);
+                traineeAdvancePaid, rewardSum);
     }
 
     public CourierProfile withMigrated(boolean value) {
         return new CourierProfile(xp, delivered, failed, late, distance, licensesIssued, value, villageDelivered,
-                traineeAdvancePaid);
+                traineeAdvancePaid, rewardSum);
     }
 
-    public CourierProfile withDelivery(int gainedXp, long blocks, boolean wasLate) {
+    public CourierProfile withDelivery(int gainedXp, long blocks, boolean wasLate, long rewardPaid) {
         return new CourierProfile(xp + Math.max(0, gainedXp), delivered + 1, failed, late + (wasLate ? 1 : 0),
-                distance + Math.max(0, blocks), licensesIssued, migrated, villageDelivered, traineeAdvancePaid);
+                distance + Math.max(0, blocks), licensesIssued, migrated, villageDelivered, traineeAdvancePaid,
+                rewardSum + Math.max(0, rewardPaid));
     }
 
-    public CourierProfile withVillageDelivery(int gainedXp, long blocks, boolean wasLate) {
+    public CourierProfile withVillageDelivery(int gainedXp, long blocks, boolean wasLate, long rewardPaid) {
         return new CourierProfile(xp + Math.max(0, gainedXp), delivered + 1, failed, late + (wasLate ? 1 : 0),
-                distance + Math.max(0, blocks), licensesIssued, migrated, villageDelivered + 1, traineeAdvancePaid);
+                distance + Math.max(0, blocks), licensesIssued, migrated, villageDelivered + 1, traineeAdvancePaid,
+                rewardSum + Math.max(0, rewardPaid));
     }
 
     public CourierProfile withTraineeAdvancePaid() {
         return new CourierProfile(xp, delivered, failed, late, distance, licensesIssued, migrated, villageDelivered,
-                true);
+                true, rewardSum);
     }
 
     public CourierProfile withFailure() {
         return new CourierProfile(xp, delivered, failed + 1, late, distance, licensesIssued, migrated,
-                villageDelivered, traineeAdvancePaid);
+                villageDelivered, traineeAdvancePaid, rewardSum);
     }
 }

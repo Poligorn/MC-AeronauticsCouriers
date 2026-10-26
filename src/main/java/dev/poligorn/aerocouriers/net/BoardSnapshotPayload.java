@@ -35,7 +35,8 @@ public record BoardSnapshotPayload(
         Optional<Component> notice,
         List<BoardEntry> board,
         List<BoardEntry> mine,
-        List<StationHint> stations
+        List<StationHint> stations,
+        BoardProfile profile
 ) implements CustomPacketPayload {
     public static final Type<BoardSnapshotPayload> TYPE = new Type<>(AeronauticsCouriers.id("board_snapshot"));
     public static final int PAGE_SIZE = 20;
@@ -56,6 +57,27 @@ public record BoardSnapshotPayload(
                 ByteBufCodecs.STRING_UTF8, StationHint::name,
                 BlockPos.STREAM_CODEC, StationHint::pos,
                 StationHint::new);
+    }
+
+    /** Viewer courier stats for the board «Профиль» tab (server is source of truth). */
+    public record BoardProfile(
+            String playerName,
+            LicenseRank rank,
+            int delivered,
+            int failed,
+            long distance,
+            long rewardSum
+    ) {
+        public static final BoardProfile EMPTY = new BoardProfile("", LicenseRank.RANK1, 0, 0, 0L, 0L);
+
+        public static final StreamCodec<RegistryFriendlyByteBuf, BoardProfile> STREAM_CODEC = StreamCodec.composite(
+                ByteBufCodecs.STRING_UTF8, BoardProfile::playerName,
+                LicenseRank.STREAM_CODEC, BoardProfile::rank,
+                ByteBufCodecs.VAR_INT, BoardProfile::delivered,
+                ByteBufCodecs.VAR_INT, BoardProfile::failed,
+                ByteBufCodecs.VAR_LONG, BoardProfile::distance,
+                ByteBufCodecs.VAR_LONG, BoardProfile::rewardSum,
+                BoardProfile::new);
     }
 
     public record BoardEntry(
@@ -134,6 +156,7 @@ public record BoardSnapshotPayload(
         BoardEntry.STREAM_CODEC.apply(ByteBufCodecs.list(PAGE_SIZE)).encode(buf, p.board);
         BoardEntry.STREAM_CODEC.apply(ByteBufCodecs.list(64)).encode(buf, p.mine);
         StationHint.STREAM_CODEC.apply(ByteBufCodecs.list(64)).encode(buf, p.stations);
+        BoardProfile.STREAM_CODEC.encode(buf, p.profile);
     }
 
     private static BoardSnapshotPayload read(RegistryFriendlyByteBuf buf) {
@@ -153,7 +176,8 @@ public record BoardSnapshotPayload(
                 allowSelfAccept, requireTablet, notice,
                 BoardEntry.STREAM_CODEC.apply(ByteBufCodecs.list(PAGE_SIZE)).decode(buf),
                 BoardEntry.STREAM_CODEC.apply(ByteBufCodecs.list(64)).decode(buf),
-                StationHint.STREAM_CODEC.apply(ByteBufCodecs.list(64)).decode(buf));
+                StationHint.STREAM_CODEC.apply(ByteBufCodecs.list(64)).decode(buf),
+                BoardProfile.STREAM_CODEC.decode(buf));
     }
 
     public Optional<BoardEntry> find(UUID id) {

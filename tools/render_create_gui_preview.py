@@ -190,8 +190,8 @@ def render_board(w: int, h: int, tab: int) -> tuple[Image.Image, tuple[int, int,
     font_sm = try_font(7)
     d = ImageDraw.Draw(canvas)
 
-    tab_w = 70
-    tabs = ["Заказы", "Мои", "Тест"]
+    tab_w = 64
+    tabs = ["Заказы", "Мои", "Профиль", "Тест"]
     for i, label in enumerate(tabs):
         draw_tablet_tab(canvas, sx + 4 + i * (tab_w + 4), sy + 2, tab_w, i == tab)
         color = C_BRIGHT if i == tab else C_MUTED
@@ -234,6 +234,35 @@ def render_board(w: int, h: int, tab: int) -> tuple[Image.Image, tuple[int, int,
         draw_tablet_button(canvas, sx + sw - 156, sy + 48, 68, 18)
         draw_tablet_button(canvas, sx + sw - 84, sy + 48, 76, 18)
         d.text((sx + sw - 72, sy + 52), "Отказ", fill=C_MAIN, font=font_sm)
+    elif tab == 2:
+        top = sy + 44
+        bottom = sy + sh - 12
+        box_h = bottom - top
+        box_w = max(72, sw // 2 - 20)
+        box_x = sx + 8
+        draw_list_panel(canvas, box_x, top, box_w, box_h)
+        # Placeholder silhouette (skin preview stand-in)
+        cx = box_x + box_w // 2
+        d.ellipse((cx - 10, top + 18, cx + 10, top + 38), fill=(0x87, 0x3B, 0x00))
+        d.rectangle((cx - 14, top + 38, cx + 14, top + 78), fill=(0x6B, 0x2E, 0x00))
+        d.rectangle((cx - 18, top + 44, cx - 8, top + 70), fill=(0x5A, 0x28, 0x00))
+        d.rectangle((cx + 8, top + 44, cx + 18, top + 70), fill=(0x5A, 0x28, 0x00))
+        text_x = box_x + box_w + 12
+        ty = top + 4
+        d.text((text_x, ty), "Poligorn", fill=C_BRIGHT, font=font)
+        ty += 12
+        d.text((text_x + 14, ty), "Ранг: Второй пилот", fill=C_MAIN, font=font_sm)
+        d.rectangle((text_x, ty - 1, text_x + 10, ty + 9), outline=(0xB3, 0x68, 0x33))
+        ty += 12
+        for line in [
+            "Успешных заказов: 42",
+            "Проваленных: 3",
+            "Средняя награда за успешный заказ: 118 сп",
+            "Средняя дистанция: 640 б",
+            "Успешность: 93%",
+        ]:
+            d.text((text_x, ty), line, fill=C_MAIN, font=font_sm)
+            ty += 11
     else:
         draw_tablet_button(canvas, sx + 8, sy + 48, 220, 20)
         d.text((sx + 16, sy + 52), "Выдать лицензию (ранг I)", fill=C_MAIN, font=font_sm)
@@ -274,16 +303,27 @@ def main() -> None:
     out = Path(os.environ.get("ARTIFACTS", "/opt/cursor/artifacts"))
     out.mkdir(parents=True, exist_ok=True)
     for width, height in [(400, 240), (480, 300)]:
-        for tab in range(3):
+        for tab in range(4):
             path = out / f"board_tab{tab}_{width}x{height}.png"
             img, screen = render_board(width, height, tab)
             img.save(path)
             print(path)
-            if width == 480 and height == 300 and tab == 0:
-                sx, sy, sw, sh = screen
-                print("--- pixel verify board_tab0_480x300 (empty screen) ---")
-                for pt, rgb, ok in verify_empty_screen_darkness(img, sx, sy, sw, sh):
-                    print(f"  {pt} #{rgb[0]:02X}{rgb[1]:02X}{rgb[2]:02X} {'OK' if ok else 'FAIL'}")
+        profile_path = out / f"board_profile_{width}x{height}.png"
+        img, _ = render_board(width, height, 2)
+        img.save(profile_path)
+        print(profile_path)
+        if width == 480 and height == 300:
+            img, screen = render_board(width, height, 0)
+            sx, sy, sw, sh = screen
+            print("--- pixel verify board_tab0_480x300 (empty screen) ---")
+            for pt, rgb, ok in verify_empty_screen_darkness(img, sx, sy, sw, sh):
+                print(f"  {pt} #{rgb[0]:02X}{rgb[1]:02X}{rgb[2]:02X} {'OK' if ok else 'FAIL'}")
+            print("--- pixel verify board_profile_480x300 (profile labels) ---")
+            img_p, screen_p = render_board(width, height, 2)
+            sx, sy, sw, sh = screen_p
+            d = ImageDraw.Draw(img_p)
+            sample = img_p.getpixel((sx + sw // 2 + 20, sy + 50))
+            print(f"  profile text sample #{sample[0]:02X}{sample[1]:02X}{sample[2]:02X} (expect orange)")
     for width, height in [(400, 300), (480, 360)]:
         path = out / f"stamp_window_{width}x{height}.png"
         render_stamp(width, height).save(path)

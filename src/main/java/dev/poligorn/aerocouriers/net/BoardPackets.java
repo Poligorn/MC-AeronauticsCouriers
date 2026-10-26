@@ -12,8 +12,12 @@ import dev.poligorn.aerocouriers.contract.Mailbox;
 import dev.poligorn.aerocouriers.contract.Pricing;
 import dev.poligorn.aerocouriers.contract.Weights;
 import dev.poligorn.aerocouriers.economy.Economies;
+import dev.poligorn.aerocouriers.license.CourierProfile;
+import dev.poligorn.aerocouriers.license.LicenseOwner;
 import dev.poligorn.aerocouriers.license.LicenseRank;
 import dev.poligorn.aerocouriers.license.Licenses;
+import dev.poligorn.aerocouriers.contract.RankRules;
+import dev.poligorn.aerocouriers.registry.ModComponents;
 import dev.poligorn.aerocouriers.registry.ModItems;
 import dev.poligorn.aerocouriers.village.StationAtlas;
 import java.util.Comparator;
@@ -103,7 +107,30 @@ public final class BoardPackets {
                 notice,
                 List.copyOf(open.subList(from, to)),
                 mine,
-                stations);
+                stations,
+                boardProfile(player));
+    }
+
+    private static BoardSnapshotPayload.BoardProfile boardProfile(ServerPlayer player) {
+        CourierProfile stats = Licenses.profile(player);
+        LicenseRank rank = RankRules.rankFor(stats);
+        for (ItemStack stack : Licenses.findLicense(player).stream().toList()) {
+            LicenseOwner owner = stack.get(ModComponents.LICENSE_OWNER.get());
+            if (owner != null && owner.isOwnedBy(player.getUUID())) {
+                LicenseRank onLicense = stack.get(ModComponents.LICENSE_RANK.get());
+                if (onLicense != null && onLicense.isAdmin()) {
+                    rank = onLicense;
+                }
+                break;
+            }
+        }
+        return new BoardSnapshotPayload.BoardProfile(
+                player.getGameProfile().getName(),
+                rank,
+                stats.delivered(),
+                stats.failed(),
+                stats.distance(),
+                stats.rewardSum());
     }
 
     public static void handleOpen(ServerPlayer player, OpenBoardPayload payload) {
