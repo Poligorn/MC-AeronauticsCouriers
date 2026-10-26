@@ -91,12 +91,23 @@ public final class BoardAcceptConfirmScreen extends Screen {
     }
 
     @Override
-    public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        relayout();
+    public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        InGamePauseBackground.render(this, graphics, mouseX, mouseY, partialTick);
         graphics.fill(0, 0, width, height, 0xC0000000);
         TabletGui.drawListPanel(graphics, boxX, boxY, boxW, boxH);
-        graphics.drawString(font, title, boxX + PAD, boxY + PAD, TabletGui.TEXT_HEADER, false);
+    }
 
+    @Override
+    public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        relayout();
+        for (Renderable widget : renderables) {
+            if (widget instanceof TabletButton button) {
+                button.setY(btnY);
+            }
+        }
+        super.render(graphics, mouseX, mouseY, partialTick);
+
+        graphics.drawString(font, title, boxX + PAD, boxY + PAD, TabletGui.TEXT_HEADER, false);
         int textX = boxX + PAD;
         int textW = boxW - PAD * 2;
         int y = boxY + PAD + font.lineHeight + 6;
@@ -106,13 +117,6 @@ public final class BoardAcceptConfirmScreen extends Screen {
         y = drawWrapped(graphics, riskLine(), textX, y + LINE_GAP, textW, TabletGui.TEXT_WARN) + LINE_GAP;
         drawWrapped(graphics, Component.translatable("ui.aerocouriers.accept.confirm.cargo_damage"),
                 textX, y, textW, TabletGui.TEXT_WARN);
-
-        for (Renderable widget : renderables) {
-            if (widget instanceof TabletButton button) {
-                button.setY(btnY);
-            }
-        }
-        super.render(graphics, mouseX, mouseY, partialTick);
     }
 
     private long collateralDue() {

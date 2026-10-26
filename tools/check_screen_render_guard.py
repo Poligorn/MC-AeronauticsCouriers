@@ -20,6 +20,7 @@ CHROME_BEFORE_SUPER = (
     "WaybillCreateGui.drawPaperSheet",
     "TabletGui.drawScreenBackground",
     "TabletGui.drawFrameChrome",
+    "TabletGui.drawListPanel",
 )
 
 
