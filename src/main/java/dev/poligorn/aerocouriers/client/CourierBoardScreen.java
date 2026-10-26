@@ -18,7 +18,6 @@ import net.minecraft.client.gui.components.Renderable;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
@@ -411,10 +410,12 @@ public final class CourierBoardScreen extends Screen {
             float headO = entity.yHeadRotO;
             float head = entity.yHeadRot;
 
-            float centerX = (boxX + boxX + boxW) / 2.0F;
-            float centerY = (top + top + boxH) / 2.0F;
-            float angleX = (float) Math.atan((centerX - mouseX) / 40.0F);
-            float angleY = (float) Math.atan((centerY - mouseY) / 40.0F);
+            float renderScale = layout.scale() / entity.getScale();
+            float bodyPx = renderScale * ProfileSkinPreviewLayout.PLAYER_VISUAL_HEIGHT_BLOCKS;
+            float anchorX = layout.screenX();
+            float anchorY = layout.estimatedFeetBottom() - bodyPx * 0.82F;
+            float angleX = ProfileSkinRenderer.angleXFromMouse(anchorX, mouseX);
+            float angleY = ProfileSkinRenderer.angleYFromMouse(anchorY, mouseY);
 
             Quaternionf pose = new Quaternionf().rotateZ((float) Math.PI);
             Quaternionf cameraRot = new Quaternionf().rotateX(angleY * 20.0F * (float) (Math.PI / 180.0));
@@ -425,10 +426,9 @@ public final class CourierBoardScreen extends Screen {
             entity.yHeadRot = entity.getYRot();
             entity.yHeadRotO = entity.getYRot();
 
-            float renderScale = layout.scale() / entity.getScale();
-            float screenY = layout.estimatedFeetBottom() - renderScale * ProfileSkinPreviewLayout.PLAYER_VISUAL_HEIGHT_BLOCKS / 2.0F;
+            float screenY = layout.estimatedFeetBottom() - bodyPx / 2.0F;
             Vector3f translate = new Vector3f(0.0F, entity.getBbHeight() / 2.0F, 0.0F);
-            InventoryScreen.renderEntityInInventory(
+            ProfileSkinRenderer.render(
                     graphics, layout.screenX(), screenY, renderScale, translate, pose, cameraRot, entity);
 
             entity.yBodyRot = body;

@@ -159,9 +159,16 @@ tasks.register('checkProfileSkinLayout', Exec) {
     commandLine 'python3', layout.projectDirectory.file('tools/check_profile_skin_layout.py')
 }
 
+tasks.register('checkProfileSkinAngles', Exec) {
+    group = 'verification'
+    description = 'Checks profile skin look-angle clamps and Z depth at large scale.'
+    commandLine 'python3', layout.projectDirectory.file('tools/check_profile_skin_angles.py')
+}
+
 tasks.named('build') {
     dependsOn tasks.named('checkScreenRenderGuard')
     dependsOn tasks.named('checkProfileSkinLayout')
+    dependsOn tasks.named('checkProfileSkinAngles')
 }
 
 idea {
