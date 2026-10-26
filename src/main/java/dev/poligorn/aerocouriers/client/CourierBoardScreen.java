@@ -34,6 +34,17 @@ public final class CourierBoardScreen extends Screen {
     private static final int ROW_ACTION_RESERVE = 158;
     private static final int PROFILE_ICON_SIZE = 16;
     private static final int PROFILE_LINE_HEIGHT = 11;
+    private static final int TAB_Y = 2;
+    private static final int TAB_H = 20;
+    /** Gap between tab row and per-tab heading (px). */
+    private static final int HEADING_GAP = 7;
+    private static final int SCREEN_BOTTOM_PAD = 12;
+    private static final int SCROLL_COUNTER_H = 12;
+    private static final int DETAILS_BLOCK_H = 56;
+    private static final int BALANCE_MAIL_GAP = 8;
+
+    /** Left edge of the balance strip (right of last tab). */
+    private int balanceStripLeft;
 
     enum Tab {
         BOARD, MINE, PROFILE, TEST
@@ -150,15 +161,16 @@ public final class CourierBoardScreen extends Screen {
         int sy = screenTop();
         int tabW = Math.max(64, screenW() / 7);
         int tabX = sx + 4;
-        tabX = addTab(tabX, sy + 2, tabW, Tab.BOARD, "ui.aerocouriers.tab.board") + 4;
-        tabX = addTab(tabX, sy + 2, tabW, Tab.MINE, "ui.aerocouriers.tab.mine") + 4;
-        tabX = addTab(tabX, sy + 2, tabW, Tab.PROFILE, "ui.aerocouriers.tab.profile") + 4;
+        tabX = addTab(tabX, sy + TAB_Y, tabW, Tab.BOARD, "ui.aerocouriers.tab.board") + 4;
+        tabX = addTab(tabX, sy + TAB_Y, tabW, Tab.MINE, "ui.aerocouriers.tab.mine") + 4;
+        tabX = addTab(tabX, sy + TAB_Y, tabW, Tab.PROFILE, "ui.aerocouriers.tab.profile") + 4;
         if (snapshot != null && snapshot.operator()) {
-            addTab(tabX, sy + 2, tabW, Tab.TEST, "ui.aerocouriers.tab.test");
+            tabX = addTab(tabX, sy + TAB_Y, tabW, Tab.TEST, "ui.aerocouriers.tab.test") + 4;
         }
+        balanceStripLeft = tabX + 4;
 
         int mail = snapshot == null ? 0 : snapshot.mailCount();
-        addRenderableWidget(new MailIconButton(sx + screenW() - 24, sy + 2, mail, true));
+        addRenderableWidget(new MailIconButton(sx + screenW() - 24, sy + TAB_Y, mail, true));
 
         if (snapshot == null) {
             return;
@@ -235,24 +247,27 @@ public final class CourierBoardScreen extends Screen {
     }
 
     private void initTest() {
-        addRenderableWidget(TabletButton.create(screenLeft() + 8, screenTop() + 48, 220, 20,
+        int sx = screenLeft();
+        int y = listTop();
+        addRenderableWidget(TabletButton.create(sx + 8, y, 220, 20,
                 Component.translatable("ui.aerocouriers.test.license"), b ->
                         PacketDistributor.sendToServer(new OperatorBoardPayload(
                                 OperatorBoardPayload.Action.GIVE_LICENSE, Optional.empty()))));
-        addRenderableWidget(TabletButton.create(screenLeft() + 8, screenTop() + 72, 220, 20,
+        addRenderableWidget(TabletButton.create(sx + 8, y + 24, 220, 20,
                 Component.translatable("ui.aerocouriers.test.money", OperatorBoardPayload.TEST_MONEY), b ->
                         PacketDistributor.sendToServer(new OperatorBoardPayload(
                                 OperatorBoardPayload.Action.ADD_MONEY, Optional.empty()))));
-        addRenderableWidget(TabletButton.create(screenLeft() + 8, screenTop() + 96, 220, 20,
+        addRenderableWidget(TabletButton.create(sx + 8, y + 48, 220, 20,
                 Component.translatable("ui.aerocouriers.test.stamp"), b ->
                         PacketDistributor.sendToServer(new OperatorBoardPayload(
                                 OperatorBoardPayload.Action.GIVE_STAMP, Optional.empty()))));
         Optional<UUID> id = Optional.ofNullable(selected);
-        TabletButton spawn = TabletButton.create(screenLeft() + 8, screenTop() + 140, 120, 20,
+        int actionY = y + 88;
+        TabletButton spawn = TabletButton.create(sx + 8, actionY, 120, 20,
                 Component.translatable("ui.aerocouriers.test.forcespawn"), b ->
                         PacketDistributor.sendToServer(new OperatorBoardPayload(
                                 OperatorBoardPayload.Action.FORCE_SPAWN, id)));
-        TabletButton deliver = TabletButton.create(screenLeft() + 132, screenTop() + 140, 120, 20,
+        TabletButton deliver = TabletButton.create(sx + 132, actionY, 120, 20,
                 Component.translatable("ui.aerocouriers.test.forcedeliver"), b ->
                         PacketDistributor.sendToServer(new OperatorBoardPayload(
                                 OperatorBoardPayload.Action.FORCE_DELIVER, id)));
@@ -271,16 +286,23 @@ public final class CourierBoardScreen extends Screen {
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         hoverTip = null;
         RenderSystem.disableDepthTest();
+        RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+        renderBackground(graphics, mouseX, mouseY, partialTick);
         TabletGui.drawScreenBackground(graphics, screenLeft(), screenTop(), screenW(), screenH());
-        TabletGui.drawFrameChrome(graphics, left(), top(), panelW(), panelH());
-        super.render(graphics, mouseX, mouseY, partialTick);
+        RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+        renderWithTooltip(graphics, mouseX, mouseY, partialTick);
         int sx = screenLeft();
         int sy = screenTop();
-        graphics.drawString(font, title, sx + 6, sy + 22, TabletGui.TEXT, false);
-        long balance = snapshot == null ? 0 : snapshot.balance();
-        Component balanceLine = Component.translatable("ui.aerocouriers.balance", balance);
-        graphics.drawString(font, balanceLine, sx + screenW() - 6 - font.width(balanceLine), sy + 22, TabletGui.TEXT,
-                false);
+        int headingY = headingY();
+        graphics.drawString(font, tabHeading(), sx + 6, headingY, TabletGui.TEXT, false);
+        if (snapshot != null) {
+            long balance = snapshot.balance();
+            Component balanceLine = Component.translatable("ui.aerocouriers.balance", balance);
+            int mailX = sx + screenW() - 24;
+            int balanceRight = mailX - BALANCE_MAIL_GAP;
+            int maxW = Math.max(8, balanceRight - balanceStripLeft);
+            drawClipped(graphics, balanceLine, balanceStripLeft, sy + 8, maxW, TabletGui.TEXT, mouseX, mouseY);
+        }
 
         if (snapshot == null) {
             graphics.drawString(font, Component.translatable("ui.aerocouriers.loading"),
@@ -294,13 +316,17 @@ public final class CourierBoardScreen extends Screen {
         } else if (tab == Tab.PROFILE) {
             renderProfile(graphics, snapshot.profile(), sx, mouseX, mouseY);
         } else if (tab == Tab.TEST) {
+            int testY = listTop();
             String id = selected == null ? "—" : snapshot.find(selected).map(BoardSnapshotPayload.BoardEntry::shortId)
                     .orElse(selected.toString().substring(0, 8));
             graphics.drawString(font, Component.translatable("ui.aerocouriers.test.selected", id),
-                    sx + 8, screenTop() + 124, TabletGui.TEXT, false);
+                    sx + 8, testY + 72, TabletGui.TEXT, false);
             drawWrapped(graphics, Component.translatable("ui.aerocouriers.test.hint"),
-                    sx + 8, screenTop() + 170, screenW() - 16, TabletGui.TEXT_MUTED);
+                    sx + 8, testY + 118, screenW() - 16, TabletGui.TEXT_MUTED);
         }
+
+        RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+        TabletGui.drawFrameChrome(graphics, left(), top(), panelW(), panelH());
 
         if (notice != null) {
             int noticeY = screenTop() + screenH() - 28;
@@ -325,7 +351,7 @@ public final class CourierBoardScreen extends Screen {
         TabletGui.drawListPanel(graphics, boxX, top, boxW, boxH);
         if (minecraft != null && minecraft.player != null) {
             int entityScale = Mth.clamp((int) (boxH * 0.42F), 28, 140);
-            float yOffset = 0.0625F - Math.min(0.35F, boxH / 280.0F);
+            float yOffset = 0.0625F - Math.min(0.52F, boxH / 180.0F);
             InventoryScreen.renderEntityInInventoryFollowsMouse(
                     graphics,
                     boxX,
@@ -435,7 +461,7 @@ public final class CourierBoardScreen extends Screen {
         if (all.size() > visible) {
             graphics.drawString(font, Component.translatable("ui.aerocouriers.scroll",
                             scroll + 1, Math.min(scroll + visible, all.size()), all.size()),
-                    sx + 8, detailsTop() - 12, TabletGui.TEXT_MUTED, false);
+                    sx + 8, scrollCounterY(), TabletGui.TEXT_MUTED, false);
             float thumb = visible / (float) all.size();
             float progress = scroll / (float) Math.max(1, all.size() - visible);
             TabletGui.drawScrollbar(graphics, sx + screenW() - 10, listTop(), visible * rowH(), progress, thumb);
@@ -561,16 +587,53 @@ public final class CourierBoardScreen extends Screen {
         return 24;
     }
 
+    private Component tabHeading() {
+        return switch (tab) {
+            case BOARD -> Component.translatable("ui.aerocouriers.board.heading.board");
+            case MINE -> Component.translatable("ui.aerocouriers.board.heading.mine");
+            case PROFILE -> Component.translatable("ui.aerocouriers.board.heading.profile");
+            case TEST -> Component.translatable("ui.aerocouriers.board.heading.test");
+        };
+    }
+
+    private int headingY() {
+        return screenTop() + TAB_Y + TAB_H + HEADING_GAP;
+    }
+
     private int listTop() {
-        return screenTop() + 44;
+        return headingY() + 10;
+    }
+
+    private int contentBottom() {
+        return screenTop() + screenH() - SCREEN_BOTTOM_PAD;
+    }
+
+    private int scrollCounterY() {
+        return contentBottom() - SCROLL_COUNTER_H;
     }
 
     private int detailsTop() {
-        return screenTop() + screenH() - 72;
+        int bottom = contentBottom();
+        if (selected != null && snapshot != null && (tab == Tab.BOARD || tab == Tab.MINE)) {
+            return bottom - DETAILS_BLOCK_H;
+        }
+        return bottom;
+    }
+
+    private int listBottom() {
+        int bottom = detailsTop() - 4;
+        if (snapshot != null && (tab == Tab.BOARD || tab == Tab.MINE)) {
+            List<BoardSnapshotPayload.BoardEntry> all = tab == Tab.BOARD ? snapshot.board() : snapshot.mine();
+            int rowsWithoutCounter = Math.max(3, (bottom - listTop()) / rowH());
+            if (all.size() > rowsWithoutCounter) {
+                bottom -= SCROLL_COUNTER_H;
+            }
+        }
+        return bottom;
     }
 
     private int visibleRows() {
-        return Math.max(3, (detailsTop() - listTop() - 8) / rowH());
+        return Math.max(3, (listBottom() - listTop()) / rowH());
     }
 
     @Override

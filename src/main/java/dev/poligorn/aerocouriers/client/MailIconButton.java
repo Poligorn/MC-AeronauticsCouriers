@@ -31,6 +31,7 @@ public final class MailIconButton extends Button {
 
     @Override
     protected void renderWidget(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
         RenderSystem.enableBlend();
         if (!tabletMonitor || CouriersClientConfig.useVanillaSprites()) {
             WidgetSprites sprites = AerocouriersGuiSprites.buttonSprites();

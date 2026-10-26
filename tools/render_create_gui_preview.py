@@ -191,52 +191,85 @@ def render_board(w: int, h: int, tab: int) -> tuple[Image.Image, tuple[int, int,
     d = ImageDraw.Draw(canvas)
 
     tab_w = 64
+    tab_y = 2
+    tab_h = 20
+    heading_gap = 7
+    heading_y = sy + tab_y + tab_h + heading_gap
+    list_top = heading_y + 10
+    bottom_pad = 12
+    scroll_h = 12
+    details_h = 56
+    content_bottom = sy + sh - bottom_pad
+    headings = ["Доска заказов", "Мои заказы", "Профиль курьера", "Тестовые заказы"]
     tabs = ["Заказы", "Мои", "Профиль", "Тест"]
+    tab_x = sx + 4
     for i, label in enumerate(tabs):
-        draw_tablet_tab(canvas, sx + 4 + i * (tab_w + 4), sy + 2, tab_w, i == tab)
+        draw_tablet_tab(canvas, tab_x, sy + tab_y, tab_w, i == tab)
         color = C_BRIGHT if i == tab else C_MUTED
         tw = d.textlength(label, font=font)
-        d.text((sx + 4 + i * (tab_w + 4) + (tab_w - tw) / 2, sy + 8), label, fill=color, font=font)
-
-    canvas.alpha_composite(load("icon/envelope_tablet"), (sx + sw - 24, sy + 2))
-    d.text((sx + 6, sy + 22), "Доска заказов", fill=C_MAIN, font=font)
+        d.text((tab_x + (tab_w - tw) / 2, sy + 8), label, fill=color, font=font)
+        tab_x += tab_w + 4
     bal = "Баланс: 1 247 сп"
-    d.text((sx + sw - 6 - d.textlength(bal, font=font), sy + 22), bal, fill=C_MAIN, font=font)
+    mail_x = sx + sw - 24
+    bal_right = mail_x - 8
+    bal_w = d.textlength(bal, font=font)
+    bal_left = tab_x + 4
+    bal_x = max(bal_left, bal_right - bal_w)
+    d.text((bal_x, sy + 8), ellipsize(d, bal, font, bal_right - bal_left), fill=C_MAIN, font=font)
+    canvas.alpha_composite(load("icon/envelope_tablet"), (mail_x, sy + tab_y))
+    d.text((sx + 6, heading_y), headings[tab], fill=C_MAIN, font=font)
+
+    def visible_rows(show_details: bool, scroll_counter: bool) -> int:
+        details_top = content_bottom - details_h if show_details else content_bottom
+        bottom = details_top - 4
+        if scroll_counter:
+            bottom -= scroll_h
+        return max(3, (bottom - list_top) // 24)
 
     text_left = sx + 8
     text_max = sw - ROW_ACTION_RESERVE - 8
 
     if tab == 0:
-        draw_list_panel(canvas, sx + 4, sy + 44, sw - 8, 96)
+        vis = visible_rows(show_details=True, scroll_counter=False)
+        list_h = vis * 24
+        draw_list_panel(canvas, sx + 4, list_top - 2, sw - 8, list_h + 2)
         rows = [
             ("#a3f2 · Станция «Север» → «Южный причал» · 842 б", "открыт · 120 сп · залог 40 · 18 мин · 12 кг · S · курьер"),
             ("#b91c · Деревня Мокрая → Аэродром · 1 204 б", "открыт · 85 сп · залог 30 · 25 мин · 8 кг · S · заказчик"),
             ("#c44e · Склад → Станция «Восток» · 310 б", "открыт · 200 сп · залог 80 · 40 мин · 24 кг · M · курьер"),
         ]
-        for i, (main, meta) in enumerate(rows):
-            y = sy + 46 + i * 24
-            draw_row(canvas, sx + 6, y, sw - ROW_ACTION_RESERVE - 6, 22, selected=i == 0)
-            d.text((text_left, y + 4), ellipsize(d, main, font_sm, text_max), fill=C_MAIN, font=font_sm)
-            d.text((text_left, y + 13), ellipsize(d, meta, font_sm, text_max), fill=C_MUTED, font=font_sm)
-            draw_tablet_button(canvas, sx + sw - 156, y + 2, 68, 18)
-            d.text((sx + sw - 148, y + 6), "Подробнее", fill=C_MAIN, font=font_sm)
-            draw_tablet_button(canvas, sx + sw - 84, y + 2, 76, 18, highlighted=i == 0)
-            d.text((sx + sw - 78, y + 6), "Принять", fill=C_WARN if i == 0 else C_MAIN, font=font_sm)
-        d.text((sx + 8, sy + sh - 68), "Ранг II · срок 30 мин · груз: 8× булыжник", fill=C_MAIN, font=font_sm)
-        d.text((sx + 8, sy + sh - 56), "При провале залог 40 сп и награда 120 сп уходят заказчику.", fill=C_WARN, font=font_sm)
+        for i, (main, meta) in enumerate(rows[:vis]):
+            y = list_top + i * 24
+            draw_row(canvas, sx + 6, y - 1, sw - ROW_ACTION_RESERVE - 6, 22, selected=i == 0)
+            d.text((text_left, y + 3), ellipsize(d, main, font_sm, text_max), fill=C_MAIN, font=font_sm)
+            d.text((text_left, y + 12), ellipsize(d, meta, font_sm, text_max), fill=C_MUTED, font=font_sm)
+            draw_tablet_button(canvas, sx + sw - 156, y + 1, 68, 18)
+            d.text((sx + sw - 148, y + 5), "Подробнее", fill=C_MAIN, font=font_sm)
+            draw_tablet_button(canvas, sx + sw - 84, y + 1, 76, 18, highlighted=i == 0)
+            d.text((sx + sw - 78, y + 5), "Принять", fill=C_WARN if i == 0 else C_MAIN, font=font_sm)
+        det_y = content_bottom - details_h
+        d.text((sx + 8, det_y), "Ранг II · срок 30 мин · груз: 8× булыжник", fill=C_MAIN, font=font_sm)
+        d.text((sx + 8, det_y + 12), "При провале залог 40 сп и награда 120 сп уходят заказчику.", fill=C_WARN, font=font_sm)
     elif tab == 1:
-        draw_list_panel(canvas, sx + 4, sy + 44, sw - 8, 72)
-        draw_row(canvas, sx + 6, sy + 46, sw - ROW_ACTION_RESERVE - 6, 22, selected=True)
-        main = "#d77a · везу я · Станция → Бухта · 520 б"
-        meta = "в пути · 90 сп · залог 20 · 12 мин · 6 кг · S"
-        d.text((text_left, sy + 50), ellipsize(d, main, font_sm, text_max), fill=C_MAIN, font=font_sm)
-        d.text((text_left, sy + 59), ellipsize(d, meta, font_sm, text_max), fill=C_MUTED, font=font_sm)
-        draw_tablet_button(canvas, sx + sw - 156, sy + 48, 68, 18)
-        draw_tablet_button(canvas, sx + sw - 84, sy + 48, 76, 18)
-        d.text((sx + sw - 72, sy + 52), "Отказ", fill=C_MAIN, font=font_sm)
+        vis = visible_rows(show_details=False, scroll_counter=True)
+        list_h = vis * 24
+        draw_list_panel(canvas, sx + 4, list_top - 2, sw - 8, list_h + 2)
+        for i in range(min(vis, 8)):
+            y = list_top + i * 24
+            main = f"#mine{i:02d} · заказ {i} · Станция → Бухта · 520 б"
+            meta = "в пути · 90 сп · залог 20 · 12 мин · 6 кг · S"
+            draw_row(canvas, sx + 6, y - 1, sw - ROW_ACTION_RESERVE - 6, 22, selected=i == 0)
+            d.text((text_left, y + 3), ellipsize(d, main, font_sm, text_max), fill=C_MAIN, font=font_sm)
+            d.text((text_left, y + 12), ellipsize(d, meta, font_sm, text_max), fill=C_MUTED, font=font_sm)
+            draw_tablet_button(canvas, sx + sw - 156, y + 1, 68, 18)
+            d.text((sx + sw - 148, y + 5), "Подробнее", fill=C_MAIN, font=font_sm)
+            if i == 0:
+                draw_tablet_button(canvas, sx + sw - 84, y + 1, 76, 18)
+                d.text((sx + sw - 72, y + 5), "Отказ", fill=C_MAIN, font=font_sm)
+        d.text((sx + 8, content_bottom - scroll_h), "10–14 / 14", fill=C_MUTED, font=font_sm)
     elif tab == 2:
-        top = sy + 44
-        bottom = sy + sh - 12
+        top = list_top
+        bottom = content_bottom
         box_h = max(48, bottom - top)
         inner_w = sw - 16
         box_w = max(96, inner_w * 42 // 100)
@@ -247,7 +280,7 @@ def render_board(w: int, h: int, tab: int) -> tuple[Image.Image, tuple[int, int,
         cx = box_x + box_w // 2
         sil_h = int(box_h * 0.82)
         sil_w = int(sil_h * 0.35)
-        foot = top + box_h - 8
+        foot = top + box_h - 6
         head = foot - sil_h
         d.ellipse((cx - sil_w // 4, head, cx + sil_w // 4, head + sil_h // 5), fill=(0x87, 0x3B, 0x00))
         d.rectangle((cx - sil_w // 2, head + sil_h // 5, cx + sil_w // 2, foot), fill=(0x6B, 0x2E, 0x00))
@@ -274,14 +307,15 @@ def render_board(w: int, h: int, tab: int) -> tuple[Image.Image, tuple[int, int,
             d.text((text_x, ty), shown, fill=C_MAIN, font=font_sm)
             ty += 11
     else:
-        draw_tablet_button(canvas, sx + 8, sy + 48, 220, 20)
-        d.text((sx + 16, sy + 52), "Выдать лицензию (ранг I)", fill=C_MAIN, font=font_sm)
-        draw_tablet_button(canvas, sx + 8, sy + 72, 220, 20)
-        d.text((sx + 16, sy + 76), "+500 сп на счёт", fill=C_MAIN, font=font_sm)
-        draw_tablet_button(canvas, sx + 8, sy + 96, 220, 20)
-        d.text((sx + 16, sy + 100), "Выдать штамп курьера", fill=C_MAIN, font=font_sm)
-        d.text((sx + 8, sy + 124), "Выбран: #a3f2", fill=C_MAIN, font=font_sm)
-        d.text((sx + 8, sy + 170), "Сначала «Подробнее» у заказа, затем forcespawn / forcedeliver.", fill=C_MUTED, font=font_sm)
+        y = list_top
+        draw_tablet_button(canvas, sx + 8, y, 220, 20)
+        d.text((sx + 16, y + 4), "Выдать лицензию (ранг I)", fill=C_MAIN, font=font_sm)
+        draw_tablet_button(canvas, sx + 8, y + 24, 220, 20)
+        d.text((sx + 16, y + 28), "+500 сп на счёт", fill=C_MAIN, font=font_sm)
+        draw_tablet_button(canvas, sx + 8, y + 48, 220, 20)
+        d.text((sx + 16, y + 52), "Выдать штамп курьера", fill=C_MAIN, font=font_sm)
+        d.text((sx + 8, y + 72), "Выбран: #a3f2", fill=C_MAIN, font=font_sm)
+        d.text((sx + 8, y + 118), "Сначала «Подробнее» у заказа, затем forcespawn / forcedeliver.", fill=C_MUTED, font=font_sm)
 
     return canvas, (sx, sy, sw, sh)
 

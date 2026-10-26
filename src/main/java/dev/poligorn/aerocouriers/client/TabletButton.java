@@ -72,6 +72,7 @@ public final class TabletButton extends Button {
 
     @Override
     protected void renderWidget(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
         RenderSystem.enableBlend();
         ResourceLocation sprite = sprites.get(active, isHoveredOrFocused());
         graphics.blitSprite(sprite, getX(), getY(), getWidth(), getHeight());
