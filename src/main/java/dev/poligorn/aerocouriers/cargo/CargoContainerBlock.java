@@ -11,14 +11,21 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Explosion;
 import net.minecraft.world.level.Level;
+import net.minecraft.core.Direction;
+import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.block.BaseEntityBlock;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.HorizontalDirectionalBlock;
+import net.minecraft.world.level.block.Mirror;
 import net.minecraft.world.level.block.RenderShape;
+import net.minecraft.world.level.block.Rotation;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityTicker;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
+import net.minecraft.world.level.block.state.properties.BooleanProperty;
+import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.level.block.state.properties.IntegerProperty;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Vector3d;
@@ -35,13 +42,20 @@ import org.joml.Vector3d;
 public class CargoContainerBlock extends BaseEntityBlock implements BlockSubLevelAssemblyListener {
     public static final int MAX_FILL = 8;
     public static final IntegerProperty FILL = IntegerProperty.create("fill", 0, MAX_FILL);
+    /** Door face; matches replaced chests and vanilla directional blocks. */
+    public static final DirectionProperty FACING = HorizontalDirectionalBlock.FACING;
+    /** Paper waybill on the starboard side while a contract is bound (GDD §9). */
+    public static final BooleanProperty WAYBILL = BooleanProperty.create("waybill");
 
     private final CargoSize size;
 
     public CargoContainerBlock(CargoSize size, Properties properties) {
         super(properties);
         this.size = size;
-        registerDefaultState(stateDefinition.any().setValue(FILL, 0));
+        registerDefaultState(stateDefinition.any()
+                .setValue(FILL, 0)
+                .setValue(FACING, Direction.NORTH)
+                .setValue(WAYBILL, false));
     }
 
     public CargoSize size() {
@@ -55,7 +69,24 @@ public class CargoContainerBlock extends BaseEntityBlock implements BlockSubLeve
 
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
-        builder.add(FILL);
+        builder.add(FILL, FACING, WAYBILL);
+    }
+
+    @Override
+    public BlockState getStateForPlacement(BlockPlaceContext context) {
+        return defaultBlockState()
+                .setValue(FACING, context.getHorizontalDirection().getOpposite())
+                .setValue(FILL, 0);
+    }
+
+    @Override
+    protected BlockState rotate(BlockState state, Rotation rotation) {
+        return state.setValue(FACING, rotation.rotate(state.getValue(FACING)));
+    }
+
+    @Override
+    protected BlockState mirror(BlockState state, Mirror mirror) {
+        return rotate(state, mirror.getRotation(state.getValue(FACING)));
     }
 
     @Override

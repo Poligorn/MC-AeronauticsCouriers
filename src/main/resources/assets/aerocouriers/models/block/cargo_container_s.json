@@ -1,8 +1,12 @@
 {
-  "parent": "minecraft:block/cube_bottom_top",
+  "parent": "minecraft:block/cube",
   "textures": {
-    "top": "minecraft:block/barrel_top",
-    "bottom": "minecraft:block/barrel_bottom",
-    "side": "minecraft:block/barrel_side"
+    "particle": "aerocouriers:block/cargo_container_side",
+    "down": "aerocouriers:block/cargo_container_bottom",
+    "up": "aerocouriers:block/cargo_container_top",
+    "north": "aerocouriers:block/cargo_container_door",
+    "south": "aerocouriers:block/cargo_container_side",
+    "east": "aerocouriers:block/cargo_container_side",
+    "west": "aerocouriers:block/cargo_container_side"
   }
 }

@@ -11,6 +11,7 @@ import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import org.jetbrains.annotations.Nullable;
@@ -39,6 +40,10 @@ public class CargoContainerBlockEntity extends BlockEntity {
     public void bind(UUID contractId, boolean debug) {
         this.contractId = contractId;
         this.debug = debug;
+        if (level != null && !level.isClientSide && contractId != null) {
+            BlockState withWaybill = getBlockState().setValue(CargoContainerBlock.WAYBILL, true);
+            level.setBlock(worldPosition, withWaybill, Block.UPDATE_CLIENTS);
+        }
         setChanged();
     }
 

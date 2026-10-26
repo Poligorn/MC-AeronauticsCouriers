@@ -17,6 +17,7 @@ import dev.poligorn.aerocouriers.license.LicenseRank;
 import dev.poligorn.aerocouriers.license.Licenses;
 import dev.poligorn.aerocouriers.net.BoardPackets;
 import dev.poligorn.aerocouriers.registry.ModComponents;
+import net.minecraft.core.Direction;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Locale;
@@ -212,7 +213,9 @@ public final class CouriersCommands {
     private static int spawnCargo(CommandContext<CommandSourceStack> ctx, BlockPos pos, int fill) {
         CommandSourceStack source = ctx.getSource();
         UUID contractId = UUID.randomUUID();
-        CargoSpawner.Result result = CargoSpawner.spawn(source.getLevel(), pos, fill, contractId, true);
+        ServerPlayer player = source.getPlayer();
+        Direction facing = player != null ? player.getDirection().getOpposite() : Direction.NORTH;
+        CargoSpawner.Result result = CargoSpawner.spawn(source.getLevel(), pos, fill, contractId, true, facing);
         return switch (result) {
             case CargoSpawner.Result.Spawned spawned -> {
                 source.sendSuccess(() -> Component.translatable("commands.aerocouriers.spawncargo.success",

@@ -8,6 +8,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.HorizontalDirectionalBlock;
 import net.minecraft.world.level.block.state.BlockState;
 
 /**
@@ -72,12 +73,15 @@ public final class CargoSpawner {
     /**
      * Places a container on air. For stamp orders the source block must already have been removed without drops.
      */
-    public static Result spawn(ServerLevel level, BlockPos pos, int fill, UUID contractId, boolean debug) {
+    public static Result spawn(ServerLevel level, BlockPos pos, int fill, UUID contractId, boolean debug,
+                               Direction facing) {
         if (!level.getBlockState(pos).canBeReplaced()) {
             return new Result.Occupied();
         }
         BlockState state = ModBlocks.CARGO_CONTAINER_S.get().defaultBlockState()
-                .setValue(CargoContainerBlock.FILL, Math.clamp(fill, 0, CargoContainerBlock.MAX_FILL));
+                .setValue(CargoContainerBlock.FILL, Math.clamp(fill, 0, CargoContainerBlock.MAX_FILL))
+                .setValue(CargoContainerBlock.FACING, facing)
+                .setValue(CargoContainerBlock.WAYBILL, contractId != null);
         level.setBlock(pos, state, Block.UPDATE_ALL);
         if (!(level.getBlockEntity(pos) instanceof CargoContainerBlockEntity be)) {
             level.removeBlock(pos, false);
@@ -101,6 +105,17 @@ public final class CargoSpawner {
             return false;
         }
         be.markSelfRemoving();
+        BlockState cleared = level.getBlockState(pos).setValue(CargoContainerBlock.WAYBILL, false);
+        level.setBlock(pos, cleared, Block.UPDATE_CLIENTS);
         return level.removeBlock(pos, false);
+    }
+
+    /** Reads {@link HorizontalDirectionalBlock#FACING} from a block about to be replaced (e.g. chest). */
+    public static Direction facingFromReplacedBlock(ServerLevel level, BlockPos pos, Direction fallback) {
+        BlockState replaced = level.getBlockState(pos);
+        if (replaced.hasProperty(HorizontalDirectionalBlock.FACING)) {
+            return replaced.getValue(HorizontalDirectionalBlock.FACING);
+        }
+        return fallback;
     }
 }

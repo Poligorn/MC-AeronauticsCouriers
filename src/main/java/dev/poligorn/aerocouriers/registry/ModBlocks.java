@@ -19,8 +19,8 @@ public final class ModBlocks {
             "cargo_container_s",
             props -> new CargoContainerBlock(CargoSize.S, props),
             BlockBehaviour.Properties.of()
-                    .mapColor(MapColor.WOOD)
-                    .sound(SoundType.WOOD)
+                    .mapColor(MapColor.METAL)
+                    .sound(SoundType.METAL)
                     .strength(-1.0F, 3_600_000.0F)
                     .noLootTable()
                     .pushReaction(PushReaction.BLOCK));
