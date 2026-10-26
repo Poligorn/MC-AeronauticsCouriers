@@ -21,7 +21,6 @@ public final class TabletGui {
 
     private static final int SCREEN_FILL = 0xFF2C0900;
     private static final int GRID_LINE = 0xFF431A0F;
-    private static final int SCANLINE = 0x1A000000;
     private static final int GRID_STEP = 9;
 
     /** Nine-slice brass + bevel before the screen cavity (matches {@code tablet_frame}). */
@@ -38,15 +37,22 @@ public final class TabletGui {
     private TabletGui() {
     }
 
+    /**
+     * Draw order: screen fill inside the inner rect, brass frame on top (transparent center),
+     * gear half outside the left edge, antenna on top-left.
+     */
     public static void drawMonitor(GuiGraphics graphics, int frameX, int frameY, int frameW, int frameH) {
-        int gearX = frameX - GEAR_OVERHANG_LEFT;
-        int gearY = frameY + (frameH - GEAR_H) / 2;
-        graphics.blitSprite(AerocouriersGuiSprites.TABLET_DECOR_GEAR, gearX, gearY, GEAR_W, GEAR_H);
+        int sx = frameX + FRAME_BORDER;
+        int sy = frameY + FRAME_BORDER;
+        int sw = frameW - FRAME_BORDER * 2;
+        int sh = frameH - FRAME_BORDER * 2;
+        drawScreenBackground(graphics, sx, sy, sw, sh);
         if (frameW > 0 && frameH > 0) {
             graphics.blitSprite(AerocouriersGuiSprites.TABLET_FRAME, frameX, frameY, frameW, frameH);
         }
-        drawScreenBackground(graphics, frameX + FRAME_BORDER, frameY + FRAME_BORDER,
-                frameW - FRAME_BORDER * 2, frameH - FRAME_BORDER * 2);
+        int gearX = frameX - GEAR_OVERHANG_LEFT;
+        int gearY = frameY + (frameH - GEAR_H) / 2;
+        graphics.blitSprite(AerocouriersGuiSprites.TABLET_DECOR_GEAR, gearX, gearY, GEAR_W, GEAR_H);
         int ax = frameX + 6;
         int ay = frameY - ANTENNA_OVERHANG_TOP;
         graphics.blitSprite(AerocouriersGuiSprites.TABLET_DECOR_ANTENNA, ax, ay, ANTENNA_W, ANTENNA_H);
@@ -63,9 +69,6 @@ public final class TabletGui {
         for (int gy = y; gy < y + h; gy += GRID_STEP) {
             graphics.fill(x, gy, x + w, gy + 1, GRID_LINE);
         }
-        for (int sy = y; sy < y + h; sy += 2) {
-            graphics.fill(x, sy, x + w, sy + 1, SCANLINE);
-        }
     }
 
     public static void drawListPanel(GuiGraphics graphics, int x, int y, int w, int h) {
@@ -80,7 +83,8 @@ public final class TabletGui {
         if (w <= 0 || h <= 0) {
             return;
         }
-        graphics.blitSprite(AerocouriersGuiSprites.TABLET_LIST_ROW, x, y, w, h);
+        graphics.fill(x, y, x + w, y + h, 0xFF3E2614);
+        graphics.renderOutline(x, y, w, h, 0xFFB36833);
         if (selected) {
             graphics.fill(x + 1, y + 1, x + w - 1, y + h - 1, 0x30FFAF55);
             graphics.renderOutline(x, y, w, h, 0xFFFFAF55);

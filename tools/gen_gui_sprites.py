@@ -518,20 +518,20 @@ def gen_tablet_gear() -> None:
     w, h = 28, 28
     img = Image.new("RGBA", (w, h), TRANSPARENT)
     d = ImageDraw.Draw(img)
-    cx, cy = w - 6, h // 2
-    r_outer = 12
-    r_inner = 4
+    cx, cy = w - 8, h // 2
+    r_outer = 13
+    r_inner = 5
     teeth = 8
     pts = []
     for i in range(teeth * 2):
         ang = math.pi * 2 * i / (teeth * 2) - math.pi / 2
-        r = r_outer if i % 2 == 0 else r_outer - 3
+        r = r_outer if i % 2 == 0 else r_outer - 4
         pts.append((cx + r * math.cos(ang), cy + r * math.sin(ang)))
-    d.polygon(pts, fill=TB_GEAR_DK, outline=BLACK)
+    d.polygon(pts, fill=hx("#614B2E"), outline=BLACK)
     d.ellipse((cx - r_inner, cy - r_inner, cx + r_inner, cy + r_inner), fill=TB_GEAR_DK, outline=BLACK)
     d.ellipse((cx - r_inner + 1, cy - r_inner + 1, cx + r_inner - 1, cy + r_inner - 1), fill=TB_GEAR)
-    d.point((cx, cy), fill=BLACK)
-    d.arc((cx - 11, cy - 11, cx + 3, cy + 11), 90, 270, fill=TB_GEAR_HI, width=2)
+    d.ellipse((cx - 2, cy - 2, cx + 2, cy + 2), fill=TB_GEAR_HI)
+    d.arc((cx - 12, cy - 12, cx + 2, cy + 12), 80, 280, fill=hx("#82613A"), width=3)
     save_sprite("tablet_decor_gear", img, None)
 
 

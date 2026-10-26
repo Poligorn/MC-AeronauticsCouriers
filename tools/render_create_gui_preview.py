@@ -54,6 +54,29 @@ def nine_slice(canvas: Image.Image, patch: Image.Image, x: int, y: int, w: int, 
         blit(left, top, mid_w, mid_h, x + left, y + top, w - left - right, h - top - bottom)
 
 
+def nine_slice_hollow(canvas: Image.Image, patch: Image.Image, x: int, y: int, w: int, h: int,
+                        border: tuple[int, int, int, int]) -> None:
+    """Brass bezel only — never stretch the (transparent) center over the screen."""
+    left, top, right, bottom = border
+    pw, ph = patch.size
+    mid_w, mid_h = max(1, pw - left - right), max(1, ph - top - bottom)
+
+    def blit(sx: int, sy: int, sw: int, sh: int, dx: int, dy: int, dw: int, dh: int) -> None:
+        region = patch.crop((sx, sy, sx + sw, sy + sh)).resize((dw, dh), Image.Resampling.NEAREST)
+        canvas.alpha_composite(region, (dx, dy))
+
+    blit(0, 0, left, top, x, y, left, top)
+    blit(pw - right, 0, right, top, x + w - right, y, right, top)
+    blit(0, ph - bottom, left, bottom, x, y + h - bottom, left, bottom)
+    blit(pw - right, ph - bottom, right, bottom, x + w - right, y + h - bottom, right, bottom)
+    if w > left + right:
+        blit(left, 0, mid_w, top, x + left, y, w - left - right, top)
+        blit(left, ph - bottom, mid_w, bottom, x + left, y + h - bottom, w - left - right, bottom)
+    if h > top + bottom:
+        blit(0, top, left, mid_h, x, y + top, left, h - top - bottom)
+        blit(pw - right, top, right, mid_h, x + w - right, y + top, right, h - top - bottom)
+
+
 def frame_pos(screen_w: int, screen_h: int, frame_w: int, frame_h: int) -> tuple[int, int]:
     total_w = frame_w + GEAR_OVERHANG_LEFT
     total_h = frame_h + ANTENNA_OVERHANG_TOP
@@ -69,20 +92,47 @@ def draw_screen_background(canvas: Image.Image, x: int, y: int, w: int, h: int) 
         d.line([(gx, y), (gx, y + h)], fill=GRID_LINE, width=1)
     for gy in range(y, y + h, GRID_STEP):
         d.line([(x, gy), (x + w, gy)], fill=GRID_LINE, width=1)
-    for sy in range(y, y + h, 2):
-        d.line([(x, sy), (x + w, sy)], fill=(0, 0, 0, 26), width=1)
 
 
 def draw_monitor(canvas: Image.Image, fx: int, fy: int, fw: int, fh: int) -> tuple[int, int, int, int]:
-    gear_x = fx - GEAR_OVERHANG_LEFT
-    gear_y = fy + (fh - GEAR_H) // 2
-    canvas.alpha_composite(load("tablet_decor_gear"), (gear_x, gear_y))
-    nine_slice(canvas, load("tablet_frame"), fx, fy, fw, fh, (8, 8, 8, 8))
     sx, sy = fx + FRAME_BORDER, fy + FRAME_BORDER
     sw, sh = fw - FRAME_BORDER * 2, fh - FRAME_BORDER * 2
     draw_screen_background(canvas, sx, sy, sw, sh)
+    nine_slice_hollow(canvas, load("tablet_frame"), fx, fy, fw, fh, (8, 8, 8, 8))
+    gear_x = fx - GEAR_OVERHANG_LEFT
+    gear_y = fy + (fh - GEAR_H) // 2
+    canvas.alpha_composite(load("tablet_decor_gear"), (gear_x, gear_y))
     canvas.alpha_composite(load("tablet_decor_antenna"), (fx + 6, fy - ANTENNA_OVERHANG_TOP))
     return sx, sy, sw, sh
+
+
+def pixel_in_dark_range(rgb: tuple[int, int, int]) -> bool:
+    r, g, b = rgb
+    return 0x1F <= r <= 0x4A and 0x05 <= g <= 0x20 and 0x00 <= b <= 0x10
+
+
+def verify_empty_screen_darkness(img: Image.Image, sx: int, sy: int, sw: int, sh: int) -> list[tuple[tuple[int, int], tuple[int, int, int], bool]]:
+    """Sample empty screen pockets (below list, above bottom hints)."""
+    im = img.convert("RGB")
+    y0 = sy + 44 + 96 + 6
+    y1 = sy + sh - 78
+    points = [
+        (sx + sw // 5, y0 + 8),
+        (sx + sw // 3, y0 + 20),
+        (sx + sw // 2, y0 + 12),
+        (sx + 2 * sw // 3, y0 + 24),
+        (sx + 4 * sw // 5, y0 + 16),
+        (sx + sw // 4, (y0 + y1) // 2),
+        (sx + sw // 2, (y0 + y1) // 2 + 6),
+        (sx + 3 * sw // 4, (y0 + y1) // 2 - 4),
+        (sx + 40, y1 - 12),
+        (sx + sw - 48, y1 - 8),
+    ]
+    results = []
+    for pt in points:
+        rgb = im.getpixel(pt)
+        results.append((pt, rgb, pixel_in_dark_range(rgb)))
+    return results
 
 
 def ellipsize(d: ImageDraw.ImageDraw, text: str, font: ImageFont.ImageFont, max_w: float) -> str:
@@ -111,9 +161,10 @@ def draw_list_panel(canvas: Image.Image, x: int, y: int, w: int, h: int) -> None
 
 
 def draw_row(canvas: Image.Image, x: int, y: int, w: int, h: int, selected: bool = False) -> None:
-    nine_slice(canvas, load("tablet_list_row"), x, y, w, h, (2, 2, 2, 2))
+    d = ImageDraw.Draw(canvas)
+    d.rectangle((x, y, x + w, y + h), fill=(0x3E, 0x26, 0x14), outline=(0xB3, 0x68, 0x33))
     if selected:
-        ImageDraw.Draw(canvas).rectangle((x, y, x + w, y + h), outline=(255, 175, 85))
+        d.rectangle((x, y, x + w, y + h), outline=(255, 175, 85))
 
 
 def try_font(size: int = 8) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
@@ -126,7 +177,7 @@ def try_font(size: int = 8) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
     return ImageFont.load_default()
 
 
-def render_board(w: int, h: int, tab: int) -> Image.Image:
+def render_board(w: int, h: int, tab: int) -> tuple[Image.Image, tuple[int, int, int, int]]:
     canvas = Image.new("RGBA", (w, h), (32, 32, 48, 255))
     margin = 8
     fw = min(int(w * 0.72), w - margin * 2 - GEAR_OVERHANG_LEFT)
@@ -193,7 +244,7 @@ def render_board(w: int, h: int, tab: int) -> Image.Image:
         d.text((sx + 8, sy + 124), "Выбран: #a3f2", fill=C_MAIN, font=font_sm)
         d.text((sx + 8, sy + 170), "Сначала «Подробнее» у заказа, затем forcespawn / forcedeliver.", fill=C_MUTED, font=font_sm)
 
-    return canvas
+    return canvas, (sx, sy, sw, sh)
 
 
 def draw_window(canvas: Image.Image, x: int, y: int, w: int, h: int) -> None:
@@ -225,8 +276,14 @@ def main() -> None:
     for width, height in [(400, 240), (480, 300)]:
         for tab in range(3):
             path = out / f"board_tab{tab}_{width}x{height}.png"
-            render_board(width, height, tab).save(path)
+            img, screen = render_board(width, height, tab)
+            img.save(path)
             print(path)
+            if width == 480 and height == 300 and tab == 0:
+                sx, sy, sw, sh = screen
+                print("--- pixel verify board_tab0_480x300 (empty screen) ---")
+                for pt, rgb, ok in verify_empty_screen_darkness(img, sx, sy, sw, sh):
+                    print(f"  {pt} #{rgb[0]:02X}{rgb[1]:02X}{rgb[2]:02X} {'OK' if ok else 'FAIL'}")
     for width, height in [(400, 300), (480, 360)]:
         path = out / f"stamp_window_{width}x{height}.png"
         render_stamp(width, height).save(path)
