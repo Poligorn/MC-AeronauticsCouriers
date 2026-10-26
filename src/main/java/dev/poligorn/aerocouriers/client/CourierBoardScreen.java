@@ -82,6 +82,14 @@ public final class CourierBoardScreen extends Screen {
     void apply(BoardSnapshotPayload payload) {
         BoardSnapshotPayload previous = snapshot;
         applySnapshot(payload);
+        UUID focus = ClientBoard.takePendingContractFocus();
+        if (focus != null && payload.find(focus).isPresent()) {
+            selected = focus;
+            tab = payload.mine().stream().anyMatch(e -> e.id().equals(focus)) ? Tab.MINE : Tab.BOARD;
+            scroll = 0;
+            listRowButtonKey = null;
+            rebuildWidgets();
+        }
         if (selected != null && payload.find(selected).isEmpty()) {
             selected = null;
         }
@@ -91,6 +99,10 @@ public final class CourierBoardScreen extends Screen {
         } else if (needsContentWidgetRefresh(previous, payload)) {
             listRowButtonKey = listRowButtonKey(payload);
             refreshContentWidgets();
+        }
+        if (previous == null || previous.mailCount() != payload.mailCount()
+                || previous.notificationUnread() != payload.notificationUnread()) {
+            refreshHeaderIcons(screenLeft(), screenTop());
         }
     }
 
@@ -180,9 +192,7 @@ public final class CourierBoardScreen extends Screen {
             tabX = addTab(tabX, sy + TAB_Y, tabW, Tab.TEST, "ui.aerocouriers.tab.test") + 4;
         }
         balanceStripLeft = tabX + 4;
-
-        int mail = snapshot == null ? 0 : snapshot.mailCount();
-        addRenderableWidget(new MailIconButton(sx + screenW() - 24, sy + TAB_Y, mail, true));
+        refreshHeaderIcons(sx, sy);
 
         if (snapshot == null) {
             return;
@@ -195,6 +205,26 @@ public final class CourierBoardScreen extends Screen {
         if (tab == Tab.BOARD || tab == Tab.MINE) {
             listRowButtonKey = listRowButtonKey(snapshot);
         }
+    }
+
+    void onNotificationsChanged() {
+        refreshHeaderIcons(screenLeft(), screenTop());
+    }
+
+    private void refreshHeaderIcons(int sx, int sy) {
+        for (Renderable widget : new ArrayList<>(renderables)) {
+            if (widget instanceof MailIconButton || widget instanceof NotificationsIconButton) {
+                removeWidget((AbstractWidget) widget);
+            }
+        }
+        int mailX = sx + screenW() - 24;
+        int bellX = mailX - 24;
+        int mail = snapshot == null ? 0 : snapshot.mailCount();
+        int unread = snapshot == null
+                ? ClientNotifications.unreadCount()
+                : Math.max(snapshot.notificationUnread(), ClientNotifications.unreadCount());
+        addRenderableWidget(new NotificationsIconButton(bellX, sy + TAB_Y, unread, true));
+        addRenderableWidget(new MailIconButton(mailX, sy + TAB_Y, mail, true));
     }
 
     /** Returns x position after this tab (for laying out the next one). */
@@ -337,7 +367,8 @@ public final class CourierBoardScreen extends Screen {
             long balance = snapshot.balance();
             Component balanceLine = Component.translatable("ui.aerocouriers.balance", balance);
             int mailX = sx + screenW() - 24;
-            int balanceRight = mailX - BALANCE_MAIL_GAP;
+            int bellX = mailX - 24;
+            int balanceRight = bellX - BALANCE_MAIL_GAP;
             int maxW = Math.max(8, balanceRight - balanceStripLeft);
             drawClipped(graphics, balanceLine, balanceStripLeft, sy + 8, maxW, TabletGui.TEXT, mouseX, mouseY);
         }

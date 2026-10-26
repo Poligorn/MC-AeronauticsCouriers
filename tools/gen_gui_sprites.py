@@ -585,6 +585,21 @@ def gen_board_row_icons() -> None:
     save_sprite("icon/village_tablet", _tablet_icon(village), None)
 
 
+def gen_bell_icons() -> None:
+    def bell(d: ImageDraw.ImageDraw, img: Image.Image, fill, dark) -> None:
+        d.arc((4, 3, 12, 11), 200, 340, fill=fill, width=2)
+        d.rectangle((3, 9, 13, 12), fill=dark, outline=TB_OUTLINE)
+        d.rectangle((7, 12, 9, 14), fill=dark, outline=TB_OUTLINE)
+
+    save_sprite("icon/bell", _tablet_icon(lambda d, img: bell(d, img, GOLD, DARK)), None)
+    img = Image.new("RGBA", (16, 16), TRANSPARENT)
+    d = ImageDraw.Draw(img)
+    d.arc((4, 3, 12, 11), 200, 340, fill=TB_ORANGE_ICON, width=2)
+    d.rectangle((3, 9, 13, 12), fill=TB_ORANGE_ICON_DK, outline=TB_OUTLINE)
+    d.rectangle((7, 12, 9, 14), fill=TB_SH, outline=TB_OUTLINE)
+    save_sprite("icon/bell_tablet", img, None)
+
+
 def gen_envelope_tablet() -> None:
     img = Image.new("RGBA", (16, 16), TRANSPARENT)
     d = ImageDraw.Draw(img)
@@ -605,6 +620,7 @@ def gen_tablet() -> None:
     gen_tablet_antenna()
     gen_tablet_gear()
     gen_envelope_tablet()
+    gen_bell_icons()
     gen_board_row_icons()
 
 

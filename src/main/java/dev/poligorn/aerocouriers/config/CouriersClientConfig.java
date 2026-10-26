@@ -18,6 +18,7 @@ public final class CouriersClientConfig {
     public static final ModConfigSpec.IntValue ZONES_RENDER_DISTANCE;
 
     public static final ModConfigSpec.BooleanValue USE_VANILLA_SPRITES;
+    public static final ModConfigSpec.BooleanValue NOTIFICATION_SOUNDS;
 
     public static final ModConfigSpec.EnumValue<WaypointSymbolMode> WAYPOINT_SYMBOL_MODE;
     public static final ModConfigSpec.ConfigValue<String> CUSTOM_WAYPOINT_SYMBOL;
@@ -46,6 +47,8 @@ public final class CouriersClientConfig {
         USE_VANILLA_SPRITES = b.comment(
                         "Use minecraft:widget/* sprites for buttons and tabs (e.g. when Create Style Interface is installed)")
                 .define("useVanillaSprites", false);
+        NOTIFICATION_SOUNDS = b.comment("Play a sound when a new order notification arrives")
+                .define("notificationSounds", true);
         b.pop();
 
         b.push("waypoints");
@@ -68,6 +71,14 @@ public final class CouriersClientConfig {
             return USE_VANILLA_SPRITES.get();
         } catch (IllegalStateException ignored) {
             return false;
+        }
+    }
+
+    public static boolean notificationSoundsEnabled() {
+        try {
+            return NOTIFICATION_SOUNDS.get();
+        } catch (IllegalStateException ignored) {
+            return true;
         }
     }
 

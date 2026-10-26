@@ -1,6 +1,7 @@
 package dev.poligorn.aerocouriers.village;
 
 import com.mojang.serialization.MapCodec;
+import dev.poligorn.aerocouriers.contract.CouriersNotifications;
 import dev.poligorn.aerocouriers.net.BoardPackets;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -85,6 +86,8 @@ public class PostStationBlock extends BaseEntityBlock {
             if (level.getBlockEntity(pos) instanceof PostStationBlockEntity station && !station.name().isEmpty()) {
                 stationNotice = Optional.of(Component.translatable("station.aerocouriers.info", station.name()));
             }
+            stationNotice.ifPresent(notice -> CouriersNotifications.pushSilent(serverPlayer.server,
+                    serverPlayer.getUUID(), notice, java.util.Optional.empty()));
             BoardPackets.open(serverPlayer, 0, true, stationNotice);
         }
         return InteractionResult.CONSUME;

@@ -6,6 +6,9 @@ import dev.poligorn.aerocouriers.net.BoardSnapshotPayload;
 import dev.poligorn.aerocouriers.net.ClaimMailPayload;
 import dev.poligorn.aerocouriers.net.ContractIntentPayload;
 import dev.poligorn.aerocouriers.net.CreateContractPayload;
+import dev.poligorn.aerocouriers.net.MarkNotificationsReadPayload;
+import dev.poligorn.aerocouriers.net.NotificationAlertPayload;
+import dev.poligorn.aerocouriers.net.NotificationSyncPayload;
 import dev.poligorn.aerocouriers.net.OpenBoardPayload;
 import dev.poligorn.aerocouriers.net.OpenWaybillCreatePayload;
 import dev.poligorn.aerocouriers.net.OperatorBoardPayload;
@@ -28,6 +31,10 @@ public final class ModPayloads {
                 BoardSnapshotPayload::handle);
         registrar.playToClient(OpenWaybillCreatePayload.TYPE, OpenWaybillCreatePayload.STREAM_CODEC,
                 OpenWaybillCreatePayload::handle);
+        registrar.playToClient(NotificationSyncPayload.TYPE, NotificationSyncPayload.STREAM_CODEC,
+                NotificationSyncPayload::handle);
+        registrar.playToClient(NotificationAlertPayload.TYPE, NotificationAlertPayload.STREAM_CODEC,
+                NotificationAlertPayload::handle);
 
         registrar.playToServer(OpenBoardPayload.TYPE, OpenBoardPayload.STREAM_CODEC,
                 (payload, context) -> context.enqueueWork(() -> {
@@ -39,6 +46,12 @@ public final class ModPayloads {
                 (payload, context) -> context.enqueueWork(() -> {
                     if (context.player() instanceof ServerPlayer player) {
                         BoardPackets.handleClaim(player);
+                    }
+                }));
+        registrar.playToServer(MarkNotificationsReadPayload.TYPE, MarkNotificationsReadPayload.STREAM_CODEC,
+                (payload, context) -> context.enqueueWork(() -> {
+                    if (context.player() instanceof ServerPlayer player) {
+                        MarkNotificationsReadPayload.handle(payload, player);
                     }
                 }));
         registrar.playToServer(ContractIntentPayload.TYPE, ContractIntentPayload.STREAM_CODEC,

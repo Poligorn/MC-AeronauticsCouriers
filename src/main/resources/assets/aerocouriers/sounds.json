@@ -1,0 +1,11 @@
+{
+  "notification": {
+    "subtitle": "subtitles.aerocouriers.notification",
+    "sounds": [
+      {
+        "name": "block/note_block/bell",
+        "type": "event"
+      }
+    ]
+  }
+}

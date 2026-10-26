@@ -8,7 +8,9 @@ import dev.poligorn.aerocouriers.contract.ContractManager;
 import dev.poligorn.aerocouriers.contract.ContractState;
 import dev.poligorn.aerocouriers.contract.Destination;
 import dev.poligorn.aerocouriers.contract.Escrow;
+import dev.poligorn.aerocouriers.contract.CouriersNotifications;
 import dev.poligorn.aerocouriers.contract.Mailbox;
+import dev.poligorn.aerocouriers.contract.NotificationLog;
 import dev.poligorn.aerocouriers.contract.Pricing;
 import dev.poligorn.aerocouriers.contract.Weights;
 import dev.poligorn.aerocouriers.economy.Economies;
@@ -60,6 +62,9 @@ public final class BoardPackets {
             return;
         }
         PacketDistributor.sendToPlayer(player, snapshot(player, page, openScreen, notice));
+        if (openScreen) {
+            CouriersNotifications.sync(player);
+        }
     }
 
     public static BoardSnapshotPayload snapshot(ServerPlayer player, int page, boolean openScreen,
@@ -101,6 +106,7 @@ public final class BoardPackets {
                 open.size(),
                 Economies.get(server).balance(self),
                 Mailbox.get(server).contents(self).size(),
+                NotificationLog.get(server).unread(self),
                 player.hasPermissions(OP),
                 Licenses.isLicensedCourier(player),
                 CouriersServerConfig.ALLOW_SELF_ACCEPT.get(),
@@ -199,9 +205,12 @@ public final class BoardPackets {
         ContractManager.Outcome outcome = ContractManager.get(player.server)
                 .createFromWaybill(player, payload.from(), destination,
                         payload.reward(), payload.collateral(), payload.minutes());
-        player.sendSystemMessage(outcome.message());
         if (outcome.success()) {
+            CouriersNotifications.notifyOrder(player.server, player.getUUID(), outcome.message(),
+                    outcome.contract().map(Contract::id));
             open(player, 0, true, Optional.of(outcome.message()));
+        } else {
+            player.sendSystemMessage(outcome.message());
         }
     }
 
@@ -238,7 +247,7 @@ public final class BoardPackets {
     }
 
     private static void reply(ServerPlayer player, Component message) {
-        player.sendSystemMessage(message);
+        CouriersNotifications.notifyOrder(player.server, player.getUUID(), message, Optional.empty());
         open(player, 0, false, Optional.of(message));
     }
 

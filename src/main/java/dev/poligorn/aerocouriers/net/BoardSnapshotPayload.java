@@ -31,6 +31,7 @@ public record BoardSnapshotPayload(
         int boardTotal,
         long balance,
         int mailCount,
+        int notificationUnread,
         boolean operator,
         boolean licensed,
         boolean allowSelfAccept,
@@ -198,6 +199,7 @@ public record BoardSnapshotPayload(
         buf.writeVarInt(p.boardTotal);
         buf.writeVarLong(p.balance);
         buf.writeVarInt(p.mailCount);
+        buf.writeVarInt(p.notificationUnread);
         buf.writeBoolean(p.operator);
         buf.writeBoolean(p.licensed);
         buf.writeBoolean(p.allowSelfAccept);
@@ -216,6 +218,7 @@ public record BoardSnapshotPayload(
         int boardTotal = buf.readVarInt();
         long balance = buf.readVarLong();
         int mailCount = buf.readVarInt();
+        int notificationUnread = buf.readVarInt();
         boolean operator = buf.readBoolean();
         boolean licensed = buf.readBoolean();
         boolean allowSelfAccept = buf.readBoolean();
@@ -223,7 +226,8 @@ public record BoardSnapshotPayload(
         Optional<Component> notice = buf.readBoolean()
                 ? Optional.of(ComponentSerialization.STREAM_CODEC.decode(buf))
                 : Optional.empty();
-        return new BoardSnapshotPayload(openScreen, page, boardTotal, balance, mailCount, operator, licensed,
+        return new BoardSnapshotPayload(openScreen, page, boardTotal, balance, mailCount, notificationUnread, operator,
+                licensed,
                 allowSelfAccept, requireTablet, notice,
                 BoardEntry.STREAM_CODEC.apply(ByteBufCodecs.list(PAGE_SIZE)).decode(buf),
                 BoardEntry.STREAM_CODEC.apply(ByteBufCodecs.list(64)).decode(buf),

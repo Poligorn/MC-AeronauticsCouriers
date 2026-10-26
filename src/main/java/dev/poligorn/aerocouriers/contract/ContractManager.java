@@ -482,7 +482,7 @@ public final class ContractManager extends SavedData {
         put(accepted);
         if (!self) {
             notify(server, contract.issuer(), Component.translatable("contract.aerocouriers.notify.accepted",
-                    contract.shortId(), courier.getDisplayName()));
+                    contract.shortId(), courier.getDisplayName()), id);
         }
         String acceptKey = contract.preplaced() ? "accepted_preplaced" : "accepted";
         Component message = Component.translatable("contract.aerocouriers." + acceptKey, contract.shortId(),
@@ -519,7 +519,7 @@ public final class ContractManager extends SavedData {
             put(inTransit);
             notify(server, contract.courier().orElseThrow(), Component.translatable(
                     "contract.aerocouriers.notify.container_waiting", contract.shortId(),
-                    contract.origin().pos().toShortString()));
+                    contract.origin().pos().toShortString()), id);
             return Outcome.ok(inTransit, "container_ready", contract.shortId(),
                     contract.origin().pos().toShortString());
         }
@@ -537,8 +537,8 @@ public final class ContractManager extends SavedData {
                 blockedNoticeAt.put(id, now);
                 Component notice = Component.translatable("contract.aerocouriers.notify.pickup_blocked",
                         contract.shortId(), contract.origin().pos().toShortString());
-                notify(server, contract.issuer(), notice);
-                notify(server, contract.courier().orElseThrow(), notice);
+                notify(server, contract.issuer(), notice, id);
+                notify(server, contract.courier().orElseThrow(), notice, id);
             }
             return Outcome.error("pickup_blocked", contract.origin().pos().toShortString());
         }
@@ -554,7 +554,7 @@ public final class ContractManager extends SavedData {
         level.playSound(null, spot.get(), SoundEvents.BARREL_CLOSE, SoundSource.BLOCKS, 1.0F, 0.8F);
         level.sendParticles(ParticleTypes.CLOUD, at.x, at.y, at.z, 20, 0.6, 0.6, 0.6, 0.02);
         notify(server, contract.courier().orElseThrow(), Component.translatable(
-                "contract.aerocouriers.notify.container_arrived", contract.shortId(), spot.get().toShortString()));
+                "contract.aerocouriers.notify.container_arrived", contract.shortId(), spot.get().toShortString()), id);
         return Outcome.ok(inTransit, "container_spawned", contract.shortId(), spot.get().toShortString());
     }
 
@@ -668,6 +668,7 @@ public final class ContractManager extends SavedData {
         int xp = XpCalculator.xp(contract.distance(), contract.weight(), late, repeats);
         recentDeliveries.add(new Delivery(courier.getUUID(), contract.issuer(), now));
         CourierProfile profile = Licenses.profile(courier);
+        LicenseRank rankBefore = RankRules.rankFor(profile);
         profile = contract.type().isNpc()
                 ? profile.withVillageDelivery(xp, Math.round(contract.distance()), late, paid)
                 : profile.withDelivery(xp, Math.round(contract.distance()), late, paid);
@@ -676,28 +677,37 @@ public final class ContractManager extends SavedData {
             long bonus = CouriersServerConfig.TRAINEE_BONUS.get();
             if (bonus > 0) {
                 economy.deposit(courier.getUUID(), bonus, "trainee_advance:" + id);
-                courier.sendSystemMessage(Component.translatable("contract.aerocouriers.trainee.advance", bonus));
+                CouriersNotifications.notifyOrder(server, courier.getUUID(),
+                        Component.translatable("contract.aerocouriers.trainee.advance", bonus), Optional.of(id));
             }
             profile = profile.withTraineeAdvancePaid();
         }
         Licenses.setProfile(courier, profile);
+        LicenseRank rankAfter = RankRules.rankFor(profile);
 
         Contract delivered = contract.withState(ContractState.DELIVERED);
         put(delivered);
         Component message = Component.translatable(
                 late ? "contract.aerocouriers.delivered_late" : "contract.aerocouriers.delivered",
                 contract.shortId(), paid, xp);
-        courier.sendSystemMessage(message);
+        CouriersNotifications.notifyOrder(server, courier.getUUID(), message, Optional.of(id));
+        if (rankAfter.level() > rankBefore.level() && !rankAfter.isAdmin()) {
+            CouriersNotifications.notifyOrder(server, courier.getUUID(),
+                    Component.translatable("contract.aerocouriers.notify.rank_up", rankAfter.displayName()),
+                    Optional.of(id));
+        }
         if (contract.type().isNpc()) {
             String stationName = StationAtlas.get(server).byId(contract.recipient())
                     .map(StationAtlas.Station::name)
                     .orElse("?");
-            courier.sendSystemMessage(Component.translatable("contract.aerocouriers.notify.delivered_village",
-                    contract.shortId(), stationName));
+            CouriersNotifications.notifyOrder(server, courier.getUUID(),
+                    Component.translatable("contract.aerocouriers.notify.delivered_village",
+                            contract.shortId(), stationName),
+                    Optional.of(id));
         } else {
             String where = placedAt.map(BlockPos::toShortString).orElse("?");
             notify(server, contract.recipient(), Component.translatable("contract.aerocouriers.notify.delivered",
-                    contract.shortId(), courier.getDisplayName(), where));
+                    contract.shortId(), courier.getDisplayName(), where), id);
         }
         AeronauticsCouriers.LOGGER.info("[contract] {} delivered by {}: paid={}, late={}, xp={}, repeats={}",
                 id, courier.getGameProfile().getName(), paid, late, xp, repeats);
@@ -836,10 +846,12 @@ public final class ContractManager extends SavedData {
                                 : Component.translatable("contract.aerocouriers.fail.damaged.explosion"))
                 : Component.translatable("contract.aerocouriers.fail." + reason.key());
         notify(server, contract.issuer(), Component.translatable("contract.aerocouriers.notify.failed.issuer",
-                contract.shortId(), cause));
+                contract.shortId(), cause), id);
         if (online != null && reason != FailReason.ABANDONED) {
-            online.sendSystemMessage(Component.translatable("contract.aerocouriers.notify.failed.courier",
-                    contract.shortId(), cause, contract.collateral()));
+            CouriersNotifications.notifyOrder(server, courier,
+                    Component.translatable("contract.aerocouriers.notify.failed.courier",
+                            contract.shortId(), cause, contract.collateral()),
+                    Optional.of(id));
         }
         AeronauticsCouriers.LOGGER.info("[contract] {} failed: {} (dropped {} items{})", id, reason, dropped,
                 courierBroke ? ", broken by the courier" : "");
@@ -877,7 +889,7 @@ public final class ContractManager extends SavedData {
         Contract expired = contract.withState(ContractState.EXPIRED);
         put(expired);
         notify(server, contract.issuer(), Component.translatable("contract.aerocouriers.notify.expired",
-                contract.shortId()));
+                contract.shortId()), id);
         AeronauticsCouriers.LOGGER.info("[contract] {} expired", id);
         return Outcome.ok(expired, "expired", contract.shortId());
     }
@@ -960,6 +972,7 @@ public final class ContractManager extends SavedData {
                 manager.setDirty();
             }
             manager.syncZones(player);
+            CouriersNotifications.sync(player);
         }
     }
 
@@ -1003,11 +1016,8 @@ public final class ContractManager extends SavedData {
         PacketDistributor.sendToPlayer(courier, new ZoneSyncPayload(zones));
     }
 
-    private static void notify(MinecraftServer server, UUID player, Component message) {
-        ServerPlayer online = server.getPlayerList().getPlayer(player);
-        if (online != null) {
-            online.sendSystemMessage(message);
-        }
+    private static void notify(MinecraftServer server, UUID player, Component message, UUID contractId) {
+        CouriersNotifications.notifyOrder(server, player, message, Optional.of(contractId));
     }
 
     // ---- persistence ----

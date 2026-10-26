@@ -4,9 +4,11 @@ import dev.poligorn.aerocouriers.access.OrderTablets;
 import dev.poligorn.aerocouriers.net.BoardSnapshotPayload;
 import dev.poligorn.aerocouriers.net.OpenBoardPayload;
 import dev.poligorn.aerocouriers.net.OpenWaybillCreatePayload;
+import java.util.UUID;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.neoforged.neoforge.network.PacketDistributor;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * Client entry for the job board: send the open intent and apply snapshots onto the screen.
@@ -14,6 +16,7 @@ import net.neoforged.neoforge.network.PacketDistributor;
  */
 public final class ClientBoard {
     private static boolean requireTablet = true;
+    private static @Nullable java.util.UUID pendingContractFocus;
 
     private ClientBoard() {
     }
@@ -41,6 +44,17 @@ public final class ClientBoard {
             minecraft.setScreen(new CourierBoardScreen(null));
         }
         PacketDistributor.sendToServer(new OpenBoardPayload(page));
+    }
+
+    public static void focusContract(UUID contractId) {
+        pendingContractFocus = contractId;
+        requestOpen(0);
+    }
+
+    public static @Nullable UUID takePendingContractFocus() {
+        UUID id = pendingContractFocus;
+        pendingContractFocus = null;
+        return id;
     }
 
     public static void apply(BoardSnapshotPayload payload) {
