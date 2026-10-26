@@ -1,5 +1,6 @@
 package dev.poligorn.aerocouriers.client.board;
 
+import com.mojang.authlib.GameProfile;
 import java.util.Optional;
 import java.util.UUID;
 import net.minecraft.client.Minecraft;
@@ -31,7 +32,7 @@ public final class BoardCustomerFace {
                 return info.getSkin().texture();
             }
         }
-        return DefaultPlayerSkin.get(id).texture();
+        return minecraft.getSkinManager().getInsecureSkin(new GameProfile(id, "")).texture();
     }
 
     public static void drawVillageIcon(GuiGraphics graphics, int x, int y) {

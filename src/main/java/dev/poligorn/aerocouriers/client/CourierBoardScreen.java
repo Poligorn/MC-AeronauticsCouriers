@@ -2,8 +2,9 @@ package dev.poligorn.aerocouriers.client;
 
 import dev.poligorn.aerocouriers.AeronauticsCouriers;
 import dev.poligorn.aerocouriers.client.board.BoardCargoTooltip;
-import dev.poligorn.aerocouriers.client.board.BoardCustomerFace;
 import dev.poligorn.aerocouriers.client.board.BoardRowLayout;
+import dev.poligorn.aerocouriers.client.board.BoardRowMetrics;
+import dev.poligorn.aerocouriers.client.board.BoardRowRenderer;
 import dev.poligorn.aerocouriers.client.board.TabletRowIconButton;
 import dev.poligorn.aerocouriers.contract.ContractState;
 import dev.poligorn.aerocouriers.license.LicenseRank;
@@ -42,9 +43,6 @@ import org.jetbrains.annotations.Nullable;
  * Chrome: brass order-tablet monitor ({@link TabletGui}); stamp screen unchanged.
  */
 public final class CourierBoardScreen extends Screen {
-    private static final int CUSTOMER_FACE = 8;
-    private static final int LINE2_ICON = 8;
-    private static final int LINE2_GAP = 3;
     private static final int PROFILE_ICON_SIZE = 16;
     private static final int PROFILE_LINE_HEIGHT = 11;
     private static final int TAB_Y = 2;
@@ -218,23 +216,25 @@ public final class CourierBoardScreen extends Screen {
         String detailsLabel = Component.translatable("ui.aerocouriers.details").getString();
         for (int i = 0; i < visible && scroll + i < all.size(); i++) {
             BoardSnapshotPayload.BoardEntry entry = all.get(scroll + i);
-            int y = rowTop + i * rowH();
+            int rowY = rowTop + i * rowH();
+            int btnY = BoardRowMetrics.buttonY(rowY);
             boolean hasSecondary = hasSecondaryAction(entry, boardTab);
             BoardRowLayout layout = BoardRowLayout.forRow(sx, sw, font, detailsLabel, hasSecondary);
             addRenderableWidget(TabletButton.create(
-                    layout.detailsX(), y, layout.detailsW(), 18, Component.translatable("ui.aerocouriers.details"), b -> {
+                    layout.detailsX(), btnY, layout.detailsW(), BoardRowMetrics.BUTTON_HEIGHT,
+                    Component.literal(layout.detailsLabelShown()), b -> {
                         selected = entry.id();
                         pendingAccept = null;
                     }));
             addRenderableWidget(new TabletRowIconButton(
-                    layout.mapX(), y, entry.id(), TabletRowIconButton.Kind.MAP, this::onMapIconClick));
+                    layout.mapX(), btnY, entry.id(), TabletRowIconButton.Kind.MAP, this::onMapIconClick));
             addRenderableWidget(new TabletRowIconButton(
-                    layout.crateX(), y, entry.id(), TabletRowIconButton.Kind.CRATE, null));
+                    layout.crateX(), btnY, entry.id(), TabletRowIconButton.Kind.CRATE, null));
             if (boardTab && entry.state() == ContractState.OPEN
                     && (!"issuer".equals(entry.role()) || snapshot.allowSelfAccept())) {
                 boolean confirm = entry.id().equals(pendingAccept);
                 TabletButton accept = TabletButton.create(
-                        layout.secondaryX(), y, layout.secondaryW(), 18,
+                        layout.secondaryX(), btnY, layout.secondaryW(), BoardRowMetrics.BUTTON_HEIGHT,
                         Component.translatable(confirm ? "ui.aerocouriers.accept.confirm" : "ui.aerocouriers.accept",
                                 entry.collateral()),
                         b -> onAccept(entry));
@@ -245,12 +245,14 @@ public final class CourierBoardScreen extends Screen {
                 addRenderableWidget(accept);
             } else if (!boardTab && "issuer".equals(entry.role()) && entry.state() == ContractState.OPEN) {
                 addRenderableWidget(TabletButton.create(
-                        layout.secondaryX(), y, layout.secondaryW(), 18, Component.translatable("ui.aerocouriers.cancel"), b ->
+                        layout.secondaryX(), btnY, layout.secondaryW(), BoardRowMetrics.BUTTON_HEIGHT,
+                        Component.translatable("ui.aerocouriers.cancel"), b ->
                                 PacketDistributor.sendToServer(
                                         new ContractIntentPayload(ContractIntentPayload.Kind.CANCEL, entry.id()))));
             } else if (!boardTab && "courier".equals(entry.role()) && entry.state().isActive()) {
                 addRenderableWidget(TabletButton.create(
-                        layout.secondaryX(), y, layout.secondaryW(), 18, Component.translatable("ui.aerocouriers.abandon"), b ->
+                        layout.secondaryX(), btnY, layout.secondaryW(), BoardRowMetrics.BUTTON_HEIGHT,
+                        Component.translatable("ui.aerocouriers.abandon"), b ->
                                 PacketDistributor.sendToServer(
                                         new ContractIntentPayload(ContractIntentPayload.Kind.ABANDON, entry.id()))));
             }
@@ -535,10 +537,10 @@ public final class CourierBoardScreen extends Screen {
         try {
             for (int i = 0; i < visible && scroll + i < all.size(); i++) {
                 BoardSnapshotPayload.BoardEntry entry = all.get(scroll + i);
-                int y = listY + i * rowH();
-                TabletGui.drawRow(graphics, sx + 6, y - 1, textRight - sx - 6, rowH() - 2,
+                int rowY = listY + i * rowH();
+                TabletGui.drawRow(graphics, sx + 6, rowY, textRight - sx - 6, rowH(),
                         entry.id().equals(selected));
-                renderOrderRow(graphics, entry, textLeft, y, textW, mouseX, mouseY);
+                renderOrderRow(graphics, entry, textLeft, rowY, textW, mouseX, mouseY);
             }
         } finally {
             graphics.disableScissor();
@@ -619,49 +621,16 @@ public final class CourierBoardScreen extends Screen {
         }
     }
 
-    private void renderOrderRow(GuiGraphics graphics, BoardSnapshotPayload.BoardEntry entry, int x, int y, int width,
+    private void renderOrderRow(GuiGraphics graphics, BoardSnapshotPayload.BoardEntry entry, int rowTop, int x, int width,
                                 int mouseX, int mouseY) {
-        int cursor = x;
-        String idText = "#" + entry.shortId();
-        graphics.drawString(font, idText, cursor, y, TabletGui.TEXT, false);
-        cursor += font.width(idText) + 4;
-        Component status = entry.state().displayName();
-        drawClipped(graphics, status, cursor, y, Math.max(8, width - (cursor - x)), TabletGui.TEXT_MUTED, mouseX, mouseY);
-        int statusW = Math.min(font.width(status.getString()), Math.max(8, width - (cursor - x)));
-        cursor += statusW + 4;
-
-        int faceX = cursor;
-        int faceY = y;
-        if (entry.villageCustomer()) {
-            BoardCustomerFace.drawVillageIcon(graphics, faceX, faceY);
-        } else {
-            BoardCustomerFace.draw(graphics, faceX, faceY, entry.customerId());
+        int line1Y = BoardRowMetrics.line1Y(rowTop);
+        BoardRowRenderer.Line1Hover line1 = BoardRowRenderer.renderLine1(
+                graphics, font, entry, x, line1Y, width, mouseX, mouseY,
+                (tip, ignored) -> hoverTip = tip);
+        if (line1.tooltip() != null) {
+            hoverTip = line1.tooltip();
         }
-        cursor += CUSTOMER_FACE + 3;
-        int nameW = Math.max(8, x + width - cursor);
-        drawClipped(graphics, Component.literal(entry.customerName()), cursor, y, nameW, TabletGui.TEXT, mouseX, mouseY);
-        if (mouseX >= faceX && mouseX < faceX + CUSTOMER_FACE + 3 + nameW && mouseY >= y && mouseY < y + 9) {
-            hoverTip = Component.translatable("ui.aerocouriers.row.customer_tooltip", entry.customerName());
-        }
-
-        int line2Y = y + 10;
-        int statX = x;
-        statX = drawLine2Stat(graphics, AerocouriersGuiSprites.ICON_COIN, Long.toString(entry.reward()), statX, line2Y);
-        statX = drawLine2Stat(graphics, AerocouriersGuiSprites.ICON_LOCK, Long.toString(entry.collateral()), statX, line2Y);
-        String time = Component.translatable("ui.aerocouriers.row.time_compact", entry.minutesLeft()).getString();
-        statX = drawLine2Stat(graphics, AerocouriersGuiSprites.ICON_CLOCK, time, statX, line2Y);
-        if ("issuer".equals(entry.role())) {
-            int starX = x + width - LINE2_ICON;
-            graphics.blitSprite(AerocouriersGuiSprites.ICON_STAR, starX, line2Y, LINE2_ICON, LINE2_ICON);
-        }
-    }
-
-    private int drawLine2Stat(GuiGraphics graphics, net.minecraft.resources.ResourceLocation icon, String value, int x,
-                              int y) {
-        graphics.blitSprite(icon, x, y, LINE2_ICON, LINE2_ICON);
-        int textX = x + LINE2_ICON + 1;
-        graphics.drawString(font, value, textX, y, TabletGui.TEXT_MUTED, false);
-        return textX + font.width(value) + LINE2_GAP + 4;
+        BoardRowRenderer.renderLine2(graphics, font, entry, x, BoardRowMetrics.line2Y(rowTop));
     }
 
     private void captureRowHoverTips(int mouseX, int mouseY) {
@@ -809,13 +778,14 @@ public final class CourierBoardScreen extends Screen {
         int textRight = layout.textRight();
         for (int i = 0; i < visible && scroll + i < all.size(); i++) {
             BoardSnapshotPayload.BoardEntry entry = all.get(scroll + i);
-            int y = listY + i * rowH();
-            if (mouseY < y || mouseY >= y + 9) {
+            int rowY = listY + i * rowH();
+            int line1Y = BoardRowMetrics.line1Y(rowY);
+            if (mouseY < line1Y || mouseY >= line1Y + 9) {
                 continue;
             }
-            int faceStart = sx + 8 + font.width("#" + entry.shortId()) + 4
-                    + Math.min(font.width(entry.state().displayName().getString()), 48) + 4;
-            int faceEnd = faceStart + CUSTOMER_FACE + 3 + font.width(entry.customerName());
+            int faceStart = sx + 8 + font.width("#" + entry.shortId()) + BoardRowMetrics.ID_STATUS_GAP
+                    + Math.min(font.width(entry.state().displayName().getString()), 88) + 4;
+            int faceEnd = faceStart + BoardRowMetrics.CUSTOMER_FACE + 3 + font.width(entry.customerName());
             if (mouseX >= faceStart && mouseX < Math.min(faceEnd, textRight)) {
                 return entry;
             }
@@ -879,7 +849,7 @@ public final class CourierBoardScreen extends Screen {
     }
 
     private int rowH() {
-        return 24;
+        return BoardRowMetrics.rowHeight();
     }
 
     private Component tabHeading() {
