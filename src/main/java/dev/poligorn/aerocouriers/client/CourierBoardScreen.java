@@ -1,5 +1,6 @@
 package dev.poligorn.aerocouriers.client;
 
+import dev.poligorn.aerocouriers.AeronauticsCouriers;
 import dev.poligorn.aerocouriers.contract.ContractState;
 import dev.poligorn.aerocouriers.license.LicenseRank;
 import dev.poligorn.aerocouriers.net.BoardSnapshotPayload;
@@ -19,7 +20,10 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
+import org.joml.Quaternionf;
+import org.joml.Vector3f;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.util.Mth;
 import net.neoforged.neoforge.network.PacketDistributor;
@@ -349,19 +353,7 @@ public final class CourierBoardScreen extends Screen {
 
         TabletGui.drawListPanel(graphics, boxX, top, boxW, boxH);
         if (minecraft != null && minecraft.player != null) {
-            int entityScale = Mth.clamp((int) (boxH * 0.42F), 28, 140);
-            float yOffset = 0.0625F - Math.min(0.52F, boxH / 180.0F);
-            InventoryScreen.renderEntityInInventoryFollowsMouse(
-                    graphics,
-                    boxX,
-                    top,
-                    boxX + boxW,
-                    top + boxH,
-                    entityScale,
-                    yOffset,
-                    mouseX,
-                    mouseY,
-                    minecraft.player);
+            renderProfileSkin(graphics, boxX, top, boxW, boxH, mouseX, mouseY, minecraft.player);
         }
 
         int y = top + 4;
@@ -399,6 +391,54 @@ public final class CourierBoardScreen extends Screen {
                 : String.format(Locale.ROOT, "%.0f%%", profile.delivered() * 100.0 / completed);
         drawProfileStatBlock(graphics, Component.translatable("ui.aerocouriers.profile.success_rate", rate), statsX, y,
                 statsW, TabletGui.TEXT);
+    }
+
+    private void renderProfileSkin(GuiGraphics graphics, int boxX, int top, int boxW, int boxH, int mouseX,
+                                   int mouseY, LivingEntity entity) {
+        ProfileSkinPreviewLayout.Layout layout =
+                ProfileSkinPreviewLayout.forPanel(boxX, top, boxW, boxH, entity.getScale());
+        if (Boolean.getBoolean("aerocouriers.logProfileLayout")) {
+            AeronauticsCouriers.LOGGER.info(
+                    "Profile skin panel top={} h={} headTop={} feetBottom={} scale={} marginsOk={}",
+                    top, boxH, layout.estimatedHeadTop(), layout.estimatedFeetBottom(), layout.scale(),
+                    ProfileSkinPreviewLayout.marginsOk(top, boxH, layout));
+        }
+        graphics.enableScissor(boxX, top, boxX + boxW, top + boxH);
+        try {
+            float body = entity.yBodyRot;
+            float yaw = entity.getYRot();
+            float pitch = entity.getXRot();
+            float headO = entity.yHeadRotO;
+            float head = entity.yHeadRot;
+
+            float centerX = (boxX + boxX + boxW) / 2.0F;
+            float centerY = (top + top + boxH) / 2.0F;
+            float angleX = (float) Math.atan((centerX - mouseX) / 40.0F);
+            float angleY = (float) Math.atan((centerY - mouseY) / 40.0F);
+
+            Quaternionf pose = new Quaternionf().rotateZ((float) Math.PI);
+            Quaternionf cameraRot = new Quaternionf().rotateX(angleY * 20.0F * (float) (Math.PI / 180.0));
+            pose.mul(cameraRot);
+            entity.yBodyRot = 180.0F + angleX * 20.0F;
+            entity.setYRot(180.0F + angleX * 40.0F);
+            entity.setXRot(-angleY * 20.0F);
+            entity.yHeadRot = entity.getYRot();
+            entity.yHeadRotO = entity.getYRot();
+
+            float renderScale = layout.scale() / entity.getScale();
+            float screenY = layout.estimatedFeetBottom() - renderScale * ProfileSkinPreviewLayout.PLAYER_VISUAL_HEIGHT_BLOCKS / 2.0F;
+            Vector3f translate = new Vector3f(0.0F, entity.getBbHeight() / 2.0F, 0.0F);
+            InventoryScreen.renderEntityInInventory(
+                    graphics, layout.screenX(), screenY, renderScale, translate, pose, cameraRot, entity);
+
+            entity.yBodyRot = body;
+            entity.setYRot(yaw);
+            entity.setXRot(pitch);
+            entity.yHeadRotO = headO;
+            entity.yHeadRot = head;
+        } finally {
+            graphics.disableScissor();
+        }
     }
 
     private int drawProfileStatBlock(GuiGraphics graphics, Component line, int x, int y, int width, int color) {

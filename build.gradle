@@ -153,8 +153,15 @@ tasks.register('checkScreenRenderGuard', Exec) {
     commandLine 'python3', layout.projectDirectory.file('tools/check_screen_render_guard.py')
 }
 
+tasks.register('checkProfileSkinLayout', Exec) {
+    group = 'verification'
+    description = 'Checks profile skin preview head/feet margins for standard window sizes.'
+    commandLine 'python3', layout.projectDirectory.file('tools/check_profile_skin_layout.py')
+}
+
 tasks.named('build') {
     dependsOn tasks.named('checkScreenRenderGuard')
+    dependsOn tasks.named('checkProfileSkinLayout')
 }
 
 idea {

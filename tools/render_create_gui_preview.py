@@ -280,7 +280,8 @@ def render_board(w: int, h: int, tab: int) -> tuple[Image.Image, tuple[int, int,
         cx = box_x + box_w // 2
         sil_h = int(box_h * 0.82)
         sil_w = int(sil_h * 0.35)
-        foot = top + box_h - 6
+        foot = top + int(box_h * (1.0 - 0.06))
+        sil_h = int(box_h * 0.85)
         head = foot - sil_h
         d.ellipse((cx - sil_w // 4, head, cx + sil_w // 4, head + sil_h // 5), fill=(0x87, 0x3B, 0x00))
         d.rectangle((cx - sil_w // 2, head + sil_h // 5, cx + sil_w // 2, foot), fill=(0x6B, 0x2E, 0x00))
