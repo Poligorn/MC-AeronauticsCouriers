@@ -188,22 +188,26 @@ final class ContractCommands {
         MinecraftServer server = source.getServer();
         long now = ContractManager.now(server);
         source.sendSuccess(() -> summary(c, source.getPlayer() == null ? new UUID(0, 0) : source.getPlayer().getUUID()), false);
-        String timeLeft = c.state().isActive()
-                ? minutes(c.timing().dueAt() - now)
-                : c.state() == ContractState.OPEN ? minutes(c.timing().expiresAt() - now) : "—";
+        Component timeLeft = c.state().isActive()
+                ? minutesComponent(c.timing().dueAt() - now)
+                : c.state() == ContractState.OPEN
+                        ? minutesComponent(c.timing().expiresAt() - now)
+                        : Component.translatable("ui.aerocouriers.profile.dash");
         source.sendSuccess(() -> Component.translatable("contract.aerocouriers.info.details",
                 String.format(Locale.ROOT, "%.1f", c.weight()), c.size().maxWeight(),
-                minutes(c.timing().deadline()), timeLeft), false);
+                minutesComponent(c.timing().deadline()), timeLeft), false);
         source.sendSuccess(() -> ContractManager.riskLine(c), false);
         Escrow.Holding holding = Escrow.get(server).holding(c.id());
         for (ItemStack stack : holding.items()) {
-            source.sendSuccess(() -> Component.literal("  " + stack.getCount() + " × ").append(stack.getHoverName()), false);
+            source.sendSuccess(() -> Component.translatable("commands.aerocouriers.manifest.line", stack.getCount())
+                    .append(stack.getHoverName()), false);
         }
         return 1;
     }
 
-    private static String minutes(long ticks) {
-        return Math.max(0, ticks / Pricing.TICKS_PER_MINUTE) + " min";
+    private static Component minutesComponent(long ticks) {
+        long minutes = Math.max(0, ticks / Pricing.TICKS_PER_MINUTE);
+        return Component.translatable("contract.aerocouriers.time.minutes", minutes);
     }
 
     private static int report(CommandSourceStack source, ContractManager.Outcome outcome) {
@@ -227,7 +231,8 @@ final class ContractCommands {
         List<ItemStack> contents = Mailbox.get(source.getServer()).contents(player.getUUID());
         source.sendSuccess(() -> Component.translatable("contract.aerocouriers.mail.header", contents.size()), false);
         for (ItemStack stack : contents) {
-            source.sendSuccess(() -> Component.literal("  " + stack.getCount() + " × ").append(stack.getHoverName()), false);
+            source.sendSuccess(() -> Component.translatable("commands.aerocouriers.manifest.line", stack.getCount())
+                    .append(stack.getHoverName()), false);
         }
         return contents.size();
     }

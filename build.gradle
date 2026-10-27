@@ -195,6 +195,12 @@ tasks.register('checkRankLimits', Exec) {
     commandLine 'python3', layout.projectDirectory.file('tools/check_rank_limits.py')
 }
 
+tasks.register('checkLangParity', Exec) {
+    group = 'verification'
+    description = 'Ensures en_us.json and ru_ru.json have the same keys and no obvious language mix-ups.'
+    commandLine 'python3', layout.projectDirectory.file('tools/check_lang_parity.py')
+}
+
 tasks.named('build') {
     dependsOn tasks.named('checkScreenRenderGuard')
     dependsOn tasks.named('checkProfileSkinLayout')
@@ -204,6 +210,7 @@ tasks.named('build') {
     dependsOn tasks.named('checkVillageRareCargo')
     dependsOn tasks.named('checkNavMath')
     dependsOn tasks.named('checkRankLimits')
+    dependsOn tasks.named('checkLangParity')
 }
 
 idea {
