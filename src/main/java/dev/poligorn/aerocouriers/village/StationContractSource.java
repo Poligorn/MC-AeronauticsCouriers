@@ -59,19 +59,82 @@ public final class StationContractSource implements ContractSource {
         INSTANCE.generate(server);
     }
 
-    /** Fills the board up to {@code village_board_max} with one pass over shuffled station pairs. */
+    /** Fills the board up to {@code village_board_max}; same-dimension pairs per level, then optional cross-dimension. */
     public int generate(MinecraftServer server) {
         int cap = CouriersServerConfig.VILLAGE_BOARD_MAX.get();
         ContractManager manager = ContractManager.get(server);
-        int created = generatePairs(server, manager, cap, server.overworld().getRandom());
+        int created = 0;
+        for (ServerLevel level : server.getAllLevels()) {
+            created += generateSameDimension(level, manager, cap - created, level.getRandom());
+            if (created >= cap) {
+                break;
+            }
+        }
+        if (created < cap && CouriersServerConfig.ALLOW_CROSS_DIMENSION_ORDERS.get()) {
+            created += generateCrossDimension(server, manager, cap - created, server.overworld().getRandom());
+        }
         if (created > 0) {
             AeronauticsCouriers.LOGGER.info("[station] Published {} NPC contracts", created);
         }
         return created;
     }
 
-    private int generatePairs(MinecraftServer server, ContractManager manager, int remaining, RandomSource random) {
+    private int generateSameDimension(ServerLevel level, ContractManager manager, int remaining, RandomSource random) {
         if (remaining <= 0) {
+            return 0;
+        }
+        long already = manager.all()
+                .filter(c -> c.type() == ContractType.VILLAGE && c.state() == ContractState.OPEN)
+                .count();
+        int room = (int) Math.min(remaining, CouriersServerConfig.VILLAGE_BOARD_MAX.get() - already);
+        if (room <= 0) {
+            return 0;
+        }
+        List<StationAtlas.Station> stations = StationAtlas.get(level.getServer()).all().stream()
+                .filter(s -> s.dimension().equals(level.dimension()))
+                .toList();
+        if (stations.size() < 2) {
+            return 0;
+        }
+        List<StationAtlas.Station[]> pairs = new ArrayList<>();
+        for (StationAtlas.Station from : stations) {
+            for (StationAtlas.Station to : stations) {
+                if (from.id().equals(to.id())) {
+                    continue;
+                }
+                if (from.pos().distSqr(to.pos()) > MAX_PAIR_DISTANCE * MAX_PAIR_DISTANCE) {
+                    continue;
+                }
+                if (hasOpenPair(manager, from, to)) {
+                    continue;
+                }
+                pairs.add(new StationAtlas.Station[] {from, to});
+            }
+        }
+        sortPairsForTrainee(pairs);
+        Collections.shuffle(pairs, new java.util.Random(random.nextLong()));
+        int created = 0;
+        for (StationAtlas.Station[] pair : pairs) {
+            if (created >= room) {
+                break;
+            }
+            if (!level.isLoaded(pair[0].pos())) {
+                continue;
+            }
+            if (publish(level, pair[0], pair[1], random).isPresent()) {
+                created++;
+            }
+        }
+        return created;
+    }
+
+    private int generateCrossDimension(MinecraftServer server, ContractManager manager, int remaining,
+                                       RandomSource random) {
+        if (remaining <= 0) {
+            return 0;
+        }
+        double crossChance = CouriersServerConfig.CROSS_DIMENSION_ORDER_CHANCE.get();
+        if (crossChance <= 0.0) {
             return 0;
         }
         long already = manager.all()
@@ -85,20 +148,13 @@ public final class StationContractSource implements ContractSource {
         if (stations.size() < 2) {
             return 0;
         }
-        boolean allowCross = CouriersServerConfig.ALLOW_CROSS_DIMENSION_ORDERS.get();
-        double crossChance = CouriersServerConfig.CROSS_DIMENSION_ORDER_CHANCE.get();
         List<StationAtlas.Station[]> pairs = new ArrayList<>();
         for (StationAtlas.Station from : stations) {
             for (StationAtlas.Station to : stations) {
-                if (from.id().equals(to.id())) {
+                if (from.id().equals(to.id()) || from.dimension().equals(to.dimension())) {
                     continue;
                 }
-                boolean cross = !from.dimension().equals(to.dimension());
-                if (cross) {
-                    if (!allowCross || random.nextDouble() >= crossChance) {
-                        continue;
-                    }
-                } else if (from.pos().distSqr(to.pos()) > MAX_PAIR_DISTANCE * MAX_PAIR_DISTANCE) {
+                if (random.nextDouble() >= crossChance) {
                     continue;
                 }
                 if (hasOpenPair(manager, from, to)) {
@@ -107,17 +163,6 @@ public final class StationContractSource implements ContractSource {
                 pairs.add(new StationAtlas.Station[] {from, to});
             }
         }
-        int traineeMax = CouriersServerConfig.TRAINEE_MAX_DISTANCE.get();
-        pairs.sort((a, b) -> {
-            double da = pairSortDistance(a[0], a[1]);
-            double db = pairSortDistance(b[0], b[1]);
-            boolean shortA = traineeMax > 0 && da <= traineeMax;
-            boolean shortB = traineeMax > 0 && db <= traineeMax;
-            if (shortA != shortB) {
-                return shortB ? 1 : -1;
-            }
-            return Double.compare(da, db);
-        });
         Collections.shuffle(pairs, new java.util.Random(random.nextLong()));
         int created = 0;
         for (StationAtlas.Station[] pair : pairs) {
@@ -135,11 +180,18 @@ public final class StationContractSource implements ContractSource {
         return created;
     }
 
-    private static double pairSortDistance(StationAtlas.Station from, StationAtlas.Station to) {
-        if (!from.dimension().equals(to.dimension())) {
-            return ContractDistances.crossDimensionBlocks();
-        }
-        return Math.sqrt(from.pos().distSqr(to.pos()));
+    private static void sortPairsForTrainee(List<StationAtlas.Station[]> pairs) {
+        int traineeMax = CouriersServerConfig.TRAINEE_MAX_DISTANCE.get();
+        pairs.sort((a, b) -> {
+            double da = Math.sqrt(a[0].pos().distSqr(a[1].pos()));
+            double db = Math.sqrt(b[0].pos().distSqr(b[1].pos()));
+            boolean shortA = traineeMax > 0 && da <= traineeMax;
+            boolean shortB = traineeMax > 0 && db <= traineeMax;
+            if (shortA != shortB) {
+                return shortB ? 1 : -1;
+            }
+            return Double.compare(da, db);
+        });
     }
 
     public static boolean hasOpenPair(ContractManager manager, StationAtlas.Station from, StationAtlas.Station to) {

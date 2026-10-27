@@ -10,6 +10,9 @@ import dev.poligorn.aerocouriers.client.board.BoardRowRenderer;
 import dev.poligorn.aerocouriers.client.board.MineListSection;
 import dev.poligorn.aerocouriers.client.board.ProfileRankBar;
 import dev.poligorn.aerocouriers.client.board.ProfileRankTooltip;
+import dev.poligorn.aerocouriers.client.board.TabletFilterBar;
+import dev.poligorn.aerocouriers.client.board.TabletFilterChip;
+import dev.poligorn.aerocouriers.client.board.TabletFilterDropdown;
 import dev.poligorn.aerocouriers.contract.RankProgress;
 import dev.poligorn.aerocouriers.client.navigation.ClientNavigation;
 import dev.poligorn.aerocouriers.cargo.CargoSize;
@@ -68,10 +71,15 @@ public final class CourierBoardScreen extends Screen {
     private static final int MINE_SUB_GAP = 4;
     static final int ADMIN_SUB_TOGGLE_H = 18;
     static final int ADMIN_SUB_GAP = 4;
+    private static final int FILTER_SUMMARY_H = 11;
 
     /** Left edge of the balance strip (right of last tab). */
     private int balanceStripLeft;
     private final List<AbstractWidget> mineSubToggles = new ArrayList<>();
+    private final List<AbstractWidget> filterWidgets = new ArrayList<>();
+    private final List<AbstractWidget> adminFilterWidgets = new ArrayList<>();
+    private int filterBarHeight;
+    private int adminFilterBarHeight;
     private final Map<Tab, TabletTabButton> mainTabs = new EnumMap<>(Tab.class);
     private final BoardAdminUi adminUi = new BoardAdminUi(this);
 
@@ -121,7 +129,8 @@ public final class CourierBoardScreen extends Screen {
         if (selected != null && payload.find(selected).isEmpty()) {
             selected = null;
         }
-        if (previous != null && previous.operator() != payload.operator()) {
+        if (previous == null || previous.operator() != payload.operator()) {
+            rebuildMainTabs();
             listRowButtonKey = listRowButtonKey(payload);
             refreshBoardContent();
         } else if (needsContentWidgetRefresh(previous, payload)) {
@@ -172,6 +181,8 @@ public final class CourierBoardScreen extends Screen {
 
     private void refreshBoardContent() {
         removeMineSubToggles();
+        removeFilterWidgets();
+        removeAdminFilterWidgets();
         removeTabletButtons();
         if (snapshot == null) {
             return;
@@ -182,6 +193,7 @@ public final class CourierBoardScreen extends Screen {
             if (tab == Tab.MINE) {
                 initMineSubToggles(screenLeft());
             }
+            initFilterBar(screenLeft());
             initListButtons(listEntries(), tab == Tab.BOARD);
         }
         if (tab == Tab.BOARD || tab == Tab.MINE) {
@@ -192,6 +204,8 @@ public final class CourierBoardScreen extends Screen {
     /** Drops and rebuilds row/test {@link TabletButton}s only; tabs and mail stay mounted. */
     private void refreshContentWidgets() {
         removeMineSubToggles();
+        removeFilterWidgets();
+        removeAdminFilterWidgets();
         removeTabletButtons();
         if (snapshot == null) {
             return;
@@ -202,8 +216,39 @@ public final class CourierBoardScreen extends Screen {
             if (tab == Tab.MINE) {
                 initMineSubToggles(screenLeft());
             }
+            initFilterBar(screenLeft());
             initListButtons(listEntries(), tab == Tab.BOARD);
         }
+    }
+
+    private void onFiltersChanged() {
+        scroll = 0;
+        listRowButtonKey = null;
+        refreshBoardContent();
+    }
+
+    private void initFilterBar(int sx) {
+        filterBarHeight = 0;
+        if (snapshot == null || (tab != Tab.BOARD && tab != Tab.MINE)) {
+            return;
+        }
+        int top = filterBarTop();
+        TabletFilterBar.Built built = tab == Tab.BOARD
+                ? TabletFilterBar.buildBoard(sx, top, screenW(), this::onFiltersChanged)
+                : TabletFilterBar.buildMine(sx, top, screenW(), ClientBoard.mineSection(), this::onFiltersChanged);
+        filterBarHeight = built.height();
+        for (AbstractWidget widget : built.widgets()) {
+            filterWidgets.add(widget);
+            addRenderableWidget(widget);
+        }
+    }
+
+    private void removeFilterWidgets() {
+        for (AbstractWidget widget : filterWidgets) {
+            removeWidget(widget);
+        }
+        filterWidgets.clear();
+        filterBarHeight = 0;
     }
 
     private void removeTabletButtons() {
@@ -254,6 +299,29 @@ public final class CourierBoardScreen extends Screen {
     @Override
     protected void init() {
         super.init();
+        rebuildMainTabs();
+        if (snapshot == null) {
+            return;
+        }
+        if (tab == Tab.ADMIN) {
+            initAdmin();
+        } else if (tab == Tab.BOARD || tab == Tab.MINE) {
+            int sx = screenLeft();
+            if (tab == Tab.MINE) {
+                initMineSubToggles(sx);
+            }
+            initFilterBar(sx);
+            initListButtons(listEntries(), tab == Tab.BOARD);
+        }
+        if (tab == Tab.BOARD || tab == Tab.MINE) {
+            listRowButtonKey = listRowButtonKey(snapshot);
+        }
+    }
+
+    private void rebuildMainTabs() {
+        for (TabletTabButton button : mainTabs.values()) {
+            removeWidget(button);
+        }
         mainTabs.clear();
         int sx = screenLeft();
         int tabRowY = mainTabRowY();
@@ -268,21 +336,6 @@ public final class CourierBoardScreen extends Screen {
         balanceStripLeft = tabX + 4;
         syncMainTabSelection();
         refreshHeaderIcons(sx, tabRowY);
-
-        if (snapshot == null) {
-            return;
-        }
-        if (tab == Tab.ADMIN) {
-            initAdmin();
-        } else if (tab == Tab.BOARD || tab == Tab.MINE) {
-            if (tab == Tab.MINE) {
-                initMineSubToggles(sx);
-            }
-            initListButtons(listEntries(), tab == Tab.BOARD);
-        }
-        if (tab == Tab.BOARD || tab == Tab.MINE) {
-            listRowButtonKey = listRowButtonKey(snapshot);
-        }
     }
 
     private void initMineSubToggles(int sx) {
@@ -479,8 +532,41 @@ public final class CourierBoardScreen extends Screen {
         int sw = screenW();
         int subY = adminUi.subToggleY(headingY(), font.lineHeight);
         adminUi.initSubToggles(sx, subY, sw);
-        int contentY = adminUi.contentTop(subY);
-        adminUi.initContent(snapshot, sx, contentY, sw, selected);
+        removeAdminFilterWidgets();
+        adminFilterBarHeight = 0;
+        int rowY;
+        if (adminUi.subTab() == BoardAdminUi.SubTab.ORDERS) {
+            initAdminFilterBar(sx, adminUi.contentTop(subY));
+            rowY = adminOrdersRowY(subY);
+        } else {
+            rowY = adminUi.contentTop(subY);
+        }
+        adminUi.initContent(snapshot, sx, rowY, sw, selected);
+    }
+
+    private void initAdminFilterBar(int sx, int y) {
+        adminFilterBarHeight = 0;
+        if (adminUi.subTab() != BoardAdminUi.SubTab.ORDERS) {
+            return;
+        }
+        TabletFilterBar.Built built = TabletFilterBar.buildAdmin(sx, y, screenW(), this::onAdminFiltersChanged);
+        adminFilterBarHeight = built.height();
+        for (AbstractWidget widget : built.widgets()) {
+            adminFilterWidgets.add(widget);
+            addRenderableWidget(widget);
+        }
+    }
+
+    private void removeAdminFilterWidgets() {
+        for (AbstractWidget widget : adminFilterWidgets) {
+            removeWidget(widget);
+        }
+        adminFilterWidgets.clear();
+        adminFilterBarHeight = 0;
+    }
+
+    private void onAdminFiltersChanged() {
+        refreshAdminContent();
     }
 
     @Override
@@ -526,14 +612,22 @@ public final class CourierBoardScreen extends Screen {
         }
 
         if (tab == Tab.BOARD || tab == Tab.MINE) {
+            renderFilterChrome(graphics, sx);
             renderList(graphics, listEntries(), sx, mouseX, mouseY);
             renderListActionWidgetsOnTop(graphics, mouseX, mouseY, partialTick);
         } else if (tab == Tab.PROFILE) {
             renderProfile(graphics, snapshot.profile(), sx, mouseX, mouseY);
         } else if (tab == Tab.ADMIN) {
             int subY = adminUi.subToggleY(headingY(), font.lineHeight);
-            int contentY = adminUi.contentTop(subY);
-            adminUi.render(graphics, snapshot, sx, contentY, screenW(), selected);
+            if (adminUi.subTab() == BoardAdminUi.SubTab.ORDERS) {
+                renderAdminFilterChrome(graphics, sx, adminUi.contentTop(subY));
+                int headerY = adminOrdersHeaderY(subY);
+                int rowY = adminOrdersRowY(subY);
+                adminUi.render(graphics, snapshot, sx, headerY, rowY, screenW(), selected);
+            } else {
+                adminUi.render(graphics, snapshot, sx, adminUi.contentTop(subY), adminUi.contentTop(subY),
+                        screenW(), selected);
+            }
         }
 
         RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
@@ -714,7 +808,10 @@ public final class CourierBoardScreen extends Screen {
     private void renderList(GuiGraphics graphics, List<BoardSnapshotPayload.BoardEntry> all, int sx,
                             int mouseX, int mouseY) {
         if (all.isEmpty()) {
-            graphics.drawString(font, listEmptyMessage(), sx, listTop() + 4, TabletGui.TEXT_MUTED, false);
+            Component message = rawListEntries().isEmpty()
+                    ? listEmptyMessage()
+                    : Component.translatable("ui.aerocouriers.filters.empty");
+            graphics.drawString(font, message, sx, listTop() + 4, TabletGui.TEXT_MUTED, false);
             return;
         }
         int visible = visibleRows();
@@ -799,6 +896,10 @@ public final class CourierBoardScreen extends Screen {
         getChildAt(mouseX, mouseY).ifPresent(widget -> {
             if (widget instanceof TabletButton button && button.hint() != null) {
                 hoverTip = button.hint();
+            } else if (widget instanceof TabletFilterChip chip && chip.hint() != null) {
+                hoverTip = chip.hint();
+            } else if (widget instanceof TabletFilterDropdown dropdown && dropdown.hint() != null) {
+                hoverTip = dropdown.hint();
             }
         });
     }
@@ -818,6 +919,72 @@ public final class CourierBoardScreen extends Screen {
         if (!lines.isEmpty()) {
             hoverTipLines = lines;
         }
+    }
+
+    private void renderFilterChrome(GuiGraphics graphics, int sx) {
+        if (filterBarHeight <= 0) {
+            return;
+        }
+        int y = filterBarTop();
+        if (tab == Tab.BOARD) {
+            graphics.drawString(font, Component.translatable("ui.aerocouriers.filters.size"), sx, y + 5,
+                    TabletGui.TEXT_MUTED, false);
+        } else if (tab == Tab.MINE) {
+            graphics.drawString(font, Component.translatable("ui.aerocouriers.filters.status"), sx, y + 5,
+                    TabletGui.TEXT_MUTED, false);
+        }
+        int summaryY = filterBarTop() + filterBarHeight + 2;
+        if (showsFilterSummary()) {
+            int total = rawListEntries().size();
+            int shown = listEntries().size();
+            graphics.drawString(font,
+                    Component.translatable("ui.aerocouriers.filters.shown", shown, total),
+                    sx, summaryY, TabletGui.TEXT_MUTED, false);
+        }
+    }
+
+    private boolean showsFilterSummary() {
+        if (tab != Tab.BOARD && tab != Tab.MINE) {
+            return false;
+        }
+        int total = rawListEntries().size();
+        int shown = listEntries().size();
+        if (total == 0) {
+            return false;
+        }
+        boolean filtered = shown != total;
+        if (tab == Tab.BOARD) {
+            return filtered || !ClientBoard.boardFilters().isDefault();
+        }
+        return filtered || !ClientBoard.mineFilters(ClientBoard.mineSection()).isDefault(ClientBoard.mineSection());
+    }
+
+    private void renderAdminFilterChrome(GuiGraphics graphics, int sx, int y) {
+        if (adminFilterBarHeight <= 0) {
+            return;
+        }
+        graphics.drawString(font, Component.translatable("ui.aerocouriers.filters.status"), sx, y + 5,
+                TabletGui.TEXT_MUTED, false);
+        int summaryY = y + adminFilterBarHeight + 2;
+        if (showsAdminFilterSummary()) {
+            int total = snapshot == null ? 0 : snapshot.adminActive().size();
+            int shown = adminUi.filteredOrders(snapshot).size();
+            graphics.drawString(font,
+                    Component.translatable("ui.aerocouriers.filters.shown", shown, total),
+                    sx, summaryY, TabletGui.TEXT_MUTED, false);
+        }
+    }
+
+    private boolean showsAdminFilterSummary() {
+        if (snapshot == null || tab != Tab.ADMIN || adminUi.subTab() != BoardAdminUi.SubTab.ORDERS) {
+            return false;
+        }
+        int total = snapshot.adminActive().size();
+        if (total == 0) {
+            return false;
+        }
+        int shown = adminUi.filteredOrders(snapshot).size();
+        return shown != total || !ClientBoard.adminOrderFilters().isDefault();
     }
 
     private void renderTopLayerTooltips(GuiGraphics graphics, int mouseX, int mouseY) {
@@ -1215,19 +1382,40 @@ public final class CourierBoardScreen extends Screen {
     }
 
     private static boolean showsTraineeHint(BoardSnapshotPayload.BoardProfile profile) {
-        return profile.traineeMaxDistance() > 0
-                && profile.villageDelivered() < profile.traineeFreeContracts();
+        return profile.rank().level() == 1
+                && TraineeRules.onTraineeVillageContracts(profile.villageDelivered(), profile.traineeFreeContracts());
+    }
+
+    private int filterBarTop() {
+        int y = headingY() + font.lineHeight + 6 + traineeHintBlockHeight();
+        if (tab == Tab.MINE) {
+            y += font.lineHeight + MINE_SUB_GAP + MINE_SUB_TOGGLE_H + MINE_SUB_GAP;
+        }
+        return y;
     }
 
     private int listTop() {
-        int extra = traineeHintBlockHeight();
-        if (tab == Tab.MINE) {
-            extra += font.lineHeight + MINE_SUB_GAP + MINE_SUB_TOGGLE_H + MINE_SUB_GAP;
+        int y = filterBarTop();
+        if (tab == Tab.BOARD || tab == Tab.MINE) {
+            y += filterBarHeight + 4;
+            if (showsFilterSummary()) {
+                y += FILTER_SUMMARY_H;
+            }
         }
-        if (tab == Tab.ADMIN) {
-            extra += font.lineHeight + ADMIN_SUB_GAP + ADMIN_SUB_TOGGLE_H + ADMIN_SUB_GAP;
+        return y;
+    }
+
+    private int adminOrdersHeaderY(int subY) {
+        int y = adminUi.contentTop(subY);
+        y += adminFilterBarHeight + 4;
+        if (showsAdminFilterSummary()) {
+            y += FILTER_SUMMARY_H;
         }
-        return headingY() + font.lineHeight + 6 + extra;
+        return y;
+    }
+
+    private int adminOrdersRowY(int subY) {
+        return adminOrdersHeaderY(subY) + font.lineHeight + 4;
     }
 
     private int traineeHintBlockHeight() {
@@ -1252,12 +1440,31 @@ public final class CourierBoardScreen extends Screen {
         return listEntriesForTab(snapshot);
     }
 
-    private List<BoardSnapshotPayload.BoardEntry> listEntriesForTab(BoardSnapshotPayload payload) {
+    private List<BoardSnapshotPayload.BoardEntry> rawListEntries() {
+        if (snapshot == null) {
+            return List.of();
+        }
+        return rawListEntriesForTab(snapshot);
+    }
+
+    private List<BoardSnapshotPayload.BoardEntry> rawListEntriesForTab(BoardSnapshotPayload payload) {
         if (tab == Tab.BOARD) {
             return payload.board();
         }
         if (tab == Tab.MINE) {
             return MineListSection.entries(payload.mine(), ClientBoard.mineSection());
+        }
+        return List.of();
+    }
+
+    private List<BoardSnapshotPayload.BoardEntry> listEntriesForTab(BoardSnapshotPayload payload) {
+        List<BoardSnapshotPayload.BoardEntry> raw = rawListEntriesForTab(payload);
+        if (tab == Tab.BOARD) {
+            int activeHauls = BoardAcceptUi.countActiveHauls(payload.mine());
+            return ClientBoard.boardFilters().apply(raw, payload.profile(), activeHauls);
+        }
+        if (tab == Tab.MINE) {
+            return ClientBoard.mineFilters(ClientBoard.mineSection()).apply(raw, ClientBoard.mineSection());
         }
         return List.of();
     }

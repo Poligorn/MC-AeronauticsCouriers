@@ -155,6 +155,10 @@ public final class BoardPackets {
         String courier = contract.courier()
                 .flatMap(id -> server.getProfileCache().get(id).map(GameProfile::getName))
                 .orElse("—");
+        long now = ContractManager.now(server);
+        long ticksLeft = contract.state().isActive()
+                ? contract.timing().dueAt() - now
+                : contract.state() == ContractState.OPEN ? contract.timing().expiresAt() - now : 0;
         return new BoardSnapshotPayload.AdminActiveEntry(
                 contract.id(),
                 contract.shortId(),
@@ -162,7 +166,13 @@ public final class BoardPackets {
                 label(atlas, contract.origin()),
                 label(atlas, contract.destination()),
                 contract.size().name(),
-                courier);
+                courier,
+                contract.type(),
+                contract.reward(),
+                (int) contract.distance(),
+                Math.max(0, ticksLeft / Pricing.TICKS_PER_MINUTE),
+                contract.collateral(),
+                contract.timing().createdAt());
     }
 
     private static BoardSnapshotPayload.BoardProfile boardProfile(ServerPlayer player) {

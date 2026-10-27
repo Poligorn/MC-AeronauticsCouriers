@@ -3,6 +3,7 @@ package dev.poligorn.aerocouriers.net;
 import dev.poligorn.aerocouriers.AeronauticsCouriers;
 import dev.poligorn.aerocouriers.client.ClientBoard;
 import dev.poligorn.aerocouriers.contract.ContractState;
+import dev.poligorn.aerocouriers.contract.ContractType;
 import dev.poligorn.aerocouriers.license.LicenseRank;
 import java.util.ArrayList;
 import java.util.List;
@@ -77,7 +78,13 @@ public record BoardSnapshotPayload(
             String originLabel,
             String destinationLabel,
             String size,
-            String courierName
+            String courierName,
+            ContractType contractType,
+            long reward,
+            int distance,
+            long minutesLeft,
+            long collateral,
+            long createdAt
     ) {
         public static final StreamCodec<RegistryFriendlyByteBuf, AdminActiveEntry> STREAM_CODEC =
                 StreamCodec.of(AdminActiveEntry::write, AdminActiveEntry::read);
@@ -90,6 +97,21 @@ public record BoardSnapshotPayload(
             ByteBufCodecs.STRING_UTF8.encode(buf, e.destinationLabel);
             ByteBufCodecs.STRING_UTF8.encode(buf, e.size);
             ByteBufCodecs.STRING_UTF8.encode(buf, e.courierName);
+            ByteBufCodecs.STRING_UTF8.encode(buf, e.contractType.getSerializedName());
+            ByteBufCodecs.VAR_LONG.encode(buf, e.reward);
+            ByteBufCodecs.VAR_INT.encode(buf, e.distance);
+            ByteBufCodecs.VAR_LONG.encode(buf, e.minutesLeft);
+            ByteBufCodecs.VAR_LONG.encode(buf, e.collateral);
+            ByteBufCodecs.VAR_LONG.encode(buf, e.createdAt);
+        }
+
+        private static ContractType decodeContractType(String name) {
+            for (ContractType type : ContractType.values()) {
+                if (type.getSerializedName().equals(name)) {
+                    return type;
+                }
+            }
+            return ContractType.VILLAGE;
         }
 
         private static AdminActiveEntry read(RegistryFriendlyByteBuf buf) {
@@ -100,7 +122,13 @@ public record BoardSnapshotPayload(
                     ByteBufCodecs.STRING_UTF8.decode(buf),
                     ByteBufCodecs.STRING_UTF8.decode(buf),
                     ByteBufCodecs.STRING_UTF8.decode(buf),
-                    ByteBufCodecs.STRING_UTF8.decode(buf));
+                    ByteBufCodecs.STRING_UTF8.decode(buf),
+                    decodeContractType(ByteBufCodecs.STRING_UTF8.decode(buf)),
+                    ByteBufCodecs.VAR_LONG.decode(buf),
+                    ByteBufCodecs.VAR_INT.decode(buf),
+                    ByteBufCodecs.VAR_LONG.decode(buf),
+                    ByteBufCodecs.VAR_LONG.decode(buf),
+                    ByteBufCodecs.VAR_LONG.decode(buf));
         }
     }
 

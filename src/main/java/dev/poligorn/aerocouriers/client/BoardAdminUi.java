@@ -1,5 +1,6 @@
 package dev.poligorn.aerocouriers.client;
 
+import dev.poligorn.aerocouriers.client.board.AdminOrdersFilterState;
 import dev.poligorn.aerocouriers.license.LicenseRank;
 import dev.poligorn.aerocouriers.net.BoardSnapshotPayload;
 import dev.poligorn.aerocouriers.net.OperatorBoardPayload;
@@ -34,6 +35,17 @@ final class BoardAdminUi {
         this.screen = screen;
     }
 
+    SubTab subTab() {
+        return subTab;
+    }
+
+    List<BoardSnapshotPayload.AdminActiveEntry> filteredOrders(@Nullable BoardSnapshotPayload snapshot) {
+        if (snapshot == null) {
+            return List.of();
+        }
+        return ClientBoard.adminOrderFilters().apply(snapshot.adminActive());
+    }
+
     void clearSubToggles() {
         for (AbstractWidget widget : subToggles) {
             screen.adminRemoveWidget(widget);
@@ -62,35 +74,31 @@ final class BoardAdminUi {
         screen.refreshAdminContent();
     }
 
-    void initContent(BoardSnapshotPayload snapshot, int sx, int y, int sw, @Nullable UUID selectedContract) {
+    void initContent(BoardSnapshotPayload snapshot, int sx, int rowY, int sw, @Nullable UUID selectedContract) {
         if (subTab == SubTab.ORDERS) {
-            initOrders(snapshot, sx, y, sw, selectedContract);
+            initOrders(snapshot, sx, rowY, sw, selectedContract);
         } else if (subTab == SubTab.PLAYERS) {
-            initPlayers(snapshot, sx, y, sw);
+            initPlayers(snapshot, sx, rowY, sw);
         } else if (subTab == SubTab.ECONOMY) {
-            initEconomy(sx, y);
+            initEconomy(sx, rowY);
         } else {
-            initServer(snapshot, sx, y, sw);
+            initServer(snapshot, sx, rowY, sw);
         }
     }
 
-    private void initOrders(BoardSnapshotPayload snapshot, int sx, int y, int sw, @Nullable UUID selectedContract) {
+    private void initOrders(BoardSnapshotPayload snapshot, int sx, int rowY, int sw, @Nullable UUID selectedContract) {
         int rowH = 14;
-        int visible = Math.max(1, (screen.adminContentBottom() - y - 80) / rowH);
-        List<BoardSnapshotPayload.AdminActiveEntry> all = snapshot.adminActive();
+        List<BoardSnapshotPayload.AdminActiveEntry> all = filteredOrders(snapshot);
+        int visible = Math.max(1, (screen.adminContentBottom() - rowY - 80) / rowH);
         adminScroll = Mth.clamp(adminScroll, 0, Math.max(0, all.size() - visible));
         for (int i = 0; i < visible && adminScroll + i < all.size(); i++) {
             BoardSnapshotPayload.AdminActiveEntry entry = all.get(adminScroll + i);
-            int rowY = y + i * rowH;
-            boolean sel = selectedContract != null && selectedContract.equals(entry.id());
-            screen.adminAddWidget(TabletButton.create(sx + sw - 22, rowY - 2, 18, 14,
+            int lineY = rowY + i * rowH;
+            screen.adminAddWidget(TabletButton.create(sx + sw - 22, lineY - 2, 18, 14,
                     Component.literal("▸"), b -> screen.selectAdminContract(entry.id())));
-            if (sel) {
-                // highlight handled in render
-            }
         }
         if (selectedContract != null) {
-            int actionY = y + visible * rowH + 8;
+            int actionY = rowY + visible * rowH + 8;
             Optional<UUID> id = Optional.of(selectedContract);
             screen.adminAddWidget(btn(sx, actionY, sw / 2 - 2, "ui.aerocouriers.admin.action.spawn",
                     OperatorBoardPayload.Action.FORCE_SPAWN, id, false));
@@ -238,37 +246,34 @@ final class BoardAdminUi {
         }
     }
 
-    void render(GuiGraphics graphics, BoardSnapshotPayload snapshot, int sx, int y, int sw, @Nullable UUID selectedContract) {
+    void render(GuiGraphics graphics, BoardSnapshotPayload snapshot, int sx, int headerY, int rowY, int sw,
+                @Nullable UUID selectedContract) {
         if (subTab != SubTab.ORDERS) {
             return;
         }
         int rowH = 14;
-        int visible = Math.max(1, (screen.adminContentBottom() - y - 80) / rowH);
-        List<BoardSnapshotPayload.AdminActiveEntry> all = snapshot.adminActive();
+        List<BoardSnapshotPayload.AdminActiveEntry> all = filteredOrders(snapshot);
         graphics.drawString(screen.adminFont(), Component.translatable("ui.aerocouriers.admin.orders.header", all.size()),
-                sx, y - fontLine() - 2, TabletGui.TEXT, false);
+                sx, headerY, TabletGui.TEXT, false);
+        int visible = Math.max(1, (screen.adminContentBottom() - rowY - 80) / rowH);
         for (int i = 0; i < visible && adminScroll + i < all.size(); i++) {
             BoardSnapshotPayload.AdminActiveEntry entry = all.get(adminScroll + i);
-            int rowY = y + i * rowH;
+            int lineY = rowY + i * rowH;
             boolean sel = selectedContract != null && selectedContract.equals(entry.id());
             int color = sel ? TabletGui.TEXT : TabletGui.TEXT_MUTED;
             String line = "#" + entry.shortId() + " " + entry.originLabel() + "→" + entry.destinationLabel()
                     + "  " + entry.size() + "  " + entry.state().getSerializedName()
                     + "  " + entry.courierName();
-            graphics.drawString(screen.adminFont(), clip(line, sw - 28), sx, rowY, color, false);
+            graphics.drawString(screen.adminFont(), clip(line, sw - 28), sx, lineY, color, false);
         }
         if (selectedContract != null) {
             snapshot.findAdmin(selectedContract).ifPresent(entry -> {
-                int actionY = y + visible * rowH + 4;
+                int actionY = rowY + visible * rowH + 4;
                 graphics.drawString(screen.adminFont(),
                         Component.translatable("ui.aerocouriers.admin.selected", entry.shortId()),
                         sx, actionY, TabletGui.TEXT, false);
             });
         }
-    }
-
-    private int fontLine() {
-        return screen.adminFont().lineHeight;
     }
 
     private String clip(String text, int maxWidth) {
