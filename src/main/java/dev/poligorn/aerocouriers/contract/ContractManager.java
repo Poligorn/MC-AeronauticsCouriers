@@ -41,6 +41,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import dev.poligorn.aerocouriers.sound.CouriersSounds;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.Container;
@@ -386,7 +387,7 @@ public final class ContractManager extends SavedData {
                 originSnapshot);
         Escrow.get(server).open(id, manifest, reward);
         put(contract);
-        level.playSound(null, sourcePos, SoundEvents.BARREL_CLOSE, SoundSource.BLOCKS, 1.0F, 0.8F);
+        CouriersSounds.playWaybillSealed(level, sourcePos);
         if (!issuer.isCreative()) {
             Waybills.consumeOne(issuer);
         }

@@ -4,6 +4,7 @@ import dev.poligorn.aerocouriers.client.ClientZones;
 import dev.poligorn.aerocouriers.net.BoardPackets;
 import dev.poligorn.aerocouriers.net.BoardSnapshotPayload;
 import dev.poligorn.aerocouriers.net.ClaimMailPayload;
+import dev.poligorn.aerocouriers.net.CouriersUiSoundPayload;
 import dev.poligorn.aerocouriers.net.ContractIntentPayload;
 import dev.poligorn.aerocouriers.net.CreateContractPayload;
 import dev.poligorn.aerocouriers.net.MarkNotificationsReadPayload;
@@ -39,6 +40,8 @@ public final class ModPayloads {
                 NotificationSyncPayload::handle);
         registrar.playToClient(NotificationAlertPayload.TYPE, NotificationAlertPayload.STREAM_CODEC,
                 NotificationAlertPayload::handle);
+        registrar.playToClient(CouriersUiSoundPayload.TYPE, CouriersUiSoundPayload.STREAM_CODEC,
+                CouriersUiSoundPayload::handle);
         registrar.playToClient(StationSnapshotPayload.TYPE, StationSnapshotPayload.STREAM_CODEC,
                 StationSnapshotPayload::handle);
 

@@ -47,10 +47,12 @@ public final class ClientBoard {
         if (minecraft.player != null && !canRequestOpen()) {
             minecraft.player.displayClientMessage(
                     Component.translatable("ui.aerocouriers.error.need_tablet"), true);
+            ClientCouriersSounds.playOrderDeny();
             return;
         }
         if (!(minecraft.screen instanceof CourierBoardScreen)) {
             minecraft.setScreen(new CourierBoardScreen(null));
+            ClientCouriersSounds.playTabletOpen();
         }
         PacketDistributor.sendToServer(new OpenBoardPayload(page));
     }
@@ -94,6 +96,7 @@ public final class ClientBoard {
             screen.apply(payload);
         } else if (payload.openScreen()) {
             minecraft.setScreen(new CourierBoardScreen(payload));
+            ClientCouriersSounds.playTabletOpen();
         }
     }
 

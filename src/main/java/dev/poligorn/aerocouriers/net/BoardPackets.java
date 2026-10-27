@@ -242,6 +242,9 @@ public final class BoardPackets {
         };
         if (!outcome.success()) {
             player.displayClientMessage(outcome.message(), true);
+            sendUiSound(player, CouriersUiSoundPayload.Kind.ORDER_DENY);
+        } else if (payload.kind() == ContractIntentPayload.Kind.ACCEPT) {
+            sendUiSound(player, CouriersUiSoundPayload.Kind.ORDER_ACCEPT);
         }
         reply(player, outcome.message());
     }
@@ -260,6 +263,7 @@ public final class BoardPackets {
                     origin.toShortString());
             player.sendSystemMessage(message);
             player.displayClientMessage(message, true);
+            sendUiSound(player, CouriersUiSoundPayload.Kind.ORDER_DENY);
             return;
         }
         List<ItemStack> cargo = access.get().items();
@@ -289,6 +293,7 @@ public final class BoardPackets {
             Component message = outcome.message();
             player.sendSystemMessage(message);
             player.displayClientMessage(message, true);
+            sendUiSound(player, CouriersUiSoundPayload.Kind.ORDER_DENY);
         }
     }
 
@@ -379,6 +384,14 @@ public final class BoardPackets {
         Component message = Component.translatable("ui.aerocouriers.error.need_tablet");
         player.displayClientMessage(message, true);
         player.sendSystemMessage(message);
+        sendUiSound(player, CouriersUiSoundPayload.Kind.ORDER_DENY);
+    }
+
+    private static void sendUiSound(ServerPlayer player, CouriersUiSoundPayload.Kind kind) {
+        if (!canSendBoard(player)) {
+            return;
+        }
+        PacketDistributor.sendToPlayer(player, new CouriersUiSoundPayload(kind));
     }
 
     private static void reply(ServerPlayer player, Component message) {

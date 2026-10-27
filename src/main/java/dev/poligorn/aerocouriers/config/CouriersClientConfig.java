@@ -19,6 +19,8 @@ public final class CouriersClientConfig {
 
     public static final ModConfigSpec.BooleanValue USE_VANILLA_SPRITES;
     public static final ModConfigSpec.BooleanValue NOTIFICATION_SOUNDS;
+    public static final ModConfigSpec.BooleanValue SOUNDS_ENABLED;
+    public static final ModConfigSpec.DoubleValue SOUNDS_VOLUME;
 
     public static final ModConfigSpec.EnumValue<WaypointSymbolMode> WAYPOINT_SYMBOL_MODE;
     public static final ModConfigSpec.ConfigValue<String> CUSTOM_WAYPOINT_SYMBOL;
@@ -60,6 +62,13 @@ public final class CouriersClientConfig {
                 .define("useVanillaSprites", false);
         NOTIFICATION_SOUNDS = b.comment("Play a sound when a new order notification arrives")
                 .define("notificationSounds", true);
+        b.pop();
+
+        b.push("sounds");
+        SOUNDS_ENABLED = b.comment("Tablet UI and order accept/deny feedback sounds")
+                .define("sounds_enabled", true);
+        SOUNDS_VOLUME = b.comment("Volume multiplier for couriers UI feedback sounds")
+                .defineInRange("sounds_volume", 1.0, 0.0, 2.0);
         b.pop();
 
         b.push("waypoints");
@@ -107,6 +116,22 @@ public final class CouriersClientConfig {
             return NOTIFICATION_SOUNDS.get();
         } catch (IllegalStateException ignored) {
             return true;
+        }
+    }
+
+    public static boolean couriersSoundsEnabled() {
+        try {
+            return SOUNDS_ENABLED.get();
+        } catch (IllegalStateException ignored) {
+            return true;
+        }
+    }
+
+    public static float couriersSoundsVolume() {
+        try {
+            return SOUNDS_VOLUME.get().floatValue();
+        } catch (IllegalStateException ignored) {
+            return 1.0F;
         }
     }
 

@@ -202,6 +202,7 @@ public final class WaybillCreateScreen extends Screen {
         Optional<BlockPos> to = parsePos(toX, toY, toZ);
         if (to.isEmpty()) {
             notice = Component.translatable("ui.aerocouriers.create.bad_coords");
+            ClientCouriersSounds.playOrderDeny();
             return;
         }
         PacketDistributor.sendToServer(new CreateContractPayload(
