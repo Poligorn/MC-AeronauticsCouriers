@@ -59,9 +59,11 @@ public final class BoardRowRenderer {
         }
         cursor += BoardRowMetrics.CUSTOMER_FACE + BoardRowMetrics.FACE_NAME_GAP;
 
-        int nameW = Math.max(8, x + width - cursor);
+        int markerReserve = markerReserveWidth(font, entry, width);
+        int nameW = Math.max(8, x + width - cursor - markerReserve);
         String nameShown = clip(font, entry.customerName(), nameW);
         graphics.drawString(font, nameShown, cursor, y, TabletGui.TEXT, false);
+        drawCrossDimensionMarker(graphics, font, entry, x, y, width);
         Component customerTip = null;
         if (captureHover) {
             customerTip = line1HoverTooltip(
@@ -97,7 +99,8 @@ public final class BoardRowRenderer {
         cursor += font.width(statusShown) + 4;
         int faceX = cursor;
         cursor += BoardRowMetrics.CUSTOMER_FACE + BoardRowMetrics.FACE_NAME_GAP;
-        int nameW = Math.max(8, x + width - cursor);
+        int markerReserve = markerReserveWidth(font, entry, width);
+        int nameW = Math.max(8, x + width - cursor - markerReserve);
         String nameShown = clip(font, entry.customerName(), nameW);
         Component tip = line1HoverTooltip(
                 entry, faceX, cursor, y, nameW, nameShown, mouseX, mouseY, clippedHover);
@@ -189,5 +192,31 @@ public final class BoardRowRenderer {
 
     private static boolean mouseOver(int mouseX, int mouseY, int x, int y, int width) {
         return mouseX >= x && mouseX < x + width && mouseY >= y && mouseY < y + 9;
+    }
+
+    private static int markerReserveWidth(Font font, BoardSnapshotPayload.BoardEntry entry, int rowWidth) {
+        if (!BoardDimensionMarker.isCrossDimension(entry)) {
+            return 0;
+        }
+        String shown = clip(font, BoardDimensionMarker.label(entry).getString(),
+                Math.min(BoardDimensionMarker.maxClipWidth(), Math.max(24, rowWidth / 4)));
+        return font.width(shown) + 4;
+    }
+
+    private static void drawCrossDimensionMarker(
+            GuiGraphics graphics,
+            Font font,
+            BoardSnapshotPayload.BoardEntry entry,
+            int x,
+            int y,
+            int width
+    ) {
+        if (!BoardDimensionMarker.isCrossDimension(entry)) {
+            return;
+        }
+        String full = BoardDimensionMarker.label(entry).getString();
+        String shown = clip(font, full, Math.min(BoardDimensionMarker.maxClipWidth(), Math.max(24, width / 4)));
+        int markerX = x + width - font.width(shown);
+        graphics.drawString(font, shown, markerX, y, TabletGui.TEXT_BRIGHT, false);
     }
 }
