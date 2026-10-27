@@ -1,5 +1,6 @@
 package dev.poligorn.aerocouriers.cargo;
 
+import dev.poligorn.aerocouriers.AeronauticsCouriers;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -20,6 +21,10 @@ public final class CargoSpawner {
     }
 
     public sealed interface Result {
+        /** Static world block waiting for courier acceptance (no sub-level). */
+        record Placed() implements Result {
+        }
+
         record Spawned(UUID subLevelId) implements Result {
         }
 
@@ -58,6 +63,14 @@ public final class CargoSpawner {
 
     public static Result spawn(ServerLevel level, BlockPos anchor, CargoSize size, int fill, UUID contractId,
                                boolean debug, Direction facing) {
+        return spawn(level, anchor, size, fill, contractId, debug, facing, false);
+    }
+
+    /**
+     * @param lockedUntilAccept when {@code true}, places a static block (OPEN orders) instead of assembling Sable
+     */
+    public static Result spawn(ServerLevel level, BlockPos anchor, CargoSize size, int fill, UUID contractId,
+                               boolean debug, Direction facing, boolean lockedUntilAccept) {
         if (!CargoStructure.isSpawnClear(level, anchor, size)) {
             return new Result.Occupied();
         }
@@ -70,7 +83,7 @@ public final class CargoSpawner {
                 rollback(level, placed);
                 return new Result.Occupied();
             }
-            BlockState state = CargoStructure.stateForPart(size, clampedFill, facing, waybill, offset);
+            BlockState state = CargoStructure.stateForPart(size, clampedFill, facing, waybill, lockedUntilAccept, offset);
             level.setBlock(pos, state, Block.UPDATE_ALL);
             placed.add(pos);
         }
@@ -80,12 +93,43 @@ public final class CargoSpawner {
         }
         be.bind(contractId, debug);
 
+        if (lockedUntilAccept) {
+            return new Result.Placed();
+        }
+
         Optional<UUID> subLevel = SableBridge.assembleStructure(level, anchor, placed);
         if (subLevel.isEmpty()) {
             rollback(level, placed);
             return new Result.AssemblyFailed();
         }
         return new Result.Spawned(subLevel.get());
+    }
+
+    /**
+     * Turns a locked preplaced structure at {@code anyPart} into a Sable object (courier accepted the order).
+     */
+    public static Optional<UUID> unlockAndAssemble(ServerLevel level, BlockPos anyPart) {
+        BlockState state = level.getBlockState(anyPart);
+        if (!(state.getBlock() instanceof CargoBlock cargo)) {
+            return Optional.empty();
+        }
+        BlockPos controller = cargo.controllerPos(anyPart, state);
+        BlockState controllerState = level.getBlockState(controller);
+        List<BlockPos> blocks = cargo.structurePositions(controller, controllerState);
+        for (BlockPos pos : blocks) {
+            BlockState part = level.getBlockState(pos);
+            if (!(part.getBlock() instanceof CargoBlock)) {
+                return Optional.empty();
+            }
+            if (CargoContainerBlock.isPhysicsLocked(part)) {
+                level.setBlock(pos, part.setValue(CargoContainerBlock.LOCKED, false), Block.UPDATE_ALL);
+            }
+        }
+        Optional<UUID> subLevel = SableBridge.assembleStructure(level, controller, blocks);
+        if (subLevel.isEmpty()) {
+            AeronauticsCouriers.LOGGER.warn("[cargo] Sable did not assemble unlocked container at {}", controller);
+        }
+        return subLevel;
     }
 
     /** Removes a cargo structure without treating it as a vanished in-transit container. */

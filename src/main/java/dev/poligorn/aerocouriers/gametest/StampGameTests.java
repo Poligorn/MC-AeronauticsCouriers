@@ -2,6 +2,7 @@ package dev.poligorn.aerocouriers.gametest;
 
 import com.mojang.authlib.GameProfile;
 import dev.poligorn.aerocouriers.AeronauticsCouriers;
+import dev.poligorn.aerocouriers.cargo.CargoContainerBlock;
 import dev.poligorn.aerocouriers.cargo.CargoSize;
 import dev.poligorn.aerocouriers.cargo.CargoTracker;
 import dev.poligorn.aerocouriers.client.WaybillCreateLayout;
@@ -58,14 +59,11 @@ public final class StampGameTests {
         helper.assertValueEqual(droppedAround(helper, CHEST), 0, "no world drops (no dupe)");
         helper.assertValueEqual(Economies.get(f.server()).balance(f.issuer.getUUID()), 79L,
                 "reward + 5% fee taken");
-        // Sable moves the block into a sub-level; the tracker is filled on the next BE tick.
-        helper.startSequence()
-                .thenIdle(SABLE_SETTLE_TICKS)
-                .thenExecute(() -> helper.assertTrue(
-                        CargoTracker.get(contract.id()).isPresent()
-                                || helper.getBlockState(CHEST).is(ModBlocks.CARGO_CONTAINER_S.get()),
-                        "a cargo container was assembled for the order"))
-                .thenSucceed();
+        helper.assertTrue(helper.getBlockState(CHEST).is(ModBlocks.CARGO_CONTAINER_S.get()),
+                "stamp places a locked container at pickup");
+        helper.assertTrue(CargoContainerBlock.isPhysicsLocked(helper.getBlockState(CHEST)),
+                "OPEN stamp container has no Sable physics yet");
+        helper.assertTrue(CargoTracker.get(contract.id()).isEmpty(), "tracker empty until accept");
     }
 
     @GameTest(template = CouriersGameTests.EMPTY, timeoutTicks = 200)

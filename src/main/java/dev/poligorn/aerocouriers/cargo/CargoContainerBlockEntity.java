@@ -97,7 +97,7 @@ public class CargoContainerBlockEntity extends BlockEntity {
     }
 
     public static void serverTick(Level level, BlockPos pos, BlockState state, CargoContainerBlockEntity be) {
-        if (++be.ticks % CHECK_INTERVAL_TICKS != 0 || be.contractId == null) {
+        if (CargoContainerBlock.isPhysicsLocked(state) || ++be.ticks % CHECK_INTERVAL_TICKS != 0 || be.contractId == null) {
             return;
         }
         ServerLevel serverLevel = (ServerLevel) level;

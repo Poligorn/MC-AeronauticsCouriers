@@ -380,8 +380,8 @@ public final class ContractManager extends SavedData {
         CargoContainers.removeWithoutDrop(level, access);
 
         int fill = size.get().fillFor(weight);
-        CargoSpawner.Result spawned = CargoSpawner.spawn(level, sourcePos, size.get(), fill, id, false, facing);
-        if (!(spawned instanceof CargoSpawner.Result.Spawned)) {
+        CargoSpawner.Result spawned = CargoSpawner.spawn(level, sourcePos, size.get(), fill, id, false, facing, true);
+        if (!(spawned instanceof CargoSpawner.Result.Placed)) {
             economy.deposit(issuer.getUUID(), reward + fee, "create_refund:" + id);
             Mailbox.get(server).post(issuer.getUUID(), manifest);
             return Outcome.error("stamp_spawn_failed");
@@ -421,8 +421,8 @@ public final class ContractManager extends SavedData {
         Destination destination = new Destination(to.dimension(), to.pos().immutable(), StationContractSource.ZONE_RADIUS);
         UUID id = UUID.randomUUID();
         int fill = size.fillFor(weight);
-        CargoSpawner.Result spawned = CargoSpawner.spawn(level, cratePos, size, fill, id, false, Direction.NORTH);
-        if (!(spawned instanceof CargoSpawner.Result.Spawned)) {
+        CargoSpawner.Result spawned = CargoSpawner.spawn(level, cratePos, size, fill, id, false, Direction.NORTH, true);
+        if (!(spawned instanceof CargoSpawner.Result.Placed)) {
             return Optional.empty();
         }
         double distance = ContractDistances.pricingBlocks(origin, destination);
@@ -496,6 +496,10 @@ public final class ContractManager extends SavedData {
         // Stamp / NPC crates already stand at pickup; leaving ACCEPTED until the next tick let a courier
         // fly the crate away and then never reach IN_TRANSIT, so the rank-1 slot stayed occupied.
         if (accepted.preplaced()) {
+            ServerLevel pickup = server.getLevel(accepted.origin().dimension());
+            if (pickup != null && pickup.isLoaded(accepted.origin().pos())) {
+                CargoSpawner.unlockAndAssemble(pickup, accepted.origin().pos());
+            }
             accepted = accepted.withState(ContractState.IN_TRANSIT);
         }
         put(accepted);
@@ -534,6 +538,10 @@ public final class ContractManager extends SavedData {
         }
         if (contract.preplaced()) {
             blockedNoticeAt.remove(id);
+            ServerLevel pickup = server.getLevel(contract.origin().dimension());
+            if (pickup != null && pickup.isLoaded(contract.origin().pos())) {
+                CargoSpawner.unlockAndAssemble(pickup, contract.origin().pos());
+            }
             Contract inTransit = contract.withState(ContractState.IN_TRANSIT);
             put(inTransit);
             notify(server, contract.courier().orElseThrow(), Component.translatable(
@@ -642,6 +650,10 @@ public final class ContractManager extends SavedData {
             return Outcome.error("unknown");
         }
         if (contract.preplaced() && contract.state() == ContractState.ACCEPTED) {
+            ServerLevel pickup = server.getLevel(contract.origin().dimension());
+            if (pickup != null && pickup.isLoaded(contract.origin().pos())) {
+                CargoSpawner.unlockAndAssemble(pickup, contract.origin().pos());
+            }
             contract = contract.withState(ContractState.IN_TRANSIT);
             put(contract);
         }

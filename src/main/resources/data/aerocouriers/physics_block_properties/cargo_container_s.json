@@ -4,6 +4,9 @@
     "sable:mass": 2.0
   },
   "overrides": {
+    "locked=true": {
+      "sable:mass": 0.0
+    },
     "fill=1": {
       "sable:mass": 10.0
     },

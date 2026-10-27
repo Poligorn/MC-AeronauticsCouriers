@@ -6,6 +6,7 @@ import java.util.UUID;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.bus.api.EventPriority;
 import net.neoforged.neoforge.common.NeoForge;
@@ -33,6 +34,17 @@ public final class CargoEvents {
             return;
         }
         Player player = event.getPlayer();
+        if (CargoContainerBlock.isPhysicsLocked(event.getState())) {
+            if (!player.getAbilities().instabuild) {
+                event.setCanceled(true);
+                return;
+            }
+            BlockPos controller = cargo.controllerPos(event.getPos(), event.getState());
+            damage(level, controller, player);
+            CargoStructure.dismantle(level, controller, cargo.size());
+            event.setCanceled(true);
+            return;
+        }
         if (!CouriersServerConfig.PIRACY_ENABLED.get() && !player.getAbilities().instabuild) {
             event.setCanceled(true);
             return;
@@ -49,8 +61,12 @@ public final class CargoEvents {
         }
         Player cause = event.getExplosion().getIndirectSourceEntity() instanceof Player p ? p : null;
         for (BlockPos pos : event.getAffectedBlocks()) {
-            if (level.getBlockState(pos).getBlock() instanceof CargoBlock cargo) {
-                BlockPos controller = cargo.controllerPos(pos, level.getBlockState(pos));
+            BlockState state = level.getBlockState(pos);
+            if (CargoContainerBlock.isPhysicsLocked(state)) {
+                continue;
+            }
+            if (state.getBlock() instanceof CargoBlock cargo) {
+                BlockPos controller = cargo.controllerPos(pos, state);
                 damage(level, controller, cause);
                 CargoStructure.dismantle(level, controller, cargo.size());
             }

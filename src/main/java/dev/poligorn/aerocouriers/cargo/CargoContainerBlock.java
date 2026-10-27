@@ -47,6 +47,12 @@ public class CargoContainerBlock extends BaseEntityBlock implements BlockSubLeve
     public static final DirectionProperty FACING = HorizontalDirectionalBlock.FACING;
     /** Paper waybill on the starboard side while a contract is bound (GDD §9). */
     public static final BooleanProperty WAYBILL = BooleanProperty.create("waybill");
+    /** While {@code true}, the container stays a world block (no Sable assembly) until a courier accepts. */
+    public static final BooleanProperty LOCKED = BooleanProperty.create("locked");
+
+    public static boolean isPhysicsLocked(BlockState state) {
+        return state.hasProperty(LOCKED) && state.getValue(LOCKED);
+    }
 
     private final CargoSize size;
 
@@ -56,7 +62,8 @@ public class CargoContainerBlock extends BaseEntityBlock implements BlockSubLeve
         registerDefaultState(stateDefinition.any()
                 .setValue(FILL, 0)
                 .setValue(FACING, Direction.NORTH)
-                .setValue(WAYBILL, false));
+                .setValue(WAYBILL, false)
+                .setValue(LOCKED, false));
     }
 
     public CargoSize size() {
@@ -85,7 +92,7 @@ public class CargoContainerBlock extends BaseEntityBlock implements BlockSubLeve
 
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
-        builder.add(FILL, FACING, WAYBILL);
+        builder.add(FILL, FACING, WAYBILL, LOCKED);
     }
 
     @Override
@@ -107,6 +114,9 @@ public class CargoContainerBlock extends BaseEntityBlock implements BlockSubLeve
 
     @Override
     public float getDestroyProgress(BlockState state, Player player, BlockGetter level, BlockPos pos) {
+        if (isPhysicsLocked(state) && !player.getAbilities().instabuild) {
+            return 0.0F;
+        }
         if (CouriersServerConfig.SPEC.isLoaded() && !CouriersServerConfig.PIRACY_ENABLED.get()) {
             return 0.0F;
         }
@@ -115,6 +125,9 @@ public class CargoContainerBlock extends BaseEntityBlock implements BlockSubLeve
 
     @Override
     public float getExplosionResistance(BlockState state, BlockGetter level, BlockPos pos, Explosion explosion) {
+        if (isPhysicsLocked(state)) {
+            return 3_600_000.0F;
+        }
         if (!CouriersServerConfig.SPEC.isLoaded() || !CouriersServerConfig.PIRACY_ENABLED.get()) {
             return 3_600_000.0F;
         }

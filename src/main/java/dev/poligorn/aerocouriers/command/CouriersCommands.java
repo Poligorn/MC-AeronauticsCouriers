@@ -233,6 +233,10 @@ public final class CouriersCommands {
                 source.sendFailure(Component.translatable("commands.aerocouriers.spawncargo.failed"));
                 yield 0;
             }
+            case CargoSpawner.Result.Placed placed -> {
+                source.sendFailure(Component.translatable("commands.aerocouriers.spawncargo.failed"));
+                yield 0;
+            }
         };
     }
 

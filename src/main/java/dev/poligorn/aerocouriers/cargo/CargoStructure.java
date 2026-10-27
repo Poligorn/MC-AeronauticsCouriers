@@ -94,11 +94,13 @@ public final class CargoStructure {
         return true;
     }
 
-    public static BlockState stateForPart(CargoSize size, int fill, Direction facing, boolean waybill, BlockPos offset) {
+    public static BlockState stateForPart(CargoSize size, int fill, Direction facing, boolean waybill, boolean locked,
+                                          BlockPos offset) {
         BlockState base = blockFor(size).defaultBlockState()
                 .setValue(CargoContainerBlock.FILL, fill)
                 .setValue(CargoContainerBlock.FACING, facing)
-                .setValue(CargoContainerBlock.WAYBILL, waybill);
+                .setValue(CargoContainerBlock.WAYBILL, waybill)
+                .setValue(CargoContainerBlock.LOCKED, locked);
         return switch (size) {
             case S -> base;
             case M -> base.setValue(BlockStateProperties.DOUBLE_BLOCK_HALF,
