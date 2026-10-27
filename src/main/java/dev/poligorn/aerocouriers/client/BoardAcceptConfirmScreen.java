@@ -1,6 +1,7 @@
 package dev.poligorn.aerocouriers.client;
 
 import dev.poligorn.aerocouriers.client.board.BoardAcceptUi;
+import dev.poligorn.aerocouriers.client.board.BoardEntryPickup;
 import dev.poligorn.aerocouriers.cargo.CargoSize;
 import dev.poligorn.aerocouriers.contract.AcceptEligibility;
 import dev.poligorn.aerocouriers.contract.TraineeRules;
@@ -156,7 +157,7 @@ public final class BoardAcceptConfirmScreen extends Screen {
         lines.add(Component.translatable("ui.aerocouriers.accept.confirm.id", entry.shortId()));
         lines.add(Component.translatable("ui.aerocouriers.accept.confirm.customer", entry.customerName()));
         lines.add(Component.translatable("ui.aerocouriers.accept.confirm.route",
-                entry.originLabel(), entry.destinationLabel(), entry.distance()));
+                BoardEntryPickup.routeOriginLabel(entry), entry.destinationLabel(), entry.distance()));
         lines.add(Component.translatable("ui.aerocouriers.accept.confirm.reward", entry.reward()));
         lines.add(Component.translatable("ui.aerocouriers.accept.confirm.collateral", collateralDue()));
         lines.add(Component.translatable("ui.aerocouriers.accept.confirm.deadline",

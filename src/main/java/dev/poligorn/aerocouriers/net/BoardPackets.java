@@ -444,12 +444,14 @@ public final class BoardPackets {
         int customerTier = villageCustomer ? StationReputation.tier(customerStationReputation) : 0;
         int customerNext = villageCustomer ? StationReputation.nextThreshold(customerStationReputation) : -1;
         int customerBonus = villageCustomer ? StationReputation.bonusPercent(customerStationReputation) : 0;
+        boolean originRevealed = contract.revealsPickupTo(viewer);
+        boolean crossDimension = !contract.origin().dimension().equals(contract.destination().dimension());
         return new BoardSnapshotPayload.BoardEntry(
                 contract.id(),
                 contract.shortId(),
                 contract.state(),
                 role,
-                label(atlas, contract.origin()),
+                originRevealed ? label(atlas, contract.origin()) : "",
                 label(atlas, contract.destination()),
                 (int) contract.distance(),
                 contract.size().name(),
@@ -463,8 +465,8 @@ public final class BoardPackets {
                 customerId,
                 customerName,
                 villageCustomer,
-                contract.origin().dimension(),
-                contract.origin().pos(),
+                originRevealed ? contract.origin().dimension() : contract.destination().dimension(),
+                originRevealed ? contract.origin().pos() : BlockPos.ZERO,
                 contract.destination().dimension(),
                 contract.destination().pos(),
                 cargoItems,
@@ -472,7 +474,9 @@ public final class BoardPackets {
                 escrow.holding(contract.id()).villageRare(),
                 customerTier,
                 customerNext,
-                customerBonus);
+                customerBonus,
+                originRevealed,
+                crossDimension);
     }
 
     private static String label(StationAtlas atlas, Destination dest) {

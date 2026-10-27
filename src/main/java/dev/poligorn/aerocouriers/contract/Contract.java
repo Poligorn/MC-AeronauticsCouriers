@@ -92,6 +92,14 @@ public record Contract(UUID id, ContractType type, UUID issuer, UUID recipient, 
         return isCourier(viewer) ? "courier" : "board";
     }
 
+    /** Whether board packets may include pickup coordinates for this viewer (anti-pirate until accept). */
+    public boolean revealsPickupTo(UUID viewer) {
+        if (issuer.equals(viewer)) {
+            return true;
+        }
+        return isCourier(viewer) && state != ContractState.OPEN;
+    }
+
     public String shortId() {
         return id.toString().substring(0, 8);
     }

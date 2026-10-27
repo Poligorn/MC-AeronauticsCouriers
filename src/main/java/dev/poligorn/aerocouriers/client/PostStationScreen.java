@@ -5,6 +5,7 @@ import dev.poligorn.aerocouriers.client.board.BoardCargoTooltip;
 import dev.poligorn.aerocouriers.contract.AcceptEligibility;
 import dev.poligorn.aerocouriers.client.board.BoardRowLayout;
 import dev.poligorn.aerocouriers.client.board.BoardRowMetrics;
+import dev.poligorn.aerocouriers.client.board.BoardEntryPickup;
 import dev.poligorn.aerocouriers.client.board.BoardRowRenderer;
 import dev.poligorn.aerocouriers.client.board.TabletRowIconButton;
 import dev.poligorn.aerocouriers.net.BoardSnapshotPayload;
@@ -322,7 +323,7 @@ public final class PostStationScreen extends Screen {
         if (distance < 0) {
             distance = entry.distance();
         }
-        Component pickup = formatPos(entry.originPos(), entry.originDimension());
+        Component pickup = BoardEntryPickup.mapTooltipPickup(entry);
         Component delivery = formatPos(entry.destinationPos(), entry.destinationDimension());
         if (XaeroOrderBridge.xaeroMinimapPresent()) {
             return Component.translatable("ui.aerocouriers.row.map_tooltip.xaero",

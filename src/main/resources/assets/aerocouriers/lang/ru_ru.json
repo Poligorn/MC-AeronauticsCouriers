@@ -202,6 +202,7 @@
   "ui.aerocouriers.row.map_tooltip.xaero": "Погрузка: %s\nДоставка: %s\nДистанция: %s блоков\n%s",
   "ui.aerocouriers.row.map_open_hint": "Нажмите, чтобы открыть карту",
   "ui.aerocouriers.row.coords": "%s %s %s (%s)",
+  "ui.aerocouriers.row.pickup_hidden": "скрыто",
   "ui.aerocouriers.row.cargo_heading": "Груз",
   "ui.aerocouriers.row.cargo_more": "+%s ещё",
   "ui.aerocouriers.details.line": "Ранг %s · срок %s мин · груз: %s",

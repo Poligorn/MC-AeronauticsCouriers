@@ -202,6 +202,7 @@
   "ui.aerocouriers.row.map_tooltip.xaero": "Pickup: %s\nDelivery: %s\nDistance: %s blocks\n%s",
   "ui.aerocouriers.row.map_open_hint": "Click to open the world map",
   "ui.aerocouriers.row.coords": "%s %s %s (%s)",
+  "ui.aerocouriers.row.pickup_hidden": "hidden",
   "ui.aerocouriers.row.cargo_heading": "Cargo",
   "ui.aerocouriers.row.cargo_more": "+%s more",
   "ui.aerocouriers.details.line": "Rank %s · deadline %s min · cargo: %s",

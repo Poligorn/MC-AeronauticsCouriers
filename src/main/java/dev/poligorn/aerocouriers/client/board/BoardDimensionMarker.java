@@ -14,7 +14,7 @@ public final class BoardDimensionMarker {
     }
 
     public static boolean isCrossDimension(BoardSnapshotPayload.BoardEntry entry) {
-        return !entry.originDimension().equals(entry.destinationDimension());
+        return entry.crossDimension();
     }
 
     public static Component label(BoardSnapshotPayload.BoardEntry entry) {

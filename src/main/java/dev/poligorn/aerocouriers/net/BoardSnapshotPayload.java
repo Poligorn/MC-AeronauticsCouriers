@@ -237,7 +237,9 @@ public record BoardSnapshotPayload(
             boolean villageRare,
             int customerReputationTier,
             int customerReputationNext,
-            int customerReputationBonusPercent
+            int customerReputationBonusPercent,
+            boolean originRevealed,
+            boolean crossDimension
     ) {
         public static final StreamCodec<RegistryFriendlyByteBuf, BoardEntry> STREAM_CODEC =
                 StreamCodec.of(BoardEntry::write, BoardEntry::read);
@@ -271,6 +273,8 @@ public record BoardSnapshotPayload(
             ByteBufCodecs.VAR_INT.encode(buf, e.customerReputationTier);
             ByteBufCodecs.VAR_INT.encode(buf, e.customerReputationNext);
             ByteBufCodecs.VAR_INT.encode(buf, e.customerReputationBonusPercent);
+            buf.writeBoolean(e.originRevealed);
+            buf.writeBoolean(e.crossDimension);
         }
 
         private static BoardEntry read(RegistryFriendlyByteBuf buf) {
@@ -302,7 +306,9 @@ public record BoardSnapshotPayload(
                     buf.readBoolean(),
                     ByteBufCodecs.VAR_INT.decode(buf),
                     ByteBufCodecs.VAR_INT.decode(buf),
-                    ByteBufCodecs.VAR_INT.decode(buf));
+                    ByteBufCodecs.VAR_INT.decode(buf),
+                    buf.readBoolean(),
+                    buf.readBoolean());
         }
     }
 
