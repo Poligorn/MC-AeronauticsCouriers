@@ -27,6 +27,14 @@ public final class ClientCouriersSounds {
         playUi(ModSounds.TABLET_CLOSE.get());
     }
 
+    /** Order-notification bell; also gated by {@link CouriersClientConfig#notificationSoundsEnabled()}. */
+    public static void playNotification() {
+        if (!CouriersClientConfig.notificationSoundsEnabled()) {
+            return;
+        }
+        playUi(ModSounds.NOTIFICATION.get());
+    }
+
     public static void playUi(SoundEvent sound) {
         if (!CouriersClientConfig.couriersSoundsEnabled()) {
             return;
