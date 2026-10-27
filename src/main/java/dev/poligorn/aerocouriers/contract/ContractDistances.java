@@ -1,5 +1,6 @@
 package dev.poligorn.aerocouriers.contract;
 
+import dev.poligorn.aerocouriers.cargo.CargoSize;
 import dev.poligorn.aerocouriers.config.CouriersServerConfig;
 import dev.poligorn.aerocouriers.license.LicenseRank;
 

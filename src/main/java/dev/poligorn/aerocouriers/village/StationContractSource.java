@@ -81,7 +81,7 @@ public final class StationContractSource implements ContractSource {
         if (room <= 0) {
             return 0;
         }
-        List<StationAtlas.Station> stations = StationAtlas.get(server).all();
+        List<StationAtlas.Station> stations = new ArrayList<>(StationAtlas.get(server).all());
         if (stations.size() < 2) {
             return 0;
         }

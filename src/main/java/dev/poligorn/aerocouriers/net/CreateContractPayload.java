@@ -8,6 +8,7 @@ import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.Level;
 
 /**
@@ -28,15 +29,30 @@ public record CreateContractPayload(
     public static final long DEFAULT_COLLATERAL = 0;
     public static final int DEFAULT_RADIUS = 8;
 
-    public static final StreamCodec<ByteBuf, CreateContractPayload> STREAM_CODEC = StreamCodec.composite(
-            BlockPos.STREAM_CODEC, CreateContractPayload::from,
-            BlockPos.STREAM_CODEC, CreateContractPayload::to,
-            ResourceKey.streamCodec(Registries.DIMENSION), CreateContractPayload::destinationDimension,
-            ByteBufCodecs.VAR_LONG, CreateContractPayload::reward,
-            ByteBufCodecs.VAR_LONG, CreateContractPayload::collateral,
-            ByteBufCodecs.VAR_INT, CreateContractPayload::minutes,
-            ByteBufCodecs.VAR_INT, CreateContractPayload::radius,
-            CreateContractPayload::new);
+    public static final StreamCodec<ByteBuf, CreateContractPayload> STREAM_CODEC = StreamCodec.of(
+            CreateContractPayload::write,
+            CreateContractPayload::read);
+
+    private static void write(ByteBuf buf, CreateContractPayload payload) {
+        BlockPos.STREAM_CODEC.encode(buf, payload.from);
+        BlockPos.STREAM_CODEC.encode(buf, payload.to);
+        ResourceLocation.STREAM_CODEC.encode(buf, payload.destinationDimension.location());
+        ByteBufCodecs.VAR_LONG.encode(buf, payload.reward);
+        ByteBufCodecs.VAR_LONG.encode(buf, payload.collateral);
+        ByteBufCodecs.VAR_INT.encode(buf, payload.minutes);
+        ByteBufCodecs.VAR_INT.encode(buf, payload.radius);
+    }
+
+    private static CreateContractPayload read(ByteBuf buf) {
+        BlockPos from = BlockPos.STREAM_CODEC.decode(buf);
+        BlockPos to = BlockPos.STREAM_CODEC.decode(buf);
+        ResourceKey<Level> dimension = ResourceKey.create(Registries.DIMENSION, ResourceLocation.STREAM_CODEC.decode(buf));
+        long reward = ByteBufCodecs.VAR_LONG.decode(buf);
+        long collateral = ByteBufCodecs.VAR_LONG.decode(buf);
+        int minutes = ByteBufCodecs.VAR_INT.decode(buf);
+        int radius = ByteBufCodecs.VAR_INT.decode(buf);
+        return new CreateContractPayload(from, to, dimension, reward, collateral, minutes, radius);
+    }
 
     @Override
     public Type<? extends CustomPacketPayload> type() {
