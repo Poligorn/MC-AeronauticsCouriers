@@ -124,10 +124,12 @@ public final class StampGameTests {
 
     @GameTest(template = CouriersGameTests.EMPTY, timeoutTicks = 200)
     public static void stampMediumContainerForHeavyCargo(GameTestHelper helper) {
-        Fixture f = new Fixture(helper, LicenseRank.RANK3);
+        Fixture f = new Fixture(helper, LicenseRank.RANK1);
         fillChest(f, 8, 64, Items.COBBLESTONE);
         ContractManager.Outcome created = f.stamp(50, 50);
         helper.assertTrue(created.success(), "stamp M: " + created.message().getString());
+        helper.assertValueEqual(Economies.get(f.server()).balance(f.issuer.getUUID()), 46L,
+                "reward + size-scaled fee (50 + 4)");
         Contract contract = created.contract().orElseThrow();
         helper.assertValueEqual(contract.size(), CargoSize.M, "contract size");
         helper.assertValueEqual(Mailbox.get(f.server()).contents(f.issuer.getUUID()).size(), 0, "mailbox");
@@ -145,10 +147,12 @@ public final class StampGameTests {
 
     @GameTest(template = CouriersGameTests.EMPTY, timeoutTicks = 200)
     public static void stampLargeContainerForVeryHeavyCargo(GameTestHelper helper) {
-        Fixture f = new Fixture(helper, LicenseRank.RANK3);
+        Fixture f = new Fixture(helper, LicenseRank.RANK1);
         fillChest(f, 24, 64, Items.COBBLESTONE);
         ContractManager.Outcome created = f.stamp(80, 80);
         helper.assertTrue(created.success(), "stamp L: " + created.message().getString());
+        helper.assertValueEqual(Economies.get(f.server()).balance(f.issuer.getUUID()), 10L,
+                "reward + size-scaled fee (80 + 10)");
         Contract contract = created.contract().orElseThrow();
         helper.assertValueEqual(contract.size(), CargoSize.L, "contract size");
         helper.assertValueEqual(Mailbox.get(f.server()).contents(f.issuer.getUUID()).size(), 0, "mailbox");

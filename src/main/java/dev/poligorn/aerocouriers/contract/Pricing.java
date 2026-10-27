@@ -33,9 +33,12 @@ public final class Pricing {
                 : 0.04;
     }
 
-    /** Burned on creation, on top of the reward the issuer pays into escrow. */
-    public static long fee(long reward) {
-        return Math.round(reward * CouriersServerConfig.P2P_FEE.get());
+    /** Burned on creation: {@code round(reward × p2p_fee × fee_multiplier[size])}. */
+    public static long fee(long reward, CargoSize size) {
+        double rate = CouriersServerConfig.SPEC.isLoaded()
+                ? CouriersServerConfig.P2P_FEE.get()
+                : 0.05;
+        return Math.round(reward * rate * CouriersServerConfig.feeMultiplier(size));
     }
 
     /**

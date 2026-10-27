@@ -45,7 +45,7 @@
 ### Итерация 2 — контракты и хранилище (без GUI, через команды)
 - Модель: `Contract` (record + Codec), `ContractState` (переходы GDD §5.2 проверяются, недопустимый — исключение), `ContractType`, `Destination` (измерение + позиция + радиус).
 - SavedData на overworld: `ContractManager` (заказы, отложенные провалы оффлайн-курьеров, журнал доставок для `M_повтор`), `Escrow` (манифест, награда, залог по заказу), `Mailbox` (предметы по игрокам), `InternalEconomy` (балансы).
-- Правила: `RankRules.requiredRank` и лимиты рангов §4.2 (залог, контейнер, дистанция, активные заказы), `Pricing` (мин. награда `D/divisor + W×per_weight`, NPC-награда с тем же весовым членом, комиссия, ×0.5 при опоздании), `Weights` (значения по умолчанию §8.2, запрет шалкеров/бандлов), `XpCalculator` (§4.1).
+- Правила: `RankRules.requiredRank` и лимиты рангов §4.2 (залог, контейнер, дистанция, активные заказы), `Pricing` (мин. награда `D/divisor + W×per_weight`, NPC-награда с тем же весовым членом, комиссия `награда×p2p_fee×fee_multiplier[размер]` для заказчика без лимита размера по рангу, ×0.5 при опоздании), `Weights` (значения по умолчанию §8.2, запрет шалкеров/бандлов), `XpCalculator` (§4.1).
 - Деньги — только через `Economy`; обёртка пишет каждое движение в `<мир>/aerocouriers/transactions.log` (время, операция, игрок, сумма, причина `reward:<id>`/`collateral:<id>`…, баланс после).
 - Команды `/couriers contract create|list|info|accept|abandon|cancel` (+ op: `forcespawn|forcedeliver|fail`), `/couriers mail [claim]`, `/couriers balance`, `/couriers money add|set` (см. README).
 - Повторная команда не платит дважды: каждый переход сначала проверяет состояние.

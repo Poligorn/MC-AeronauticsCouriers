@@ -126,6 +126,14 @@ public final class CouriersGameTests {
     }
 
     @GameTest(template = EMPTY)
+    public static void issuerFeeScalesWithContainerSize(GameTestHelper helper) {
+        helper.assertValueEqual(Pricing.fee(100, CargoSize.S), 5L, "S ×1.0");
+        helper.assertValueEqual(Pricing.fee(100, CargoSize.M), 8L, "M ×1.5");
+        helper.assertValueEqual(Pricing.fee(100, CargoSize.L), 13L, "L ×2.5");
+        helper.succeed();
+    }
+
+    @GameTest(template = EMPTY)
     public static void pricingScalesWithCargoWeight(GameTestHelper helper) {
         double distance = 600.0;
         long lightNpc = Pricing.npcReward(distance, 48.0, RandomSource.create(7L));

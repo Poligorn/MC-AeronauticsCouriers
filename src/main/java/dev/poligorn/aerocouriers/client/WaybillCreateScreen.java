@@ -1,5 +1,6 @@
 package dev.poligorn.aerocouriers.client;
 
+import dev.poligorn.aerocouriers.cargo.CargoSize;
 import dev.poligorn.aerocouriers.contract.Pricing;
 import dev.poligorn.aerocouriers.net.BoardSnapshotPayload;
 import dev.poligorn.aerocouriers.net.CreateContractPayload;
@@ -303,10 +304,12 @@ public final class WaybillCreateScreen extends Screen {
                     mouseX, mouseY);
         }
 
+        List<ItemStack> cargo = preview.cargo();
         Optional<BlockPos> to = parsePos(toX, toY, toZ);
         long rewardValue = parseLong(reward, CreateContractPayload.DEFAULT_REWARD);
         long collateralValue = parseLong(collateral, CreateContractPayload.DEFAULT_COLLATERAL);
-        long fee = Pricing.fee(rewardValue);
+        CargoSize feeSize = CargoSize.smallestFor(cargo.size(), preview.weight()).orElse(CargoSize.S);
+        long fee = Pricing.fee(rewardValue, feeSize);
         int infoY = layout.infoY;
         int infoBottom = layout.infoY + layout.infoH;
         long minCollateral = Pricing.minP2pCollateral(rewardValue, preview.cargo());

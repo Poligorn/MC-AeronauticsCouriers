@@ -248,11 +248,6 @@ public final class ContractManager extends SavedData {
         if (size.isEmpty()) {
             return Outcome.error("cargo_too_big", manifest.size(), String.format(Locale.ROOT, "%.1f", weight));
         }
-        CargoSize maxSize = RankRules.limits(Licenses.rankOf(issuer)).maxSize();
-        if (size.get().ordinal() > maxSize.ordinal()) {
-            return Outcome.error("rank_limit_size", AcceptEligibility.sizeLabel(maxSize));
-        }
-
         double distance = ContractDistances.pricingBlocks(origin, destination);
         long minReward = Math.max(1, Pricing.minReward(distance, weight));
         if (reward < minReward) {
@@ -267,7 +262,7 @@ public final class ContractManager extends SavedData {
         }
 
         UUID id = UUID.randomUUID();
-        long fee = Pricing.fee(reward);
+        long fee = Pricing.fee(reward, size.get());
         Economy economy = Economies.get(server);
         if (!economy.withdraw(issuer.getUUID(), reward + fee, "create:" + id)) {
             return Outcome.error("not_enough_money", reward + fee, economy.balance(issuer.getUUID()));
@@ -349,11 +344,6 @@ public final class ContractManager extends SavedData {
         if (size.isEmpty()) {
             return Outcome.error("cargo_too_big", manifest.size(), String.format(Locale.ROOT, "%.1f", weight));
         }
-        CargoSize maxSize = RankRules.limits(Licenses.rankOf(issuer)).maxSize();
-        if (size.get().ordinal() > maxSize.ordinal()) {
-            return Outcome.error("rank_limit_size", AcceptEligibility.sizeLabel(maxSize));
-        }
-
         double distance = ContractDistances.pricingBlocks(origin, destination);
         long minReward = Math.max(1, Pricing.minReward(distance, weight));
         if (reward < minReward) {
@@ -368,7 +358,7 @@ public final class ContractManager extends SavedData {
         }
 
         UUID id = UUID.randomUUID();
-        long fee = Pricing.fee(reward);
+        long fee = Pricing.fee(reward, size.get());
         Economy economy = Economies.get(server);
         if (!economy.withdraw(issuer.getUUID(), reward + fee, "create:" + id)) {
             return Outcome.error("not_enough_money", reward + fee, economy.balance(issuer.getUUID()));

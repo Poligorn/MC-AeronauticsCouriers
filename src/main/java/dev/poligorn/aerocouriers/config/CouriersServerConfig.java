@@ -20,6 +20,9 @@ public final class CouriersServerConfig {
     public static final ModConfigSpec.DoubleValue LATE_WINDOW;
     public static final ModConfigSpec.IntValue PRICING_REWARD_DISTANCE_DIVISOR;
     public static final ModConfigSpec.DoubleValue PRICING_REWARD_PER_WEIGHT;
+    public static final ModConfigSpec.DoubleValue PRICING_FEE_MULTIPLIER_S;
+    public static final ModConfigSpec.DoubleValue PRICING_FEE_MULTIPLIER_M;
+    public static final ModConfigSpec.DoubleValue PRICING_FEE_MULTIPLIER_L;
 
     public static final ModConfigSpec.IntValue SPAWN_TRIGGER_RADIUS;
     public static final ModConfigSpec.DoubleValue DELIVERY_MAX_SPEED;
@@ -89,6 +92,12 @@ public final class CouriersServerConfig {
                 .defineInRange("reward_distance_divisor", 100, 1, 1_000_000);
         PRICING_REWARD_PER_WEIGHT = b.comment("Extra spur reward per unit of cargo weight (NPC reward and P2P minimum)")
                 .defineInRange("reward_per_weight", 0.04, 0.0, 1000.0);
+        PRICING_FEE_MULTIPLIER_S = b.comment("P2P issuer commission multiplier for container size S (fee = reward × p2p_fee × multiplier)")
+                .defineInRange("fee_multiplier_s", 1.0, 0.0, 100.0);
+        PRICING_FEE_MULTIPLIER_M = b.comment("P2P issuer commission multiplier for container size M")
+                .defineInRange("fee_multiplier_m", 1.5, 0.0, 100.0);
+        PRICING_FEE_MULTIPLIER_L = b.comment("P2P issuer commission multiplier for container size L")
+                .defineInRange("fee_multiplier_l", 2.5, 0.0, 100.0);
         b.pop();
         ALLOW_CROSS_DIMENSION_ORDERS = b.comment("NPC generator may pair stations in different dimensions")
                 .define("allow_cross_dimension_orders", true);
@@ -186,6 +195,25 @@ public final class CouriersServerConfig {
         b.pop();
 
         SPEC = b.build();
+    }
+
+    public static double feeMultiplier(CargoSize size) {
+        if (!SPEC.isLoaded()) {
+            return defaultFeeMultiplier(size);
+        }
+        return switch (size) {
+            case S -> PRICING_FEE_MULTIPLIER_S.get();
+            case M -> PRICING_FEE_MULTIPLIER_M.get();
+            case L -> PRICING_FEE_MULTIPLIER_L.get();
+        };
+    }
+
+    private static double defaultFeeMultiplier(CargoSize size) {
+        return switch (size) {
+            case S -> 1.0;
+            case M -> 1.5;
+            case L -> 2.5;
+        };
     }
 
     public static int containerSlots(CargoSize size) {
