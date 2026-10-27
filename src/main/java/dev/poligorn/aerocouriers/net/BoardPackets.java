@@ -3,6 +3,7 @@ package dev.poligorn.aerocouriers.net;
 import dev.poligorn.aerocouriers.access.OrderTablets;
 import dev.poligorn.aerocouriers.config.CouriersServerConfig;
 import dev.poligorn.aerocouriers.contract.CargoContainers;
+import dev.poligorn.aerocouriers.admin.AdminActions;
 import dev.poligorn.aerocouriers.contract.Contract;
 import dev.poligorn.aerocouriers.contract.ContractManager;
 import dev.poligorn.aerocouriers.contract.ContractState;
@@ -18,9 +19,9 @@ import dev.poligorn.aerocouriers.license.CourierProfile;
 import dev.poligorn.aerocouriers.license.LicenseOwner;
 import dev.poligorn.aerocouriers.license.LicenseRank;
 import dev.poligorn.aerocouriers.license.Licenses;
+import dev.poligorn.aerocouriers.config.CouriersConfigEditor;
 import dev.poligorn.aerocouriers.contract.RankRules;
 import dev.poligorn.aerocouriers.registry.ModComponents;
-import dev.poligorn.aerocouriers.item.Waybills;
 import dev.poligorn.aerocouriers.village.StationAtlas;
 import dev.poligorn.aerocouriers.village.StationReputation;
 import com.mojang.authlib.GameProfile;
@@ -109,6 +110,25 @@ public final class BoardPackets {
                 .toList();
 
         boolean requireTablet = CouriersServerConfig.SPEC.isLoaded() && CouriersServerConfig.REQUIRE_TABLET.get();
+        boolean operator = player.hasPermissions(OP);
+        List<BoardSnapshotPayload.AdminActiveEntry> adminActive = operator
+                ? manager.all()
+                        .filter(c -> c.state() == ContractState.OPEN || c.state().isActive())
+                        .sorted(Comparator.comparingLong(c -> c.timing().createdAt()))
+                        .map(c -> adminEntry(c, atlas, server))
+                        .limit(64)
+                        .toList()
+                : List.of();
+        List<BoardSnapshotPayload.PlayerHint> online = operator
+                ? server.getPlayerList().getPlayers().stream()
+                        .map(p -> new BoardSnapshotPayload.PlayerHint(p.getUUID(), p.getGameProfile().getName()))
+                        .toList()
+                : List.of();
+        List<String> configLines = operator
+                ? CouriersConfigEditor.listCommon().stream()
+                        .map(k -> k.path() + "=" + k.current())
+                        .toList()
+                : List.of();
         return new BoardSnapshotPayload(
                 openScreen,
                 safePage,
@@ -116,7 +136,7 @@ public final class BoardPackets {
                 Economies.get(server).balance(self),
                 Mailbox.get(server).contents(self).size(),
                 NotificationLog.get(server).unread(self),
-                player.hasPermissions(OP),
+                operator,
                 Licenses.isLicensedCourier(player),
                 CouriersServerConfig.ALLOW_SELF_ACCEPT.get(),
                 requireTablet,
@@ -124,7 +144,25 @@ public final class BoardPackets {
                 List.copyOf(open.subList(from, to)),
                 mine,
                 stations,
-                boardProfile(player));
+                boardProfile(player),
+                adminActive,
+                online,
+                configLines);
+    }
+
+    private static BoardSnapshotPayload.AdminActiveEntry adminEntry(Contract contract, StationAtlas atlas,
+                                                                   MinecraftServer server) {
+        String courier = contract.courier()
+                .flatMap(id -> server.getProfileCache().get(id).map(GameProfile::getName))
+                .orElse("—");
+        return new BoardSnapshotPayload.AdminActiveEntry(
+                contract.id(),
+                contract.shortId(),
+                contract.state(),
+                label(atlas, contract.origin()),
+                label(atlas, contract.destination()),
+                contract.size().name(),
+                courier);
     }
 
     private static BoardSnapshotPayload.BoardProfile boardProfile(ServerPlayer player) {
@@ -250,15 +288,72 @@ public final class BoardPackets {
             reply(player, message);
             return new ContractManager.Outcome(false, message, Optional.empty());
         }
+        MinecraftServer server = player.server;
+        ServerPlayer target = payload.targetPlayer()
+                .flatMap(id -> Optional.ofNullable(server.getPlayerList().getPlayer(id)))
+                .orElse(player);
         ContractManager.Outcome outcome = switch (payload.action()) {
-            case GIVE_LICENSE -> giveLicense(player);
-            case ADD_MONEY -> addMoney(player);
-            case GIVE_WAYBILL -> giveWaybill(player);
-            case FORCE_SPAWN -> operatorContract(player, payload.contractId(), ContractManager::spawnContainer);
-            case FORCE_DELIVER -> operatorContract(player, payload.contractId(), ContractManager::forceDeliver);
+            case GIVE_LICENSE -> AdminActions.grantLicense(player, LicenseRank.RANK1);
+            case ADD_MONEY -> AdminActions.grantMoney(player, OperatorBoardPayload.TEST_MONEY);
+            case GIVE_WAYBILL -> AdminActions.grantWaybill(player);
+            case FORCE_SPAWN -> adminContract(player, payload, false,
+                    (s, id) -> AdminActions.forceSpawn(s, id, player));
+            case FORCE_DELIVER -> adminContract(player, payload, false,
+                    (s, id) -> AdminActions.forceDeliver(s, id, player));
+            case FORCE_FAIL -> adminContract(player, payload, true,
+                    (s, id) -> AdminActions.forceFail(s, id, player));
+            case ADMIN_CANCEL -> adminContract(player, payload, true,
+                    (s, id) -> AdminActions.adminCancel(s, id, player));
+            case EXTEND_DEADLINE -> adminContract(player, payload, false,
+                    (s, id) -> AdminActions.extend(s, id, player));
+            case TELEPORT_TO_CONTRACT -> adminContract(player, payload, false,
+                    (s, id) -> AdminActions.teleportToContract(s, id, player));
+            case PLAYER_RANK -> playerRank(target, payload);
+            case PLAYER_XP_ADD -> AdminActions.setXp(target, (int) payload.longArg(), true);
+            case PLAYER_XP_SET -> AdminActions.setXp(target, (int) payload.longArg(), false);
+            case PLAYER_REP -> AdminActions.setReputation(server, payload.arg1().orElse(""), (int) payload.longArg());
+            case PLAYER_LICENSE -> playerLicense(target, payload);
+            case PLAYER_WAYBILL -> AdminActions.grantWaybill(target);
+            case PLAYER_MONEY -> AdminActions.grantMoney(target, payload.longArg() > 0 ? payload.longArg() : OperatorBoardPayload.TEST_MONEY);
+            case ECONOMY_RELOAD -> AdminActions.reloadDatapacks(server);
+            case ECONOMY_SHOW_VALUE -> AdminActions.handValue(player, false, 0);
+            case ECONOMY_SET_VALUE -> AdminActions.handValue(player, true, payload.longArg());
+            case ECONOMY_SHOW_WEIGHT -> AdminActions.handWeight(player, false, 0);
+            case ECONOMY_SET_WEIGHT -> AdminActions.handWeight(player, true, Double.longBitsToDouble(payload.longArg()));
+            case SERVER_REGEN -> AdminActions.regenerateVillageBoards(server);
+            case CONFIG_SET -> AdminActions.setConfig(payload.arg1().orElse(""), payload.arg2().orElse(""));
+            case DEBUG_TOGGLE_SELF_ACCEPT -> AdminActions.toggleAllowSelfAccept();
         };
         reply(player, outcome.message());
         return outcome;
+    }
+
+    private static ContractManager.Outcome playerRank(ServerPlayer target, OperatorBoardPayload payload) {
+        String raw = payload.arg1().orElse(LicenseRank.RANK1.getSerializedName());
+        return AdminActions.grantLicense(target, LicenseRank.bySerializedName(raw));
+    }
+
+    private static ContractManager.Outcome playerLicense(ServerPlayer target, OperatorBoardPayload payload) {
+        String raw = payload.arg1().orElse(LicenseRank.RANK1.getSerializedName());
+        return AdminActions.grantLicense(target, LicenseRank.bySerializedName(raw));
+    }
+
+    @FunctionalInterface
+    private interface AdminContractFn {
+        ContractManager.Outcome run(MinecraftServer server, UUID id);
+    }
+
+    private static ContractManager.Outcome adminContract(ServerPlayer player, OperatorBoardPayload payload,
+                                                        boolean needsConfirm, AdminContractFn action) {
+        if (needsConfirm && !payload.confirmed()) {
+            return new ContractManager.Outcome(false,
+                    Component.translatable("admin.aerocouriers.error.confirm"), Optional.empty());
+        }
+        if (payload.contractId().isEmpty()) {
+            return new ContractManager.Outcome(false,
+                    Component.translatable("ui.aerocouriers.error.no_selection"), Optional.empty());
+        }
+        return action.run(player.server, payload.contractId().get());
     }
 
     /** FakePlayers used by GameTests have a Connection whose Netty channel is null. */
@@ -279,45 +374,6 @@ public final class BoardPackets {
     private static void reply(ServerPlayer player, Component message) {
         CouriersNotifications.notifyOrder(player.server, player.getUUID(), message, Optional.empty());
         open(player, 0, false, Optional.empty());
-    }
-
-    private static ContractManager.Outcome giveLicense(ServerPlayer player) {
-        ItemStack license = Licenses.issueLicense(player, LicenseRank.RANK1, false);
-        if (!player.getInventory().add(license)) {
-            player.drop(license, false);
-        }
-        return new ContractManager.Outcome(true, Component.translatable("commands.aerocouriers.license.given",
-                player.getDisplayName(), LicenseRank.RANK1.displayName()), Optional.empty());
-    }
-
-    private static ContractManager.Outcome giveWaybill(ServerPlayer player) {
-        ItemStack waybill = Waybills.stack(4);
-        if (!player.getInventory().add(waybill)) {
-            player.drop(waybill, false);
-        }
-        return new ContractManager.Outcome(true, Component.translatable("commands.aerocouriers.waybill.given",
-                player.getDisplayName()), Optional.empty());
-    }
-
-    private static ContractManager.Outcome addMoney(ServerPlayer player) {
-        Economies.get(player.server).deposit(player.getUUID(), OperatorBoardPayload.TEST_MONEY, "admin");
-        long balance = Economies.get(player.server).balance(player.getUUID());
-        return new ContractManager.Outcome(true, Component.translatable("contract.aerocouriers.balance",
-                player.getDisplayName(), balance), Optional.empty());
-    }
-
-    @FunctionalInterface
-    private interface OperatorContractAction {
-        ContractManager.Outcome apply(ContractManager manager, MinecraftServer server, UUID id);
-    }
-
-    private static ContractManager.Outcome operatorContract(ServerPlayer player, Optional<UUID> id,
-                                                           OperatorContractAction action) {
-        if (id.isEmpty()) {
-            return new ContractManager.Outcome(false,
-                    Component.translatable("ui.aerocouriers.error.no_selection"), Optional.empty());
-        }
-        return action.apply(ContractManager.get(player.server), player.server, id.get());
     }
 
     /** NPC orders only appear between stations this player has discovered (GDD §6.1). */

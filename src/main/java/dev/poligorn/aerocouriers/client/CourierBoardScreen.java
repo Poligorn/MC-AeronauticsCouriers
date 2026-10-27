@@ -66,14 +66,17 @@ public final class CourierBoardScreen extends Screen {
     private static final int BALANCE_MAIL_GAP = 8;
     private static final int MINE_SUB_TOGGLE_H = 18;
     private static final int MINE_SUB_GAP = 4;
+    static final int ADMIN_SUB_TOGGLE_H = 18;
+    static final int ADMIN_SUB_GAP = 4;
 
     /** Left edge of the balance strip (right of last tab). */
     private int balanceStripLeft;
     private final List<AbstractWidget> mineSubToggles = new ArrayList<>();
     private final Map<Tab, TabletTabButton> mainTabs = new EnumMap<>(Tab.class);
+    private final BoardAdminUi adminUi = new BoardAdminUi(this);
 
     enum Tab {
-        BOARD, MINE, PROFILE, TEST
+        BOARD, MINE, PROFILE, ADMIN
     }
 
     private @Nullable BoardSnapshotPayload snapshot;
@@ -173,8 +176,8 @@ public final class CourierBoardScreen extends Screen {
         if (snapshot == null) {
             return;
         }
-        if (tab == Tab.TEST) {
-            initTest();
+        if (tab == Tab.ADMIN) {
+            initAdmin();
         } else if (tab == Tab.BOARD || tab == Tab.MINE) {
             if (tab == Tab.MINE) {
                 initMineSubToggles(screenLeft());
@@ -193,8 +196,8 @@ public final class CourierBoardScreen extends Screen {
         if (snapshot == null) {
             return;
         }
-        if (tab == Tab.TEST) {
-            initTest();
+        if (tab == Tab.ADMIN) {
+            initAdmin();
         } else if (tab == Tab.BOARD || tab == Tab.MINE) {
             if (tab == Tab.MINE) {
                 initMineSubToggles(screenLeft());
@@ -241,7 +244,7 @@ public final class CourierBoardScreen extends Screen {
     private void applySnapshot(@Nullable BoardSnapshotPayload payload) {
         this.snapshot = payload;
         if (payload != null) {
-            if (!payload.operator() && tab == Tab.TEST) {
+            if (!payload.operator() && tab == Tab.ADMIN) {
                 tab = Tab.BOARD;
                 refreshBoardContent();
             }
@@ -260,7 +263,7 @@ public final class CourierBoardScreen extends Screen {
         tabX = addTab(tabX, tabRowY, tabW, Tab.MINE, "ui.aerocouriers.tab.mine") + 4;
         tabX = addTab(tabX, tabRowY, tabW, Tab.PROFILE, "ui.aerocouriers.tab.profile") + 4;
         if (snapshot != null && snapshot.operator()) {
-            tabX = addTab(tabX, tabRowY, tabW, Tab.TEST, "ui.aerocouriers.tab.test") + 4;
+            tabX = addTab(tabX, tabRowY, tabW, Tab.ADMIN, "ui.aerocouriers.tab.admin") + 4;
         }
         balanceStripLeft = tabX + 4;
         syncMainTabSelection();
@@ -269,8 +272,8 @@ public final class CourierBoardScreen extends Screen {
         if (snapshot == null) {
             return;
         }
-        if (tab == Tab.TEST) {
-            initTest();
+        if (tab == Tab.ADMIN) {
+            initAdmin();
         } else if (tab == Tab.BOARD || tab == Tab.MINE) {
             if (tab == Tab.MINE) {
                 initMineSubToggles(sx);
@@ -309,6 +312,7 @@ public final class CourierBoardScreen extends Screen {
             removeWidget(widget);
         }
         mineSubToggles.clear();
+        adminUi.clearSubToggles();
     }
 
     void onNotificationsChanged() {
@@ -438,35 +442,45 @@ public final class CourierBoardScreen extends Screen {
                 snapshot.profile().villageDelivered(), snapshot.profile().traineeFreeContracts());
     }
 
-    private void initTest() {
+    void refreshAdminContent() {
+        refreshBoardContent();
+    }
+
+    void selectAdminContract(UUID id) {
+        selected = id;
+        refreshAdminContent();
+    }
+
+    int adminContentBottom() {
+        return screenTop() + screenH() - 12;
+    }
+
+    void adminAddWidget(AbstractWidget widget) {
+        addRenderableWidget(widget);
+    }
+
+    void adminRemoveWidget(AbstractWidget widget) {
+        removeWidget(widget);
+    }
+
+    net.minecraft.client.gui.Font adminFont() {
+        return font;
+    }
+
+    net.minecraft.client.Minecraft adminMc() {
+        return minecraft;
+    }
+
+    private void initAdmin() {
+        if (snapshot == null) {
+            return;
+        }
         int sx = screenLeft();
-        int y = listTop();
-        addRenderableWidget(TabletButton.create(sx + 8, y, 220, 20,
-                Component.translatable("ui.aerocouriers.test.license"), b ->
-                        PacketDistributor.sendToServer(new OperatorBoardPayload(
-                                OperatorBoardPayload.Action.GIVE_LICENSE, Optional.empty()))));
-        addRenderableWidget(TabletButton.create(sx + 8, y + 24, 220, 20,
-                Component.translatable("ui.aerocouriers.test.money", OperatorBoardPayload.TEST_MONEY), b ->
-                        PacketDistributor.sendToServer(new OperatorBoardPayload(
-                                OperatorBoardPayload.Action.ADD_MONEY, Optional.empty()))));
-        addRenderableWidget(TabletButton.create(sx + 8, y + 48, 220, 20,
-                Component.translatable("ui.aerocouriers.test.waybill"), b ->
-                        PacketDistributor.sendToServer(new OperatorBoardPayload(
-                                OperatorBoardPayload.Action.GIVE_WAYBILL, Optional.empty()))));
-        Optional<UUID> id = Optional.ofNullable(selected);
-        int actionY = y + 88;
-        TabletButton spawn = TabletButton.create(sx + 8, actionY, 120, 20,
-                Component.translatable("ui.aerocouriers.test.forcespawn"), b ->
-                        PacketDistributor.sendToServer(new OperatorBoardPayload(
-                                OperatorBoardPayload.Action.FORCE_SPAWN, id)));
-        TabletButton deliver = TabletButton.create(sx + 132, actionY, 120, 20,
-                Component.translatable("ui.aerocouriers.test.forcedeliver"), b ->
-                        PacketDistributor.sendToServer(new OperatorBoardPayload(
-                                OperatorBoardPayload.Action.FORCE_DELIVER, id)));
-        spawn.active = selected != null;
-        deliver.active = selected != null;
-        addRenderableWidget(spawn);
-        addRenderableWidget(deliver);
+        int sw = screenW();
+        int subY = adminUi.subToggleY(headingY(), font.lineHeight);
+        adminUi.initSubToggles(sx, subY, sw);
+        int contentY = adminUi.contentTop(subY);
+        adminUi.initContent(snapshot, sx, contentY, sw, selected);
     }
 
     @Override
@@ -516,14 +530,10 @@ public final class CourierBoardScreen extends Screen {
             renderListActionWidgetsOnTop(graphics, mouseX, mouseY, partialTick);
         } else if (tab == Tab.PROFILE) {
             renderProfile(graphics, snapshot.profile(), sx, mouseX, mouseY);
-        } else if (tab == Tab.TEST) {
-            int testY = listTop();
-            String id = selected == null ? "—" : snapshot.find(selected).map(BoardSnapshotPayload.BoardEntry::shortId)
-                    .orElse(selected.toString().substring(0, 8));
-            graphics.drawString(font, Component.translatable("ui.aerocouriers.test.selected", id),
-                    sx, testY + 72, TabletGui.TEXT, false);
-            drawWrapped(graphics, Component.translatable("ui.aerocouriers.test.hint"),
-                    sx, testY + 118, screenW(), TabletGui.TEXT_MUTED);
+        } else if (tab == Tab.ADMIN) {
+            int subY = adminUi.subToggleY(headingY(), font.lineHeight);
+            int contentY = adminUi.contentTop(subY);
+            adminUi.render(graphics, snapshot, sx, contentY, screenW(), selected);
         }
 
         RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
@@ -1196,7 +1206,7 @@ public final class CourierBoardScreen extends Screen {
             case BOARD -> Component.translatable("ui.aerocouriers.board.heading.board");
             case MINE -> Component.translatable("ui.aerocouriers.board.heading.mine");
             case PROFILE -> Component.translatable("ui.aerocouriers.board.heading.profile");
-            case TEST -> Component.translatable("ui.aerocouriers.board.heading.test");
+            case ADMIN -> Component.translatable("ui.aerocouriers.board.heading.admin");
         };
     }
 
@@ -1213,6 +1223,9 @@ public final class CourierBoardScreen extends Screen {
         int extra = traineeHintBlockHeight();
         if (tab == Tab.MINE) {
             extra += font.lineHeight + MINE_SUB_GAP + MINE_SUB_TOGGLE_H + MINE_SUB_GAP;
+        }
+        if (tab == Tab.ADMIN) {
+            extra += font.lineHeight + ADMIN_SUB_GAP + ADMIN_SUB_TOGGLE_H + ADMIN_SUB_GAP;
         }
         return headingY() + font.lineHeight + 6 + extra;
     }

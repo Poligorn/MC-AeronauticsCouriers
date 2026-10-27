@@ -16,6 +16,8 @@ import net.minecraft.tags.TagKey;
 import net.minecraft.util.GsonHelper;
 import net.minecraft.util.profiling.ProfilerFiller;
 import net.minecraft.world.item.Item;
+import net.minecraft.server.MinecraftServer;
+import net.neoforged.neoforge.server.ServerLifecycleHooks;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Rarity;
 import net.neoforged.neoforge.event.AddReloadListenerEvent;
@@ -122,6 +124,17 @@ public final class ItemValues extends SimpleJsonResourceReloadListener {
     }
 
     public static long perItem(ItemStack stack) {
+        if (stack.isEmpty()) {
+            return 0;
+        }
+        MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
+        if (server != null) {
+            var override = WorldCargoOverrides.get(server)
+                    .valueOverride(BuiltInRegistries.ITEM.getKey(stack.getItem()));
+            if (override.isPresent()) {
+                return override.getAsLong();
+            }
+        }
         Long direct = ITEMS.get(stack.getItem());
         if (direct != null) {
             return direct;

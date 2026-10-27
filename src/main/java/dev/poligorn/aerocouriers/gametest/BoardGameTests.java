@@ -83,7 +83,7 @@ public final class BoardGameTests {
                 "courier sees the open contract");
 
         ContractManager.Outcome denied = BoardPackets.handleOperator(courier,
-                new OperatorBoardPayload(OperatorBoardPayload.Action.ADD_MONEY, Optional.empty()));
+                OperatorBoardPayload.simple(OperatorBoardPayload.Action.ADD_MONEY, Optional.empty()));
         helper.assertFalse(denied.success(), "operator tab is gated on the server");
         helper.assertValueEqual(Economies.get(helper.getLevel().getServer()).balance(courier.getUUID()), 0L,
                 "non-op did not receive test money");

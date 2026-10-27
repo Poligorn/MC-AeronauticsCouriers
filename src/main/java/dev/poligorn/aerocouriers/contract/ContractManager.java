@@ -768,6 +768,80 @@ public final class ContractManager extends SavedData {
     }
 
     /**
+     * Operator cancel with full refund: reward to the customer, collateral to the courier, cargo to the customer's
+     * mailbox (player orders only).
+     */
+    public Outcome adminCancelWithRefund(MinecraftServer server, UUID id) {
+        Contract contract = contracts.get(id);
+        if (contract == null) {
+            return Outcome.error("unknown");
+        }
+        if (contract.state().isFinal()) {
+            return Outcome.error("wrong_state", contract.state().displayName());
+        }
+        removePreplacedContainer(server, contract);
+        CargoTracker.forget(id);
+        Escrow escrow = Escrow.get(server);
+        Economy economy = Economies.get(server);
+        long reward = escrow.takeReward(id);
+        long collateral = escrow.takeCollateral(id);
+        List<ItemStack> items = escrow.takeItems(id);
+        if (!contract.type().isNpc()) {
+            economy.deposit(contract.issuer(), reward, "admin_cancel_reward:" + id);
+            contract.courier().ifPresent(courier -> economy.deposit(courier, collateral, "admin_cancel_collateral:" + id));
+            Mailbox.get(server).post(contract.issuer(), items);
+        }
+        Contract ended = adminEnded(contract);
+        put(ended);
+        Component message = Component.translatable("admin.aerocouriers.contract.cancelled", contract.shortId());
+        contract.courier().ifPresent(courier -> notify(server, courier, message, id));
+        if (!contract.type().isNpc()) {
+            notify(server, contract.issuer(), message, id);
+        }
+        return Outcome.ok(ended, message);
+    }
+
+    /** Operator: add minutes to the open expiry or the active delivery deadline. */
+    public Outcome extendDeadline(MinecraftServer server, UUID id, int minutes) {
+        Contract contract = contracts.get(id);
+        if (contract == null) {
+            return Outcome.error("unknown");
+        }
+        if (contract.state().isFinal()) {
+            return Outcome.error("wrong_state", contract.state().displayName());
+        }
+        long extra = minutes * Pricing.TICKS_PER_MINUTE;
+        Contract.Timing timing = contract.timing();
+        Contract.Timing next;
+        if (contract.state() == ContractState.OPEN) {
+            next = new Contract.Timing(timing.createdAt(), timing.expiresAt() + extra, timing.deadline(),
+                    timing.acceptedAt(), timing.paused());
+        } else if (contract.state().isActive()) {
+            next = new Contract.Timing(timing.createdAt(), timing.expiresAt(), timing.deadline() + extra,
+                    timing.acceptedAt(), timing.paused());
+        } else {
+            return Outcome.error("wrong_state", contract.state().displayName());
+        }
+        Contract updated = new Contract(contract.id(), contract.type(), contract.issuer(), contract.recipient(),
+                contract.courier(), contract.origin(), contract.destination(), contract.size(), contract.weight(),
+                contract.reward(), contract.collateral(), contract.requiredRank(), next, contract.state(),
+                contract.preplaced(), contract.originSnapshot());
+        put(updated);
+        return Outcome.ok(updated, Component.translatable("admin.aerocouriers.contract.extended", contract.shortId(),
+                minutes));
+    }
+
+    private static Contract adminEnded(Contract contract) {
+        if (contract.state() == ContractState.OPEN) {
+            return contract.withState(ContractState.EXPIRED);
+        }
+        return new Contract(contract.id(), contract.type(), contract.issuer(), contract.recipient(), contract.courier(),
+                contract.origin(), contract.destination(), contract.size(), contract.weight(), contract.reward(),
+                contract.collateral(), contract.requiredRank(), contract.timing(), ContractState.FAILED,
+                contract.preplaced(), contract.originSnapshot());
+    }
+
+    /**
      * The container was broken or blown up (GDD §9.7). Part of the manifest drops at {@code site}; nothing drops
      * when the courier broke it.
      */

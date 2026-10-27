@@ -142,6 +142,15 @@ public final class StationAtlas extends SavedData {
         setDirty();
     }
 
+    public void setReputation(UUID stationId, int value) {
+        Station s = stations.get(stationId);
+        if (s == null) {
+            return;
+        }
+        stations.put(stationId, new Station(s.id(), s.name(), s.dimension(), s.pos(), s.discoveredBy(), value));
+        setDirty();
+    }
+
     public static void onServerTick(ServerTickEvent.Post event) {
         MinecraftServer server = event.getServer();
         if (server.getTickCount() % TICK_INTERVAL == 0) {

@@ -104,6 +104,7 @@ public final class CouriersCommands {
         root.then(Commands.literal("waybill").requires(src -> src.hasPermission(OP)).then(waybillGive));
         root.then(Commands.literal("stamp").requires(src -> src.hasPermission(OP)).then(waybillGive));
 
+        root.then(AdminCommands.admin());
         root.then(ContractCommands.contract());
         root.then(ContractCommands.mail());
         root.then(ContractCommands.balance());

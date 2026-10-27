@@ -1,7 +1,10 @@
 package dev.poligorn.aerocouriers.contract;
 
 import java.util.List;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.component.DataComponents;
+import net.minecraft.server.MinecraftServer;
+import net.neoforged.neoforge.server.ServerLifecycleHooks;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.BucketItem;
 import net.minecraft.world.item.ItemStack;
@@ -23,6 +26,21 @@ public final class Weights {
     }
 
     public static double perItem(ItemStack stack) {
+        if (stack.isEmpty()) {
+            return 0;
+        }
+        MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
+        if (server != null) {
+            var override = WorldCargoOverrides.get(server)
+                    .weightOverride(BuiltInRegistries.ITEM.getKey(stack.getItem()));
+            if (override.isPresent()) {
+                return override.getAsDouble();
+            }
+        }
+        double datapack = ItemWeights.datapackPerItem(stack);
+        if (!Double.isNaN(datapack)) {
+            return datapack;
+        }
         if (stack.getItem() instanceof BucketItem bucket && bucket.content != Fluids.EMPTY) {
             return FLUID_BUCKET;
         }

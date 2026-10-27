@@ -3,8 +3,15 @@
 > Живой документ. Обновлять при каждом завершённом шаге итерации или изменении решения (см. `.cursor/rules/90-maintaining-docs.mdc`).
 
 **Обновлено:** 27.10.2026 · **Версия:** 0.1.0-alpha · **Итерация 6+:** контейнеры M/L (§8.1), полоса XP на «Профиль». `./gradlew build` — OK (cloud, profile XP bar). GameTest в cloud не гоняли.
+**Обновлено:** 27.10.2026 · **Версия:** 0.1.0-alpha · **Итерация 6+:** контейнеры M/L (§8.1), админ-панель на планшете. `./gradlew build` проходит (cloud). GameTest в cloud не гоняли.
 
 ## Сделано
+
+### Админ-панель (27.10.2026)
+- Вкладка планшета **«Админ-панель»** вместо «Тест» (видна только при `operator` в снимке доски, сервер перепроверяет OP на каждое действие).
+- Подвкладки: все активные заказы; игроки онлайн (ранг, XP, репутация станции, лицензия, накладные, деньги); экономика (reload datapack, цена/вес предмета в руке + world override); сервер (regen NPC-досок, просмотр/шаг ключей конфига, toggle `debug.allow_self_accept`).
+- Команды `/couriers admin contract|player|economy|server …` (зеркало GUI, permission 2).
+- SavedData `aerocouriers_cargo_overrides`; datapack `item_weights/default.json` + reload listener.
 
 ### Инфраструктура
 - Gradle 9.2.1 + ModDevGradle 2.0.148, Java 21, компиляция против NeoForge **21.1.235** (минимум). `./gradlew build` проходит.
