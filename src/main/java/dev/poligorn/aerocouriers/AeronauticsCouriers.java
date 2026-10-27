@@ -7,6 +7,7 @@ import dev.poligorn.aerocouriers.config.CouriersClientConfig;
 import dev.poligorn.aerocouriers.config.CouriersServerConfig;
 import dev.poligorn.aerocouriers.contract.ContractManager;
 import dev.poligorn.aerocouriers.contract.ItemValues;
+import dev.poligorn.aerocouriers.contract.ItemWeights;
 import dev.poligorn.aerocouriers.gametest.CouriersGameTests;
 import dev.poligorn.aerocouriers.license.LicenseMigration;
 import dev.poligorn.aerocouriers.registry.ModAttachments;
@@ -62,6 +63,7 @@ public final class AeronauticsCouriers {
         NeoForge.EVENT_BUS.addListener(StationNames::onAddReloadListeners);
         NeoForge.EVENT_BUS.addListener(VillageCargo::onAddReloadListeners);
         NeoForge.EVENT_BUS.addListener(ItemValues::onAddReloadListeners);
+        NeoForge.EVENT_BUS.addListener(ItemWeights::onAddReloadListeners);
         NeoForge.EVENT_BUS.addListener(VillageStructures::onServerAboutToStart);
         CargoEvents.register();
         if (GameTestHooks.isGametestEnabled()) {

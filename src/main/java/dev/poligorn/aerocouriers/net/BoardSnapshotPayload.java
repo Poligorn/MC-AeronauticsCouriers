@@ -40,7 +40,10 @@ public record BoardSnapshotPayload(
         List<BoardEntry> board,
         List<BoardEntry> mine,
         List<StationHint> stations,
-        BoardProfile profile
+        BoardProfile profile,
+        List<AdminActiveEntry> adminActive,
+        List<PlayerHint> onlinePlayers,
+        List<String> adminConfigLines
 ) implements CustomPacketPayload {
     public static final Type<BoardSnapshotPayload> TYPE = new Type<>(AeronauticsCouriers.id("board_snapshot"));
     public static final int PAGE_SIZE = 20;
@@ -63,6 +66,48 @@ public record BoardSnapshotPayload(
                 ByteBufCodecs.STRING_UTF8, StationHint::name,
                 BlockPos.STREAM_CODEC, StationHint::pos,
                 StationHint::new);
+    }
+
+    /** All active/open contracts for the admin «Заказы» sub-tab. */
+    public record AdminActiveEntry(
+            UUID id,
+            String shortId,
+            ContractState state,
+            String originLabel,
+            String destinationLabel,
+            String size,
+            String courierName
+    ) {
+        public static final StreamCodec<RegistryFriendlyByteBuf, AdminActiveEntry> STREAM_CODEC =
+                StreamCodec.of(AdminActiveEntry::write, AdminActiveEntry::read);
+
+        private static void write(RegistryFriendlyByteBuf buf, AdminActiveEntry e) {
+            UUIDUtil.STREAM_CODEC.encode(buf, e.id);
+            ByteBufCodecs.STRING_UTF8.encode(buf, e.shortId);
+            ContractState.STREAM_CODEC.encode(buf, e.state);
+            ByteBufCodecs.STRING_UTF8.encode(buf, e.originLabel);
+            ByteBufCodecs.STRING_UTF8.encode(buf, e.destinationLabel);
+            ByteBufCodecs.STRING_UTF8.encode(buf, e.size);
+            ByteBufCodecs.STRING_UTF8.encode(buf, e.courierName);
+        }
+
+        private static AdminActiveEntry read(RegistryFriendlyByteBuf buf) {
+            return new AdminActiveEntry(
+                    UUIDUtil.STREAM_CODEC.decode(buf),
+                    ByteBufCodecs.STRING_UTF8.decode(buf),
+                    ContractState.STREAM_CODEC.decode(buf),
+                    ByteBufCodecs.STRING_UTF8.decode(buf),
+                    ByteBufCodecs.STRING_UTF8.decode(buf),
+                    ByteBufCodecs.STRING_UTF8.decode(buf),
+                    ByteBufCodecs.STRING_UTF8.decode(buf));
+        }
+    }
+
+    public record PlayerHint(UUID id, String name) {
+        public static final StreamCodec<RegistryFriendlyByteBuf, PlayerHint> STREAM_CODEC = StreamCodec.composite(
+                UUIDUtil.STREAM_CODEC, PlayerHint::id,
+                ByteBufCodecs.STRING_UTF8, PlayerHint::name,
+                PlayerHint::new);
     }
 
     /** Viewer courier stats for the board «Профиль» tab (server is source of truth). */
@@ -225,6 +270,9 @@ public record BoardSnapshotPayload(
         BoardEntry.STREAM_CODEC.apply(ByteBufCodecs.list(64)).encode(buf, p.mine);
         StationHint.STREAM_CODEC.apply(ByteBufCodecs.list(64)).encode(buf, p.stations);
         BoardProfile.STREAM_CODEC.encode(buf, p.profile);
+        AdminActiveEntry.STREAM_CODEC.apply(ByteBufCodecs.list(64)).encode(buf, p.adminActive);
+        PlayerHint.STREAM_CODEC.apply(ByteBufCodecs.list(64)).encode(buf, p.onlinePlayers);
+        ByteBufCodecs.STRING_UTF8.apply(ByteBufCodecs.list(32)).encode(buf, p.adminConfigLines);
     }
 
     private static BoardSnapshotPayload read(RegistryFriendlyByteBuf buf) {
@@ -247,7 +295,10 @@ public record BoardSnapshotPayload(
                 BoardEntry.STREAM_CODEC.apply(ByteBufCodecs.list(PAGE_SIZE)).decode(buf),
                 BoardEntry.STREAM_CODEC.apply(ByteBufCodecs.list(64)).decode(buf),
                 StationHint.STREAM_CODEC.apply(ByteBufCodecs.list(64)).decode(buf),
-                BoardProfile.STREAM_CODEC.decode(buf));
+                BoardProfile.STREAM_CODEC.decode(buf),
+                AdminActiveEntry.STREAM_CODEC.apply(ByteBufCodecs.list(64)).decode(buf),
+                PlayerHint.STREAM_CODEC.apply(ByteBufCodecs.list(64)).decode(buf),
+                ByteBufCodecs.STRING_UTF8.apply(ByteBufCodecs.list(32)).decode(buf));
     }
 
     public Optional<BoardEntry> find(UUID id) {
@@ -257,6 +308,15 @@ public record BoardSnapshotPayload(
             }
         }
         for (BoardEntry entry : mine) {
+            if (entry.id.equals(id)) {
+                return Optional.of(entry);
+            }
+        }
+        return Optional.empty();
+    }
+
+    public Optional<AdminActiveEntry> findAdmin(UUID id) {
+        for (AdminActiveEntry entry : adminActive) {
             if (entry.id.equals(id)) {
                 return Optional.of(entry);
             }

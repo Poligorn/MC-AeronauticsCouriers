@@ -46,6 +46,26 @@
 | `/couriers station generate` | оператор | Сейчас опубликовать NPC-заказы между станциями в атласе |
 | `/couriers station rename <pos> <имя>` | оператор | Переименовать почтовую станцию |
 
+### Команды админ-панели (`/couriers admin`, permission 2)
+
+| Команда | Что делает |
+|---|---|
+| `contract list` | Список всех активных/открытых заказов |
+| `contract spawn\|deliver\|fail\|cancel\|extend\|tp <id>` | Те же действия, что на подвкладке «Заказы» |
+| `player rank <игрок> <rank1…rank5\|admin>` | Выдать ранг (лицензия + XP) |
+| `player xp add\|set <игрок> <число>` | Изменить XP |
+| `player rep <игрок> <станция> <значение>` | Репутация станции (по имени из атласа) |
+| `player license <игрок> <ранг>` | Выдать лицензию указанного ранга |
+| `player waybill <игрок>` | Выдать накладные |
+| `player money <игрок> <сп>` | Добавить спуры |
+| `economy reload` | Перезагрузить `item_values`, `item_weights`, `village_cargo` |
+| `economy value [spurs]` · `economy weight [вес]` | Показать или задать override для предмета в руке |
+| `server regen` | Снять открытые NPC-заказы и сгенерировать новые |
+| `server config list\|get <key>\|set <key> <value>` | Просмотр/изменение части `aerocouriers-server.toml` |
+| `server debug allow_self_accept [true\|false]` | Переключить или задать `debug.allow_self_accept` |
+
+Те же действия доступны на вкладке **«Админ-панель»** планшета заказов (только для операторов).
+
 ## Сборка
 
 Нужен JDK 21.
