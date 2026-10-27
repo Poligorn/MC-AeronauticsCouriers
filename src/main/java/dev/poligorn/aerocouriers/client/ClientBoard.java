@@ -1,7 +1,9 @@
 package dev.poligorn.aerocouriers.client;
 
 import dev.poligorn.aerocouriers.access.OrderTablets;
+import dev.poligorn.aerocouriers.client.board.BoardTabFilterState;
 import dev.poligorn.aerocouriers.client.board.MineListSection;
+import dev.poligorn.aerocouriers.client.board.MineTabFilterState;
 import dev.poligorn.aerocouriers.net.BoardSnapshotPayload;
 import dev.poligorn.aerocouriers.net.OpenBoardPayload;
 import dev.poligorn.aerocouriers.net.OpenWaybillCreatePayload;
@@ -19,6 +21,9 @@ public final class ClientBoard {
     private static boolean requireTablet = true;
     private static @Nullable java.util.UUID pendingContractFocus;
     private static MineListSection mineSection = MineListSection.CURRENT;
+    private static final BoardTabFilterState boardFilters = new BoardTabFilterState();
+    private static final MineTabFilterState mineCurrentFilters = MineTabFilterState.defaults(MineListSection.CURRENT);
+    private static final MineTabFilterState mineHistoryFilters = MineTabFilterState.defaults(MineListSection.HISTORY);
 
     private ClientBoard() {
     }
@@ -65,6 +70,14 @@ public final class ClientBoard {
 
     public static void setMineSection(MineListSection section) {
         mineSection = section;
+    }
+
+    public static BoardTabFilterState boardFilters() {
+        return boardFilters;
+    }
+
+    public static MineTabFilterState mineFilters(MineListSection section) {
+        return section == MineListSection.HISTORY ? mineHistoryFilters : mineCurrentFilters;
     }
 
     public static void apply(BoardSnapshotPayload payload) {

@@ -195,6 +195,12 @@ tasks.register('checkRankLimits', Exec) {
     commandLine 'python3', layout.projectDirectory.file('tools/check_rank_limits.py')
 }
 
+tasks.register('checkBoardListFilters', Exec) {
+    group = 'verification'
+    description = 'Pure-logic checks for tablet list filter buckets.'
+    commandLine 'python3', layout.projectDirectory.file('tools/check_board_list_filters.py')
+}
+
 tasks.named('build') {
     dependsOn tasks.named('checkScreenRenderGuard')
     dependsOn tasks.named('checkProfileSkinLayout')
@@ -204,6 +210,7 @@ tasks.named('build') {
     dependsOn tasks.named('checkVillageRareCargo')
     dependsOn tasks.named('checkNavMath')
     dependsOn tasks.named('checkRankLimits')
+    dependsOn tasks.named('checkBoardListFilters')
 }
 
 idea {
