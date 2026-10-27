@@ -61,10 +61,11 @@ public record BoardSnapshotPayload(
         }
     }
 
-    public record StationHint(String name, BlockPos pos) {
+    public record StationHint(String name, BlockPos pos, ResourceKey<Level> dimension) {
         public static final StreamCodec<RegistryFriendlyByteBuf, StationHint> STREAM_CODEC = StreamCodec.composite(
                 ByteBufCodecs.STRING_UTF8, StationHint::name,
                 BlockPos.STREAM_CODEC, StationHint::pos,
+                ResourceKey.streamCodec(Registries.DIMENSION), StationHint::dimension,
                 StationHint::new);
     }
 

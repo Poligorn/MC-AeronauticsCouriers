@@ -50,6 +50,10 @@ public final class CouriersServerConfig {
     public static final ModConfigSpec.IntValue TRAINEE_BONUS;
     public static final ModConfigSpec.IntValue TRAINEE_MAX_DISTANCE;
 
+    public static final ModConfigSpec.BooleanValue ALLOW_CROSS_DIMENSION_ORDERS;
+    public static final ModConfigSpec.DoubleValue CROSS_DIMENSION_ORDER_CHANCE;
+    public static final ModConfigSpec.IntValue CROSS_DIMENSION_DISTANCE;
+
     public static final ModConfigSpec.IntValue EMERALD_VALUE_SPURS;
 
     public static final ModConfigSpec.IntValue MIGRATION_XP_CADET;
@@ -78,6 +82,12 @@ public final class CouriersServerConfig {
                 .define("pause_on_logout_singleplayer", true);
         LATE_WINDOW = b.comment("Late delivery window as a share of the deadline (reward and XP x0.5)")
                 .defineInRange("late_window", 0.25, 0.0, 10.0);
+        ALLOW_CROSS_DIMENSION_ORDERS = b.comment("NPC generator may pair stations in different dimensions")
+                .define("allow_cross_dimension_orders", true);
+        CROSS_DIMENSION_ORDER_CHANCE = b.comment("Share of candidate NPC pairs that may span dimensions (when allowed and another dimension has stations)")
+                .defineInRange("cross_dimension_order_chance", 0.15, 0.0, 1.0);
+        CROSS_DIMENSION_DISTANCE = b.comment("Treated route length in blocks for cross-dimension reward, XP, timers, and rank-by-distance")
+                .defineInRange("cross_dimension_distance", 3000, 100, 500_000);
         b.pop();
 
         b.push("cargo");

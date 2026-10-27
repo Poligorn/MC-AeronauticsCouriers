@@ -105,7 +105,7 @@ public final class BoardPackets {
         List<BoardSnapshotPayload.StationHint> stations = atlas.all().stream()
                 .filter(s -> allStations || s.discoveredBy(self))
                 .sorted(Comparator.comparing(StationAtlas.Station::name))
-                .map(s -> new BoardSnapshotPayload.StationHint(s.name(), s.pos()))
+                .map(s -> new BoardSnapshotPayload.StationHint(s.name(), s.pos(), s.dimension()))
                 .limit(64)
                 .toList();
 
@@ -259,7 +259,7 @@ public final class BoardPackets {
         List<BoardSnapshotPayload.StationHint> stations = atlas.all().stream()
                 .filter(s -> allStations || s.discoveredBy(player.getUUID()))
                 .sorted(Comparator.comparing(StationAtlas.Station::name))
-                .map(s -> new BoardSnapshotPayload.StationHint(s.name(), s.pos()))
+                .map(s -> new BoardSnapshotPayload.StationHint(s.name(), s.pos(), s.dimension()))
                 .limit(64)
                 .toList();
         PacketDistributor.sendToPlayer(player, new OpenWaybillCreatePayload(
@@ -267,7 +267,7 @@ public final class BoardPackets {
     }
 
     public static void handleCreate(ServerPlayer player, CreateContractPayload payload) {
-        Destination destination = new Destination(player.level().dimension(), payload.to(), payload.radius());
+        Destination destination = new Destination(payload.destinationDimension(), payload.to(), payload.radius());
         ContractManager.Outcome outcome = ContractManager.get(player.server)
                 .createFromWaybill(player, payload.from(), destination,
                         payload.reward(), payload.collateral(), payload.minutes());

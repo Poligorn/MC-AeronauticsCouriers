@@ -67,7 +67,11 @@ public record Contract(UUID id, ContractType type, UUID issuer, UUID recipient, 
     }
 
     public double distance() {
-        return origin.distanceTo(destination);
+        return ContractDistances.pricingBlocks(origin, destination);
+    }
+
+    public boolean crossDimension() {
+        return ContractDistances.isCrossDimension(origin, destination);
     }
 
     public boolean isCourier(UUID player) {

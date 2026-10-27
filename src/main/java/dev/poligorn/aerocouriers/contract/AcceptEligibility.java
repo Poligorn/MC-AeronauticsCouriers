@@ -28,11 +28,15 @@ public final class AcceptEligibility {
             long collateral,
             CargoSize size,
             double distance,
+            boolean crossDimension,
             boolean villageNpc,
             int villageDelivered,
             int traineeFreeContracts,
             int traineeMaxDistance
     ) {
+        if (crossDimension && !courierRank.isAdmin() && courierRank.level() < LicenseRank.RANK4.level()) {
+            return Optional.of(new Denial("rank_cross_dimension", LicenseRank.RANK4.displayName()));
+        }
         RankRules.Limits limits = RankRules.limits(courierRank);
         if (!RankRules.satisfies(courierRank, requiredRank)) {
             return Optional.of(new Denial("rank_too_low", requiredRank.displayName()));
@@ -43,7 +47,7 @@ public final class AcceptEligibility {
         if (size.ordinal() > limits.maxSize().ordinal()) {
             return Optional.of(new Denial("rank_limit_size", sizeLabel(limits.maxSize())));
         }
-        if (distance > limits.maxDistance()) {
+        if (!crossDimension && distance > limits.maxDistance()) {
             String dist = limits.maxDistance() == Double.POSITIVE_INFINITY
                     ? "∞"
                     : Integer.toString((int) limits.maxDistance());
@@ -63,15 +67,21 @@ public final class AcceptEligibility {
             LicenseRank requiredRank,
             long collateral,
             CargoSize size,
-            double distance
+            double distance,
+            boolean crossDimension
     ) {
+        if (crossDimension && !courierRank.isAdmin() && courierRank.level() < LicenseRank.RANK4.level()) {
+            return true;
+        }
         if (!RankRules.satisfies(courierRank, requiredRank)) {
             return true;
         }
         RankRules.Limits limits = RankRules.limits(courierRank);
-        return collateral > limits.maxCollateral()
-                || size.ordinal() > limits.maxSize().ordinal()
-                || distance > limits.maxDistance();
+        if (collateral > limits.maxCollateral()
+                || size.ordinal() > limits.maxSize().ordinal()) {
+            return true;
+        }
+        return !crossDimension && distance > limits.maxDistance();
     }
 
     public static String formatSize(CargoSize size) {

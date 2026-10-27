@@ -10,8 +10,11 @@ import java.util.Optional;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.level.Level;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.network.PacketDistributor;
@@ -31,6 +34,7 @@ public final class WaybillCreateScreen extends Screen {
     private String collateral = Long.toString(CreateContractPayload.DEFAULT_COLLATERAL);
     private String minutes = Integer.toString(Pricing.MIN_DEADLINE_MINUTES);
     private String radius = Integer.toString(CreateContractPayload.DEFAULT_RADIUS);
+    private ResourceKey<Level> destinationDimension = Level.OVERWORLD;
     private @Nullable Component notice;
     private @Nullable Component hoverTip;
     private WaybillCreateLayout layout = WaybillCreateLayout.compute(400, 300, 9, 0, false, false, 0);
@@ -40,6 +44,10 @@ public final class WaybillCreateScreen extends Screen {
     public WaybillCreateScreen(OpenWaybillCreatePayload preview) {
         super(Component.translatable("ui.aerocouriers.stamp.title"));
         this.preview = preview;
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft.level != null) {
+            destinationDimension = minecraft.level.dimension();
+        }
     }
 
     void applyPicked(XaeroPickedWaypoint picked) {
@@ -113,6 +121,7 @@ public final class WaybillCreateScreen extends Screen {
                     toX = Integer.toString(station.pos().getX());
                     toY = Integer.toString(station.pos().getY());
                     toZ = Integer.toString(station.pos().getZ());
+                    destinationDimension = station.dimension();
                     rebuildWidgets();
                 }));
     }
@@ -196,7 +205,7 @@ public final class WaybillCreateScreen extends Screen {
             return;
         }
         PacketDistributor.sendToServer(new CreateContractPayload(
-                preview.origin(), to.get(),
+                preview.origin(), to.get(), destinationDimension,
                 parseLong(reward, CreateContractPayload.DEFAULT_REWARD),
                 parseLong(collateral, CreateContractPayload.DEFAULT_COLLATERAL),
                 (int) parseLong(minutes, Pricing.MIN_DEADLINE_MINUTES),

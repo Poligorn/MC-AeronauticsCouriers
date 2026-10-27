@@ -32,12 +32,14 @@ public final class BoardAcceptUi {
             int activeHauls
     ) {
         CargoSize size = CargoSize.valueOf(entry.size().toUpperCase(Locale.ROOT));
+        boolean crossDimension = !entry.originDimension().equals(entry.destinationDimension());
         Optional<AcceptEligibility.Denial> base = AcceptEligibility.check(
                 profile.rank(),
                 entry.requiredRank(),
                 entry.collateral(),
                 size,
                 entry.distance(),
+                crossDimension,
                 entry.villageCustomer(),
                 profile.villageDelivered(),
                 profile.traineeFreeContracts(),
@@ -57,8 +59,9 @@ public final class BoardAcceptUi {
             return false;
         }
         CargoSize size = CargoSize.valueOf(entry.size().toUpperCase(Locale.ROOT));
+        boolean crossDimension = !entry.originDimension().equals(entry.destinationDimension());
         return AcceptEligibility.boardRowLocked(
-                courierRank, entry.requiredRank(), entry.collateral(), size, entry.distance());
+                courierRank, entry.requiredRank(), entry.collateral(), size, entry.distance(), crossDimension);
     }
 
     public static Component denialMessage(Optional<AcceptEligibility.Denial> denial) {

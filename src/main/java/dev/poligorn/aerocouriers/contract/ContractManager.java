@@ -224,9 +224,6 @@ public final class ContractManager extends SavedData {
         if (deadlineMinutes < Pricing.MIN_DEADLINE_MINUTES || deadlineMinutes > Pricing.MAX_DEADLINE_MINUTES) {
             return Outcome.error("deadline", Pricing.MIN_DEADLINE_MINUTES, Pricing.MAX_DEADLINE_MINUTES);
         }
-        if (!origin.dimension().equals(destination.dimension())) {
-            return Outcome.error("dimension");
-        }
         if (!origin.within(issuer.level().dimension(), issuer.position(), ISSUER_REACH)) {
             return Outcome.error("too_far_from_cargo", (int) ISSUER_REACH);
         }
@@ -255,7 +252,7 @@ public final class ContractManager extends SavedData {
             return Outcome.error("rank_limit_size", AcceptEligibility.sizeLabel(maxSize));
         }
 
-        double distance = origin.distanceTo(destination);
+        double distance = ContractDistances.pricingBlocks(origin, destination);
         long minReward = Math.max(1, Pricing.minReward(distance));
         if (reward < minReward) {
             return Outcome.error("reward_too_low", minReward);
@@ -282,7 +279,7 @@ public final class ContractManager extends SavedData {
         long deadline = deadlineMinutes * Pricing.TICKS_PER_MINUTE;
         Contract contract = new Contract(id, ContractType.PLAYER, issuer.getUUID(), issuer.getUUID(), Optional.empty(),
                 origin, destination, size.get(), weight, reward, collateral,
-                RankRules.requiredRank(collateral, size.get(), distance),
+                ContractDistances.routeRequiredRank(collateral, size.get(), origin, destination),
                 new Contract.Timing(now, now + deadline, deadline, -1, 0), ContractState.OPEN, false,
                 originSnapshot);
         Escrow.get(server).open(id, manifest, reward);
@@ -328,9 +325,6 @@ public final class ContractManager extends SavedData {
         if (deadlineMinutes < Pricing.MIN_DEADLINE_MINUTES || deadlineMinutes > Pricing.MAX_DEADLINE_MINUTES) {
             return Outcome.error("deadline", Pricing.MIN_DEADLINE_MINUTES, Pricing.MAX_DEADLINE_MINUTES);
         }
-        if (!origin.dimension().equals(destination.dimension())) {
-            return Outcome.error("dimension");
-        }
         if (!origin.within(level.dimension(), issuer.position(), ISSUER_REACH)) {
             return Outcome.error("too_far_from_cargo", (int) ISSUER_REACH);
         }
@@ -355,7 +349,7 @@ public final class ContractManager extends SavedData {
             return Outcome.error("rank_limit_size", AcceptEligibility.sizeLabel(maxSize));
         }
 
-        double distance = origin.distanceTo(destination);
+        double distance = ContractDistances.pricingBlocks(origin, destination);
         long minReward = Math.max(1, Pricing.minReward(distance));
         if (reward < minReward) {
             return Outcome.error("reward_too_low", minReward);
@@ -387,7 +381,7 @@ public final class ContractManager extends SavedData {
         long deadline = deadlineMinutes * Pricing.TICKS_PER_MINUTE;
         Contract contract = new Contract(id, ContractType.PLAYER, issuer.getUUID(), issuer.getUUID(), Optional.empty(),
                 origin, destination, size.get(), weight, reward, collateral,
-                RankRules.requiredRank(collateral, size.get(), distance),
+                ContractDistances.routeRequiredRank(collateral, size.get(), origin, destination),
                 new Contract.Timing(now, now + deadline, deadline, -1, 0), ContractState.OPEN, true,
                 originSnapshot);
         Escrow.get(server).open(id, manifest, reward);
@@ -422,10 +416,10 @@ public final class ContractManager extends SavedData {
         if (!(spawned instanceof CargoSpawner.Result.Spawned)) {
             return Optional.empty();
         }
-        double distance = origin.distanceTo(destination);
+        double distance = ContractDistances.pricingBlocks(origin, destination);
         Contract contract = new Contract(id, ContractType.VILLAGE, from.id(), to.id(), Optional.empty(),
                 origin, destination, size, weight, reward, collateral,
-                RankRules.requiredRank(collateral, size, distance),
+                ContractDistances.routeRequiredRank(collateral, size, origin, destination),
                 new Contract.Timing(now, now + deadlineMinutes * Pricing.TICKS_PER_MINUTE,
                         deadlineMinutes * Pricing.TICKS_PER_MINUTE, -1, 0),
                 ContractState.OPEN, true, Optional.empty());
@@ -464,6 +458,7 @@ public final class ContractManager extends SavedData {
                 contract.collateral(),
                 contract.size(),
                 contract.distance(),
+                contract.crossDimension(),
                 contract.type().isNpc(),
                 profile.villageDelivered(),
                 traineeFree,

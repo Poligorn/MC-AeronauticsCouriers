@@ -82,6 +82,7 @@
   "contract.aerocouriers.error.no_license": "Наденьте свою лицензию пилота в слот «Лицензия»",
   "contract.aerocouriers.error.no_waybill": "Для публикации заказа нужна транспортная накладная в инвентаре",
   "contract.aerocouriers.error.rank_too_low": "Нужен ранг %s",
+  "contract.aerocouriers.error.rank_cross_dimension": "Межмировые доставки доступны с ранга %s (Капитан) и выше",
   "contract.aerocouriers.error.rank_limit_collateral": "Для вашего ранга максимальный залог — %s сп",
   "contract.aerocouriers.error.rank_limit_size": "Для вашего ранга максимальный размер контейнера — %s",
   "contract.aerocouriers.error.rank_limit_distance": "Для вашего ранга максимальная дистанция — %s блоков",

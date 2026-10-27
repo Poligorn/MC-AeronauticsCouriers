@@ -5,12 +5,12 @@ import dev.poligorn.aerocouriers.cargo.CargoSize;
 import dev.poligorn.aerocouriers.cargo.CargoSpawner;
 import dev.poligorn.aerocouriers.config.CouriersServerConfig;
 import dev.poligorn.aerocouriers.contract.Contract;
+import dev.poligorn.aerocouriers.contract.ContractDistances;
 import dev.poligorn.aerocouriers.contract.ContractManager;
 import dev.poligorn.aerocouriers.contract.ContractState;
 import dev.poligorn.aerocouriers.contract.ContractType;
 import dev.poligorn.aerocouriers.contract.Destination;
 import dev.poligorn.aerocouriers.contract.Pricing;
-import dev.poligorn.aerocouriers.contract.RankRules;
 import dev.poligorn.aerocouriers.contract.Weights;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -61,22 +61,16 @@ public final class StationContractSource implements ContractSource {
 
     /** Fills the board up to {@code village_board_max} with one pass over shuffled station pairs. */
     public int generate(MinecraftServer server) {
-        int created = 0;
         int cap = CouriersServerConfig.VILLAGE_BOARD_MAX.get();
         ContractManager manager = ContractManager.get(server);
-        for (ServerLevel level : server.getAllLevels()) {
-            created += generateIn(level, manager, cap - created, level.getRandom());
-            if (created >= cap) {
-                break;
-            }
-        }
+        int created = generatePairs(server, manager, cap, server.overworld().getRandom());
         if (created > 0) {
             AeronauticsCouriers.LOGGER.info("[station] Published {} NPC contracts", created);
         }
         return created;
     }
 
-    private int generateIn(ServerLevel level, ContractManager manager, int remaining, RandomSource random) {
+    private int generatePairs(MinecraftServer server, ContractManager manager, int remaining, RandomSource random) {
         if (remaining <= 0) {
             return 0;
         }
@@ -87,19 +81,24 @@ public final class StationContractSource implements ContractSource {
         if (room <= 0) {
             return 0;
         }
-        List<StationAtlas.Station> stations = StationAtlas.get(level.getServer()).all().stream()
-                .filter(s -> s.dimension().equals(level.dimension()))
-                .toList();
+        List<StationAtlas.Station> stations = StationAtlas.get(server).all();
         if (stations.size() < 2) {
             return 0;
         }
+        boolean allowCross = CouriersServerConfig.ALLOW_CROSS_DIMENSION_ORDERS.get();
+        double crossChance = CouriersServerConfig.CROSS_DIMENSION_ORDER_CHANCE.get();
         List<StationAtlas.Station[]> pairs = new ArrayList<>();
         for (StationAtlas.Station from : stations) {
             for (StationAtlas.Station to : stations) {
                 if (from.id().equals(to.id())) {
                     continue;
                 }
-                if (from.pos().distSqr(to.pos()) > MAX_PAIR_DISTANCE * MAX_PAIR_DISTANCE) {
+                boolean cross = !from.dimension().equals(to.dimension());
+                if (cross) {
+                    if (!allowCross || random.nextDouble() >= crossChance) {
+                        continue;
+                    }
+                } else if (from.pos().distSqr(to.pos()) > MAX_PAIR_DISTANCE * MAX_PAIR_DISTANCE) {
                     continue;
                 }
                 if (hasOpenPair(manager, from, to)) {
@@ -110,8 +109,8 @@ public final class StationContractSource implements ContractSource {
         }
         int traineeMax = CouriersServerConfig.TRAINEE_MAX_DISTANCE.get();
         pairs.sort((a, b) -> {
-            double da = Math.sqrt(a[0].pos().distSqr(a[1].pos()));
-            double db = Math.sqrt(b[0].pos().distSqr(b[1].pos()));
+            double da = pairSortDistance(a[0], a[1]);
+            double db = pairSortDistance(b[0], b[1]);
             boolean shortA = traineeMax > 0 && da <= traineeMax;
             boolean shortB = traineeMax > 0 && db <= traineeMax;
             if (shortA != shortB) {
@@ -125,11 +124,22 @@ public final class StationContractSource implements ContractSource {
             if (created >= room) {
                 break;
             }
-            if (publish(level, pair[0], pair[1], random).isPresent()) {
+            ServerLevel originLevel = server.getLevel(pair[0].dimension());
+            if (originLevel == null || !originLevel.isLoaded(pair[0].pos())) {
+                continue;
+            }
+            if (publish(originLevel, pair[0], pair[1], random).isPresent()) {
                 created++;
             }
         }
         return created;
+    }
+
+    private static double pairSortDistance(StationAtlas.Station from, StationAtlas.Station to) {
+        if (!from.dimension().equals(to.dimension())) {
+            return ContractDistances.crossDimensionBlocks();
+        }
+        return Math.sqrt(from.pos().distSqr(to.pos()));
     }
 
     public static boolean hasOpenPair(ContractManager manager, StationAtlas.Station from, StationAtlas.Station to) {
@@ -146,9 +156,13 @@ public final class StationContractSource implements ContractSource {
                                             RandomSource random) {
         StationAtlas atlas = StationAtlas.get(level.getServer());
         int originReputation = atlas.reputation(from.id());
+        ServerLevel destinationLevel = level.getServer().getLevel(to.dimension());
+        ResourceLocation destinationBiome = destinationLevel != null
+                ? biomeId(destinationLevel, to.pos())
+                : biomeId(level, to.pos());
         VillageCargo.ManifestRoll rolled = VillageCargo.rollManifest(
                 biomeId(level, from.pos()),
-                biomeId(level, to.pos()),
+                destinationBiome,
                 originReputation,
                 level.registryAccess().lookupOrThrow(Registries.ENCHANTMENT),
                 random);
@@ -165,7 +179,9 @@ public final class StationContractSource implements ContractSource {
             AeronauticsCouriers.LOGGER.debug("[station] No crate spot next to «{}»", from.name());
             return Optional.empty();
         }
-        double distance = Math.sqrt(from.pos().distSqr(to.pos()));
+        double distance = ContractDistances.pricingBlocks(
+                new Destination(from.dimension(), from.pos(), ZONE_RADIUS),
+                new Destination(to.dimension(), to.pos(), ZONE_RADIUS));
         long reward = Pricing.npcReward(distance, weight, random);
         long collateral = Pricing.npcCollateral(manifest, weight);
         return ContractManager.get(level.getServer()).publishVillage(level, from, to, spot.get(), manifest, size.get(),
