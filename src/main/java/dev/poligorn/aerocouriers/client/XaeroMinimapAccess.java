@@ -44,7 +44,8 @@ final class XaeroMinimapAccess {
                 continue;
             }
             for (Waypoint waypoint : set.getWaypoints()) {
-                if (waypoint == null || waypoint.isThirdParty() || waypoint.isEffectivelyDeleted()) {
+                if (waypoint == null || waypoint.isThirdParty() || waypoint.isEffectivelyDeleted()
+                        || waypoint.isTemporary()) {
                     continue;
                 }
                 WaypointPurpose purpose = waypoint.getPurpose();
@@ -87,8 +88,9 @@ final class XaeroMinimapAccess {
         if (name == null || name.isBlank()) {
             name = "Waypoint";
         }
+        String symbol = waypoint.getSymbol();
         return new XaeroPickedWaypoint(
                 name, waypoint.getX(), y, waypoint.getZ(), !known,
-                waypoint.getCreatedAt(), System.identityHashCode(waypoint));
+                waypoint.getCreatedAt(), System.identityHashCode(waypoint), symbol == null ? "" : symbol);
     }
 }

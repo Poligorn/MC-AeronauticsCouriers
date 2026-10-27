@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import com.mojang.blaze3d.systems.RenderSystem;
+import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.Minecraft;
@@ -38,9 +39,11 @@ public final class WaybillCreateScreen extends Screen {
     private ResourceKey<Level> destinationDimension = Level.OVERWORLD;
     private @Nullable Component notice;
     private @Nullable Component hoverTip;
-    private WaybillCreateLayout layout = WaybillCreateLayout.compute(400, 300, 9, 0, false, false, 0);
+    private WaybillCreateLayout layout = WaybillCreateLayout.compute(400, 300, 9, 0, false, false, 0, 0);
     private boolean xaeroMap;
     private boolean xaeroList;
+    private final XaeroWaypointPickerOverlay xaeroPicker = new XaeroWaypointPickerOverlay(this);
+    private @Nullable CourierButton xaeroPickerButton;
     private @Nullable CourierButton submitButton;
 
     public WaybillCreateScreen(OpenWaybillCreatePayload preview) {
@@ -65,17 +68,23 @@ public final class WaybillCreateScreen extends Screen {
         rebuildWidgets();
     }
 
+    Font waybillFont() {
+        return font;
+    }
+
+    void refreshForm() {
+        rebuildWidgets();
+    }
+
     @Override
     protected void init() {
         super.init();
         xaeroMap = XaeroMapPicker.canOpenMap();
-        List<XaeroPickedWaypoint> waypoints = xaeroMap || XaeroMapPicker.available()
-                ? XaeroMapPicker.listWaypoints()
-                : List.of();
         xaeroList = XaeroMapPicker.available();
         int mapLabelW = font.width(Component.translatable("ui.aerocouriers.create.pick_on_map"));
+        int xaeroLabelW = font.width(Component.translatable("ui.aerocouriers.create.xaero_picker"));
         layout = WaybillCreateLayout.compute(
-                width, height, font.lineHeight, preview.cargo().size(), xaeroMap, xaeroList, mapLabelW);
+                width, height, font.lineHeight, preview.cargo().size(), xaeroMap, xaeroList, mapLabelW, xaeroLabelW);
 
         addRenderableWidget(coordBox(0, toX, v -> toX = v));
         addRenderableWidget(coordBox(1, toY, v -> toY = v));
@@ -91,8 +100,18 @@ public final class WaybillCreateScreen extends Screen {
                                     : "ui.aerocouriers.create.pick_on_map.hint_minimap")));
         }
         addStationCycle();
-        if (xaeroList) {
-            addWaypointCycle(waypoints);
+        if (xaeroList && layout.xaeroBtnW > 0) {
+            xaeroPickerButton = CourierButton.create(
+                            layout.xaeroBtnX, layout.xaeroBtnY, layout.xaeroBtnW, WaybillCreateLayout.FIELD_H,
+                            Component.translatable("ui.aerocouriers.create.xaero_picker"),
+                            b -> xaeroPicker.toggle(
+                                    layout.xaeroBtnX, layout.xaeroBtnY, layout.xaeroBtnW,
+                                    XaeroMapPicker.listWaypoints()))
+                    .hint(Component.translatable("ui.aerocouriers.create.xaero_picker.hint"));
+            addRenderableWidget(xaeroPickerButton);
+        } else {
+            xaeroPickerButton = null;
+            xaeroPicker.close();
         }
 
         addRenderableWidget(numberBox(0, reward, v -> reward = v));
@@ -125,21 +144,6 @@ public final class WaybillCreateScreen extends Screen {
                     toY = Integer.toString(station.pos().getY());
                     toZ = Integer.toString(station.pos().getZ());
                     destinationDimension = station.dimension();
-                    rebuildWidgets();
-                }));
-    }
-
-    private void addWaypointCycle(List<XaeroPickedWaypoint> waypoints) {
-        List<Component> labels = new ArrayList<>();
-        labels.add(Component.translatable("ui.aerocouriers.create.no_waypoint"));
-        waypoints.forEach(w -> labels.add(Component.literal(w.name())));
-        addRenderableWidget(CourierButton.cycle(
-                layout.waypointX, layout.stationY, Math.max(64, layout.waypointW), WaybillCreateLayout.FIELD_H,
-                Component.translatable("ui.aerocouriers.create.waypoint"), labels, index -> {
-                    if (index <= 0 || index > waypoints.size()) {
-                        return;
-                    }
-                    applyPicked(waypoints.get(index - 1));
                     rebuildWidgets();
                 }));
     }
@@ -340,9 +344,36 @@ public final class WaybillCreateScreen extends Screen {
                 }
             });
         }
+        xaeroPicker.render(graphics, mouseX, mouseY);
         if (hoverTip != null) {
             CreateGui.drawSpeechTooltip(graphics, font, hoverTip, mouseX, mouseY, 240);
         }
+    }
+
+    @Override
+    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (xaeroPicker.isOpen()) {
+            if (xaeroPicker.handleMouseClicked(mouseX, mouseY, button)) {
+                return true;
+            }
+            if (!xaeroPicker.contains(mouseX, mouseY) && !isOverXaeroButton(mouseX, mouseY)) {
+                xaeroPicker.close();
+                return true;
+            }
+        }
+        return super.mouseClicked(mouseX, mouseY, button);
+    }
+
+    @Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+        if (xaeroPicker.isOpen() && xaeroPicker.handleScroll(scrollY)) {
+            return true;
+        }
+        return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
+    }
+
+    private boolean isOverXaeroButton(double mouseX, double mouseY) {
+        return xaeroPickerButton != null && xaeroPickerButton.isMouseOver(mouseX, mouseY);
     }
 
     private void renderCargo(GuiGraphics graphics, int mouseX, int mouseY) {

@@ -50,8 +50,9 @@ public final class WaybillCreateLayout {
     public final int stationX;
     public final int stationY;
     public final int stationW;
-    public final int waypointX;
-    public final int waypointW;
+    public final int xaeroBtnX;
+    public final int xaeroBtnY;
+    public final int xaeroBtnW;
 
     public final int moneyLabelY;
     public final int moneyFieldY;
@@ -78,7 +79,7 @@ public final class WaybillCreateLayout {
             int cargoX, int cargoY, int cargoRows, int cargoH,
             int destTitleY, int coordLabelY, int coordFieldY, int[] coordX, int[] coordW,
             int mapBtnX, int mapBtnW, int mapBtnY,
-            int stationX, int stationY, int stationW, int waypointX, int waypointW,
+            int stationX, int stationY, int stationW, int xaeroBtnX, int xaeroBtnY, int xaeroBtnW,
             int moneyLabelY, int moneyFieldY, int[] moneyX, int[] moneyW,
             int infoY, int infoH, int infoW,
             int buttonY, int cancelX, int cancelW, int submitX, int submitW, int noticeX, int noticeW) {
@@ -113,8 +114,9 @@ public final class WaybillCreateLayout {
         this.stationX = stationX;
         this.stationY = stationY;
         this.stationW = stationW;
-        this.waypointX = waypointX;
-        this.waypointW = waypointW;
+        this.xaeroBtnX = xaeroBtnX;
+        this.xaeroBtnY = xaeroBtnY;
+        this.xaeroBtnW = xaeroBtnW;
         this.moneyLabelY = moneyLabelY;
         this.moneyFieldY = moneyFieldY;
         this.moneyX = moneyX;
@@ -133,7 +135,7 @@ public final class WaybillCreateLayout {
 
     public static WaybillCreateLayout compute(
             int screenW, int screenH, int lineH, int cargoCount,
-            boolean showMapButton, boolean showWaypointList, int mapLabelW) {
+            boolean showMapButton, boolean showXaeroPicker, int mapLabelW, int xaeroLabelW) {
         int line = Math.max(8, lineH);
         int over = WaybillCreateGui.CLIP_OVERHANG;
         int bottomMargin = 6;
@@ -203,14 +205,38 @@ public final class WaybillCreateLayout {
         if (showMapButton) {
             mapBtnW = clamp(mapLabelW + 16, 88, Math.min(160, innerW / 3));
         }
+        int xaeroBtnW = 0;
+        int xaeroBtnX = paperLeft + PAD;
+        int xaeroBtnY = coordFieldY;
+        boolean xaeroOnCoordRow = showXaeroPicker;
+        if (showXaeroPicker) {
+            xaeroBtnW = clamp(xaeroLabelW + 16, 72, Math.min(120, innerW / 4));
+        }
         int coordBudget = innerW;
-        if (mapOnCoordRow) {
-            coordBudget = Math.max(90, innerW - mapBtnW - GAP);
-            mapBtnX = paperLeft + PAD + coordBudget + GAP;
+        int coordButtonsW = 0;
+        if (mapOnCoordRow && showMapButton) {
+            coordButtonsW += mapBtnW + GAP;
+        }
+        if (xaeroOnCoordRow && showXaeroPicker) {
+            coordButtonsW += xaeroBtnW + GAP;
+        }
+        if (coordButtonsW > 0) {
+            coordBudget = Math.max(90, innerW - coordButtonsW);
         }
         int[] coordX = new int[COLS];
         int[] coordW = new int[COLS];
         splitRow(paperLeft + PAD, coordBudget, COLS, coordX, coordW);
+        int coordBtnX = paperLeft + PAD + coordBudget + GAP;
+        if (mapOnCoordRow && showMapButton) {
+            mapBtnX = coordBtnX;
+            mapBtnY = coordFieldY;
+            coordBtnX += mapBtnW + GAP;
+        }
+        if (xaeroOnCoordRow && showXaeroPicker) {
+            xaeroBtnX = coordBtnX;
+            xaeroBtnY = coordFieldY;
+            coordBtnX += xaeroBtnW + GAP;
+        }
 
         int stationY = y;
         if (showMapButton && !mapOnCoordRow) {
@@ -219,18 +245,9 @@ public final class WaybillCreateLayout {
         }
         int stationX = paperLeft + PAD;
         int stationW = innerW;
-        int waypointX = paperLeft + PAD;
-        int waypointW = 0;
         if (showMapButton && !mapOnCoordRow) {
             stationX = paperLeft + PAD + mapBtnW + GAP;
             stationW = Math.max(64, innerW - mapBtnW - GAP);
-        }
-        if (showWaypointList) {
-            int pair = showMapButton && !mapOnCoordRow ? stationW : innerW;
-            int half = Math.max(64, (pair - GAP) / 2);
-            stationW = half;
-            waypointX = stationX + stationW + GAP;
-            waypointW = Math.max(64, pair - stationW - GAP);
         }
         y += stationH + sectionGap;
 
@@ -259,7 +276,7 @@ public final class WaybillCreateLayout {
                 paperLeft + PAD, cargoY, cargoRows, cargoH,
                 destTitleY, coordLabelY, coordFieldY, coordX, coordW,
                 mapBtnX, mapBtnW, mapBtnY,
-                stationX, stationY, stationW, waypointX, waypointW,
+                stationX, stationY, stationW, xaeroBtnX, xaeroBtnY, xaeroBtnW,
                 moneyLabelY, moneyFieldY, moneyX, moneyW,
                 infoY, infoH, infoW,
                 buttonY, cancelX, cancelW, submitX, submitW, noticeX, noticeW);
@@ -281,9 +298,9 @@ public final class WaybillCreateLayout {
                 for (boolean map : new boolean[] {false, true}) {
                     for (boolean list : new boolean[] {false, true}) {
                         for (int cargo : new int[] {0, 9, 27, 45}) {
-                            WaybillCreateLayout layout = compute(w, h, 9, cargo, map, list, 110);
+                            WaybillCreateLayout layout = compute(w, h, 9, cargo, map, list, 110, 72);
                             String id = res[0] + "x" + res[1] + "@s" + scale + " cargo=" + cargo
-                                    + " map=" + map + " list=" + list;
+                                    + " map=" + map + " xaero=" + list;
                             failures.addAll(layout.validate(id, w, h));
                         }
                     }
@@ -347,8 +364,8 @@ public final class WaybillCreateLayout {
         if (mapBtnW > 0 && mapBtnY == coordFieldY && coordX[COLS - 1] + coordW[COLS - 1] > mapBtnX) {
             failures.add(id + ": coord fields overlap map button");
         }
-        if (waypointW > 0 && stationX + stationW > waypointX) {
-            failures.add(id + ": station overlaps waypoint list");
+        if (xaeroBtnW > 0 && xaeroBtnY == coordFieldY && coordX[COLS - 1] + coordW[COLS - 1] > xaeroBtnX) {
+            failures.add(id + ": coord fields overlap Xaero picker button");
         }
         if (cancelX + cancelW > noticeX || noticeX + 8 > submitX) {
             failures.add(id + ": footer buttons overlap");
