@@ -127,6 +127,10 @@ public final class ClientBoard {
         return viewedProfileId != null && viewedProfile != null;
     }
 
+    public static @Nullable UUID viewedProfileId() {
+        return viewedProfileId;
+    }
+
     public static BoardSnapshotPayload.BoardProfile activeProfile(BoardSnapshotPayload.BoardProfile self) {
         return viewingOtherProfile() ? viewedProfile : self;
     }
