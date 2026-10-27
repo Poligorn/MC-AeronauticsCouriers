@@ -37,7 +37,7 @@ public class CargoContainerLargeBlock extends CargoContainerBlock {
 
     @Override
     public BlockPos controllerPos(BlockPos pos, BlockState state) {
-        return pos.subtract(CargoStructure.segmentOffset(state.getValue(SEGMENT)));
+        return pos.subtract(CargoStructure.segmentOffsetLarge(state.getValue(SEGMENT)));
     }
 
     @Override

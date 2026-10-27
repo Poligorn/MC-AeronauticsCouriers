@@ -280,7 +280,7 @@ public final class WaybillCreateLayout {
                 int h = res[1] / scale;
                 for (boolean map : new boolean[] {false, true}) {
                     for (boolean list : new boolean[] {false, true}) {
-                        for (int cargo : new int[] {0, 9, 27}) {
+                        for (int cargo : new int[] {0, 9, 27, 45}) {
                             WaybillCreateLayout layout = compute(w, h, 9, cargo, map, list, 110);
                             String id = res[0] + "x" + res[1] + "@s" + scale + " cargo=" + cargo
                                     + " map=" + map + " list=" + list;

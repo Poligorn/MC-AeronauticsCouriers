@@ -269,6 +269,7 @@
   "cargo.aerocouriers.size.s": "S",
   "cargo.aerocouriers.size.m": "M",
   "cargo.aerocouriers.size.l": "L",
+  "cargo.aerocouriers.size.xl": "XL",
   "ui.aerocouriers.accept.confirm.size": "Container: %s",
   "ui.aerocouriers.profile.identity": "%s · %s",
   "ui.aerocouriers.profile.xp_fraction": "%s / %s XP",

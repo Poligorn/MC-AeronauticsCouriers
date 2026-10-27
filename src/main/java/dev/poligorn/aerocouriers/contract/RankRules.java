@@ -48,7 +48,7 @@ public final class RankRules {
     public record Limits(long maxCollateral, CargoSize maxSize, double maxDistance, int maxActive) {
     }
 
-    private static final Map<LicenseRank, Limits> LIMITS = new EnumMap<>(Map.of(
+    private static final Map<LicenseRank, Limits> BASE_LIMITS = new EnumMap<>(Map.of(
             LicenseRank.RANK1, new Limits(200, CargoSize.S, 1_500, 1),
             LicenseRank.RANK2, new Limits(600, CargoSize.M, 4_000, 2),
             LicenseRank.RANK3, new Limits(2_000, CargoSize.L, 10_000, 2),
@@ -57,7 +57,14 @@ public final class RankRules {
             LicenseRank.ADMIN, new Limits(Long.MAX_VALUE, CargoSize.L, Double.POSITIVE_INFINITY, 3)));
 
     public static Limits limits(LicenseRank rank) {
-        return LIMITS.get(rank);
+        Limits base = BASE_LIMITS.get(rank);
+        int xlRank = CouriersServerConfig.rankRequiredXl();
+        if (rank.isAdmin() || rank.level() >= xlRank) {
+            if (base.maxSize().ordinal() < CargoSize.XL.ordinal()) {
+                return new Limits(base.maxCollateral(), CargoSize.XL, base.maxDistance(), base.maxActive());
+            }
+        }
+        return base;
     }
 
     /** {@code requiredRank = max(by collateral, by container, by distance)} (GDD §5.3). */

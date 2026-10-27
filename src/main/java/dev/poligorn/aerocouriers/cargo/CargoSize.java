@@ -10,7 +10,8 @@ import net.minecraft.util.StringRepresentable;
 public enum CargoSize implements StringRepresentable {
     S,
     M,
-    L;
+    L,
+    XL;
 
     public static final Codec<CargoSize> CODEC = StringRepresentable.fromEnum(CargoSize::values);
 
@@ -27,6 +28,7 @@ public enum CargoSize implements StringRepresentable {
             case S -> 1;
             case M -> 2;
             case L -> 8;
+            case XL -> 12;
         };
     }
 

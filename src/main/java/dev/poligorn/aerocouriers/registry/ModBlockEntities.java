@@ -18,7 +18,8 @@ public final class ModBlockEntities {
             () -> BlockEntityType.Builder.of(CargoContainerBlockEntity::new,
                             ModBlocks.CARGO_CONTAINER_S.get(),
                             ModBlocks.CARGO_CONTAINER_M.get(),
-                            ModBlocks.CARGO_CONTAINER_L.get())
+                            ModBlocks.CARGO_CONTAINER_L.get(),
+                            ModBlocks.CARGO_CONTAINER_XL.get())
                     .build(null));
 
     @SuppressWarnings("DataFlowIssue")

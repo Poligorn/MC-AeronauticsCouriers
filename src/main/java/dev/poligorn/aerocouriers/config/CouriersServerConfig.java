@@ -23,6 +23,7 @@ public final class CouriersServerConfig {
     public static final ModConfigSpec.DoubleValue PRICING_FEE_MULTIPLIER_S;
     public static final ModConfigSpec.DoubleValue PRICING_FEE_MULTIPLIER_M;
     public static final ModConfigSpec.DoubleValue PRICING_FEE_MULTIPLIER_L;
+    public static final ModConfigSpec.DoubleValue PRICING_FEE_MULTIPLIER_XL;
 
     public static final ModConfigSpec.IntValue SPAWN_TRIGGER_RADIUS;
     public static final ModConfigSpec.DoubleValue DELIVERY_MAX_SPEED;
@@ -33,9 +34,13 @@ public final class CouriersServerConfig {
     public static final ModConfigSpec.IntValue CARGO_SLOTS_S;
     public static final ModConfigSpec.IntValue CARGO_SLOTS_M;
     public static final ModConfigSpec.IntValue CARGO_SLOTS_L;
+    public static final ModConfigSpec.IntValue CARGO_SLOTS_XL;
     public static final ModConfigSpec.IntValue CARGO_MAX_WEIGHT_S;
     public static final ModConfigSpec.IntValue CARGO_MAX_WEIGHT_M;
     public static final ModConfigSpec.IntValue CARGO_MAX_WEIGHT_L;
+    public static final ModConfigSpec.IntValue CARGO_MAX_WEIGHT_XL;
+
+    public static final ModConfigSpec.IntValue CARGO_RANK_REQUIRED_XL;
 
     public static final ModConfigSpec.BooleanValue PIRACY_ENABLED;
     public static final ModConfigSpec.DoubleValue PIRACY_BREAK_SECONDS;
@@ -98,6 +103,8 @@ public final class CouriersServerConfig {
                 .defineInRange("fee_multiplier_m", 1.5, 0.0, 100.0);
         PRICING_FEE_MULTIPLIER_L = b.comment("P2P issuer commission multiplier for container size L")
                 .defineInRange("fee_multiplier_l", 2.5, 0.0, 100.0);
+        PRICING_FEE_MULTIPLIER_XL = b.comment("P2P issuer commission multiplier for container size XL")
+                .defineInRange("fee_multiplier_xl", 4.0, 0.0, 100.0);
         b.pop();
         ALLOW_CROSS_DIMENSION_ORDERS = b.comment("NPC generator may pair stations in different dimensions")
                 .define("allow_cross_dimension_orders", true);
@@ -124,9 +131,13 @@ public final class CouriersServerConfig {
         CARGO_SLOTS_S = b.defineInRange("slots_s", 9, 1, 256);
         CARGO_SLOTS_M = b.defineInRange("slots_m", 18, 1, 256);
         CARGO_SLOTS_L = b.defineInRange("slots_l", 27, 1, 256);
+        CARGO_SLOTS_XL = b.defineInRange("slots_xl", 45, 1, 256);
         CARGO_MAX_WEIGHT_S = b.defineInRange("max_weight_s", 256, 1, 1_000_000);
         CARGO_MAX_WEIGHT_M = b.defineInRange("max_weight_m", 768, 1, 1_000_000);
         CARGO_MAX_WEIGHT_L = b.defineInRange("max_weight_l", 2048, 1, 1_000_000);
+        CARGO_MAX_WEIGHT_XL = b.defineInRange("max_weight_xl", 4096, 1, 1_000_000);
+        CARGO_RANK_REQUIRED_XL = b.comment("Minimum courier license rank (1..5) to accept XL containers")
+                .defineInRange("rank_required_xl", 4, 1, 5);
         b.pop();
 
         b.push("progression");
@@ -205,6 +216,7 @@ public final class CouriersServerConfig {
             case S -> PRICING_FEE_MULTIPLIER_S.get();
             case M -> PRICING_FEE_MULTIPLIER_M.get();
             case L -> PRICING_FEE_MULTIPLIER_L.get();
+            case XL -> PRICING_FEE_MULTIPLIER_XL.get();
         };
     }
 
@@ -213,6 +225,7 @@ public final class CouriersServerConfig {
             case S -> 1.0;
             case M -> 1.5;
             case L -> 2.5;
+            case XL -> 4.0;
         };
     }
 
@@ -224,6 +237,7 @@ public final class CouriersServerConfig {
             case S -> CARGO_SLOTS_S.get();
             case M -> CARGO_SLOTS_M.get();
             case L -> CARGO_SLOTS_L.get();
+            case XL -> CARGO_SLOTS_XL.get();
         };
     }
 
@@ -235,7 +249,15 @@ public final class CouriersServerConfig {
             case S -> CARGO_MAX_WEIGHT_S.get();
             case M -> CARGO_MAX_WEIGHT_M.get();
             case L -> CARGO_MAX_WEIGHT_L.get();
+            case XL -> CARGO_MAX_WEIGHT_XL.get();
         };
+    }
+
+    public static int rankRequiredXl() {
+        if (!SPEC.isLoaded()) {
+            return 4;
+        }
+        return CARGO_RANK_REQUIRED_XL.get();
     }
 
     private static int defaultSlots(CargoSize size) {
@@ -243,6 +265,7 @@ public final class CouriersServerConfig {
             case S -> 9;
             case M -> 18;
             case L -> 27;
+            case XL -> 45;
         };
     }
 
@@ -251,6 +274,7 @@ public final class CouriersServerConfig {
             case S -> 256;
             case M -> 768;
             case L -> 2048;
+            case XL -> 4096;
         };
     }
 

@@ -4,7 +4,7 @@ import java.util.List;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.state.BlockState;
 
-/** Shared behaviour for S/M/L cargo container blocks (controller resolution, footprint). */
+/** Shared behaviour for S/M/L/XL cargo container blocks (controller resolution, footprint). */
 public interface CargoBlock {
     CargoSize size();
 

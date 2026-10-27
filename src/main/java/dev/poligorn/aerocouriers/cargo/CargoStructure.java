@@ -21,6 +21,7 @@ public final class CargoStructure {
             case S -> ModBlocks.CARGO_CONTAINER_S.get();
             case M -> ModBlocks.CARGO_CONTAINER_M.get();
             case L -> ModBlocks.CARGO_CONTAINER_L.get();
+            case XL -> ModBlocks.CARGO_CONTAINER_XL.get();
         };
     }
 
@@ -28,26 +29,49 @@ public final class CargoStructure {
         return switch (size) {
             case S -> List.of(BlockPos.ZERO);
             case M -> List.of(BlockPos.ZERO, BlockPos.ZERO.above());
-            case L -> {
-                List<BlockPos> list = new ArrayList<>(8);
-                for (int y = 0; y < 2; y++) {
-                    for (int z = 0; z < 2; z++) {
-                        for (int x = 0; x < 2; x++) {
-                            list.add(new BlockPos(x, y, z));
-                        }
-                    }
-                }
-                yield list;
-            }
+            case L -> offsetsBox(2, 2);
+            case XL -> offsetsBox(2, 3);
         };
     }
 
-    public static int segmentIndex(BlockPos offset) {
+    private static List<BlockPos> offsetsBox(int xz, int height) {
+        List<BlockPos> list = new ArrayList<>(xz * xz * height);
+        for (int y = 0; y < height; y++) {
+            for (int z = 0; z < xz; z++) {
+                for (int x = 0; x < xz; x++) {
+                    list.add(new BlockPos(x, y, z));
+                }
+            }
+        }
+        return list;
+    }
+
+    /** L (2×2×2): {@code x | y<<1 | z<<2} for y ∈ {0,1}. */
+    public static int segmentIndexLarge(BlockPos offset) {
         return (offset.getX() & 1) | ((offset.getY() & 1) << 1) | ((offset.getZ() & 1) << 2);
     }
 
-    public static BlockPos segmentOffset(int index) {
+    public static BlockPos segmentOffsetLarge(int index) {
         return new BlockPos(index & 1, (index >> 1) & 1, (index >> 2) & 1);
+    }
+
+    /**
+     * XL (2×2×3): bottom two layers use the same indices as L; y=2 uses 8..11
+     * ({@code 8 + x + (z<<1)}).
+     */
+    public static int segmentIndexXl(BlockPos offset) {
+        if (offset.getY() < 2) {
+            return segmentIndexLarge(offset);
+        }
+        return 8 | ((offset.getX() & 1) | ((offset.getZ() & 1) << 1));
+    }
+
+    public static BlockPos segmentOffsetXl(int index) {
+        if (index < 8) {
+            return segmentOffsetLarge(index);
+        }
+        int local = index - 8;
+        return new BlockPos(local & 1, 2, (local >> 1) & 1);
     }
 
     /**
@@ -58,13 +82,11 @@ public final class CargoStructure {
         if (!hasSolidBase(level, anchor, size)) {
             return false;
         }
-        int width = size == CargoSize.L ? 2 : 1;
-        int height = size == CargoSize.S ? 1 : 2;
-        int depth = size == CargoSize.L ? 2 : 1;
+        Footprint footprint = footprint(size);
         BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
-        for (int y = -1; y <= height; y++) {
-            for (int x = -1; x <= width; x++) {
-                for (int z = -1; z <= depth; z++) {
+        for (int y = -1; y <= footprint.height; y++) {
+            for (int x = -1; x <= footprint.width; x++) {
+                for (int z = -1; z <= footprint.depth; z++) {
                     cursor.set(anchor.getX() + x, anchor.getY() + y, anchor.getZ() + z);
                     if (y == -1) {
                         continue;
@@ -80,11 +102,10 @@ public final class CargoStructure {
     }
 
     private static boolean hasSolidBase(ServerLevel level, BlockPos anchor, CargoSize size) {
-        int width = size == CargoSize.L ? 2 : 1;
-        int depth = size == CargoSize.L ? 2 : 1;
+        Footprint footprint = footprint(size);
         BlockPos.MutableBlockPos below = new BlockPos.MutableBlockPos();
-        for (int x = 0; x < width; x++) {
-            for (int z = 0; z < depth; z++) {
+        for (int x = 0; x < footprint.width; x++) {
+            for (int z = 0; z < footprint.depth; z++) {
                 below.set(anchor.getX() + x, anchor.getY() - 1, anchor.getZ() + z);
                 if (!level.isLoaded(below) || !level.getBlockState(below).isFaceSturdy(level, below, Direction.UP)) {
                     return false;
@@ -92,6 +113,18 @@ public final class CargoStructure {
             }
         }
         return true;
+    }
+
+    private record Footprint(int width, int height, int depth) {
+    }
+
+    private static Footprint footprint(CargoSize size) {
+        return switch (size) {
+            case S -> new Footprint(1, 1, 1);
+            case M -> new Footprint(1, 2, 1);
+            case L -> new Footprint(2, 2, 2);
+            case XL -> new Footprint(2, 3, 2);
+        };
     }
 
     public static BlockState stateForPart(CargoSize size, int fill, Direction facing, boolean waybill, boolean locked,
@@ -105,7 +138,8 @@ public final class CargoStructure {
             case S -> base;
             case M -> base.setValue(BlockStateProperties.DOUBLE_BLOCK_HALF,
                     offset.getY() == 0 ? DoubleBlockHalf.LOWER : DoubleBlockHalf.UPPER);
-            case L -> base.setValue(CargoContainerLargeBlock.SEGMENT, segmentIndex(offset));
+            case L -> base.setValue(CargoContainerLargeBlock.SEGMENT, segmentIndexLarge(offset));
+            case XL -> base.setValue(CargoContainerXlBlock.SEGMENT, segmentIndexXl(offset));
         };
     }
 

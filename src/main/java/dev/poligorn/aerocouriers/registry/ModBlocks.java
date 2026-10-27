@@ -4,6 +4,7 @@ import dev.poligorn.aerocouriers.AeronauticsCouriers;
 import dev.poligorn.aerocouriers.cargo.CargoContainerBlock;
 import dev.poligorn.aerocouriers.cargo.CargoContainerLargeBlock;
 import dev.poligorn.aerocouriers.cargo.CargoContainerMediumBlock;
+import dev.poligorn.aerocouriers.cargo.CargoContainerXlBlock;
 import dev.poligorn.aerocouriers.cargo.CargoSize;
 import dev.poligorn.aerocouriers.village.PostStationBlock;
 import net.minecraft.world.level.block.SoundType;
@@ -40,6 +41,11 @@ public final class ModBlocks {
     public static final DeferredBlock<CargoContainerLargeBlock> CARGO_CONTAINER_L = REGISTER.registerBlock(
             "cargo_container_l",
             CargoContainerLargeBlock::new,
+            cargoContainerProps());
+
+    public static final DeferredBlock<CargoContainerXlBlock> CARGO_CONTAINER_XL = REGISTER.registerBlock(
+            "cargo_container_xl",
+            CargoContainerXlBlock::new,
             cargoContainerProps());
 
     public static final DeferredBlock<PostStationBlock> POST_STATION = REGISTER.registerBlock(
