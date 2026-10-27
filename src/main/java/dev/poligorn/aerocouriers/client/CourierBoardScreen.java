@@ -646,6 +646,12 @@ public final class CourierBoardScreen extends Screen {
     }
 
     @Override
+    public void onClose() {
+        ClientCouriersSounds.playTabletClose();
+        super.onClose();
+    }
+
+    @Override
     public void removed() {
         if (mapHoverOrder != null) {
             XaeroOrderBridge.onLeaveDestination(mapHoverOrder);

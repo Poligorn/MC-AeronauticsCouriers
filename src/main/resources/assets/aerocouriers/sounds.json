@@ -7,5 +7,89 @@
         "type": "event"
       }
     ]
+  },
+  "order_accept": {
+    "subtitle": "subtitles.aerocouriers.order_accept",
+    "sounds": [
+      {
+        "name": "minecraft:block.note_block.bell",
+        "type": "event",
+        "volume": 0.85,
+        "pitch": 1.15
+      },
+      {
+        "name": "minecraft:ui.button.click",
+        "type": "event",
+        "volume": 0.35,
+        "pitch": 1.05
+      }
+    ]
+  },
+  "order_deny": {
+    "subtitle": "subtitles.aerocouriers.order_deny",
+    "sounds": [
+      {
+        "name": "minecraft:block.note_block.bass",
+        "type": "event",
+        "volume": 0.9,
+        "pitch": 0.92
+      },
+      {
+        "name": "minecraft:entity.villager.no",
+        "type": "event",
+        "volume": 0.75,
+        "pitch": 1.0
+      }
+    ]
+  },
+  "tablet_open": {
+    "subtitle": "subtitles.aerocouriers.tablet_open",
+    "sounds": [
+      {
+        "name": "minecraft:item.book.page_turn",
+        "type": "event",
+        "volume": 0.65,
+        "pitch": 1.05
+      }
+    ]
+  },
+  "tablet_close": {
+    "subtitle": "subtitles.aerocouriers.tablet_close",
+    "sounds": [
+      {
+        "name": "minecraft:item.book.page_turn",
+        "type": "event",
+        "volume": 0.55,
+        "pitch": 0.72
+      }
+    ]
+  },
+  "waybill_sign": {
+    "subtitle": "subtitles.aerocouriers.waybill_sign",
+    "sounds": [
+      {
+        "name": "minecraft:ui.cartography_table.take_result",
+        "type": "event",
+        "volume": 0.8,
+        "pitch": 1.0
+      }
+    ]
+  },
+  "cargo_pack": {
+    "subtitle": "subtitles.aerocouriers.cargo_pack",
+    "sounds": [
+      {
+        "name": "minecraft:item.bundle.insert",
+        "type": "event",
+        "volume": 0.85,
+        "pitch": 1.0
+      },
+      {
+        "name": "minecraft:block.barrel.close",
+        "type": "event",
+        "volume": 0.9,
+        "pitch": 0.85
+      }
+    ]
   }
 }

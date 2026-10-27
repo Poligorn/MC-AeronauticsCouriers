@@ -28,6 +28,7 @@ public final class InventoryBoardButton extends Button {
             } else if (Minecraft.getInstance().player != null) {
                 Minecraft.getInstance().player.displayClientMessage(
                         Component.translatable("ui.aerocouriers.error.need_tablet"), true);
+                ClientCouriersSounds.playOrderDeny();
             }
         }, DEFAULT_NARRATION);
         this.inventory = inventory;
