@@ -7,12 +7,18 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
+import net.neoforged.neoforge.client.event.ClientTickEvent;
+import org.jetbrains.annotations.Nullable;
 
 /** Optional Xaero bridge for order-board map pins (no Xaero types in public API). */
 public final class XaeroOrderBridge {
+    private static boolean sawXaeroWhilePreview;
+    private static @Nullable ResourceKey<Level> trackedDimension;
+
     private XaeroOrderBridge() {
     }
 
@@ -74,7 +80,51 @@ public final class XaeroOrderBridge {
     }
 
     public static void onLogout() {
+        sawXaeroWhilePreview = false;
+        trackedDimension = null;
+        XaeroOrderWaypoints.clearPreview();
         XaeroOrderWaypoints.clearAll();
+    }
+
+    /**
+     * Drops the board map-pin preview waypoint after the player leaves Xaero's map or minimap UI, and on
+     * dimension changes as a safety net.
+     */
+    static void onClientTick(ClientTickEvent.Post event) {
+        if (!xaeroMinimapPresent()) {
+            return;
+        }
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft.level != null) {
+            ResourceKey<Level> dimension = minecraft.level.dimension();
+            if (trackedDimension != null && !trackedDimension.equals(dimension)) {
+                XaeroOrderWaypoints.clearPreview();
+                sawXaeroWhilePreview = false;
+            }
+            trackedDimension = dimension;
+        } else {
+            trackedDimension = null;
+        }
+
+        if (!XaeroOrderWaypoints.hasActivePreview()) {
+            sawXaeroWhilePreview = false;
+            return;
+        }
+        if (isXaeroScreen(minecraft.screen)) {
+            sawXaeroWhilePreview = true;
+            return;
+        }
+        if (sawXaeroWhilePreview) {
+            XaeroOrderWaypoints.clearPreview();
+            sawXaeroWhilePreview = false;
+        }
+    }
+
+    private static boolean isXaeroScreen(@Nullable Screen screen) {
+        if (screen == null) {
+            return false;
+        }
+        return screen.getClass().getName().startsWith("xaero.");
     }
 
     public static int distanceBlocks(BlockPos target, ResourceKey<Level> dimension) {

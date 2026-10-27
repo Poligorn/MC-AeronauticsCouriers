@@ -69,6 +69,10 @@ final class XaeroOrderWaypoints {
         place(orderId, dimension, pos, label, XaeroWaypointSymbols.Kind.DELIVERY, false);
     }
 
+    static boolean hasActivePreview() {
+        return previewOrderId != null;
+    }
+
     static void clearPreview() {
         if (previewOrderId != null) {
             remove(previewOrderId, null);
