@@ -660,7 +660,8 @@ public final class CourierBoardScreen extends Screen {
 
     @Override
     public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        InGamePauseBackground.render(this, graphics, mouseX, mouseY, partialTick);
+        tabletChrome.layout(height, top(), panelH());
+        tabletChrome.renderBackground(this, graphics, mouseX, mouseY, partialTick);
     }
 
     @Override
@@ -671,8 +672,9 @@ public final class CourierBoardScreen extends Screen {
         RenderSystem.disableDepthTest();
         RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
         tabletChrome.tick();
+        tabletChrome.layout(height, top(), panelH());
         float contentAlpha = tabEffects.contentAlpha();
-        tabletChrome.drawTabletBody(graphics, () -> {
+        tabletChrome.drawTabletBody(graphics, partialTick, () -> {
             TabletGui.drawScreenBackground(graphics, cavityLeft(), cavityTop(), cavityW(), cavityH(), partialTick);
             tabEffects.drawHighlight(graphics, mainTabRowY(), TAB_H);
             renderChromeWidgets(graphics, mouseX, mouseY, partialTick);
@@ -685,6 +687,8 @@ public final class CourierBoardScreen extends Screen {
             });
             RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
             TabletGui.drawFrameChrome(graphics, left(), top(), panelW(), panelH());
+            tabletChrome.drawLoadingGear(graphics, cavityLeft(), cavityTop(), cavityW(), cavityH(),
+                    snapshot == null, partialTick);
         });
         RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
         updateRowIconHover(mouseX, mouseY);
@@ -774,10 +778,19 @@ public final class CourierBoardScreen extends Screen {
 
     @Override
     public void onClose() {
-        tabletChrome.requestClose(() -> {
-            ClientCouriersSounds.playTabletClose();
-            super.onClose();
-        });
+        if (tabletChrome.openClose().isClosing()) {
+            return;
+        }
+        ClientCouriersSounds.playTabletClose();
+        tabletChrome.requestClose(super::onClose);
+    }
+
+    @Override
+    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (tabletChrome.blocksInput(snapshot == null, 0.0F)) {
+            return true;
+        }
+        return super.keyPressed(keyCode, scanCode, modifiers);
     }
 
     @Override
@@ -1482,6 +1495,9 @@ public final class CourierBoardScreen extends Screen {
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (tabletChrome.blocksInput(snapshot == null, 0.0F)) {
+            return true;
+        }
         if (button == 0 && tab == Tab.MAIL) {
             int index = mailRowAt(mouseX, mouseY);
             if (index >= 0) {
@@ -1589,6 +1605,9 @@ public final class CourierBoardScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+        if (tabletChrome.blocksInput(snapshot == null, 0.0F)) {
+            return true;
+        }
         if (tab == Tab.MAIL) {
             List<NotificationSyncPayload.Line> entries = ClientNotifications.entries();
             int before = mailScroll;

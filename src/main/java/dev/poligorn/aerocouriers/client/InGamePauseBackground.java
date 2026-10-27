@@ -15,9 +15,15 @@ final class InGamePauseBackground {
     }
 
     static void render(Screen screen, GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        render(screen, graphics, mouseX, mouseY, partialTick, 1.0F);
+    }
+
+    static void render(Screen screen, GuiGraphics graphics, int mouseX, int mouseY, float partialTick, float dimAlpha) {
         Minecraft minecraft = screen.getMinecraft();
         if (minecraft != null && minecraft.level != null) {
-            screen.renderTransparentBackground(graphics);
+            if (dimAlpha > 0.001F) {
+                TabletAnim.withAlpha(graphics, dimAlpha, () -> screen.renderTransparentBackground(graphics));
+            }
         } else {
             screen.renderBackground(graphics, mouseX, mouseY, partialTick);
         }

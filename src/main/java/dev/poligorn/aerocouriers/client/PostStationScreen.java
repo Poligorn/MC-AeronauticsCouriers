@@ -85,6 +85,9 @@ public final class PostStationScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+        if (tabletChrome.blocksInput(false, 0.0F)) {
+            return true;
+        }
         int max = Math.max(0, snapshot.orders().size() - visibleRows());
         int next = Mth.clamp(scroll - (int) scrollY, 0, max);
         if (next != scroll) {
@@ -96,6 +99,9 @@ public final class PostStationScreen extends Screen {
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (tabletChrome.blocksInput(false, 0.0F)) {
+            return true;
+        }
         if (button == 0) {
             int index = rowAt(mouseX, mouseY);
             if (index >= 0 && !isOverRowIcon((int) mouseX, (int) mouseY)) {
@@ -110,12 +116,24 @@ public final class PostStationScreen extends Screen {
 
     @Override
     public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        InGamePauseBackground.render(this, graphics, mouseX, mouseY, partialTick);
+        tabletChrome.layout(height, panelTop(), panelH());
+        tabletChrome.renderBackground(this, graphics, mouseX, mouseY, partialTick);
     }
 
     @Override
     public void onClose() {
+        if (tabletChrome.openClose().isClosing()) {
+            return;
+        }
         tabletChrome.requestClose(super::onClose);
+    }
+
+    @Override
+    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (tabletChrome.blocksInput(false, 0.0F)) {
+            return true;
+        }
+        return super.keyPressed(keyCode, scanCode, modifiers);
     }
 
     @Override
@@ -124,7 +142,8 @@ public final class PostStationScreen extends Screen {
         hoverTipLines = null;
         hoverCargoComponent = null;
         tabletChrome.tick();
-        tabletChrome.drawTabletBody(graphics, () -> {
+        tabletChrome.layout(height, panelTop(), panelH());
+        tabletChrome.drawTabletBody(graphics, partialTick, () -> {
             TabletGui.drawScreenBackground(graphics, cavityLeft(), cavityTop(), cavityW(), cavityH(), partialTick);
             for (Renderable widget : renderables) {
                 widget.render(graphics, mouseX, mouseY, partialTick);
@@ -143,6 +162,7 @@ public final class PostStationScreen extends Screen {
             renderOrderList(graphics, mouseX, mouseY);
             renderRowIconsOnTop(graphics, mouseX, mouseY, partialTick);
             TabletGui.drawFrameChrome(graphics, panelLeft(), panelTop(), panelW(), panelH());
+            tabletChrome.drawLoadingGear(graphics, cavityLeft(), cavityTop(), cavityW(), cavityH(), false, partialTick);
         });
         updateRowIconHover(mouseX, mouseY);
         captureRowHoverTips(mouseX, mouseY);

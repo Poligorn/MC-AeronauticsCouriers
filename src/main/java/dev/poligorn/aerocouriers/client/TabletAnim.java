@@ -20,6 +20,11 @@ public final class TabletAnim {
         return 1.0F - u * u * u;
     }
 
+    public static float easeInCubic(float t) {
+        float u = Mth.clamp(t, 0.0F, 1.0F);
+        return u * u * u;
+    }
+
     /** Returns {@code 1} when animations are off or the tween has finished. */
     public static float progress(long startMs, long durationMs) {
         if (!enabled() || durationMs <= 0L) {
