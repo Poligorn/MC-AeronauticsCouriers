@@ -32,6 +32,8 @@ import org.jetbrains.annotations.Nullable;
 /** Post station window: reputation, NPC orders from this station, operator rename (GDD §6.0). */
 public final class PostStationScreen extends Screen {
     private final StationSnapshotPayload snapshot;
+    private final TabletScreenChrome tabletChrome = new TabletScreenChrome(false);
+    private final TabletListRowEffects listRowEffects = new TabletListRowEffects();
     private int scroll;
     private @Nullable EditBox nameField;
     private @Nullable Component hoverTip;
@@ -108,7 +110,11 @@ public final class PostStationScreen extends Screen {
     @Override
     public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         InGamePauseBackground.render(this, graphics, mouseX, mouseY, partialTick);
-        TabletGui.drawScreenBackground(graphics, cavityLeft(), cavityTop(), cavityW(), cavityH(), partialTick);
+    }
+
+    @Override
+    public void onClose() {
+        tabletChrome.requestClose(super::onClose);
     }
 
     @Override
@@ -116,23 +122,30 @@ public final class PostStationScreen extends Screen {
         hoverTip = null;
         hoverTipLines = null;
         hoverCargoComponent = null;
-        super.render(graphics, mouseX, mouseY, partialTick);
-        int cx = contentLeft();
-        int cy = contentTop();
-        graphics.drawString(font, title, cx, cy, TabletGui.TEXT, false);
-        Component next = snapshot.reputationNextThreshold() < 0
-                ? Component.translatable("ui.aerocouriers.reputation.max_tier")
-                : Component.translatable("ui.aerocouriers.station.reputation_next", snapshot.reputationNextThreshold());
-        Component rep = Component.translatable("ui.aerocouriers.station.reputation",
-                snapshot.reputation(), snapshot.reputationTier(), snapshot.bonusPercent(), next);
-        graphics.drawString(font, rep, cx, cy + (snapshot.canRename() ? 42 : 20), TabletGui.TEXT_MUTED, false);
+        tabletChrome.tick();
+        tabletChrome.drawTabletBody(graphics, () -> {
+            TabletGui.drawScreenBackground(graphics, cavityLeft(), cavityTop(), cavityW(), cavityH(), partialTick);
+            for (Renderable widget : renderables) {
+                widget.render(graphics, mouseX, mouseY, partialTick);
+            }
+            int cx = contentLeft();
+            int cy = contentTop();
+            graphics.drawString(font, title, cx, cy, TabletGui.TEXT, false);
+            Component next = snapshot.reputationNextThreshold() < 0
+                    ? Component.translatable("ui.aerocouriers.reputation.max_tier")
+                    : Component.translatable("ui.aerocouriers.station.reputation_next",
+                            snapshot.reputationNextThreshold());
+            Component rep = Component.translatable("ui.aerocouriers.station.reputation",
+                    snapshot.reputation(), snapshot.reputationTier(), snapshot.bonusPercent(), next);
+            graphics.drawString(font, rep, cx, cy + (snapshot.canRename() ? 42 : 20), TabletGui.TEXT_MUTED, false);
 
-        renderOrderList(graphics, mouseX, mouseY);
-        renderRowIconsOnTop(graphics, mouseX, mouseY, partialTick);
+            renderOrderList(graphics, mouseX, mouseY);
+            renderRowIconsOnTop(graphics, mouseX, mouseY, partialTick);
+            TabletGui.drawFrameChrome(graphics, panelLeft(), panelTop(), panelW(), panelH());
+        });
         updateRowIconHover(mouseX, mouseY);
         captureRowHoverTips(mouseX, mouseY);
         renderTooltips(graphics, mouseX, mouseY);
-        TabletGui.drawFrameChrome(graphics, panelLeft(), panelTop(), panelW(), panelH());
     }
 
     private void renderOrderList(GuiGraphics graphics, int mouseX, int mouseY) {
@@ -151,6 +164,8 @@ public final class PostStationScreen extends Screen {
         scroll = Mth.clamp(scroll, 0, Math.max(0, orders.size() - visible));
         int rowH = rowH();
         int listY = listTop;
+        String listKey = scroll + "|" + orders.size();
+        listRowEffects.onListPopulated(listKey, visible);
         TabletGui.drawListPanel(graphics, sx, listY - 2, sw, visible * rowH + 2);
         int frameLeft = sx + BoardRowMetrics.ROW_FRAME_SIDE;
         int textLeft = frameLeft + BoardRowMetrics.ROW_INSET_LEFT;
@@ -163,10 +178,18 @@ public final class PostStationScreen extends Screen {
             int frameW = Math.max(8, frameRight - frameLeft);
             boolean hover = mouseX >= frameLeft && mouseX < frameRight
                     && mouseY >= rowY && mouseY < rowY + rowH;
-            TabletGui.drawRow(graphics, frameLeft, rowY, frameW, rowH, hover);
-            BoardRowRenderer.renderLine1(graphics, font, entry, textLeft, BoardRowMetrics.line1Y(rowY), textW,
-                    mouseX, mouseY, true, (tip, ignored) -> hoverTip = tip);
-            BoardRowRenderer.renderLine2(graphics, font, entry, textLeft, BoardRowMetrics.line2Y(rowY), textW);
+            float hoverStrength = listRowEffects.hoverStrength(i, hover);
+            float slideX = listRowEffects.rowSlideX(i);
+            float rowAlpha = listRowEffects.rowAlpha(i);
+            TabletGui.drawRow(graphics, frameLeft, rowY, frameW, rowH, false, hoverStrength, rowAlpha, slideX);
+            graphics.pose().pushPose();
+            graphics.pose().translate(slideX, 0.0F, 0.0F);
+            TabletAnim.withAlpha(graphics, rowAlpha, () -> {
+                BoardRowRenderer.renderLine1(graphics, font, entry, textLeft, BoardRowMetrics.line1Y(rowY), textW,
+                        mouseX, mouseY, true, (tip, ignored) -> hoverTip = tip);
+                BoardRowRenderer.renderLine2(graphics, font, entry, textLeft, BoardRowMetrics.line2Y(rowY), textW);
+            });
+            graphics.pose().popPose();
         }
     }
 

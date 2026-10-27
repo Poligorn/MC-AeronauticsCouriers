@@ -99,6 +99,10 @@ public final class CourierBoardScreen extends Screen {
     /** Visible list rows whose action buttons depend on {@link #initListButtons}; avoids rebuild on timer-only updates. */
     private @Nullable String listRowButtonKey;
     private @Nullable ProfileRankBar.Layout profileRankBarLayout;
+    private final TabletScreenChrome tabletChrome = new TabletScreenChrome(false);
+    private final TabletTabSwitchEffects tabEffects = new TabletTabSwitchEffects();
+    private final TabletListRowEffects listRowEffects = new TabletListRowEffects();
+    private final ProfileXpBarEffects profileXpEffects = new ProfileXpBarEffects();
 
     public CourierBoardScreen(@Nullable BoardSnapshotPayload snapshot) {
         super(Component.translatable("ui.aerocouriers.board.title"));
@@ -155,6 +159,9 @@ public final class CourierBoardScreen extends Screen {
     }
 
     private void selectTab(Tab value) {
+        if (value != tab) {
+            tabEffects.onTabSwitch(mainTabs.get(tab), mainTabs.get(value));
+        }
         tab = value;
         scroll = 0;
         listRowButtonKey = null;
@@ -572,7 +579,6 @@ public final class CourierBoardScreen extends Screen {
     @Override
     public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         InGamePauseBackground.render(this, graphics, mouseX, mouseY, partialTick);
-        TabletGui.drawScreenBackground(graphics, cavityLeft(), cavityTop(), cavityW(), cavityH(), partialTick);
     }
 
     @Override
@@ -582,8 +588,56 @@ public final class CourierBoardScreen extends Screen {
         hoverCargoComponent = null;
         RenderSystem.disableDepthTest();
         RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
-        super.render(graphics, mouseX, mouseY, partialTick);
+        tabletChrome.tick();
+        float contentAlpha = tabEffects.contentAlpha();
+        tabletChrome.drawTabletBody(graphics, () -> {
+            TabletGui.drawScreenBackground(graphics, cavityLeft(), cavityTop(), cavityW(), cavityH(), partialTick);
+            tabEffects.drawHighlight(graphics, mainTabRowY(), TAB_H);
+            renderChromeWidgets(graphics, mouseX, mouseY, partialTick);
+            TabletAnim.withAlpha(graphics, contentAlpha, () -> {
+                renderContentWidgets(graphics, mouseX, mouseY, partialTick);
+                drawTabPanelContent(graphics, mouseX, mouseY, partialTick);
+            });
+            RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+            TabletGui.drawFrameChrome(graphics, left(), top(), panelW(), panelH());
+        });
         RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+        updateRowIconHover(mouseX, mouseY);
+        captureRowLine1HoverTips(mouseX, mouseY);
+        captureRowHoverTips(mouseX, mouseY);
+        if (hoverTip == null && hoverTipLines == null && hoverCargoComponent == null) {
+            captureProfileRankHover(mouseX, mouseY);
+        }
+        if (hoverTip == null && hoverTipLines == null && hoverCargoComponent == null) {
+            captureButtonHint(mouseX, mouseY);
+        }
+        renderTopLayerTooltips(graphics, mouseX, mouseY);
+    }
+
+    private void renderChromeWidgets(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        for (Renderable widget : renderables) {
+            if (isMainChromeWidget(widget)) {
+                widget.render(graphics, mouseX, mouseY, partialTick);
+            }
+        }
+    }
+
+    private void renderContentWidgets(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        for (Renderable widget : renderables) {
+            if (!isMainChromeWidget(widget)) {
+                widget.render(graphics, mouseX, mouseY, partialTick);
+            }
+        }
+    }
+
+    private boolean isMainChromeWidget(Renderable widget) {
+        if (widget instanceof TabletTabButton tabButton && mainTabs.containsValue(tabButton)) {
+            return true;
+        }
+        return widget instanceof MailIconButton || widget instanceof NotificationsIconButton;
+    }
+
+    private void drawTabPanelContent(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         int sx = screenLeft();
         int sy = screenTop();
         int headingY = headingY();
@@ -607,7 +661,6 @@ public final class CourierBoardScreen extends Screen {
         if (snapshot == null) {
             graphics.drawString(font, Component.translatable("ui.aerocouriers.loading"),
                     sx, sy + 40, TabletGui.TEXT_MUTED, false);
-            renderTopLayerTooltips(graphics, mouseX, mouseY);
             return;
         }
 
@@ -629,26 +682,14 @@ public final class CourierBoardScreen extends Screen {
                         screenW(), selected);
             }
         }
-
-        RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
-        TabletGui.drawFrameChrome(graphics, left(), top(), panelW(), panelH());
-
-        updateRowIconHover(mouseX, mouseY);
-        captureRowLine1HoverTips(mouseX, mouseY);
-        captureRowHoverTips(mouseX, mouseY);
-        if (hoverTip == null && hoverTipLines == null && hoverCargoComponent == null) {
-            captureProfileRankHover(mouseX, mouseY);
-        }
-        if (hoverTip == null && hoverTipLines == null && hoverCargoComponent == null) {
-            captureButtonHint(mouseX, mouseY);
-        }
-        renderTopLayerTooltips(graphics, mouseX, mouseY);
     }
 
     @Override
     public void onClose() {
-        ClientCouriersSounds.playTabletClose();
-        super.onClose();
+        tabletChrome.requestClose(() -> {
+            ClientCouriersSounds.playTabletClose();
+            super.onClose();
+        });
     }
 
     @Override
@@ -690,12 +731,15 @@ public final class CourierBoardScreen extends Screen {
         y += PROFILE_ICON_SIZE + 4;
 
         RankProgress.State progress = RankProgress.state(profile.xp(), rank, profile.rankXpThresholds());
+        profileXpEffects.onProfile(rank, progress.fraction());
+        float xpFraction = profileXpEffects.displayedFraction(progress.fraction());
+        float rankFlash = profileXpEffects.rankFlashStrength();
         if (progress.maxRank()) {
             y = drawProfileStatBlock(graphics,
                     Component.translatable("ui.aerocouriers.profile.max_rank"), statsX, y, statsW, TabletGui.TEXT);
         } else {
             profileRankBarLayout = ProfileRankBar.draw(
-                    graphics, font, statsX, y, statsW, progress.fraction(), progress.xpInRank(), progress.span());
+                    graphics, font, statsX, y, statsW, xpFraction, progress.xpInRank(), progress.span(), rankFlash);
             y += profileRankBarLayout.blockH() + 2;
             LicenseRank next = RankProgress.nextRank(rank);
             y = drawProfileStatBlock(graphics,
@@ -830,6 +874,8 @@ public final class CourierBoardScreen extends Screen {
         int textW = Math.max(8, textRight - textLeft);
         int listY = listTop();
         int listH = visible * rowH();
+        String listKey = (listRowButtonKey != null ? listRowButtonKey : "") + "|" + tab + "|" + scroll;
+        listRowEffects.onListPopulated(listKey, visible);
         TabletGui.drawListPanel(graphics, sx + 2, listY - 2, sw - 4, listH + 2);
         graphics.enableScissor(sx + 2, listY - 2, sx + sw - 2, listY + listH);
         try {
@@ -842,8 +888,15 @@ public final class CourierBoardScreen extends Screen {
                         ? layout.secondaryX() + BoardRowLayout.SECONDARY_W
                         : layout.crateX() + BoardRowLayout.ICON;
                 int frameW = Math.max(8, frameRight - frameLeft);
-                TabletGui.drawRow(graphics, frameLeft, rowY, frameW, rowH(), entry.id().equals(selected));
-                renderOrderRow(graphics, entry, rowY, textLeft, textW, mouseX, mouseY);
+                float slideX = listRowEffects.rowSlideX(i);
+                float rowAlpha = listRowEffects.rowAlpha(i);
+                TabletGui.drawRow(graphics, frameLeft, rowY, frameW, rowH(), entry.id().equals(selected), 0.0F,
+                        rowAlpha, slideX);
+                graphics.pose().pushPose();
+                graphics.pose().translate(slideX, 0.0F, 0.0F);
+                TabletAnim.withAlpha(graphics, rowAlpha,
+                        () -> renderOrderRow(graphics, entry, rowY, textLeft, textW, mouseX, mouseY));
+                graphics.pose().popPose();
                 BoardRowDebug.logRow(
                         i,
                         frameLeft,

@@ -146,15 +146,39 @@ public final class TabletGui {
     }
 
     public static void drawRow(GuiGraphics graphics, int x, int y, int w, int h, boolean selected) {
-        if (w <= 0 || h <= 0) {
+        drawRow(graphics, x, y, w, h, selected, 0.0F, 1.0F, 0.0F);
+    }
+
+    public static void drawRow(
+            GuiGraphics graphics,
+            int x,
+            int y,
+            int w,
+            int h,
+            boolean selected,
+            float hoverStrength,
+            float rowAlpha,
+            float slideX
+    ) {
+        if (w <= 0 || h <= 0 || rowAlpha <= 0.001F) {
             return;
         }
-        graphics.fill(x, y, x + w, y + h, ROW_FILL);
-        graphics.renderOutline(x, y, w, h, 0xFFB36833);
-        if (selected) {
-            graphics.fill(x + 1, y + 1, x + w - 1, y + h - 1, 0x30FFAF55);
-            graphics.renderOutline(x, y, w, h, 0xFFFFAF55);
-        }
+        graphics.pose().pushPose();
+        graphics.pose().translate(slideX, 0.0F, 0.0F);
+        TabletAnim.withAlpha(graphics, rowAlpha, () -> {
+            graphics.fill(x, y, x + w, y + h, ROW_FILL);
+            graphics.renderOutline(x, y, w, h, 0xFFB36833);
+            if (selected) {
+                graphics.fill(x + 1, y + 1, x + w - 1, y + h - 1, 0x30FFAF55);
+                graphics.renderOutline(x, y, w, h, 0xFFFFAF55);
+            } else if (hoverStrength > 0.001F) {
+                graphics.fill(x + 1, y + 1, x + w - 1, y + h - 1, TabletAnim.withAlpha(0x30FFAF55, hoverStrength));
+                if (hoverStrength > 0.35F) {
+                    graphics.renderOutline(x, y, w, h, TabletAnim.withAlpha(0xFFFFAF55, hoverStrength));
+                }
+            }
+        });
+        graphics.pose().popPose();
     }
 
     public static void drawScrollbar(GuiGraphics graphics, int x, int y, int h, float progress, float thumb) {

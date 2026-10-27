@@ -20,6 +20,7 @@ public final class CouriersClientConfig {
     public static final ModConfigSpec.BooleanValue USE_VANILLA_SPRITES;
     public static final ModConfigSpec.BooleanValue TABLET_GRID_ANIMATION;
     public static final ModConfigSpec.DoubleValue TABLET_GRID_SPEED;
+    public static final ModConfigSpec.BooleanValue UI_ANIMATIONS;
     public static final ModConfigSpec.BooleanValue NOTIFICATION_SOUNDS;
     public static final ModConfigSpec.BooleanValue SOUNDS_ENABLED;
     public static final ModConfigSpec.DoubleValue SOUNDS_VOLUME;
@@ -67,6 +68,9 @@ public final class CouriersClientConfig {
                 .define("tablet_grid_animation", true);
         TABLET_GRID_SPEED = b.comment("Grid scroll speed in pixels per second toward the bottom-left corner")
                 .defineInRange("tablet_grid_speed", 1.0, 0.0, 32.0);
+        UI_ANIMATIONS = b.comment(
+                        "Light motion on tablet screens (open/close, tabs, lists, buttons, profile XP bar)")
+                .define("ui_animations", true);
         NOTIFICATION_SOUNDS = b.comment("Play a sound when a new order notification arrives")
                 .define("notificationSounds", true);
         b.pop();
@@ -131,6 +135,14 @@ public final class CouriersClientConfig {
             return TABLET_GRID_SPEED.get();
         } catch (IllegalStateException ignored) {
             return 1.0;
+        }
+    }
+
+    public static boolean uiAnimations() {
+        try {
+            return UI_ANIMATIONS.get();
+        } catch (IllegalStateException ignored) {
+            return true;
         }
     }
 

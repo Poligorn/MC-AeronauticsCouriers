@@ -3,6 +3,7 @@ package dev.poligorn.aerocouriers.client;
 import com.mojang.blaze3d.systems.RenderSystem;
 import dev.poligorn.aerocouriers.config.CouriersClientConfig;
 import java.util.function.Consumer;
+import net.minecraft.Util;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
@@ -21,6 +22,7 @@ public final class TabletButton extends Button {
     private ItemStack itemIcon = ItemStack.EMPTY;
     private @Nullable ResourceLocation atlasIcon;
     private @Nullable Component hint;
+    private long pressedAt = Long.MIN_VALUE;
 
     private TabletButton(int x, int y, int w, int h, Component message, OnPress onPress, WidgetSprites sprites,
                          boolean tabletChrome) {
@@ -71,14 +73,33 @@ public final class TabletButton extends Button {
     }
 
     @Override
+    public void onClick(double mouseX, double mouseY) {
+        pressedAt = Util.getMillis();
+        super.onClick(mouseX, mouseY);
+    }
+
+    @Override
     protected void renderWidget(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+        Minecraft mc = Minecraft.getInstance();
+        boolean pressed = isHovered() && mc.mouseHandler.isLeftPressed();
+        float pressOffset = TabletAnim.enabled() && pressed ? 1.0F : 0.0F;
+        float flash = 0.0F;
+        if (TabletAnim.enabled() && pressedAt != Long.MIN_VALUE) {
+            flash = 1.0F - TabletAnim.progress(pressedAt, 100L);
+            if (flash <= 0.001F) {
+                pressedAt = Long.MIN_VALUE;
+                flash = 0.0F;
+            }
+        }
+        float brighten = 1.0F + flash * 0.35F;
+        RenderSystem.setShaderColor(brighten, brighten, brighten, 1.0F);
         RenderSystem.enableBlend();
         ResourceLocation sprite = sprites.get(active, isHoveredOrFocused());
-        graphics.blitSprite(sprite, getX(), getY(), getWidth(), getHeight());
+        int drawY = getY() + (int) pressOffset;
+        graphics.blitSprite(sprite, getX(), drawY, getWidth(), getHeight());
         Font font = Minecraft.getInstance().font;
         int textX = getX() + 4;
-        int iconY = getY() + (getHeight() - 16) / 2;
+        int iconY = drawY + (getHeight() - 16) / 2;
         if (!itemIcon.isEmpty()) {
             graphics.renderFakeItem(itemIcon, getX() + 2, iconY);
             textX = getX() + 20;
@@ -100,7 +121,8 @@ public final class TabletButton extends Button {
         if (!shown.equals(raw)) {
             shown = font.plainSubstrByWidth(raw, Math.max(4, textW - font.width("…"))) + "…";
         }
-        int textY = getY() + (getHeight() - 8) / 2;
+        int textY = drawY + (getHeight() - 8) / 2;
         graphics.drawString(font, shown, textX, textY, color, false);
+        RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
     }
 }

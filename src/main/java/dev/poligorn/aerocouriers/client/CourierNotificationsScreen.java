@@ -17,6 +17,8 @@ public final class CourierNotificationsScreen extends Screen {
     private static final int ROW_H = 22;
 
     private final Screen parent;
+    private final TabletScreenChrome tabletChrome = new TabletScreenChrome(false);
+    private final TabletListRowEffects listRowEffects = new TabletListRowEffects();
     private int scroll;
 
     public CourierNotificationsScreen(Screen parent) {
@@ -34,9 +36,11 @@ public final class CourierNotificationsScreen extends Screen {
 
     @Override
     public void onClose() {
-        if (minecraft != null) {
-            minecraft.setScreen(parent);
-        }
+        tabletChrome.requestClose(() -> {
+            if (minecraft != null) {
+                minecraft.setScreen(parent);
+            }
+        });
     }
 
     @Override
@@ -67,17 +71,25 @@ public final class CourierNotificationsScreen extends Screen {
     @Override
     public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         InGamePauseBackground.render(this, graphics, mouseX, mouseY, partialTick);
-        TabletGui.drawScreenBackground(graphics, cavityLeft(), cavityTop(), cavityW(), cavityH(), partialTick);
     }
 
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        super.render(graphics, mouseX, mouseY, partialTick);
-        int cx = contentLeft();
-        int cy = contentTop();
-        graphics.drawString(font, title, cx, cy, TabletGui.TEXT, false);
-        TabletGui.drawFrameChrome(graphics, panelLeft(), panelTop(), panelW(), panelH());
+        tabletChrome.tick();
+        tabletChrome.drawTabletBody(graphics, () -> {
+            TabletGui.drawScreenBackground(graphics, cavityLeft(), cavityTop(), cavityW(), cavityH(), partialTick);
+            for (net.minecraft.client.gui.components.Renderable widget : renderables) {
+                widget.render(graphics, mouseX, mouseY, partialTick);
+            }
+            int cx = contentLeft();
+            int cy = contentTop();
+            graphics.drawString(font, title, cx, cy, TabletGui.TEXT, false);
+            drawNotificationRows(graphics, mouseX, mouseY);
+            TabletGui.drawFrameChrome(graphics, panelLeft(), panelTop(), panelW(), panelH());
+        });
+    }
 
+    private void drawNotificationRows(GuiGraphics graphics, int mouseX, int mouseY) {
         List<NotificationSyncPayload.Line> entries = ClientNotifications.entries();
         if (entries.isEmpty()) {
             graphics.drawString(font, Component.translatable("ui.aerocouriers.notifications.empty"),
@@ -85,26 +97,37 @@ public final class CourierNotificationsScreen extends Screen {
             return;
         }
 
+        int cx = contentLeft();
         int listW = contentW();
         int y = listTop();
         int visible = visibleRows();
+        String listKey = scroll + "|" + entries.size();
+        listRowEffects.onListPopulated(listKey, visible);
         for (int i = 0; i < visible && scroll + i < entries.size(); i++) {
             NotificationSyncPayload.Line line = entries.get(scroll + i);
             int rowY = y + i * ROW_H;
             boolean hover = mouseX >= cx && mouseX < cx + listW
                     && mouseY >= rowY && mouseY < rowY + ROW_H - 2;
-            TabletGui.drawRow(graphics, cx, rowY, listW, ROW_H - 2, hover);
-            String time = formatAge(line.at());
-            Component timeLine = Component.literal(time);
-            graphics.drawString(font, timeLine, cx + 4, rowY + 2, TabletGui.TEXT_MUTED, false);
-            int textX = cx + 4 + font.width(time) + 6;
-            int textW = listW - (textX - cx) - 4;
-            List<FormattedCharSequence> wrapped = font.split(line.text(), textW);
-            int ty = rowY + 2;
-            for (int lineIdx = 0; lineIdx < Math.min(2, wrapped.size()); lineIdx++) {
-                graphics.drawString(font, wrapped.get(lineIdx), textX, ty, TabletGui.TEXT, false);
-                ty += font.lineHeight;
-            }
+            float hoverStrength = listRowEffects.hoverStrength(i, hover);
+            float slideX = listRowEffects.rowSlideX(i);
+            float rowAlpha = listRowEffects.rowAlpha(i);
+            TabletGui.drawRow(graphics, cx, rowY, listW, ROW_H - 2, false, hoverStrength, rowAlpha, slideX);
+            graphics.pose().pushPose();
+            graphics.pose().translate(slideX, 0.0F, 0.0F);
+            TabletAnim.withAlpha(graphics, rowAlpha, () -> {
+                String time = formatAge(line.at());
+                Component timeLine = Component.literal(time);
+                graphics.drawString(font, timeLine, cx + 4, rowY + 2, TabletGui.TEXT_MUTED, false);
+                int textX = cx + 4 + font.width(time) + 6;
+                int textW = listW - (textX - cx) - 4;
+                List<FormattedCharSequence> wrapped = font.split(line.text(), textW);
+                int ty = rowY + 2;
+                for (int lineIdx = 0; lineIdx < Math.min(2, wrapped.size()); lineIdx++) {
+                    graphics.drawString(font, wrapped.get(lineIdx), textX, ty, TabletGui.TEXT, false);
+                    ty += font.lineHeight;
+                }
+            });
+            graphics.pose().popPose();
         }
     }
 
