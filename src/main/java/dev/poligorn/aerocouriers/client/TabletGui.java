@@ -86,7 +86,7 @@ public final class TabletGui {
         }
         graphics.fill(x, y, x + w, y + h, SCREEN_FILL);
         if (!CouriersClientConfig.tabletGridAnimation()) {
-            drawGridLines(graphics, x, y, w, h, 0, 0);
+            drawGridLines(graphics, x, y, w, h, false);
             return;
         }
         int contentX = x + CONTENT_INSET;
@@ -94,34 +94,47 @@ public final class TabletGui {
         int contentW = w - CONTENT_INSET * 2;
         int contentH = h - CONTENT_INSET * 2;
         if (contentW <= 0 || contentH <= 0) {
-            drawGridLines(graphics, x, y, w, h, 0, 0);
+            drawGridLines(graphics, x, y, w, h, false);
             return;
         }
         double scrollPx = (Util.getMillis() + partialTick) * CouriersClientConfig.tabletGridSpeed() / 1000.0;
-        int pixelOffset = (int) Math.floor(scrollPx);
-        int shiftX = positiveMod(-pixelOffset, GRID_STEP);
-        int shiftY = positiveMod(pixelOffset, GRID_STEP);
+        float offsetX = positiveMod((float) -scrollPx, GRID_STEP);
+        float offsetY = positiveMod((float) scrollPx, GRID_STEP);
         graphics.enableScissor(contentX, contentY, contentX + contentW, contentY + contentH);
-        drawGridLines(graphics, contentX, contentY, contentW, contentH, shiftX, shiftY);
+        graphics.pose().pushPose();
+        graphics.pose().translate(-offsetX, offsetY, 0.0F);
+        drawGridLines(graphics, contentX, contentY, contentW, contentH, true);
+        graphics.pose().popPose();
         graphics.disableScissor();
     }
 
-    private static void drawGridLines(GuiGraphics graphics, int x, int y, int w, int h, int shiftX, int shiftY) {
-        for (int gx = x - GRID_STEP + shiftX; gx < x + w + GRID_STEP; gx += GRID_STEP) {
-            if (gx >= x && gx < x + w) {
-                graphics.fill(gx, y, gx + 1, y + h, GRID_LINE);
+    private static void drawGridLines(GuiGraphics graphics, int x, int y, int w, int h, boolean overdraw) {
+        int pad = overdraw ? GRID_STEP : 0;
+        int xMin = x;
+        int xMax = x + w;
+        int yMin = y;
+        int yMax = y + h;
+        int drawX0 = xMin - pad;
+        int drawX1 = xMax + pad;
+        int drawY0 = yMin - pad;
+        int drawY1 = yMax + pad;
+        for (int gx = drawX0; gx <= drawX1; gx += GRID_STEP) {
+            if (!overdraw && (gx < xMin || gx >= xMax)) {
+                continue;
             }
+            graphics.fill(gx, overdraw ? drawY0 : yMin, gx + 1, overdraw ? drawY1 : yMax, GRID_LINE);
         }
-        for (int gy = y - GRID_STEP + shiftY; gy < y + h + GRID_STEP; gy += GRID_STEP) {
-            if (gy >= y && gy < y + h) {
-                graphics.fill(x, gy, x + w, gy + 1, GRID_LINE);
+        for (int gy = drawY0; gy <= drawY1; gy += GRID_STEP) {
+            if (!overdraw && (gy < yMin || gy >= yMax)) {
+                continue;
             }
+            graphics.fill(overdraw ? drawX0 : xMin, gy, overdraw ? drawX1 : xMax, gy + 1, GRID_LINE);
         }
     }
 
-    private static int positiveMod(int value, int modulus) {
-        int r = value % modulus;
-        return r < 0 ? r + modulus : r;
+    private static float positiveMod(float value, float modulus) {
+        float r = value % modulus;
+        return r < 0.0F ? r + modulus : r;
     }
 
     public static void drawListPanel(GuiGraphics graphics, int x, int y, int w, int h) {
