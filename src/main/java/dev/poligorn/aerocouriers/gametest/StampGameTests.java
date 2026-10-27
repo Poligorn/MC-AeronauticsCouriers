@@ -2,6 +2,7 @@ package dev.poligorn.aerocouriers.gametest;
 
 import com.mojang.authlib.GameProfile;
 import dev.poligorn.aerocouriers.AeronauticsCouriers;
+import dev.poligorn.aerocouriers.cargo.CargoSize;
 import dev.poligorn.aerocouriers.cargo.CargoTracker;
 import dev.poligorn.aerocouriers.client.WaybillCreateLayout;
 import dev.poligorn.aerocouriers.contract.Contract;
@@ -11,6 +12,7 @@ import dev.poligorn.aerocouriers.contract.Destination;
 import dev.poligorn.aerocouriers.contract.Escrow;
 import dev.poligorn.aerocouriers.contract.Mailbox;
 import dev.poligorn.aerocouriers.economy.Economies;
+import dev.poligorn.aerocouriers.license.LicenseRank;
 import dev.poligorn.aerocouriers.license.Licenses;
 import dev.poligorn.aerocouriers.registry.ModBlocks;
 import dev.poligorn.aerocouriers.registry.ModItems;
@@ -122,6 +124,44 @@ public final class StampGameTests {
         helper.succeed();
     }
 
+    @GameTest(template = CouriersGameTests.EMPTY, timeoutTicks = 200)
+    public static void stampMediumContainerForHeavyCargo(GameTestHelper helper) {
+        Fixture f = new Fixture(helper, LicenseRank.RANK3);
+        fillChest(f, 8, 64, Items.COBBLESTONE);
+        ContractManager.Outcome created = f.stamp(50, 0);
+        helper.assertTrue(created.success(), "stamp M: " + created.message().getString());
+        Contract contract = created.contract().orElseThrow();
+        helper.assertValueEqual(contract.size(), CargoSize.M, "contract size");
+        helper.assertValueEqual(Mailbox.get(f.server()).contents(f.issuer.getUUID()).size(), 0, "mailbox");
+        helper.assertValueEqual(Escrow.get(f.server()).holding(contract.id()).items().size(), 8, "escrow stacks");
+        helper.startSequence()
+                .thenIdle(SABLE_SETTLE_TICKS)
+                .thenExecute(() -> {
+                    helper.assertTrue(helper.getBlockState(CHEST).is(ModBlocks.CARGO_CONTAINER_M.get()),
+                            "medium container at pickup");
+                    helper.assertTrue(helper.getBlockState(CHEST.above()).is(ModBlocks.CARGO_CONTAINER_M.get()),
+                            "medium upper segment");
+                })
+                .thenSucceed();
+    }
+
+    @GameTest(template = CouriersGameTests.EMPTY, timeoutTicks = 200)
+    public static void stampLargeContainerForVeryHeavyCargo(GameTestHelper helper) {
+        Fixture f = new Fixture(helper, LicenseRank.RANK3);
+        fillChest(f, 24, 64, Items.COBBLESTONE);
+        ContractManager.Outcome created = f.stamp(80, 0);
+        helper.assertTrue(created.success(), "stamp L: " + created.message().getString());
+        Contract contract = created.contract().orElseThrow();
+        helper.assertValueEqual(contract.size(), CargoSize.L, "contract size");
+        helper.assertValueEqual(Mailbox.get(f.server()).contents(f.issuer.getUUID()).size(), 0, "mailbox");
+        helper.assertValueEqual(Escrow.get(f.server()).holding(contract.id()).items().size(), 24, "escrow stacks");
+        helper.startSequence()
+                .thenIdle(SABLE_SETTLE_TICKS)
+                .thenExecute(() -> helper.assertTrue(helper.getBlockState(CHEST).is(ModBlocks.CARGO_CONTAINER_L.get()),
+                        "large container controller at pickup"))
+                .thenSucceed();
+    }
+
     @GameTest(template = CouriersGameTests.EMPTY)
     public static void stampRequiresLicenseAndAccess(GameTestHelper helper) {
         for (int x = 0; x < 8; x++) {
@@ -144,6 +184,13 @@ public final class StampGameTests {
         helper.succeed();
     }
 
+    private static void fillChest(Fixture f, int stacks, int countPerStack, net.minecraft.world.item.Item item) {
+        ChestBlockEntity chest = (ChestBlockEntity) f.helper.getBlockEntity(CHEST);
+        for (int slot = 0; slot < stacks; slot++) {
+            chest.setItem(slot, new ItemStack(item, countPerStack));
+        }
+    }
+
     private static int droppedAround(GameTestHelper helper, BlockPos relative) {
         Vec3 at = Vec3.atCenterOf(helper.absolutePos(relative));
         return helper.getLevel().getEntitiesOfClass(ItemEntity.class, new AABB(at, at).inflate(4)).stream()
@@ -157,14 +204,21 @@ public final class StampGameTests {
         final ContractManager manager;
 
         Fixture(GameTestHelper helper) {
+            this(helper, LicenseRank.RANK1);
+        }
+
+        Fixture(GameTestHelper helper, LicenseRank rank) {
             this.helper = helper;
             this.issuer = FakePlayerFactory.get(helper.getLevel(), new GameProfile(UUID.randomUUID(), "stamper"));
             this.manager = ContractManager.get(helper.getLevel().getServer());
             issuer.setPos(Vec3.atCenterOf(helper.absolutePos(CHEST)));
             var curios = CuriosApi.getCuriosInventory(issuer).orElseThrow();
             curios.setEquippedCurio(Licenses.CURIOS_SLOT, 0, new ItemStack(ModItems.PILOT_LICENSE.get()));
+            Licenses.setProfile(issuer, Licenses.profile(issuer).withXp(rank == LicenseRank.RANK1 ? 0
+                    : rank == LicenseRank.RANK3 ? 1500 : 300));
             Licenses.tickWorn(issuer, Licenses.findLicense(issuer).orElseThrow());
-            Economies.get(helper.getLevel().getServer()).deposit(issuer.getUUID(), 100, "test");
+            Economies.get(helper.getLevel().getServer()).deposit(issuer.getUUID(),
+                    rank == LicenseRank.RANK3 ? 10_000 : 100, "test");
             for (int x = 0; x < 8; x++) {
                 for (int z = 0; z < 8; z++) {
                     helper.setBlock(new BlockPos(x, 0, z), Blocks.STONE);

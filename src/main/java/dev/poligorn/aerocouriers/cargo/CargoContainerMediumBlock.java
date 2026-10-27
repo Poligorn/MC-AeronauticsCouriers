@@ -54,17 +54,6 @@ public class CargoContainerMediumBlock extends CargoContainerBlock {
     }
 
     @Override
-    public void onPlace(BlockState state, Level level, BlockPos pos, BlockState oldState, boolean movedByPiston) {
-        if (!level.isClientSide && state.getValue(BlockStateProperties.DOUBLE_BLOCK_HALF) == DoubleBlockHalf.LOWER) {
-            BlockPos above = pos.above();
-            if (level.getBlockState(above).canBeReplaced()) {
-                level.setBlock(above, state.setValue(BlockStateProperties.DOUBLE_BLOCK_HALF, DoubleBlockHalf.UPPER),
-                        Block.UPDATE_ALL);
-            }
-        }
-    }
-
-    @Override
     protected void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean movedByPiston) {
         if (!movedByPiston && state.hasProperty(BlockStateProperties.DOUBLE_BLOCK_HALF)) {
             DoubleBlockHalf half = state.getValue(BlockStateProperties.DOUBLE_BLOCK_HALF);
