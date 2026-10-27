@@ -75,9 +75,22 @@ public record BoardSnapshotPayload(
             long rewardSum,
             int villageDelivered,
             int traineeFreeContracts,
-            int traineeMaxDistance
+            int traineeMaxDistance,
+            int xp,
+            int rankXp0,
+            int rankXp1,
+            int rankXp2,
+            int rankXp3,
+            int rankXp4,
+            int aceMinSuccessPercent
     ) {
-        public static final BoardProfile EMPTY = new BoardProfile("", LicenseRank.RANK1, 0, 0, 0L, 0L, 0, 3, 800);
+        public static final BoardProfile EMPTY = new BoardProfile(
+                "", LicenseRank.RANK1, 0, 0, 0L, 0L, 0, 3, 800,
+                0, 0, 300, 1500, 5000, 15000, 90);
+
+        public List<Integer> rankXpThresholds() {
+            return List.of(rankXp0, rankXp1, rankXp2, rankXp3, rankXp4);
+        }
 
         public static final StreamCodec<RegistryFriendlyByteBuf, BoardProfile> STREAM_CODEC =
                 StreamCodec.of(BoardProfile::write, BoardProfile::read);
@@ -92,6 +105,13 @@ public record BoardSnapshotPayload(
             ByteBufCodecs.VAR_INT.encode(buf, p.villageDelivered);
             ByteBufCodecs.VAR_INT.encode(buf, p.traineeFreeContracts);
             ByteBufCodecs.VAR_INT.encode(buf, p.traineeMaxDistance);
+            ByteBufCodecs.VAR_INT.encode(buf, p.xp);
+            ByteBufCodecs.VAR_INT.encode(buf, p.rankXp0);
+            ByteBufCodecs.VAR_INT.encode(buf, p.rankXp1);
+            ByteBufCodecs.VAR_INT.encode(buf, p.rankXp2);
+            ByteBufCodecs.VAR_INT.encode(buf, p.rankXp3);
+            ByteBufCodecs.VAR_INT.encode(buf, p.rankXp4);
+            ByteBufCodecs.VAR_INT.encode(buf, p.aceMinSuccessPercent);
         }
 
         private static BoardProfile read(RegistryFriendlyByteBuf buf) {
@@ -102,6 +122,13 @@ public record BoardSnapshotPayload(
                     ByteBufCodecs.VAR_INT.decode(buf),
                     ByteBufCodecs.VAR_LONG.decode(buf),
                     ByteBufCodecs.VAR_LONG.decode(buf),
+                    ByteBufCodecs.VAR_INT.decode(buf),
+                    ByteBufCodecs.VAR_INT.decode(buf),
+                    ByteBufCodecs.VAR_INT.decode(buf),
+                    ByteBufCodecs.VAR_INT.decode(buf),
+                    ByteBufCodecs.VAR_INT.decode(buf),
+                    ByteBufCodecs.VAR_INT.decode(buf),
+                    ByteBufCodecs.VAR_INT.decode(buf),
                     ByteBufCodecs.VAR_INT.decode(buf),
                     ByteBufCodecs.VAR_INT.decode(buf),
                     ByteBufCodecs.VAR_INT.decode(buf));

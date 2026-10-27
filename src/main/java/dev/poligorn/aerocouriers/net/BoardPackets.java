@@ -52,6 +52,14 @@ public final class BoardPackets {
         open(player, 0, true, Optional.empty());
     }
 
+    /** Pushes a fresh snapshot without opening the screen (profile XP after delivery, etc.). */
+    public static void syncSnapshot(ServerPlayer player) {
+        if (!canSendBoard(player)) {
+            return;
+        }
+        PacketDistributor.sendToPlayer(player, snapshot(player, 0, false, Optional.empty()));
+    }
+
     public static void open(ServerPlayer player, int page, boolean openScreen, Optional<Component> notice) {
         if (!canSendBoard(player)) {
             notice.ifPresent(player::sendSystemMessage);
@@ -132,6 +140,13 @@ public final class BoardPackets {
                 break;
             }
         }
+        List<Integer> rankDefaults = List.of(0, 300, 1500, 5000, 15000);
+        List<? extends Integer> configured = CouriersServerConfig.RANK_XP.get();
+        int[] thresholds = new int[5];
+        for (int i = 0; i < 5; i++) {
+            thresholds[i] = i < configured.size() ? configured.get(i) : rankDefaults.get(i);
+        }
+        int acePercent = (int) Math.round(CouriersServerConfig.ACE_MIN_SUCCESS.get() * 100.0);
         return new BoardSnapshotPayload.BoardProfile(
                 player.getGameProfile().getName(),
                 rank,
@@ -141,7 +156,14 @@ public final class BoardPackets {
                 stats.rewardSum(),
                 stats.villageDelivered(),
                 CouriersServerConfig.TRAINEE_FREE_CONTRACTS.get(),
-                CouriersServerConfig.TRAINEE_MAX_DISTANCE.get());
+                CouriersServerConfig.TRAINEE_MAX_DISTANCE.get(),
+                stats.xp(),
+                thresholds[0],
+                thresholds[1],
+                thresholds[2],
+                thresholds[3],
+                thresholds[4],
+                acePercent);
     }
 
     public static void handleOpen(ServerPlayer player, OpenBoardPayload payload) {

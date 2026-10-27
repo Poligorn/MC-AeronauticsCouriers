@@ -2,7 +2,7 @@
 
 > Живой документ. Обновлять при каждом завершённом шаге итерации или изменении решения (см. `.cursor/rules/90-maintaining-docs.mdc`).
 
-**Обновлено:** 27.10.2026 · **Версия:** 0.1.0-alpha · **Итерация 6+:** контейнеры M/L (§8.1). `./gradlew build` — см. последний прогон агента. GameTest в cloud не гоняли.
+**Обновлено:** 27.10.2026 · **Версия:** 0.1.0-alpha · **Итерация 6+:** контейнеры M/L (§8.1), полоса XP на «Профиль». `./gradlew build` — OK (cloud, profile XP bar). GameTest в cloud не гоняли.
 
 ## Сделано
 
@@ -120,7 +120,7 @@
 - GameTest: `boardRequiresOrderTabletUnlessEquipped` (+1 к 30).
 
 ### CSI GUI на экранах (26.10.2026, только клиентский рендер)
-- **Доска заказов:** `TabletGui` — фон `#0A0200`, сетка `#241006`, `FRAME_BORDER=16`, `CONTENT_INSET=9`, антенна 2× (`tablet_decor_antenna` только). Вкладки: Заказы, **Текущие** / **История**, Профиль (+ Тест у OP). Нижний footer уведомлений убран; колокол → экран уведомлений + звук. Принятие — `BoardAcceptConfirmScreen` (залог как на сервере, стажёр 0). Строки: `BoardRowRenderer` (редкий груз — `icon/rare_cargo_tablet`). Рендер: chrome после `super.render`, без `renderWithTooltip` в `render`. Почта — `icon/envelope_tablet`. `tools/gen_gui_sprites.py`.
+- **Доска заказов:** `TabletGui` — фон `#0A0200`, сетка `#241006`, `FRAME_BORDER=16`, `CONTENT_INSET=9`, антенна 2× (`tablet_decor_antenna` только). Вкладки: Заказы, **Текущие** / **История**, Профиль (+ Тест у OP). **Профиль:** строка «ник · ранг», полоса XP внутри текущего ранга (пороги из `[progression] rank_xp` в снимке), «До ранга …», при V/админе — «Максимальный ранг»; тултип полосы — лимиты следующего ранга (`RankRules` / `AcceptEligibility`); при блоке V — успешность ≥ `ace_min_success`. После доставки — `BoardPackets.syncSnapshot` обновляет снимок (XP на вкладке). Нижний footer уведомлений убран; колокол → экран уведомлений + звук. Принятие — `BoardAcceptConfirmScreen` (залог как на сервере, стажёр 0). Строки: `BoardRowRenderer` (редкий груз — `icon/rare_cargo_tablet`). Рендер: chrome после `super.render`, без `renderWithTooltip` в `render`. Почта — `icon/envelope_tablet`. `tools/gen_gui_sprites.py`.
 - **Окно штампа (создание заказа):** без изменений — деревянная рамка `panel` + `paper_sheet` + `clipboard_clip` (`StampCreateGui`, `CourierButton`); тёмный текст на бумаге.
 - Клиентский конфиг `[gui] useVanillaSprites` (по умолчанию `false`) — кнопки/вкладки доски на `minecraft:widget/*`.
 - Превью: доска (4 вкладки, русский текст) — `tools/render_create_gui_preview.py` → `/opt/cursor/artifacts/board_tab{0..3}_400x240.png`, `480x300`, профиль — `board_profile_400x240.png`, `board_profile_480x300.png`; штамп — `tools/render_stamp_clipboard_preview.py`. Раскладка штампа: `CLIP_OVERHANG`.

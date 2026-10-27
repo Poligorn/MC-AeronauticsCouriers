@@ -255,5 +255,15 @@
   "cargo.aerocouriers.size.s": "S",
   "cargo.aerocouriers.size.m": "M",
   "cargo.aerocouriers.size.l": "L",
-  "ui.aerocouriers.accept.confirm.size": "Контейнер: %s"
+  "ui.aerocouriers.accept.confirm.size": "Контейнер: %s",
+  "ui.aerocouriers.profile.identity": "%s · %s",
+  "ui.aerocouriers.profile.xp_fraction": "%s / %s XP",
+  "ui.aerocouriers.profile.xp_to_next": "До %s: %s XP",
+  "ui.aerocouriers.profile.max_rank": "Максимальный ранг",
+  "ui.aerocouriers.profile.promotion.ace_success": "Нужна успешность не ниже %s%% (сейчас %s%%)",
+  "ui.aerocouriers.profile.next_rank.title": "%s открывает:",
+  "ui.aerocouriers.profile.next_rank.collateral": "Залог до %s сп",
+  "ui.aerocouriers.profile.next_rank.size": "Контейнер до %s",
+  "ui.aerocouriers.profile.next_rank.distance": "Маршруты до %s блоков",
+  "ui.aerocouriers.profile.next_rank.active": "До %s активных перевозок"
 }

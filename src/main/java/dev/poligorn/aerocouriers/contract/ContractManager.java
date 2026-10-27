@@ -14,6 +14,7 @@ import dev.poligorn.aerocouriers.economy.Economy;
 import dev.poligorn.aerocouriers.license.CourierProfile;
 import dev.poligorn.aerocouriers.license.LicenseRank;
 import dev.poligorn.aerocouriers.license.Licenses;
+import dev.poligorn.aerocouriers.net.BoardPackets;
 import dev.poligorn.aerocouriers.net.ZoneSyncPayload;
 import dev.poligorn.aerocouriers.village.StationAtlas;
 import dev.poligorn.aerocouriers.village.StationContractSource;
@@ -726,6 +727,7 @@ public final class ContractManager extends SavedData {
         }
         AeronauticsCouriers.LOGGER.info("[contract] {} delivered by {}: paid={}, late={}, xp={}, repeats={}",
                 id, courier.getGameProfile().getName(), paid, late, xp, repeats);
+        BoardPackets.syncSnapshot(courier);
         return Outcome.ok(delivered, message);
     }
 

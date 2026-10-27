@@ -255,5 +255,15 @@
   "cargo.aerocouriers.size.s": "S",
   "cargo.aerocouriers.size.m": "M",
   "cargo.aerocouriers.size.l": "L",
-  "ui.aerocouriers.accept.confirm.size": "Container: %s"
+  "ui.aerocouriers.accept.confirm.size": "Container: %s",
+  "ui.aerocouriers.profile.identity": "%s · %s",
+  "ui.aerocouriers.profile.xp_fraction": "%s / %s XP",
+  "ui.aerocouriers.profile.xp_to_next": "Until %s: %s XP",
+  "ui.aerocouriers.profile.max_rank": "Maximum rank",
+  "ui.aerocouriers.profile.promotion.ace_success": "Need success rate at least %s%% (now %s%%)",
+  "ui.aerocouriers.profile.next_rank.title": "%s unlocks:",
+  "ui.aerocouriers.profile.next_rank.collateral": "Collateral up to %s sp",
+  "ui.aerocouriers.profile.next_rank.size": "Container size up to %s",
+  "ui.aerocouriers.profile.next_rank.distance": "Routes up to %s blocks",
+  "ui.aerocouriers.profile.next_rank.active": "Up to %s active deliveries"
 }

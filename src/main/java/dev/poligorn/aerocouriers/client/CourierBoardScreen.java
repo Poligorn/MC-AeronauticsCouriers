@@ -8,6 +8,9 @@ import dev.poligorn.aerocouriers.client.board.BoardRowMetrics;
 import dev.poligorn.aerocouriers.client.board.BoardAcceptUi;
 import dev.poligorn.aerocouriers.client.board.BoardRowRenderer;
 import dev.poligorn.aerocouriers.client.board.MineListSection;
+import dev.poligorn.aerocouriers.client.board.ProfileRankBar;
+import dev.poligorn.aerocouriers.client.board.ProfileRankTooltip;
+import dev.poligorn.aerocouriers.contract.RankProgress;
 import dev.poligorn.aerocouriers.client.navigation.ClientNavigation;
 import dev.poligorn.aerocouriers.cargo.CargoSize;
 import dev.poligorn.aerocouriers.contract.AcceptEligibility;
@@ -84,6 +87,7 @@ public final class CourierBoardScreen extends Screen {
     private @Nullable UUID crateHoverOrder;
     /** Visible list rows whose action buttons depend on {@link #initListButtons}; avoids rebuild on timer-only updates. */
     private @Nullable String listRowButtonKey;
+    private @Nullable ProfileRankBar.Layout profileRankBarLayout;
 
     public CourierBoardScreen(@Nullable BoardSnapshotPayload snapshot) {
         super(Component.translatable("ui.aerocouriers.board.title"));
@@ -529,6 +533,9 @@ public final class CourierBoardScreen extends Screen {
         captureRowLine1HoverTips(mouseX, mouseY);
         captureRowHoverTips(mouseX, mouseY);
         if (hoverTip == null && hoverTipLines == null && hoverCargoComponent == null) {
+            captureProfileRankHover(mouseX, mouseY);
+        }
+        if (hoverTip == null && hoverTipLines == null && hoverCargoComponent == null) {
             captureButtonHint(mouseX, mouseY);
         }
         renderTopLayerTooltips(graphics, mouseX, mouseY);
@@ -545,6 +552,7 @@ public final class CourierBoardScreen extends Screen {
 
     private void renderProfile(GuiGraphics graphics, BoardSnapshotPayload.BoardProfile profile, int sx,
                                int mouseX, int mouseY) {
+        profileRankBarLayout = null;
         int top = listTop();
         int bottom = screenTop() + screenH() - 12;
         int boxH = Math.max(48, bottom - top);
@@ -560,19 +568,38 @@ public final class CourierBoardScreen extends Screen {
         }
 
         int y = top + 4;
-        y = drawProfileStatBlock(graphics, Component.literal(profile.playerName()), statsX, y, statsW,
-                TabletGui.TEXT_BRIGHT);
-        y += 2;
-
         LicenseRank rank = profile.rank();
         ItemStack licenseIcon = new ItemStack(ModItems.PILOT_LICENSE.get());
         licenseIcon.set(ModComponents.LICENSE_RANK.get(), rank);
         graphics.renderItem(licenseIcon, statsX, y);
-        Component rankLine = Component.translatable("ui.aerocouriers.profile.rank", rank.displayName());
+        Component identity = Component.translatable(
+                "ui.aerocouriers.profile.identity", profile.playerName(), rank.displayName());
         int rankTextX = statsX + PROFILE_ICON_SIZE + 4;
-        drawClipped(graphics, rankLine, rankTextX, y + 4, statsW - PROFILE_ICON_SIZE - 4, TabletGui.TEXT, mouseX,
-                mouseY);
-        y += PROFILE_ICON_SIZE + 6;
+        drawClipped(graphics, identity, rankTextX, y + 4, statsW - PROFILE_ICON_SIZE - 4, TabletGui.TEXT_BRIGHT,
+                mouseX, mouseY);
+        y += PROFILE_ICON_SIZE + 4;
+
+        RankProgress.State progress = RankProgress.state(profile.xp(), rank, profile.rankXpThresholds());
+        if (progress.maxRank()) {
+            y = drawProfileStatBlock(graphics,
+                    Component.translatable("ui.aerocouriers.profile.max_rank"), statsX, y, statsW, TabletGui.TEXT);
+        } else {
+            profileRankBarLayout = ProfileRankBar.draw(
+                    graphics, font, statsX, y, statsW, progress.fraction(), progress.xpInRank(), progress.span());
+            y += profileRankBarLayout.blockH() + 2;
+            LicenseRank next = RankProgress.nextRank(rank);
+            y = drawProfileStatBlock(graphics,
+                    Component.translatable("ui.aerocouriers.profile.xp_to_next", next.displayName(),
+                            progress.remainingToNext()),
+                    statsX, y, statsW, TabletGui.TEXT_MUTED);
+            Optional<Component> gate = RankProgress.promotionRequirement(
+                    profile.xp(), profile.delivered(), profile.failed(), rank, profile.rankXpThresholds(),
+                    profile.aceMinSuccessPercent());
+            if (gate.isPresent()) {
+                y = drawProfileStatBlock(graphics, gate.get(), statsX, y, statsW, TabletGui.TEXT_WARN);
+            }
+        }
+        y += 4;
 
         y = drawProfileStatBlock(graphics,
                 Component.translatable("ui.aerocouriers.profile.delivered", profile.delivered()), statsX, y, statsW,
@@ -764,6 +791,23 @@ public final class CourierBoardScreen extends Screen {
                 hoverTip = button.hint();
             }
         });
+    }
+
+    private void captureProfileRankHover(int mouseX, int mouseY) {
+        if (tab != Tab.PROFILE || snapshot == null || profileRankBarLayout == null) {
+            return;
+        }
+        BoardSnapshotPayload.BoardProfile profile = snapshot.profile();
+        if (profile.rank().isAdmin() || profile.rank().level() >= 5) {
+            return;
+        }
+        if (!profileRankBarLayout.contains(mouseX, mouseY)) {
+            return;
+        }
+        List<Component> lines = ProfileRankTooltip.lines(profile.rank());
+        if (!lines.isEmpty()) {
+            hoverTipLines = lines;
+        }
     }
 
     private void renderTopLayerTooltips(GuiGraphics graphics, int mouseX, int mouseY) {
