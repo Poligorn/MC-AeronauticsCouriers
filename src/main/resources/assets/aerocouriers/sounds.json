@@ -3,7 +3,7 @@
     "subtitle": "subtitles.aerocouriers.notification",
     "sounds": [
       {
-        "name": "block/note_block/bell",
+        "name": "minecraft:block.note_block.bell",
         "type": "event"
       }
     ]

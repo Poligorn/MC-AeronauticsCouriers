@@ -250,6 +250,10 @@ public final class ContractManager extends SavedData {
         if (size.isEmpty()) {
             return Outcome.error("cargo_too_big", manifest.size(), String.format(Locale.ROOT, "%.1f", weight));
         }
+        CargoSize maxSize = RankRules.limits(Licenses.rankOf(issuer)).maxSize();
+        if (size.get().ordinal() > maxSize.ordinal()) {
+            return Outcome.error("rank_limit_size", AcceptEligibility.sizeLabel(maxSize));
+        }
 
         double distance = origin.distanceTo(destination);
         long minReward = Math.max(1, Pricing.minReward(distance));
@@ -345,6 +349,10 @@ public final class ContractManager extends SavedData {
         Optional<CargoSize> size = CargoSize.smallestFor(manifest.size(), weight);
         if (size.isEmpty()) {
             return Outcome.error("cargo_too_big", manifest.size(), String.format(Locale.ROOT, "%.1f", weight));
+        }
+        CargoSize maxSize = RankRules.limits(Licenses.rankOf(issuer)).maxSize();
+        if (size.get().ordinal() > maxSize.ordinal()) {
+            return Outcome.error("rank_limit_size", AcceptEligibility.sizeLabel(maxSize));
         }
 
         double distance = origin.distanceTo(destination);
