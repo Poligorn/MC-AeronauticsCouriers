@@ -1,6 +1,8 @@
 package dev.poligorn.aerocouriers.client;
 
+import dev.poligorn.aerocouriers.config.CouriersClientConfig;
 import java.util.List;
+import net.minecraft.Util;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
@@ -65,7 +67,7 @@ public final class TabletGui {
         int sy = frameY + FRAME_BORDER;
         int sw = frameW - FRAME_BORDER * 2;
         int sh = frameH - FRAME_BORDER * 2;
-        drawScreenBackground(graphics, sx, sy, sw, sh);
+        drawScreenBackground(graphics, sx, sy, sw, sh, 0.0F);
         drawFrameChrome(graphics, frameX, frameY, frameW, frameH);
     }
 
@@ -78,17 +80,48 @@ public final class TabletGui {
                 antennaLeft(frameX), antennaDrawY(frameY), ANTENNA_W, ANTENNA_H);
     }
 
-    public static void drawScreenBackground(GuiGraphics graphics, int x, int y, int w, int h) {
+    public static void drawScreenBackground(GuiGraphics graphics, int x, int y, int w, int h, float partialTick) {
         if (w <= 0 || h <= 0) {
             return;
         }
         graphics.fill(x, y, x + w, y + h, SCREEN_FILL);
-        for (int gx = x; gx < x + w; gx += GRID_STEP) {
-            graphics.fill(gx, y, gx + 1, y + h, GRID_LINE);
+        if (!CouriersClientConfig.tabletGridAnimation()) {
+            drawGridLines(graphics, x, y, w, h, 0, 0);
+            return;
         }
-        for (int gy = y; gy < y + h; gy += GRID_STEP) {
-            graphics.fill(x, gy, x + w, gy + 1, GRID_LINE);
+        int contentX = x + CONTENT_INSET;
+        int contentY = y + CONTENT_INSET;
+        int contentW = w - CONTENT_INSET * 2;
+        int contentH = h - CONTENT_INSET * 2;
+        if (contentW <= 0 || contentH <= 0) {
+            drawGridLines(graphics, x, y, w, h, 0, 0);
+            return;
         }
+        double scrollPx = (Util.getMillis() + partialTick) * CouriersClientConfig.tabletGridSpeed() / 1000.0;
+        int pixelOffset = (int) Math.floor(scrollPx);
+        int shiftX = positiveMod(-pixelOffset, GRID_STEP);
+        int shiftY = positiveMod(pixelOffset, GRID_STEP);
+        graphics.enableScissor(contentX, contentY, contentX + contentW, contentY + contentH);
+        drawGridLines(graphics, contentX, contentY, contentW, contentH, shiftX, shiftY);
+        graphics.disableScissor();
+    }
+
+    private static void drawGridLines(GuiGraphics graphics, int x, int y, int w, int h, int shiftX, int shiftY) {
+        for (int gx = x - GRID_STEP + shiftX; gx < x + w + GRID_STEP; gx += GRID_STEP) {
+            if (gx >= x && gx < x + w) {
+                graphics.fill(gx, y, gx + 1, y + h, GRID_LINE);
+            }
+        }
+        for (int gy = y - GRID_STEP + shiftY; gy < y + h + GRID_STEP; gy += GRID_STEP) {
+            if (gy >= y && gy < y + h) {
+                graphics.fill(x, gy, x + w, gy + 1, GRID_LINE);
+            }
+        }
+    }
+
+    private static int positiveMod(int value, int modulus) {
+        int r = value % modulus;
+        return r < 0 ? r + modulus : r;
     }
 
     public static void drawListPanel(GuiGraphics graphics, int x, int y, int w, int h) {

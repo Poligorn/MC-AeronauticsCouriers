@@ -18,6 +18,8 @@ public final class CouriersClientConfig {
     public static final ModConfigSpec.IntValue ZONES_RENDER_DISTANCE;
 
     public static final ModConfigSpec.BooleanValue USE_VANILLA_SPRITES;
+    public static final ModConfigSpec.BooleanValue TABLET_GRID_ANIMATION;
+    public static final ModConfigSpec.DoubleValue TABLET_GRID_SPEED;
     public static final ModConfigSpec.BooleanValue NOTIFICATION_SOUNDS;
     public static final ModConfigSpec.BooleanValue SOUNDS_ENABLED;
     public static final ModConfigSpec.DoubleValue SOUNDS_VOLUME;
@@ -60,6 +62,11 @@ public final class CouriersClientConfig {
         USE_VANILLA_SPRITES = b.comment(
                         "Use minecraft:widget/* sprites for buttons and tabs (e.g. when Create Style Interface is installed)")
                 .define("useVanillaSprites", false);
+        TABLET_GRID_ANIMATION = b.comment(
+                        "Slowly scroll the orange grid on order-tablet screens (content area only; frame and widgets stay fixed)")
+                .define("tablet_grid_animation", true);
+        TABLET_GRID_SPEED = b.comment("Grid scroll speed in pixels per second toward the bottom-left corner")
+                .defineInRange("tablet_grid_speed", 1.0, 0.0, 32.0);
         NOTIFICATION_SOUNDS = b.comment("Play a sound when a new order notification arrives")
                 .define("notificationSounds", true);
         b.pop();
@@ -108,6 +115,22 @@ public final class CouriersClientConfig {
             return USE_VANILLA_SPRITES.get();
         } catch (IllegalStateException ignored) {
             return false;
+        }
+    }
+
+    public static boolean tabletGridAnimation() {
+        try {
+            return TABLET_GRID_ANIMATION.get();
+        } catch (IllegalStateException ignored) {
+            return true;
+        }
+    }
+
+    public static double tabletGridSpeed() {
+        try {
+            return TABLET_GRID_SPEED.get();
+        } catch (IllegalStateException ignored) {
+            return 1.0;
         }
     }
 

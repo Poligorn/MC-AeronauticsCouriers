@@ -108,7 +108,7 @@ public final class PostStationScreen extends Screen {
     @Override
     public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         InGamePauseBackground.render(this, graphics, mouseX, mouseY, partialTick);
-        TabletGui.drawScreenBackground(graphics, cavityLeft(), cavityTop(), cavityW(), cavityH());
+        TabletGui.drawScreenBackground(graphics, cavityLeft(), cavityTop(), cavityW(), cavityH(), partialTick);
     }
 
     @Override
