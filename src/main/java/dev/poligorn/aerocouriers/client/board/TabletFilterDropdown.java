@@ -11,7 +11,7 @@ import org.jetbrains.annotations.Nullable;
 
 /** Label + value dropdown chip (cycles on click; arrow zone toggles sort direction). */
 public final class TabletFilterDropdown extends Button {
-    private static final int ARROW_W = 12;
+    static final int ARROW_W = 12;
     private final Component prefix;
     private Component value;
     private boolean sortStyle;

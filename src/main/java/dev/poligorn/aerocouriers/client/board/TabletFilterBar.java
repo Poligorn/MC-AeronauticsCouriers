@@ -5,13 +5,17 @@ import dev.poligorn.aerocouriers.client.ClientBoard;
 import dev.poligorn.aerocouriers.client.TabletButton;
 import java.util.ArrayList;
 import java.util.List;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.network.chat.Component;
 
 /** Builds filter-row widgets for board / mine tabs. */
 public final class TabletFilterBar {
     public static final int ROW_H = 18;
-    public static final int GAP = 4;
+    public static final int GAP = 3;
+    private static final int CHIP_PAD = 8;
+    private static final int DROPDOWN_PAD = 10;
 
     private TabletFilterBar() {
     }
@@ -22,60 +26,54 @@ public final class TabletFilterBar {
     public static Built buildAdmin(int sx, int y, int contentW, Runnable onChange) {
         AdminOrdersFilterState state = ClientBoard.adminOrderFilters();
         List<AbstractWidget> widgets = new ArrayList<>();
-        int x = sx + 44;
+        int x = sx;
         int rowY = y;
         int row = 1;
-        x = placeChipRow(widgets, x, rowY, contentW, sx, row,
-                Component.translatable("ui.aerocouriers.filters.status.open"),
-                state.statusOpen(),
-                () -> {
-                    state.toggleStatusOpen();
-                    onChange.run();
-                },
-                "ui.aerocouriers.filters.status.open.tooltip");
-        x = placeChipRow(widgets, x, rowY, contentW, sx, row,
-                Component.translatable("ui.aerocouriers.filters.status.in_transit"),
-                state.statusInTransit(),
-                () -> {
-                    state.toggleStatusInTransit();
-                    onChange.run();
-                },
-                "ui.aerocouriers.filters.status.in_transit.tooltip");
-        x += 6;
+        Font font = font();
+        String statusGlyph = TabletFilterGlyphs.status(font);
+        x = placeStatusChip(widgets, x, rowY, contentW, sx, row, statusGlyph, "open", state.statusOpen(), () -> {
+            state.toggleStatusOpen();
+            onChange.run();
+        });
+        x = placeStatusChip(widgets, x, rowY, contentW, sx, row, statusGlyph, "in_transit", state.statusInTransit(), () -> {
+            state.toggleStatusInTransit();
+            onChange.run();
+        });
+        x += 4;
+        String sizeGlyph = TabletFilterGlyphs.size(font);
         for (CargoSize size : CargoSize.values()) {
-            int w = 22;
+            Component label = TabletFilterGlyphs.label(sizeGlyph,
+                    Component.translatable("cargo.aerocouriers.size." + size.getSerializedName()));
+            int w = chipWidth(label);
             if (x + w > sx + contentW) {
                 rowY += ROW_H + GAP;
                 x = sx;
                 row++;
             }
-            widgets.add(chip(x, rowY, w, Component.translatable("cargo.aerocouriers.size." + size.getSerializedName()),
-                    state.sizes().contains(size), () -> {
-                        state.toggleSize(size);
-                        onChange.run();
-                    },
-                    Component.translatable("ui.aerocouriers.filters.size." + size.getSerializedName())));
+            Component sizeValue = Component.translatable("cargo.aerocouriers.size." + size.getSerializedName());
+            Component hint = toggleHint("ui.aerocouriers.filters.size", sizeValue, state.sizes().contains(size));
+            widgets.add(chip(x, rowY, w, label, state.sizes().contains(size), () -> {
+                state.toggleSize(size);
+                onChange.run();
+            }, hint));
             x += w + GAP;
         }
-        x += 6;
-        int typeW = 88;
+        x += 4;
+        Component typeValue =
+                Component.translatable("ui.aerocouriers.filters.admin.type." + state.contractKind().name().toLowerCase());
+        Component typePrefix = Component.literal(TabletFilterGlyphs.typeForAdmin(font, state.contractKind()));
+        int typeW = dropdownWidth(typePrefix, typeValue, false);
         if (x + typeW > sx + contentW) {
             rowY += ROW_H + GAP;
             x = sx;
             row++;
         }
-        widgets.add(dropdown(x, rowY, typeW,
-                Component.translatable("ui.aerocouriers.filters.type"),
-                Component.translatable("ui.aerocouriers.filters.admin.type." + state.contractKind().name().toLowerCase()),
-                false, false,
-                () -> {
-                    state.cycleContractKind();
-                    onChange.run();
-                },
-                () -> {},
-                Component.translatable("ui.aerocouriers.filters.type.tooltip")));
+        widgets.add(dropdown(x, rowY, typeW, typePrefix, typeValue, false, false, () -> {
+            state.cycleContractKind();
+            onChange.run();
+        }, () -> {}, TabletFilterGlyphs.tooltip("ui.aerocouriers.filters.type", typeValue)));
         x += typeW + GAP;
-        int sortW = 110;
+        int sortW = sortDropdownWidth(state.sortKey(), state.sortDescending());
         if (x + sortW > sx + contentW) {
             rowY += ROW_H + GAP;
             x = sx;
@@ -90,15 +88,16 @@ public final class TabletFilterBar {
         }));
         x += sortW + GAP;
         if (!state.isDefault()) {
-            if (x + 58 > sx + contentW) {
+            Component reset = Component.translatable("ui.aerocouriers.filters.reset");
+            int resetW = chipWidth(reset);
+            if (x + resetW > sx + contentW) {
                 rowY += ROW_H + GAP;
                 x = sx;
             }
-            widgets.add(TabletButton.create(x, rowY, 58, ROW_H,
-                    Component.translatable("ui.aerocouriers.filters.reset"), b -> {
-                        state.reset();
-                        onChange.run();
-                    }).hint(Component.translatable("ui.aerocouriers.filters.reset.tooltip")));
+            widgets.add(TabletButton.create(x, rowY, resetW, ROW_H, reset, b -> {
+                state.reset();
+                onChange.run();
+            }).hint(Component.translatable("ui.aerocouriers.filters.reset.tooltip")));
         }
         int height = row * ROW_H + (row > 1 ? GAP : 0);
         return new Built(widgets, row, height);
@@ -107,58 +106,63 @@ public final class TabletFilterBar {
     public static Built buildBoard(int sx, int y, int contentW, Runnable onChange) {
         BoardTabFilterState state = ClientBoard.boardFilters();
         List<AbstractWidget> widgets = new ArrayList<>();
-        int x = sx + 38;
+        int x = sx;
         int rowY = y;
         int row = 1;
+        Font font = font();
+        String sizeGlyph = TabletFilterGlyphs.size(font);
         for (CargoSize size : CargoSize.values()) {
-            int w = 22;
+            Component label = TabletFilterGlyphs.label(sizeGlyph,
+                    Component.translatable("cargo.aerocouriers.size." + size.getSerializedName()));
+            int w = chipWidth(label);
             if (x + w > sx + contentW) {
                 rowY += ROW_H + GAP;
                 x = sx;
                 row++;
             }
-            widgets.add(chip(x, rowY, w, Component.translatable("cargo.aerocouriers.size." + size.getSerializedName()),
-                    state.sizes().contains(size), () -> {
-                        state.toggleSize(size);
-                        onChange.run();
-                    },
-                    Component.translatable("ui.aerocouriers.filters.size." + size.getSerializedName())));
+            Component sizeValue = Component.translatable("cargo.aerocouriers.size." + size.getSerializedName());
+            Component hint = toggleHint("ui.aerocouriers.filters.size", sizeValue, state.sizes().contains(size));
+            widgets.add(chip(x, rowY, w, label, state.sizes().contains(size), () -> {
+                state.toggleSize(size);
+                onChange.run();
+            }, hint));
             x += w + GAP;
         }
-        x += 6;
-        int rankW = 112;
+        x += 4;
+        String rankGlyph = TabletFilterGlyphs.rank(font);
+        Component rankValue = state.onlyAvailable()
+                ? Component.translatable("ui.aerocouriers.filters.rank_available.short_on")
+                : Component.translatable("ui.aerocouriers.filters.rank_available.short_off");
+        Component rankLabel = TabletFilterGlyphs.label(rankGlyph, rankValue);
+        int rankW = chipWidth(rankLabel);
         if (x + rankW > sx + contentW) {
             rowY += ROW_H + GAP;
             x = sx;
             row++;
         }
-        widgets.add(chip(x, rowY, rankW,
-                Component.translatable("ui.aerocouriers.filters.rank_available"),
-                state.onlyAvailable(),
-                () -> {
-                    state.toggleOnlyAvailable();
-                    onChange.run();
-                },
-                Component.translatable("ui.aerocouriers.filters.rank_available.tooltip")));
+        Component rankHintValue = state.onlyAvailable()
+                ? Component.translatable("ui.aerocouriers.filters.rank_available")
+                : Component.translatable("ui.aerocouriers.filters.rank_available.short_off");
+        widgets.add(chip(x, rowY, rankW, rankLabel, state.onlyAvailable(), () -> {
+            state.toggleOnlyAvailable();
+            onChange.run();
+        }, TabletFilterGlyphs.tooltip("ui.aerocouriers.filters.rank_available", rankHintValue)));
         x += rankW + GAP;
-        int typeW = 98;
+        Component typeValue =
+                Component.translatable("ui.aerocouriers.filters.type." + state.contractKind().name().toLowerCase());
+        Component typePrefix = Component.literal(TabletFilterGlyphs.typeForBoard(font, state.contractKind()));
+        int typeW = dropdownWidth(typePrefix, typeValue, false);
         if (x + typeW > sx + contentW) {
             rowY += ROW_H + GAP;
             x = sx;
             row++;
         }
-        widgets.add(dropdown(x, rowY, typeW,
-                Component.translatable("ui.aerocouriers.filters.type"),
-                Component.translatable("ui.aerocouriers.filters.type." + state.contractKind().name().toLowerCase()),
-                false, false,
-                () -> {
-                    state.cycleContractKind();
-                    onChange.run();
-                },
-                () -> {},
-                Component.translatable("ui.aerocouriers.filters.type.tooltip")));
+        widgets.add(dropdown(x, rowY, typeW, typePrefix, typeValue, false, false, () -> {
+            state.cycleContractKind();
+            onChange.run();
+        }, () -> {}, TabletFilterGlyphs.tooltip("ui.aerocouriers.filters.type", typeValue)));
         x += typeW + GAP;
-        int sortW = 110;
+        int sortW = sortDropdownWidth(state.sortKey(), state.sortDescending());
         if (x + sortW > sx + contentW) {
             rowY += ROW_H + GAP;
             x = sx;
@@ -180,78 +184,72 @@ public final class TabletFilterBar {
     public static Built buildMine(int sx, int y, int contentW, MineListSection section, Runnable onChange) {
         MineTabFilterState state = ClientBoard.mineFilters(section);
         List<AbstractWidget> widgets = new ArrayList<>();
-        int x = sx + 44;
+        int x = sx;
         int rowY = y;
         int row = 1;
+        Font font = font();
+        String statusGlyph = TabletFilterGlyphs.status(font);
         if (section == MineListSection.CURRENT) {
-            x = placeChipRow(widgets, x, rowY, contentW, sx, row,
-                    Component.translatable("ui.aerocouriers.filters.status.open"),
-                    state.statusOpen(),
-                    () -> {
-                        state.toggleStatusOpen();
-                        onChange.run();
-                    },
-                    "ui.aerocouriers.filters.status.open.tooltip");
-            x = placeChipRow(widgets, x, rowY, contentW, sx, row,
-                    Component.translatable("ui.aerocouriers.filters.status.in_transit"),
-                    state.statusInTransit(),
+            x = placeStatusChip(widgets, x, rowY, contentW, sx, row, statusGlyph, "open", state.statusOpen(), () -> {
+                state.toggleStatusOpen();
+                onChange.run();
+            });
+            x = placeStatusChip(widgets, x, rowY, contentW, sx, row, statusGlyph, "in_transit", state.statusInTransit(),
                     () -> {
                         state.toggleStatusInTransit();
                         onChange.run();
-                    },
-                    "ui.aerocouriers.filters.status.in_transit.tooltip");
+                    });
         } else {
             for (MineHistoryBucket bucket : MineHistoryBucket.values()) {
                 String key = bucket.name().toLowerCase();
-                int w = Math.max(52, 12 + key.length() * 5);
+                Component shortLabel = Component.translatable("ui.aerocouriers.filters.status." + key + ".short");
+                Component label = TabletFilterGlyphs.label(statusGlyph, shortLabel);
+                int w = chipWidth(label);
                 if (x + w > sx + contentW) {
                     rowY += ROW_H + GAP;
                     x = sx;
                     row++;
                 }
-                widgets.add(chip(x, rowY, w,
-                        Component.translatable("ui.aerocouriers.filters.status." + key),
-                        bucket.enabled(state),
-                        () -> {
-                            state.toggleHistoryStatus(bucket);
-                            onChange.run();
-                        },
-                        Component.translatable("ui.aerocouriers.filters.status." + key + ".tooltip")));
+                Component fullStatus = Component.translatable("ui.aerocouriers.filters.status." + key);
+                Component hint = toggleHint("ui.aerocouriers.filters.status", fullStatus, bucket.enabled(state));
+                widgets.add(chip(x, rowY, w, label, bucket.enabled(state), () -> {
+                    state.toggleHistoryStatus(bucket);
+                    onChange.run();
+                }, hint));
                 x += w + GAP;
             }
         }
-        x += 6;
-        int courierW = 64;
+        x += 4;
+        String roleGlyph = TabletFilterGlyphs.role(font);
+        Component courierShort = Component.translatable("ui.aerocouriers.filters.role.courier.short");
+        Component courierLabel = TabletFilterGlyphs.label(roleGlyph, courierShort);
+        int courierW = chipWidth(courierLabel);
         if (x + courierW > sx + contentW) {
             rowY += ROW_H + GAP;
             x = sx;
             row++;
         }
-        widgets.add(chip(x, rowY, courierW,
-                Component.translatable("ui.aerocouriers.filters.role.courier"),
-                state.roleCourier(),
-                () -> {
-                    state.toggleRoleCourier();
-                    onChange.run();
-                },
-                Component.translatable("ui.aerocouriers.filters.role.courier.tooltip")));
+        Component courierFull = Component.translatable("ui.aerocouriers.filters.role.courier");
+        widgets.add(chip(x, rowY, courierW, courierLabel, state.roleCourier(), () -> {
+            state.toggleRoleCourier();
+            onChange.run();
+        }, toggleHint("ui.aerocouriers.filters.role.courier", courierFull, state.roleCourier())));
         x += courierW + GAP;
-        int customerW = 72;
+        Component customerShort = Component.translatable("ui.aerocouriers.filters.role.customer.short");
+        Component customerLabel = TabletFilterGlyphs.label(roleGlyph, customerShort);
+        int customerW = chipWidth(customerLabel);
         if (x + customerW > sx + contentW) {
             rowY += ROW_H + GAP;
             x = sx;
             row++;
         }
-        widgets.add(chip(x, rowY, customerW,
-                Component.translatable("ui.aerocouriers.filters.role.customer"),
-                state.roleCustomer(),
-                () -> {
-                    state.toggleRoleCustomer();
-                    onChange.run();
-                },
-                Component.translatable("ui.aerocouriers.filters.role.customer.tooltip")));
+        Component customerFull = Component.translatable("ui.aerocouriers.filters.role.customer");
+        widgets.add(chip(x, rowY, customerW, customerLabel, state.roleCustomer(), () -> {
+            state.toggleRoleCustomer();
+            onChange.run();
+        }, toggleHint("ui.aerocouriers.filters.role.customer", customerFull, state.roleCustomer())));
         x += customerW + GAP;
-        int sortW = 110;
+        int sortW = sortDropdownWidth(state.sortKey(), state.sortDescending());
         if (x + sortW > sx + contentW) {
             rowY += ROW_H + GAP;
             x = sx;
@@ -270,23 +268,27 @@ public final class TabletFilterBar {
         return new Built(widgets, row, height);
     }
 
-    private static int placeChipRow(
+    private static int placeStatusChip(
             List<AbstractWidget> widgets,
             int x,
             int rowY,
             int contentW,
             int sx,
             int row,
-            Component label,
+            String statusGlyph,
+            String statusKey,
             boolean selected,
-            Runnable onPress,
-            String hintKey) {
-        int w = Math.max(48, 12 + label.getString().length() * 5);
+            Runnable onPress) {
+        Component shortLabel = Component.translatable("ui.aerocouriers.filters.status." + statusKey + ".short");
+        Component label = TabletFilterGlyphs.label(statusGlyph, shortLabel);
+        int w = chipWidth(label);
         if (x + w > sx + contentW) {
             rowY += ROW_H + GAP;
             x = sx;
         }
-        widgets.add(chip(x, rowY, w, label, selected, onPress, Component.translatable(hintKey)));
+        Component fullStatus = Component.translatable("ui.aerocouriers.filters.status." + statusKey);
+        widgets.add(chip(x, rowY, w, label, selected, onPress,
+                toggleHint("ui.aerocouriers.filters.status", fullStatus, selected)));
         return x + w + GAP;
     }
 
@@ -305,19 +307,20 @@ public final class TabletFilterBar {
         if (!show) {
             return;
         }
-        if (x + 58 > sx + contentW) {
+        Component reset = Component.translatable("ui.aerocouriers.filters.reset");
+        int resetW = chipWidth(reset);
+        if (x + resetW > sx + contentW) {
             rowY += ROW_H + GAP;
             x = sx;
         }
-        widgets.add(TabletButton.create(x, rowY, 58, ROW_H,
-                Component.translatable("ui.aerocouriers.filters.reset"), b -> {
-                    if (mine) {
-                        ClientBoard.mineFilters(section).reset(section);
-                    } else {
-                        ClientBoard.boardFilters().reset();
-                    }
-                    onChange.run();
-                }).hint(Component.translatable("ui.aerocouriers.filters.reset.tooltip")));
+        widgets.add(TabletButton.create(x, rowY, resetW, ROW_H, reset, b -> {
+            if (mine) {
+                ClientBoard.mineFilters(section).reset(section);
+            } else {
+                ClientBoard.boardFilters().reset();
+            }
+            onChange.run();
+        }).hint(Component.translatable("ui.aerocouriers.filters.reset.tooltip")));
     }
 
     private static TabletFilterChip chip(
@@ -327,11 +330,11 @@ public final class TabletFilterBar {
 
     private static TabletFilterDropdown sortDropdown(
             int x, int y, int w, BoardSortKey key, boolean desc, Runnable cycle, Runnable toggleDir) {
-        return dropdown(x, y, w,
-                Component.translatable("ui.aerocouriers.filters.sort"),
-                Component.translatable(key.translationKey()),
-                true, desc, cycle, toggleDir,
-                Component.translatable("ui.aerocouriers.filters.sort.tooltip"));
+        Font font = font();
+        Component value = Component.translatable(key.translationKey());
+        Component prefix = Component.literal(TabletFilterGlyphs.sort(font));
+        return dropdown(x, y, w, prefix, value, true, desc, cycle, toggleDir,
+                TabletFilterGlyphs.tooltip("ui.aerocouriers.filters.sort", value));
     }
 
     private static TabletFilterDropdown dropdown(
@@ -350,5 +353,32 @@ public final class TabletFilterBar {
                 .onCycle(cycle)
                 .onToggleDirection(toggleDir)
                 .hint(hint);
+    }
+
+    private static Font font() {
+        return Minecraft.getInstance().font;
+    }
+
+    private static int chipWidth(Component label) {
+        return Math.max(16, CHIP_PAD + font().width(label));
+    }
+
+    private static int dropdownWidth(Component prefix, Component value, boolean sortStyle) {
+        Font f = font();
+        String valueRaw = value.getString() + (sortStyle ? " ▼" : " ▾");
+        return DROPDOWN_PAD + f.width(prefix.getString() + " ") + f.width(valueRaw)
+                + (sortStyle ? TabletFilterDropdown.ARROW_W : 0);
+    }
+
+    private static int sortDropdownWidth(BoardSortKey key, boolean desc) {
+        return dropdownWidth(Component.literal(TabletFilterGlyphs.sort(font())),
+                Component.translatable(key.translationKey()), true);
+    }
+
+    private static Component toggleHint(String filterNameKey, Component value, boolean enabled) {
+        Component state = Component.translatable(enabled
+                ? "ui.aerocouriers.filters.toggle.on"
+                : "ui.aerocouriers.filters.toggle.off");
+        return TabletFilterGlyphs.tooltip(filterNameKey, Component.empty().append(value).append(" (").append(state).append(")"));
     }
 }
