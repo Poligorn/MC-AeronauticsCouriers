@@ -61,7 +61,7 @@ public final class NpcContractGameTests {
                             .orElse(null);
                     helper.assertTrue(contract != null, "generated contract not on the board");
                     helper.assertValueEqual(contract.type(), ContractType.VILLAGE, "type");
-                    helper.assertTrue(contract.preplaced(), "NPC crate is physical at pickup");
+                    helper.assertFalse(contract.preplaced(), "NPC cargo is escrow-only until accept");
                     helper.assertTrue(Escrow.get(f.server()).holding(contract.id()).items().size() >= 1,
                             "generated cargo is in escrow");
                     helper.assertValueEqual(f.economy.balance(from.id()), 0L, "NPC reward is minted, not taken from station");
@@ -71,7 +71,9 @@ public final class NpcContractGameTests {
                     long before = f.economy.balance(f.courier.getUUID());
                     ContractManager.Outcome accepted = f.manager.accept(f.courier, contract.id());
                     f.expect(accepted, true, "accept NPC");
-                    helper.assertValueEqual(f.state(contract), ContractState.IN_TRANSIT, "preplaced accept");
+                    helper.assertValueEqual(f.state(contract), ContractState.ACCEPTED, "accepted before spawn");
+                    f.spawnAtPickup(contract);
+                    helper.assertValueEqual(f.state(contract), ContractState.IN_TRANSIT, "spawned after accept");
                     helper.assertValueEqual(f.economy.balance(f.courier.getUUID()), before, "trainee: no collateral");
 
                     BlockPos dest = contract.recipient().equals(to.id()) ? B : A;
@@ -148,6 +150,7 @@ public final class NpcContractGameTests {
 
                     Contract contract = f.publish(from, to);
                     f.expect(f.manager.accept(f.courier, contract.id()), true, "third trainee accept");
+                    f.spawnAtPickup(contract);
                     Vector3d atDest = f.world(B);
                     f.courier.setPos(Vec3.atCenterOf(helper.absolutePos(B)));
                     int checks = CouriersServerConfig.DELIVERY_STILL_CHECKS.get();
@@ -251,6 +254,10 @@ public final class NpcContractGameTests {
 
         ContractState state(Contract contract) {
             return manager.byId(contract.id()).orElseThrow().state();
+        }
+
+        void spawnAtPickup(Contract contract) {
+            expect(manager.spawnContainer(server(), contract.id()), true, "NPC container spawn");
         }
 
         void expect(ContractManager.Outcome outcome, boolean success, String what) {

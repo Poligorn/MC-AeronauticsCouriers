@@ -398,30 +398,24 @@ public final class ContractManager extends SavedData {
     }
 
     /**
-     * NPC station order (GDD §6): reward is minted into escrow, cargo is generated, a physical crate stands
-     * next to the origin station. Issuer/recipient are station ids, not players.
+     * NPC station order (GDD §6): reward is minted into escrow, manifest is generated in escrow. The physical crate
+     * appears when a courier accepts (lazy spawn, §9.1). Issuer/recipient are station ids, not players.
      */
     public Optional<Contract> publishVillage(ServerLevel level, StationAtlas.Station from, StationAtlas.Station to,
-                                            BlockPos cratePos, List<ItemStack> manifest, CargoSize size,
-                                            double weight, long reward, long collateral, int deadlineMinutes,
-                                            boolean villageRare) {
+                                            List<ItemStack> manifest, CargoSize size, double weight, long reward,
+                                            long collateral, int deadlineMinutes, boolean villageRare) {
         MinecraftServer server = level.getServer();
         long now = now(server);
         Destination origin = new Destination(from.dimension(), from.pos().immutable(), StationContractSource.ZONE_RADIUS);
         Destination destination = new Destination(to.dimension(), to.pos().immutable(), StationContractSource.ZONE_RADIUS);
         UUID id = UUID.randomUUID();
-        int fill = size.fillFor(weight);
-        CargoSpawner.Result spawned = CargoSpawner.spawn(level, cratePos, size, fill, id, false, Direction.NORTH, true);
-        if (!(spawned instanceof CargoSpawner.Result.Placed)) {
-            return Optional.empty();
-        }
         double distance = ContractDistances.pricingBlocks(origin, destination);
         Contract contract = new Contract(id, ContractType.VILLAGE, from.id(), to.id(), Optional.empty(),
                 origin, destination, size, weight, reward, collateral,
                 ContractDistances.routeRequiredRank(collateral, size, origin, destination),
                 new Contract.Timing(now, now + deadlineMinutes * Pricing.TICKS_PER_MINUTE,
                         deadlineMinutes * Pricing.TICKS_PER_MINUTE, -1, 0),
-                ContractState.OPEN, true, Optional.empty());
+                ContractState.OPEN, false, Optional.empty());
         Escrow.get(server).open(id, manifest, reward, villageRare);
         put(contract);
         AeronauticsCouriers.LOGGER.info(

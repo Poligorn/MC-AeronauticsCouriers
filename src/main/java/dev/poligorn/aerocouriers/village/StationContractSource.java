@@ -2,7 +2,6 @@ package dev.poligorn.aerocouriers.village;
 
 import dev.poligorn.aerocouriers.AeronauticsCouriers;
 import dev.poligorn.aerocouriers.cargo.CargoSize;
-import dev.poligorn.aerocouriers.cargo.CargoSpawner;
 import dev.poligorn.aerocouriers.config.CouriersServerConfig;
 import dev.poligorn.aerocouriers.contract.Contract;
 import dev.poligorn.aerocouriers.contract.ContractDistances;
@@ -201,8 +200,8 @@ public final class StationContractSource implements ContractSource {
     }
 
     /**
-     * Publishes one NPC order: cargo from the tables, a physical crate next to the origin station, reward minted
-     * into escrow (GDD §11.2).
+     * Publishes one NPC order: cargo from the tables in escrow, reward minted (GDD §11.2). The crate spawns when a
+     * courier accepts (§9.1).
      */
     public static Optional<Contract> publish(ServerLevel level, StationAtlas.Station from, StationAtlas.Station to,
                                             RandomSource random) {
@@ -225,12 +224,6 @@ public final class StationContractSource implements ContractSource {
         if (size.isEmpty()) {
             return Optional.empty();
         }
-        Optional<BlockPos> spot = CargoSpawner.findSpot(level, from.pos(),
-                CouriersServerConfig.SPAWN_SEARCH_RADIUS.get(), size.get());
-        if (spot.isEmpty()) {
-            AeronauticsCouriers.LOGGER.debug("[station] No crate spot next to «{}»", from.name());
-            return Optional.empty();
-        }
         double distance = ContractDistances.pricingBlocks(
                 new Destination(from.dimension(), from.pos(), ZONE_RADIUS),
                 new Destination(to.dimension(), to.pos(), ZONE_RADIUS));
@@ -239,8 +232,8 @@ public final class StationContractSource implements ContractSource {
         Destination origin = new Destination(from.dimension(), from.pos(), ZONE_RADIUS);
         Destination destination = new Destination(to.dimension(), to.pos(), ZONE_RADIUS);
         Pricing.NpcMoney money = Pricing.balanceNpcMoney(reward, collateral, size.get(), origin, destination);
-        return ContractManager.get(level.getServer()).publishVillage(level, from, to, spot.get(), manifest, size.get(),
-                weight, money.reward(), money.collateral(), DEFAULT_DEADLINE_MINUTES, villageRare);
+        return ContractManager.get(level.getServer()).publishVillage(level, from, to, manifest, size.get(), weight,
+                money.reward(), money.collateral(), DEFAULT_DEADLINE_MINUTES, villageRare);
     }
 
     public static ResourceLocation biomeId(ServerLevel level, BlockPos pos) {
