@@ -65,46 +65,23 @@ public final class NotificationLog extends SavedData {
         return List.copyOf(byPlayer.getOrDefault(player, List.of()));
     }
 
-    public int unread(UUID player) {
-        List<Entry> list = byPlayer.get(player);
-        if (list == null) {
-            return 0;
-        }
-        int count = 0;
-        for (Entry entry : list) {
-            if (!entry.read()) {
-                count++;
-            }
-        }
-        return count;
+    public int unread(MinecraftServer server, UUID player) {
+        return CourierInbox.get(server).unread(player);
     }
 
     public Entry push(MinecraftServer server, UUID player, Component text, Optional<UUID> contractId) {
-        List<Entry> list = byPlayer.computeIfAbsent(player, key -> new ArrayList<>());
-        Entry entry = new Entry(nextId++, ContractManager.now(server), text, contractId, false);
-        list.add(entry);
-        while (list.size() > MAX_ENTRIES) {
-            list.removeFirst();
-        }
-        setDirty();
-        return entry;
+        CourierInbox.Message message = CourierInbox.get(server).pushText(server, player, text, contractId);
+        return new Entry(message.id(), message.at(), message.text(), message.contractId(), message.read());
     }
 
-    public void markAllRead(UUID player) {
-        List<Entry> list = byPlayer.get(player);
-        if (list == null || list.isEmpty()) {
-            return;
-        }
-        boolean changed = false;
-        for (int i = 0; i < list.size(); i++) {
-            Entry before = list.get(i);
-            Entry after = before.markRead();
-            if (after != before) {
-                list.set(i, after);
-                changed = true;
-            }
-        }
-        if (changed) {
+    Map<UUID, List<Entry>> exportAll() {
+        return Map.copyOf(byPlayer);
+    }
+
+    void clearAll() {
+        if (!byPlayer.isEmpty()) {
+            byPlayer.clear();
+            nextId = 1L;
             setDirty();
         }
     }

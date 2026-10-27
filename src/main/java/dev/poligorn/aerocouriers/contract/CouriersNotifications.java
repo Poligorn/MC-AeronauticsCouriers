@@ -2,7 +2,6 @@ package dev.poligorn.aerocouriers.contract;
 
 import dev.poligorn.aerocouriers.net.NotificationAlertPayload;
 import dev.poligorn.aerocouriers.net.NotificationSyncPayload;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -19,7 +18,7 @@ public final class CouriersNotifications {
     /** Log, optional chat, sync, toast, and alert sound for online players. */
     public static void notifyOrder(MinecraftServer server, UUID player, Component message, Optional<UUID> contractId,
                                    boolean chat) {
-        NotificationLog.get(server).push(server, player, message, contractId);
+        CourierInbox.get(server).pushText(server, player, message, contractId);
         ServerPlayer online = server.getPlayerList().getPlayer(player);
         if (online == null) {
             return;
@@ -37,7 +36,7 @@ public final class CouriersNotifications {
 
     /** Persist and sync without chat, toast, or sound. */
     public static void pushSilent(MinecraftServer server, UUID player, Component message, Optional<UUID> contractId) {
-        NotificationLog.get(server).push(server, player, message, contractId);
+        CourierInbox.get(server).pushText(server, player, message, contractId);
         ServerPlayer online = server.getPlayerList().getPlayer(player);
         if (online != null) {
             sync(online);
@@ -49,15 +48,21 @@ public final class CouriersNotifications {
             return;
         }
         MinecraftServer server = player.server;
-        List<NotificationSyncPayload.Line> lines = NotificationLog.get(server).entries(player.getUUID()).stream()
-                .sorted(Comparator.comparingLong(NotificationLog.Entry::at).reversed())
-                .map(e -> new NotificationSyncPayload.Line(e.id(), e.at(), e.text(), e.contractId(), e.read()))
+        List<NotificationSyncPayload.Line> lines = CourierInbox.get(server).messages(player.getUUID()).stream()
+                .map(m -> new NotificationSyncPayload.Line(
+                        m.id(),
+                        m.at(),
+                        m.text(),
+                        m.contractId(),
+                        m.read(),
+                        m.hasItems(),
+                        CourierInbox.Message.totalItemCount(m.items())))
                 .toList();
         PacketDistributor.sendToPlayer(player, new NotificationSyncPayload(ContractManager.now(server), lines));
     }
 
     public static void markRead(ServerPlayer player) {
-        NotificationLog.get(player.server).markAllRead(player.getUUID());
+        CourierInbox.get(player.server).markAllRead(player.getUUID());
         sync(player);
     }
 

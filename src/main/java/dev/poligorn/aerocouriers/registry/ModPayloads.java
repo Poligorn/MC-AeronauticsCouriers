@@ -4,6 +4,10 @@ import dev.poligorn.aerocouriers.client.ClientZones;
 import dev.poligorn.aerocouriers.net.BoardPackets;
 import dev.poligorn.aerocouriers.net.BoardSnapshotPayload;
 import dev.poligorn.aerocouriers.net.ClaimMailPayload;
+import dev.poligorn.aerocouriers.net.InboxClaimPayload;
+import dev.poligorn.aerocouriers.net.InboxClearPlainPayload;
+import dev.poligorn.aerocouriers.net.InboxDismissPayload;
+import dev.poligorn.aerocouriers.net.InboxPackets;
 import dev.poligorn.aerocouriers.net.ClaimTraineeLicensePayload;
 import dev.poligorn.aerocouriers.net.PlayerProfilePayload;
 import dev.poligorn.aerocouriers.net.ProfilePackets;
@@ -67,6 +71,24 @@ public final class ModPayloads {
                 (payload, context) -> context.enqueueWork(() -> {
                     if (context.player() instanceof ServerPlayer player) {
                         MarkNotificationsReadPayload.handle(payload, player);
+                    }
+                }));
+        registrar.playToServer(InboxDismissPayload.TYPE, InboxDismissPayload.STREAM_CODEC,
+                (payload, context) -> context.enqueueWork(() -> {
+                    if (context.player() instanceof ServerPlayer player) {
+                        InboxPackets.handleDismiss(player, payload);
+                    }
+                }));
+        registrar.playToServer(InboxClaimPayload.TYPE, InboxClaimPayload.STREAM_CODEC,
+                (payload, context) -> context.enqueueWork(() -> {
+                    if (context.player() instanceof ServerPlayer player) {
+                        InboxPackets.handleClaim(player, payload);
+                    }
+                }));
+        registrar.playToServer(InboxClearPlainPayload.TYPE, InboxClearPlainPayload.STREAM_CODEC,
+                (payload, context) -> context.enqueueWork(() -> {
+                    if (context.player() instanceof ServerPlayer player) {
+                        InboxPackets.handleClearPlain(player);
                     }
                 }));
         registrar.playToServer(ContractIntentPayload.TYPE, ContractIntentPayload.STREAM_CODEC,

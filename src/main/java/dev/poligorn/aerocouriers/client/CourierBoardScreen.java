@@ -26,6 +26,11 @@ import dev.poligorn.aerocouriers.net.BoardSnapshotPayload;
 import dev.poligorn.aerocouriers.registry.ModComponents;
 import dev.poligorn.aerocouriers.registry.ModItems;
 import dev.poligorn.aerocouriers.net.ContractIntentPayload;
+import dev.poligorn.aerocouriers.net.InboxClaimPayload;
+import dev.poligorn.aerocouriers.net.InboxClearPlainPayload;
+import dev.poligorn.aerocouriers.net.InboxDismissPayload;
+import dev.poligorn.aerocouriers.net.MarkNotificationsReadPayload;
+import dev.poligorn.aerocouriers.net.NotificationSyncPayload;
 import dev.poligorn.aerocouriers.net.OpenBoardPayload;
 import dev.poligorn.aerocouriers.net.OperatorBoardPayload;
 import dev.poligorn.aerocouriers.net.PlayerProfilePayload;
@@ -68,7 +73,9 @@ public final class CourierBoardScreen extends Screen {
     private static final int HEADING_GAP = 7;
     private static final int SCREEN_BOTTOM_PAD = 4;
     private static final int SCROLL_COUNTER_H = 12;
-    private static final int BALANCE_MAIL_GAP = 8;
+    private static final int BALANCE_RIGHT_PAD = 8;
+    private static final int INBOX_ROW_H = 22;
+    private static final int INBOX_ICON = 14;
     private static final int MINE_SUB_TOGGLE_H = 18;
     private static final int MINE_SUB_GAP = 4;
     static final int ADMIN_SUB_TOGGLE_H = 18;
@@ -86,7 +93,7 @@ public final class CourierBoardScreen extends Screen {
     private final BoardAdminUi adminUi = new BoardAdminUi(this);
 
     enum Tab {
-        BOARD, MINE, PROFILE, ADMIN
+        BOARD, MINE, PROFILE, MAIL, ADMIN
     }
 
     private @Nullable BoardSnapshotPayload snapshot;
@@ -104,7 +111,10 @@ public final class CourierBoardScreen extends Screen {
     private final TabletScreenChrome tabletChrome = new TabletScreenChrome(false);
     private final TabletTabSwitchEffects tabEffects = new TabletTabSwitchEffects();
     private final TabletListRowEffects listRowEffects = new TabletListRowEffects();
+    private final TabletListRowEffects mailRowEffects = new TabletListRowEffects();
     private final ProfileXpBarEffects profileXpEffects = new ProfileXpBarEffects();
+    private int mailScroll;
+    private @Nullable String mailRowButtonKey;
 
     public CourierBoardScreen(@Nullable BoardSnapshotPayload snapshot) {
         super(Component.translatable("ui.aerocouriers.board.title"));
@@ -145,7 +155,7 @@ public final class CourierBoardScreen extends Screen {
         }
         if (previous == null || previous.mailCount() != payload.mailCount()
                 || previous.notificationUnread() != payload.notificationUnread()) {
-            refreshHeaderIcons(screenLeft(), mainTabRowY());
+            onInboxCountsChanged();
         }
         if (tab == Tab.PROFILE) {
             removeTabletButtons();
@@ -170,10 +180,15 @@ public final class CourierBoardScreen extends Screen {
             if (value == Tab.PROFILE) {
                 ClientBoard.clearViewedProfile();
             }
+            if (value == Tab.MAIL) {
+                PacketDistributor.sendToServer(MarkNotificationsReadPayload.INSTANCE);
+            }
         }
         tab = value;
         scroll = 0;
+        mailScroll = 0;
         listRowButtonKey = null;
+        mailRowButtonKey = null;
         syncMainTabSelection();
         refreshBoardContent();
     }
@@ -216,6 +231,8 @@ public final class CourierBoardScreen extends Screen {
             listRowButtonKey = listRowButtonKey(snapshot);
         } else if (tab == Tab.PROFILE) {
             initProfileButtons();
+        } else if (tab == Tab.MAIL) {
+            initMailTab();
         }
     }
 
@@ -370,6 +387,8 @@ public final class CourierBoardScreen extends Screen {
             initListButtons(listEntries(), tab == Tab.BOARD);
         } else if (tab == Tab.PROFILE) {
             initProfileButtons();
+        } else if (tab == Tab.MAIL) {
+            initMailTab();
         }
         if (tab == Tab.BOARD || tab == Tab.MINE) {
             listRowButtonKey = listRowButtonKey(snapshot);
@@ -385,15 +404,15 @@ public final class CourierBoardScreen extends Screen {
         int tabRowY = mainTabRowY();
         int tabW = Math.max(64, screenW() / 7);
         int tabX = sx;
-        tabX = addTab(tabX, tabRowY, tabW, Tab.BOARD, "ui.aerocouriers.tab.board") + 4;
-        tabX = addTab(tabX, tabRowY, tabW, Tab.MINE, "ui.aerocouriers.tab.mine") + 4;
-        tabX = addTab(tabX, tabRowY, tabW, Tab.PROFILE, "ui.aerocouriers.tab.profile") + 4;
+        tabX = addTab(tabX, tabRowY, tabW, Tab.BOARD, "ui.aerocouriers.tab.board", 0) + 4;
+        tabX = addTab(tabX, tabRowY, tabW, Tab.MINE, "ui.aerocouriers.tab.mine", 0) + 4;
+        tabX = addTab(tabX, tabRowY, tabW, Tab.PROFILE, "ui.aerocouriers.tab.profile", 0) + 4;
+        tabX = addTab(tabX, tabRowY, tabW, Tab.MAIL, "ui.aerocouriers.tab.mail", inboxUnreadCount()) + 4;
         if (snapshot != null && snapshot.operator()) {
-            tabX = addTab(tabX, tabRowY, tabW, Tab.ADMIN, "ui.aerocouriers.tab.admin") + 4;
+            tabX = addTab(tabX, tabRowY, tabW, Tab.ADMIN, "ui.aerocouriers.tab.admin", 0) + 4;
         }
         balanceStripLeft = tabX + 4;
         syncMainTabSelection();
-        refreshHeaderIcons(sx, tabRowY);
     }
 
     private void initMineSubToggles(int sx) {
@@ -427,28 +446,32 @@ public final class CourierBoardScreen extends Screen {
     }
 
     void onNotificationsChanged() {
-        refreshHeaderIcons(screenLeft(), mainTabRowY());
+        onInboxCountsChanged();
     }
 
-    private void refreshHeaderIcons(int sx, int tabRowY) {
-        for (Renderable widget : new ArrayList<>(renderables)) {
-            if (widget instanceof MailIconButton || widget instanceof NotificationsIconButton) {
-                removeWidget((AbstractWidget) widget);
-            }
+    private void onInboxCountsChanged() {
+        TabletTabButton mail = mainTabs.get(Tab.MAIL);
+        if (mail != null) {
+            mail.badge(inboxUnreadCount());
         }
-        int mailX = sx + screenW() - 24;
-        int bellX = mailX - 24;
-        int mail = snapshot == null ? 0 : snapshot.mailCount();
-        int unread = snapshot == null
-                ? ClientNotifications.unreadCount()
-                : Math.max(snapshot.notificationUnread(), ClientNotifications.unreadCount());
-        addRenderableWidget(new NotificationsIconButton(bellX, tabRowY + 4, unread, true));
-        addRenderableWidget(new MailIconButton(mailX, tabRowY + 4, mail, true));
+        if (tab == Tab.MAIL) {
+            mailRowButtonKey = null;
+            removeTabletButtons();
+            initMailTab();
+        }
+    }
+
+    private int inboxUnreadCount() {
+        if (snapshot != null) {
+            return Math.max(snapshot.notificationUnread(), ClientNotifications.unreadCount());
+        }
+        return ClientNotifications.unreadCount();
     }
 
     /** Returns x position after this tab (for laying out the next one). */
-    private int addTab(int x, int y, int w, Tab value, String key) {
-        TabletTabButton button = new TabletTabButton(x, y, w, TAB_H, Component.translatable(key), () -> selectTab(value));
+    private int addTab(int x, int y, int w, Tab value, String key, int badge) {
+        TabletTabButton button = new TabletTabButton(x, y, w, TAB_H, Component.translatable(key), () -> selectTab(value))
+                .badge(badge);
         button.selected(tab == value);
         mainTabs.put(value, button);
         addRenderableWidget(button);
@@ -688,7 +711,7 @@ public final class CourierBoardScreen extends Screen {
         if (widget instanceof TabletTabButton tabButton && mainTabs.containsValue(tabButton)) {
             return true;
         }
-        return widget instanceof MailIconButton || widget instanceof NotificationsIconButton;
+        return false;
     }
 
     private void drawTabPanelContent(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
@@ -707,9 +730,7 @@ public final class CourierBoardScreen extends Screen {
         if (snapshot != null) {
             long balance = snapshot.balance();
             Component balanceLine = Component.translatable("ui.aerocouriers.balance", balance);
-            int mailX = sx + screenW() - 24;
-            int bellX = mailX - 24;
-            int balanceRight = bellX - BALANCE_MAIL_GAP;
+            int balanceRight = sx + screenW() - BALANCE_RIGHT_PAD;
             int maxW = Math.max(8, balanceRight - balanceStripLeft);
             drawClipped(graphics, balanceLine, balanceStripLeft, mainTabRowY() + 8, maxW, TabletGui.TEXT, mouseX, mouseY);
         }
@@ -726,6 +747,9 @@ public final class CourierBoardScreen extends Screen {
             renderListActionWidgetsOnTop(graphics, mouseX, mouseY, partialTick);
         } else if (tab == Tab.PROFILE) {
             renderProfile(graphics, ClientBoard.activeProfile(snapshot.profile()), sx, mouseX, mouseY);
+        } else if (tab == Tab.MAIL) {
+            renderInboxList(graphics, sx, mouseX, mouseY);
+            renderMailActionWidgetsOnTop(graphics, mouseX, mouseY, partialTick);
         } else if (tab == Tab.ADMIN) {
             int subY = adminUi.subToggleY(headingY(), font.lineHeight);
             if (adminUi.subTab() == BoardAdminUi.SubTab.ORDERS) {
@@ -1265,6 +1289,16 @@ public final class CourierBoardScreen extends Screen {
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (button == 0 && tab == Tab.MAIL) {
+            int index = mailRowAt(mouseX, mouseY);
+            if (index >= 0) {
+                List<NotificationSyncPayload.Line> entries = ClientNotifications.entries();
+                if (index < entries.size()) {
+                    entries.get(index).contractId().ifPresent(ClientBoard::focusContract);
+                    return true;
+                }
+            }
+        }
         if (button == 0 && snapshot != null && (tab == Tab.BOARD || tab == Tab.MINE)) {
             int mx = (int) mouseX;
             int my = (int) mouseY;
@@ -1362,6 +1396,17 @@ public final class CourierBoardScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+        if (tab == Tab.MAIL) {
+            List<NotificationSyncPayload.Line> entries = ClientNotifications.entries();
+            int before = mailScroll;
+            mailScroll = Mth.clamp(mailScroll - (int) Math.signum(scrollY), 0,
+                    Math.max(0, entries.size() - mailVisibleRows()));
+            if (mailScroll != before) {
+                mailRowButtonKey = null;
+                initMailTab();
+                return true;
+            }
+        }
         if (snapshot != null && (tab == Tab.BOARD || tab == Tab.MINE)) {
             List<BoardSnapshotPayload.BoardEntry> all = listEntries();
             int before = scroll;
@@ -1441,6 +1486,7 @@ public final class CourierBoardScreen extends Screen {
             case BOARD -> Component.translatable("ui.aerocouriers.board.heading.board");
             case MINE -> Component.translatable("ui.aerocouriers.board.heading.mine");
             case PROFILE -> Component.translatable("ui.aerocouriers.board.heading.profile");
+            case MAIL -> Component.translatable("ui.aerocouriers.board.heading.mail");
             case ADMIN -> Component.translatable("ui.aerocouriers.board.heading.admin");
         };
     }
@@ -1582,6 +1628,120 @@ public final class CourierBoardScreen extends Screen {
 
     private int visibleRows() {
         return Math.max(3, (listBottom() - listTop()) / rowH());
+    }
+
+    private void initMailTab() {
+        if (snapshot == null) {
+            return;
+        }
+        List<NotificationSyncPayload.Line> entries = ClientNotifications.entries();
+        int sx = screenLeft();
+        int sw = screenW();
+        int clearW = Math.min(96, sw / 3);
+        addRenderableWidget(TabletButton.create(sx + sw - clearW, headingY(), clearW, 14,
+                Component.translatable("ui.aerocouriers.inbox.clear_all"),
+                b -> PacketDistributor.sendToServer(InboxClearPlainPayload.INSTANCE)));
+
+        int visible = mailVisibleRows();
+        mailScroll = Mth.clamp(mailScroll, 0, Math.max(0, entries.size() - visible));
+        int rowTop = mailListTop();
+        for (int i = 0; i < visible && mailScroll + i < entries.size(); i++) {
+            NotificationSyncPayload.Line line = entries.get(mailScroll + i);
+            int rowY = rowTop + i * INBOX_ROW_H;
+            int btnY = rowY + 3;
+            int claimW = 54;
+            int dismissW = 14;
+            int dismissX = sx + sw - dismissW - 4;
+            if (line.hasItems()) {
+                addRenderableWidget(TabletButton.create(dismissX - claimW - 4, btnY, claimW, 14,
+                        Component.translatable("ui.aerocouriers.inbox.claim"),
+                        b -> PacketDistributor.sendToServer(new InboxClaimPayload(line.id()))));
+            } else {
+                addRenderableWidget(TabletButton.create(dismissX, btnY, dismissW, 14,
+                        Component.literal("\u2715"),
+                        b -> PacketDistributor.sendToServer(new InboxDismissPayload(line.id()))));
+            }
+        }
+        mailRowButtonKey = mailScroll + "|" + entries.size();
+    }
+
+    private void renderInboxList(GuiGraphics graphics, int sx, int mouseX, int mouseY) {
+        List<NotificationSyncPayload.Line> entries = ClientNotifications.entries();
+        int listW = screenW();
+        int top = mailListTop();
+        if (entries.isEmpty()) {
+            graphics.drawString(font, Component.translatable("ui.aerocouriers.inbox.empty"),
+                    sx, top, TabletGui.TEXT_MUTED, false);
+            return;
+        }
+        int visible = mailVisibleRows();
+        String listKey = mailScroll + "|" + entries.size();
+        mailRowEffects.onListPopulated(listKey, visible);
+        for (int i = 0; i < visible && mailScroll + i < entries.size(); i++) {
+            NotificationSyncPayload.Line line = entries.get(mailScroll + i);
+            int rowY = top + i * INBOX_ROW_H;
+            boolean hover = mouseX >= sx && mouseX < sx + listW
+                    && mouseY >= rowY && mouseY < rowY + INBOX_ROW_H - 2;
+            float hoverStrength = mailRowEffects.hoverStrength(i, hover);
+            float slideX = mailRowEffects.rowSlideX(i);
+            float rowAlpha = mailRowEffects.rowAlpha(i);
+            TabletGui.drawRow(graphics, sx, rowY, listW, INBOX_ROW_H - 2, false, hoverStrength, rowAlpha, slideX);
+            graphics.pose().pushPose();
+            graphics.pose().translate(slideX, 0.0F, 0.0F);
+            TabletAnim.withAlpha(graphics, rowAlpha, () -> {
+                int iconY = rowY + (INBOX_ROW_H - INBOX_ICON) / 2 - 1;
+                var icon = line.hasItems() ? AerocouriersGuiSprites.ICON_CRATE : AerocouriersGuiSprites.BELL_TABLET;
+                graphics.blitSprite(icon, sx + 4, iconY, INBOX_ICON, INBOX_ICON);
+                int textX = sx + 4 + INBOX_ICON + 4;
+                int claimReserve = line.hasItems() ? 62 : 18;
+                int textW = listW - (textX - sx) - claimReserve - 4;
+                List<FormattedCharSequence> wrapped = font.split(line.text(), textW);
+                int ty = rowY + 4;
+                for (int lineIdx = 0; lineIdx < Math.min(2, wrapped.size()); lineIdx++) {
+                    graphics.drawString(font, wrapped.get(lineIdx), textX, ty, TabletGui.TEXT, false);
+                    ty += font.lineHeight;
+                }
+            });
+            graphics.pose().popPose();
+        }
+    }
+
+    private void renderMailActionWidgetsOnTop(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        int listY = mailListTop();
+        int listBottom = listY + mailVisibleRows() * INBOX_ROW_H;
+        for (Renderable widget : renderables) {
+            if (widget instanceof TabletButton button) {
+                int y = button.getY();
+                if (y >= headingY() && y < listBottom + INBOX_ROW_H) {
+                    widget.render(graphics, mouseX, mouseY, partialTick);
+                }
+            }
+        }
+    }
+
+    private int mailRowAt(double mouseX, double mouseY) {
+        int left = screenLeft();
+        int listW = screenW();
+        if (mouseX < left || mouseX >= left + listW) {
+            return -1;
+        }
+        int y = mailListTop();
+        int visible = mailVisibleRows();
+        for (int i = 0; i < visible && mailScroll + i < ClientNotifications.entries().size(); i++) {
+            int rowY = y + i * INBOX_ROW_H;
+            if (mouseY >= rowY && mouseY < rowY + INBOX_ROW_H - 2) {
+                return mailScroll + i;
+            }
+        }
+        return -1;
+    }
+
+    private int mailListTop() {
+        return headingY() + font.lineHeight + 6;
+    }
+
+    private int mailVisibleRows() {
+        return Math.max(1, (contentBottom() - mailListTop()) / INBOX_ROW_H);
     }
 
     @Override

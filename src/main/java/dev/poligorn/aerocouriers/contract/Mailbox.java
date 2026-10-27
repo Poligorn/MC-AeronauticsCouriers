@@ -1,16 +1,13 @@
 package dev.poligorn.aerocouriers.contract;
 
-import com.mojang.serialization.Codec;
-import dev.poligorn.aerocouriers.AeronauticsCouriers;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import net.minecraft.core.HolderLookup;
-import net.minecraft.core.UUIDUtil;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.NbtOps;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
@@ -19,74 +16,109 @@ import net.minecraft.world.level.saveddata.SavedData;
 /**
  * Per-player mailbox for delivered cargo and returns (GDD §10.2 "Почта"). Waits for offline players indefinitely.
  * Money never goes through the mailbox: it is deposited straight into the {@code Economy}.
+ * <p>
+ * Storage is delegated to {@link CourierInbox}; this type remains for game tests and commands.
  */
 public final class Mailbox extends SavedData {
     private static final String NAME = "aerocouriers_mailbox";
-    private static final Codec<Map<UUID, List<ItemStack>>> BOXES_CODEC =
-            Codec.unboundedMap(UUIDUtil.STRING_CODEC, ItemStack.CODEC.listOf());
 
-    private final Map<UUID, List<ItemStack>> boxes = new HashMap<>();
+    /** Pre-migration flat stacks (read once by {@link CourierInbox}). */
+    private final Map<UUID, List<ItemStack>> legacyBoxes = new HashMap<>();
+    private transient MinecraftServer runtimeServer;
 
     public static Mailbox get(MinecraftServer server) {
-        return server.overworld().getDataStorage().computeIfAbsent(
+        Mailbox mailbox = server.overworld().getDataStorage().computeIfAbsent(
                 new SavedData.Factory<>(Mailbox::new, Mailbox::load, null), NAME);
+        mailbox.runtimeServer = server;
+        return mailbox;
     }
 
     public static Mailbox load(CompoundTag tag, HolderLookup.Provider registries) {
         Mailbox mailbox = new Mailbox();
-        BOXES_CODEC.parse(registries.createSerializationContext(NbtOps.INSTANCE), tag.get("boxes"))
-                .resultOrPartial(error -> AeronauticsCouriers.LOGGER.error("Mailbox: {}", error))
-                .ifPresent(loaded -> loaded.forEach((player, items) -> mailbox.boxes.put(player, new ArrayList<>(items))));
+        mailbox.legacyBoxes.putAll(LegacyCodec.load(tag, registries));
         return mailbox;
     }
 
     public List<ItemStack> contents(UUID player) {
-        return List.copyOf(boxes.getOrDefault(player, List.of()));
+        return CourierInbox.get(requireServer()).allItemStacks(player);
     }
 
     public void post(UUID player, List<ItemStack> items) {
+        post(player, items, CourierInbox.defaultCargoText(items));
+    }
+
+    public void post(UUID player, List<ItemStack> items, Component text) {
         if (items.isEmpty()) {
             return;
         }
-        List<ItemStack> box = boxes.computeIfAbsent(player, key -> new ArrayList<>());
-        for (ItemStack stack : items) {
-            if (!stack.isEmpty()) {
-                box.add(stack.copy());
-            }
-        }
-        setDirty();
+        MinecraftServer server = requireServer();
+        CourierInbox.get(server).postItems(server, player, items, text);
     }
 
     /** "Забрать всё": moves what fits into the inventory, the rest stays in the mailbox. Returns stacks moved. */
     public int claim(UUID player, Inventory inventory) {
-        List<ItemStack> box = boxes.get(player);
-        if (box == null) {
-            return 0;
+        return CourierInbox.get(requireServer()).claimAll(player, inventory);
+    }
+
+    Map<UUID, List<ItemStack>> exportAll() {
+        return Map.copyOf(legacyBoxes);
+    }
+
+    void clearAll() {
+        if (!legacyBoxes.isEmpty()) {
+            legacyBoxes.clear();
+            setDirty();
         }
-        int moved = 0;
-        List<ItemStack> left = new ArrayList<>();
-        for (ItemStack stack : box) {
-            ItemStack remaining = stack.copy();
-            inventory.add(remaining);
-            if (remaining.isEmpty()) {
-                moved++;
-            } else {
-                left.add(remaining);
-            }
+    }
+
+    private MinecraftServer requireServer() {
+        if (runtimeServer == null) {
+            throw new IllegalStateException("Mailbox accessed before level attachment");
         }
-        if (left.isEmpty()) {
-            boxes.remove(player);
-        } else {
-            boxes.put(player, left);
-        }
-        setDirty();
-        return moved;
+        return runtimeServer;
     }
 
     @Override
     public CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
-        tag.put("boxes", BOXES_CODEC.encodeStart(registries.createSerializationContext(NbtOps.INSTANCE), boxes)
-                .getOrThrow());
+        LegacyCodec.save(tag, registries, legacyBoxes);
         return tag;
+    }
+
+    /** Legacy NBT only; live cargo lives in {@link CourierInbox}. */
+    private static final class LegacyCodec {
+        private LegacyCodec() {
+        }
+
+        static Map<UUID, List<ItemStack>> load(CompoundTag tag, HolderLookup.Provider registries) {
+            return LegacyBoxes.load(tag, registries);
+        }
+
+        static void save(CompoundTag tag, HolderLookup.Provider registries, Map<UUID, List<ItemStack>> boxes) {
+            LegacyBoxes.save(tag, registries, boxes);
+        }
+    }
+
+    /** Isolated legacy codec to avoid pulling old Codec into the hot path. */
+    private static final class LegacyBoxes {
+        private static final com.mojang.serialization.Codec<Map<UUID, List<ItemStack>>> BOXES_CODEC =
+                com.mojang.serialization.Codec.unboundedMap(
+                        net.minecraft.core.UUIDUtil.STRING_CODEC, ItemStack.CODEC.listOf());
+
+        static Map<UUID, List<ItemStack>> load(CompoundTag tag, HolderLookup.Provider registries) {
+            Map<UUID, List<ItemStack>> boxes = new HashMap<>();
+            BOXES_CODEC.parse(registries.createSerializationContext(net.minecraft.nbt.NbtOps.INSTANCE), tag.get("boxes"))
+                    .resultOrPartial(error -> dev.poligorn.aerocouriers.AeronauticsCouriers.LOGGER.error("Mailbox: {}", error))
+                    .ifPresent(loaded -> loaded.forEach((player, items) ->
+                            boxes.put(player, new ArrayList<>(items))));
+            return boxes;
+        }
+
+        static void save(CompoundTag tag, HolderLookup.Provider registries, Map<UUID, List<ItemStack>> boxes) {
+            if (boxes.isEmpty()) {
+                return;
+            }
+            tag.put("boxes", BOXES_CODEC.encodeStart(registries.createSerializationContext(net.minecraft.nbt.NbtOps.INSTANCE), boxes)
+                    .getOrThrow());
+        }
     }
 }

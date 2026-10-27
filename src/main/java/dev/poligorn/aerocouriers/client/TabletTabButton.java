@@ -12,6 +12,7 @@ import net.minecraft.resources.ResourceLocation;
 /** Board tab: tablet monitor style or vanilla when configured. */
 public final class TabletTabButton extends Button {
     private boolean selected;
+    private int badge;
     private final boolean tabletChrome;
 
     public TabletTabButton(int x, int y, int w, int h, Component label, Runnable onSelect) {
@@ -21,6 +22,11 @@ public final class TabletTabButton extends Button {
 
     public TabletTabButton selected(boolean selected) {
         this.selected = selected;
+        return this;
+    }
+
+    public TabletTabButton badge(int unread) {
+        this.badge = Math.max(0, unread);
         return this;
     }
 
@@ -48,5 +54,15 @@ public final class TabletTabButton extends Button {
         var font = Minecraft.getInstance().font;
         int textY = getY() + (height - 8) / 2;
         graphics.drawCenteredString(font, getMessage(), getX() + width / 2, textY, color);
+        if (badge > 0) {
+            String label = badge > 99 ? "99+" : Integer.toString(badge);
+            int tw = font.width(label);
+            int bx = getX() + width - Math.min(tw + 4, 10);
+            int by = getY() - 1;
+            int badgeBg = tabletChrome ? 0xFF431A0F : 0xFF4A2D31;
+            int badgeText = tabletChrome ? TabletGui.TEXT_BRIGHT : 0xFFF8F8EC;
+            graphics.fill(bx - 1, by - 1, bx + tw + 2, by + 9, badgeBg);
+            graphics.drawString(font, label, bx, by, badgeText, false);
+        }
     }
 }

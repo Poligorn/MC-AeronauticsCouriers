@@ -11,7 +11,7 @@ import dev.poligorn.aerocouriers.contract.Destination;
 import dev.poligorn.aerocouriers.contract.Escrow;
 import dev.poligorn.aerocouriers.contract.CouriersNotifications;
 import dev.poligorn.aerocouriers.contract.Mailbox;
-import dev.poligorn.aerocouriers.contract.NotificationLog;
+import dev.poligorn.aerocouriers.contract.CourierInbox;
 import dev.poligorn.aerocouriers.contract.Pricing;
 import dev.poligorn.aerocouriers.contract.Weights;
 import dev.poligorn.aerocouriers.economy.Economies;
@@ -134,8 +134,8 @@ public final class BoardPackets {
                 safePage,
                 open.size(),
                 Economies.get(server).balance(self),
-                Mailbox.get(server).contents(self).size(),
-                NotificationLog.get(server).unread(self),
+                CourierInbox.get(server).unread(self),
+                CourierInbox.get(server).unread(self),
                 operator,
                 Licenses.isLicensedCourier(player),
                 CouriersServerConfig.ALLOW_SELF_ACCEPT.get(),
