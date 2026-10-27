@@ -925,14 +925,6 @@ public final class CourierBoardScreen extends Screen {
         if (filterBarHeight <= 0) {
             return;
         }
-        int y = filterBarTop();
-        if (tab == Tab.BOARD) {
-            graphics.drawString(font, Component.translatable("ui.aerocouriers.filters.size"), sx, y + 5,
-                    TabletGui.TEXT_MUTED, false);
-        } else if (tab == Tab.MINE) {
-            graphics.drawString(font, Component.translatable("ui.aerocouriers.filters.status"), sx, y + 5,
-                    TabletGui.TEXT_MUTED, false);
-        }
         int summaryY = filterBarTop() + filterBarHeight + 2;
         if (showsFilterSummary()) {
             int total = rawListEntries().size();
@@ -963,8 +955,6 @@ public final class CourierBoardScreen extends Screen {
         if (adminFilterBarHeight <= 0) {
             return;
         }
-        graphics.drawString(font, Component.translatable("ui.aerocouriers.filters.status"), sx, y + 5,
-                TabletGui.TEXT_MUTED, false);
         int summaryY = y + adminFilterBarHeight + 2;
         if (showsAdminFilterSummary()) {
             int total = snapshot == null ? 0 : snapshot.adminActive().size();
