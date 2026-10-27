@@ -62,7 +62,11 @@ public final class BoardRowRenderer {
         int markerReserve = markerReserveWidth(font, entry, width);
         int nameW = Math.max(8, x + width - cursor - markerReserve);
         String nameShown = clip(font, entry.customerName(), nameW);
-        graphics.drawString(font, nameShown, cursor, y, TabletGui.TEXT, false);
+        boolean playerIssuer = !entry.villageCustomer() && entry.customerId().isPresent();
+        boolean nameHover = playerIssuer
+                && mouseOver(mouseX, mouseY, cursor, y, Math.min(nameW, font.width(nameShown) + 2));
+        int nameColor = nameHover ? TabletGui.TEXT_BUTTON_HOVER : TabletGui.TEXT;
+        graphics.drawString(font, nameShown, cursor, y, nameColor, false);
         drawCrossDimensionMarker(graphics, font, entry, x, y, width);
         Component customerTip = null;
         if (captureHover) {
@@ -128,7 +132,7 @@ public final class BoardRowRenderer {
                         entry.customerName(), entry.customerStationReputation(), entry.customerReputationTier(),
                         entry.customerReputationBonusPercent(), next);
             }
-            return Component.translatable("ui.aerocouriers.row.customer_tooltip", entry.customerName());
+            return Component.translatable("ui.aerocouriers.row.customer_profile_hint", entry.customerName());
         }
         if (!nameShown.equals(entry.customerName()) && mouseOver(mouseX, mouseY, nameX, y, nameW)) {
             clippedHover.accept(Component.literal(entry.customerName()), nameW);

@@ -6,8 +6,11 @@ import dev.poligorn.aerocouriers.client.board.BoardTabFilterState;
 import dev.poligorn.aerocouriers.client.board.MineListSection;
 import dev.poligorn.aerocouriers.client.board.MineTabFilterState;
 import dev.poligorn.aerocouriers.net.BoardSnapshotPayload;
+import dev.poligorn.aerocouriers.net.ClaimTraineeLicensePayload;
 import dev.poligorn.aerocouriers.net.OpenBoardPayload;
 import dev.poligorn.aerocouriers.net.OpenWaybillCreatePayload;
+import dev.poligorn.aerocouriers.net.PlayerProfilePayload;
+import dev.poligorn.aerocouriers.net.RequestPlayerProfilePayload;
 import java.util.UUID;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
@@ -26,6 +29,8 @@ public final class ClientBoard {
     private static final AdminOrdersFilterState adminOrderFilters = new AdminOrdersFilterState();
     private static final MineTabFilterState mineCurrentFilters = MineTabFilterState.defaults(MineListSection.CURRENT);
     private static final MineTabFilterState mineHistoryFilters = MineTabFilterState.defaults(MineListSection.HISTORY);
+    private static @Nullable UUID viewedProfileId;
+    private static @Nullable BoardSnapshotPayload.BoardProfile viewedProfile;
 
     private ClientBoard() {
     }
@@ -98,6 +103,36 @@ public final class ClientBoard {
             minecraft.setScreen(new CourierBoardScreen(payload));
             ClientCouriersSounds.playTabletOpen();
         }
+    }
+
+    public static void requestPlayerProfile(UUID playerId) {
+        PacketDistributor.sendToServer(new RequestPlayerProfilePayload(playerId));
+    }
+
+    public static void applyPlayerProfile(PlayerProfilePayload payload) {
+        viewedProfileId = payload.targetId();
+        viewedProfile = payload.profile();
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft.screen instanceof CourierBoardScreen screen) {
+            screen.openViewedProfile(payload);
+        }
+    }
+
+    public static void clearViewedProfile() {
+        viewedProfileId = null;
+        viewedProfile = null;
+    }
+
+    public static boolean viewingOtherProfile() {
+        return viewedProfileId != null && viewedProfile != null;
+    }
+
+    public static BoardSnapshotPayload.BoardProfile activeProfile(BoardSnapshotPayload.BoardProfile self) {
+        return viewingOtherProfile() ? viewedProfile : self;
+    }
+
+    public static void claimTraineeLicense() {
+        PacketDistributor.sendToServer(ClaimTraineeLicensePayload.INSTANCE);
     }
 
     public static void openWaybillCreate(OpenWaybillCreatePayload payload) {

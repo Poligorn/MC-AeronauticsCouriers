@@ -4,6 +4,8 @@ import dev.poligorn.aerocouriers.AeronauticsCouriers;
 import dev.poligorn.aerocouriers.client.ClientBoard;
 import dev.poligorn.aerocouriers.contract.ContractState;
 import dev.poligorn.aerocouriers.contract.ContractType;
+import dev.poligorn.aerocouriers.cargo.CargoSize;
+import dev.poligorn.aerocouriers.license.IssuerStats;
 import dev.poligorn.aerocouriers.license.LicenseRank;
 import java.util.ArrayList;
 import java.util.List;
@@ -139,7 +141,7 @@ public record BoardSnapshotPayload(
                 PlayerHint::new);
     }
 
-    /** Viewer courier stats for the board «Профиль» tab (server is source of truth). */
+    /** Courier + issuer stats for the board «Профиль» tab (server is source of truth). */
     public record BoardProfile(
             String playerName,
             LicenseRank rank,
@@ -156,14 +158,38 @@ public record BoardSnapshotPayload(
             int rankXp2,
             int rankXp3,
             int rankXp4,
-            int aceMinSuccessPercent
+            int aceMinSuccessPercent,
+            boolean licensedCourier,
+            int licensesIssued,
+            int issuerOrders,
+            long issuerRewardSum,
+            long issuerWeightTenths,
+            int issuerCountS,
+            int issuerCountM,
+            int issuerCountL,
+            int issuerCountXl
     ) {
         public static final BoardProfile EMPTY = new BoardProfile(
                 "", LicenseRank.RANK1, 0, 0, 0L, 0L, 0, 3, 800,
-                0, 0, 300, 1500, 5000, 15000, 90);
+                0, 0, 300, 1500, 5000, 15000, 90,
+                false, 0, 0, 0L, 0L, 0, 0, 0, 0);
 
         public List<Integer> rankXpThresholds() {
             return List.of(rankXp0, rankXp1, rankXp2, rankXp3, rankXp4);
+        }
+
+        public IssuerStats issuerStats() {
+            return new IssuerStats(issuerOrders, issuerRewardSum, issuerWeightTenths,
+                    issuerCountS, issuerCountM, issuerCountL, issuerCountXl);
+        }
+
+        /** True when the player never received a pilot license (first issue is free from the profile tab). */
+        public boolean neverHadPilotLicense() {
+            return licensesIssued <= 0 && !licensedCourier;
+        }
+
+        public Optional<CargoSize> issuerMostCommonSize() {
+            return issuerStats().mostCommonSize();
         }
 
         public static final StreamCodec<RegistryFriendlyByteBuf, BoardProfile> STREAM_CODEC =
@@ -186,6 +212,15 @@ public record BoardSnapshotPayload(
             ByteBufCodecs.VAR_INT.encode(buf, p.rankXp3);
             ByteBufCodecs.VAR_INT.encode(buf, p.rankXp4);
             ByteBufCodecs.VAR_INT.encode(buf, p.aceMinSuccessPercent);
+            buf.writeBoolean(p.licensedCourier);
+            ByteBufCodecs.VAR_INT.encode(buf, p.licensesIssued);
+            ByteBufCodecs.VAR_INT.encode(buf, p.issuerOrders);
+            ByteBufCodecs.VAR_LONG.encode(buf, p.issuerRewardSum);
+            ByteBufCodecs.VAR_LONG.encode(buf, p.issuerWeightTenths);
+            ByteBufCodecs.VAR_INT.encode(buf, p.issuerCountS);
+            ByteBufCodecs.VAR_INT.encode(buf, p.issuerCountM);
+            ByteBufCodecs.VAR_INT.encode(buf, p.issuerCountL);
+            ByteBufCodecs.VAR_INT.encode(buf, p.issuerCountXl);
         }
 
         private static BoardProfile read(RegistryFriendlyByteBuf buf) {
@@ -202,6 +237,15 @@ public record BoardSnapshotPayload(
                     ByteBufCodecs.VAR_INT.decode(buf),
                     ByteBufCodecs.VAR_INT.decode(buf),
                     ByteBufCodecs.VAR_INT.decode(buf),
+                    ByteBufCodecs.VAR_INT.decode(buf),
+                    ByteBufCodecs.VAR_INT.decode(buf),
+                    ByteBufCodecs.VAR_INT.decode(buf),
+                    ByteBufCodecs.VAR_INT.decode(buf),
+                    buf.readBoolean(),
+                    ByteBufCodecs.VAR_INT.decode(buf),
+                    ByteBufCodecs.VAR_INT.decode(buf),
+                    ByteBufCodecs.VAR_LONG.decode(buf),
+                    ByteBufCodecs.VAR_LONG.decode(buf),
                     ByteBufCodecs.VAR_INT.decode(buf),
                     ByteBufCodecs.VAR_INT.decode(buf),
                     ByteBufCodecs.VAR_INT.decode(buf),

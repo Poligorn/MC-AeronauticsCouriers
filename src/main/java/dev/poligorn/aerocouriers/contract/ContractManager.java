@@ -284,6 +284,7 @@ public final class ContractManager extends SavedData {
                 originSnapshot);
         Escrow.get(server).open(id, manifest, reward);
         put(contract);
+        recordIssuerOrder(issuer, size.get(), reward, weight);
         AeronauticsCouriers.LOGGER.info("[contract] {} created by {}: {} stacks, W={}, D={}, reward={}, fee={}, collateral={}",
                 id, issuer.getGameProfile().getName(), manifest.size(), weight, (long) distance, reward, fee, collateral);
         return Outcome.ok(contract, "created", contract.shortId(), reward, fee,
@@ -385,6 +386,7 @@ public final class ContractManager extends SavedData {
                 originSnapshot);
         Escrow.get(server).open(id, manifest, reward);
         put(contract);
+        recordIssuerOrder(issuer, size.get(), reward, weight);
         CouriersSounds.playWaybillSealed(level, sourcePos);
         if (!issuer.isCreative()) {
             Waybills.consumeOne(issuer);
@@ -395,6 +397,11 @@ public final class ContractManager extends SavedData {
                 collateral);
         return Outcome.ok(contract, "created_waybill", contract.shortId(), reward, fee,
                 contract.requiredRank().displayName(), sourcePos.toShortString());
+    }
+
+    /** Issuer profile counters (playtest §9): updated when the order is created, not on completion. */
+    private static void recordIssuerOrder(ServerPlayer issuer, CargoSize size, long reward, double weight) {
+        Licenses.setProfile(issuer, Licenses.profile(issuer).withIssuerOrder(size, reward, weight));
     }
 
     /**

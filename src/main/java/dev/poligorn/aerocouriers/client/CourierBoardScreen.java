@@ -28,6 +28,7 @@ import dev.poligorn.aerocouriers.registry.ModItems;
 import dev.poligorn.aerocouriers.net.ContractIntentPayload;
 import dev.poligorn.aerocouriers.net.OpenBoardPayload;
 import dev.poligorn.aerocouriers.net.OperatorBoardPayload;
+import dev.poligorn.aerocouriers.net.PlayerProfilePayload;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
@@ -146,6 +147,10 @@ public final class CourierBoardScreen extends Screen {
                 || previous.notificationUnread() != payload.notificationUnread()) {
             refreshHeaderIcons(screenLeft(), mainTabRowY());
         }
+        if (tab == Tab.PROFILE) {
+            removeTabletButtons();
+            initProfileButtons();
+        }
     }
 
     private boolean needsContentWidgetRefresh(@Nullable BoardSnapshotPayload previous, BoardSnapshotPayload payload) {
@@ -162,6 +167,9 @@ public final class CourierBoardScreen extends Screen {
     private void selectTab(Tab value) {
         if (value != tab) {
             tabEffects.onTabSwitch(mainTabs.get(tab), mainTabs.get(value));
+            if (value == Tab.PROFILE) {
+                ClientBoard.clearViewedProfile();
+            }
         }
         tab = value;
         scroll = 0;
@@ -206,7 +214,22 @@ public final class CourierBoardScreen extends Screen {
         }
         if (tab == Tab.BOARD || tab == Tab.MINE) {
             listRowButtonKey = listRowButtonKey(snapshot);
+        } else if (tab == Tab.PROFILE) {
+            initProfileButtons();
         }
+    }
+
+    void openViewedProfile(PlayerProfilePayload payload) {
+        Tab previous = tab;
+        if (previous != Tab.PROFILE) {
+            tabEffects.onTabSwitch(mainTabs.get(previous), mainTabs.get(Tab.PROFILE));
+        }
+        tab = Tab.PROFILE;
+        scroll = 0;
+        listRowButtonKey = null;
+        syncMainTabSelection();
+        refreshBoardContent();
+        init();
     }
 
     /** Drops and rebuilds row/test {@link TabletButton}s only; tabs and mail stay mounted. */
@@ -304,6 +327,31 @@ public final class CourierBoardScreen extends Screen {
         }
     }
 
+    private void initProfileButtons() {
+        if (snapshot == null) {
+            return;
+        }
+        BoardSnapshotPayload.BoardProfile profile = ClientBoard.activeProfile(snapshot.profile());
+        int sx = screenLeft();
+        int top = listTop();
+        int panelW = screenW();
+        int closeW = 18;
+        int closeX = sx + panelW - closeW - 4;
+        if (ClientBoard.viewingOtherProfile()) {
+            addRenderableWidget(TabletButton.create(closeX, top + 4, closeW, 14,
+                    Component.literal("\u2715"), b -> {
+                        ClientBoard.clearViewedProfile();
+                        init();
+                    }));
+        }
+        if (!ClientBoard.viewingOtherProfile() && profile.neverHadPilotLicense()) {
+            int btnW = Math.min(panelW - 16, 220);
+            addRenderableWidget(TabletButton.create(sx + 8, top + 36, btnW, 18,
+                    Component.translatable("ui.aerocouriers.profile.claim_trainee"),
+                    b -> ClientBoard.claimTraineeLicense()));
+        }
+    }
+
     @Override
     protected void init() {
         super.init();
@@ -320,6 +368,8 @@ public final class CourierBoardScreen extends Screen {
             }
             initFilterBar(sx);
             initListButtons(listEntries(), tab == Tab.BOARD);
+        } else if (tab == Tab.PROFILE) {
+            initProfileButtons();
         }
         if (tab == Tab.BOARD || tab == Tab.MINE) {
             listRowButtonKey = listRowButtonKey(snapshot);
@@ -598,6 +648,9 @@ public final class CourierBoardScreen extends Screen {
             TabletAnim.withAlpha(graphics, contentAlpha, () -> {
                 renderContentWidgets(graphics, mouseX, mouseY, partialTick);
                 drawTabPanelContent(graphics, mouseX, mouseY, partialTick);
+                if (tab == Tab.PROFILE) {
+                    renderProfileWidgetsOnTop(graphics, mouseX, mouseY, partialTick);
+                }
             });
             RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
             TabletGui.drawFrameChrome(graphics, left(), top(), panelW(), panelH());
@@ -642,7 +695,9 @@ public final class CourierBoardScreen extends Screen {
         int sx = screenLeft();
         int sy = screenTop();
         int headingY = headingY();
-        graphics.drawString(font, tabHeading(), sx, headingY, TabletGui.TEXT, false);
+        if (tab != Tab.PROFILE) {
+            graphics.drawString(font, tabHeading(), sx, headingY, TabletGui.TEXT, false);
+        }
         if (snapshot != null && tab == Tab.BOARD && showsTraineeHint(snapshot.profile())) {
             Component hint = Component.translatable("ui.aerocouriers.trainee.hint",
                     snapshot.profile().traineeFreeContracts() - snapshot.profile().villageDelivered(),
@@ -670,7 +725,7 @@ public final class CourierBoardScreen extends Screen {
             renderList(graphics, listEntries(), sx, mouseX, mouseY);
             renderListActionWidgetsOnTop(graphics, mouseX, mouseY, partialTick);
         } else if (tab == Tab.PROFILE) {
-            renderProfile(graphics, snapshot.profile(), sx, mouseX, mouseY);
+            renderProfile(graphics, ClientBoard.activeProfile(snapshot.profile()), sx, mouseX, mouseY);
         } else if (tab == Tab.ADMIN) {
             int subY = adminUi.subToggleY(headingY(), font.lineHeight);
             if (adminUi.subTab() == BoardAdminUi.SubTab.ORDERS) {
@@ -707,123 +762,72 @@ public final class CourierBoardScreen extends Screen {
         profileRankBarLayout = null;
         int top = listTop();
         int bottom = screenTop() + screenH() - 12;
-        int boxH = Math.max(48, bottom - top);
-        int innerW = screenW();
-        int boxW = Math.max(96, innerW * 42 / 100);
-        int boxX = sx;
-        int statsX = boxX + boxW + 12;
-        int statsW = Math.max(48, sx + screenW() - statsX);
+        int panelH = Math.max(72, bottom - top);
+        int panelW = screenW();
+        TabletGui.drawListPanel(graphics, sx, top, panelW, panelH);
 
-        TabletGui.drawListPanel(graphics, boxX, top, boxW, boxH);
-        if (minecraft != null && minecraft.player != null) {
-            renderProfileSkin(graphics, boxX, top, boxW, boxH, mouseX, mouseY, minecraft.player);
-        }
+        int innerX = sx + 8;
+        int innerW = panelW - 16;
+        int y = top + 6;
+        Component title = Component.translatable("ui.aerocouriers.profile.heading", profile.playerName());
+        drawClipped(graphics, title, innerX, y, innerW - 22, TabletGui.TEXT_BRIGHT, mouseX, mouseY);
+        y += font.lineHeight + 6;
 
-        int y = top + 4;
-        LicenseRank rank = profile.rank();
-        ItemStack licenseIcon = new ItemStack(ModItems.PILOT_LICENSE.get());
-        licenseIcon.set(ModComponents.LICENSE_RANK.get(), rank);
-        graphics.renderItem(licenseIcon, statsX, y);
-        Component identity = Component.translatable(
-                "ui.aerocouriers.profile.identity", profile.playerName(), rank.displayName());
-        int rankTextX = statsX + PROFILE_ICON_SIZE + 4;
-        drawClipped(graphics, identity, rankTextX, y + 4, statsW - PROFILE_ICON_SIZE - 4, TabletGui.TEXT_BRIGHT,
-                mouseX, mouseY);
-        y += PROFILE_ICON_SIZE + 4;
-
-        RankProgress.State progress = RankProgress.state(profile.xp(), rank, profile.rankXpThresholds());
-        profileXpEffects.onProfile(rank, progress.fraction());
-        float xpFraction = profileXpEffects.displayedFraction(progress.fraction());
-        float rankFlash = profileXpEffects.rankFlashStrength();
-        if (progress.maxRank()) {
-            y = drawProfileStatBlock(graphics,
-                    Component.translatable("ui.aerocouriers.profile.max_rank"), statsX, y, statsW, TabletGui.TEXT);
-        } else {
-            profileRankBarLayout = ProfileRankBar.draw(
-                    graphics, font, statsX, y, statsW, xpFraction, progress.xpInRank(), progress.span(), rankFlash);
-            y += profileRankBarLayout.blockH() + 2;
-            LicenseRank next = RankProgress.nextRank(rank);
-            y = drawProfileStatBlock(graphics,
-                    Component.translatable("ui.aerocouriers.profile.xp_to_next", next.displayName(),
-                            progress.remainingToNext()),
-                    statsX, y, statsW, TabletGui.TEXT_MUTED);
-            Optional<Component> gate = RankProgress.promotionRequirement(
-                    profile.xp(), profile.delivered(), profile.failed(), rank, profile.rankXpThresholds(),
-                    profile.aceMinSuccessPercent());
-            if (gate.isPresent()) {
-                y = drawProfileStatBlock(graphics, gate.get(), statsX, y, statsW, TabletGui.TEXT_WARN);
+        boolean viewingOther = ClientBoard.viewingOtherProfile();
+        if (profile.neverHadPilotLicense()) {
+            if (viewingOther) {
+                y = drawProfileStatBlock(graphics,
+                        Component.translatable("ui.aerocouriers.profile.license.none_other"),
+                        innerX, y, innerW, TabletGui.TEXT_MUTED);
             }
+            // Own profile: trainee button is a widget in initProfileButtons().
+        } else {
+            Component licenseLine = profile.licensedCourier()
+                    ? Component.translatable("ui.aerocouriers.profile.rank_license",
+                    profile.rank().displayName(), Component.translatable("ui.aerocouriers.profile.license.pilot"))
+                    : Component.translatable("ui.aerocouriers.profile.rank_license",
+                    profile.rank().displayName(), Component.translatable("ui.aerocouriers.profile.license.none_worn"));
+            y = drawProfileStatBlock(graphics, licenseLine, innerX, y, innerW, TabletGui.TEXT);
+            y += 2;
+            y = drawProfileStatBlock(graphics,
+                    Component.translatable("ui.aerocouriers.profile.delivered", profile.delivered()),
+                    innerX, y, innerW, TabletGui.TEXT);
+            y = drawProfileStatBlock(graphics,
+                    Component.translatable("ui.aerocouriers.profile.failed", profile.failed()), innerX, y, innerW,
+                    TabletGui.TEXT);
+            y = drawProfileStatBlock(graphics,
+                    Component.translatable("ui.aerocouriers.profile.avg_reward",
+                            formatAverage(profile.rewardSum(), profile.delivered())),
+                    innerX, y, innerW, TabletGui.TEXT);
+            y = drawProfileStatBlock(graphics,
+                    Component.translatable("ui.aerocouriers.profile.avg_distance",
+                            formatAverage(profile.distance(), profile.delivered())),
+                    innerX, y, innerW, TabletGui.TEXT);
+            int completed = profile.delivered() + profile.failed();
+            String rate = completed == 0
+                    ? String.format(Locale.ROOT, "%.0f%%", 100.0)
+                    : String.format(Locale.ROOT, "%.0f%%", profile.delivered() * 100.0 / completed);
+            y = drawProfileStatBlock(graphics,
+                    Component.translatable("ui.aerocouriers.profile.success_rate", rate), innerX, y, innerW,
+                    TabletGui.TEXT);
+            y += 4;
         }
-        y += 4;
 
-        y = drawProfileStatBlock(graphics,
-                Component.translatable("ui.aerocouriers.profile.delivered", profile.delivered()), statsX, y, statsW,
-                TabletGui.TEXT);
-        y = drawProfileStatBlock(graphics,
-                Component.translatable("ui.aerocouriers.profile.failed", profile.failed()), statsX, y, statsW,
-                TabletGui.TEXT);
-        y = drawProfileStatBlock(graphics,
-                Component.translatable("ui.aerocouriers.profile.avg_reward",
-                        formatAverage(profile.rewardSum(), profile.delivered())),
-                statsX, y, statsW, TabletGui.TEXT);
-        y = drawProfileStatBlock(graphics,
-                Component.translatable("ui.aerocouriers.profile.avg_distance",
-                        formatAverage(profile.distance(), profile.delivered())),
-                statsX, y, statsW, TabletGui.TEXT);
-        int completed = profile.delivered() + profile.failed();
-        String rate = completed == 0
-                ? String.format(Locale.ROOT, "%.0f%%", 100.0)
-                : String.format(Locale.ROOT, "%.0f%%", profile.delivered() * 100.0 / completed);
-        drawProfileStatBlock(graphics, Component.translatable("ui.aerocouriers.profile.success_rate", rate), statsX, y,
-                statsW, TabletGui.TEXT);
-    }
-
-    private void renderProfileSkin(GuiGraphics graphics, int boxX, int top, int boxW, int boxH, int mouseX,
-                                   int mouseY, LivingEntity entity) {
-        ProfileSkinPreviewLayout.Layout layout =
-                ProfileSkinPreviewLayout.forPanel(boxX, top, boxW, boxH, entity.getScale());
-        if (Boolean.getBoolean("aerocouriers.logProfileLayout")) {
-            AeronauticsCouriers.LOGGER.info(
-                    "Profile skin panel top={} h={} headTop={} feetBottom={} scale={} marginsOk={}",
-                    top, boxH, layout.estimatedHeadTop(), layout.estimatedFeetBottom(), layout.scale(),
-                    ProfileSkinPreviewLayout.marginsOk(top, boxH, layout));
-        }
-        graphics.enableScissor(boxX, top, boxX + boxW, top + boxH);
-        try {
-            float body = entity.yBodyRot;
-            float yaw = entity.getYRot();
-            float pitch = entity.getXRot();
-            float headO = entity.yHeadRotO;
-            float head = entity.yHeadRot;
-
-            float renderScale = layout.scale() / entity.getScale();
-            float bodyPx = renderScale * ProfileSkinPreviewLayout.PLAYER_VISUAL_HEIGHT_BLOCKS;
-            float anchorX = layout.screenX();
-            float anchorY = layout.estimatedFeetBottom() - bodyPx * 0.82F;
-            float angleX = ProfileSkinRenderer.angleXFromMouse(anchorX, mouseX);
-            float angleY = ProfileSkinRenderer.angleYFromMouse(anchorY, mouseY);
-
-            Quaternionf pose = new Quaternionf().rotateZ((float) Math.PI);
-            Quaternionf cameraRot = new Quaternionf().rotateX(angleY * 20.0F * (float) (Math.PI / 180.0));
-            pose.mul(cameraRot);
-            entity.yBodyRot = 180.0F + angleX * 20.0F;
-            entity.setYRot(180.0F + angleX * 40.0F);
-            entity.setXRot(-angleY * 20.0F);
-            entity.yHeadRot = entity.getYRot();
-            entity.yHeadRotO = entity.getYRot();
-
-            float screenY = layout.estimatedFeetBottom() - bodyPx / 2.0F;
-            Vector3f translate = new Vector3f(0.0F, entity.getBbHeight() / 2.0F, 0.0F);
-            ProfileSkinRenderer.render(
-                    graphics, layout.screenX(), screenY, renderScale, translate, pose, cameraRot, entity);
-
-            entity.yBodyRot = body;
-            entity.setYRot(yaw);
-            entity.setXRot(pitch);
-            entity.yHeadRotO = headO;
-            entity.yHeadRot = head;
-        } finally {
-            graphics.disableScissor();
+        y = drawProfileStatBlock(graphics, Component.translatable("ui.aerocouriers.profile.issuer.heading"),
+                innerX, y, innerW, TabletGui.TEXT_MUTED);
+        if (profile.issuerOrders() <= 0) {
+            drawProfileStatBlock(graphics, Component.translatable("ui.aerocouriers.profile.issuer.empty"),
+                    innerX, y, innerW, TabletGui.TEXT_MUTED);
+        } else {
+            dev.poligorn.aerocouriers.license.IssuerStats issuer = profile.issuerStats();
+            Component line1 = Component.translatable("ui.aerocouriers.profile.issuer.line1",
+                    issuer.orders(), issuer.averageReward());
+            y = drawProfileStatBlock(graphics, line1, innerX, y, innerW, TabletGui.TEXT);
+            CargoSize common = profile.issuerMostCommonSize().orElse(CargoSize.M);
+            Component sizeLabel = AcceptEligibility.sizeLabel(common);
+            Component line2 = Component.translatable("ui.aerocouriers.profile.issuer.line2",
+                    issuer.averageWeight(), sizeLabel);
+            drawProfileStatBlock(graphics, line2, innerX, y, innerW, TabletGui.TEXT);
         }
     }
 
@@ -844,6 +848,15 @@ public final class CourierBoardScreen extends Screen {
     }
 
     /** Row widgets are drawn under list chrome in {@link #render}; paint them again on top. */
+    private void renderProfileWidgetsOnTop(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        int top = listTop();
+        for (Renderable widget : renderables) {
+            if (widget instanceof TabletButton button && button.getY() >= top) {
+                widget.render(graphics, mouseX, mouseY, partialTick);
+            }
+        }
+    }
+
     private void renderListActionWidgetsOnTop(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         int listY = listTop();
         int listBottom = listY + visibleRows() * rowH();
@@ -1274,9 +1287,11 @@ public final class CourierBoardScreen extends Screen {
         return super.mouseClicked(mouseX, mouseY, button);
     }
 
-    /** TODO(profile): open the customer's profile when cross-player profiles exist. */
     private void onCustomerClick(BoardSnapshotPayload.BoardEntry entry) {
-        entry.customerId();
+        if (entry.villageCustomer()) {
+            return;
+        }
+        entry.customerId().ifPresent(ClientBoard::requestPlayerProfile);
     }
 
     private @Nullable BoardSnapshotPayload.BoardEntry hitCustomerRow(int mouseX, int mouseY) {
@@ -1288,6 +1303,9 @@ public final class CourierBoardScreen extends Screen {
         int textRight = layout.textRight();
         for (int i = 0; i < visible && scroll + i < all.size(); i++) {
             BoardSnapshotPayload.BoardEntry entry = all.get(scroll + i);
+            if (entry.villageCustomer() || entry.customerId().isEmpty()) {
+                continue;
+            }
             int rowY = listY + i * rowH();
             if (isOverCustomerArea(entry, rowY, textRight, mouseX, mouseY)) {
                 return entry;

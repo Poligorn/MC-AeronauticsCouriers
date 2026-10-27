@@ -176,42 +176,7 @@ public final class BoardPackets {
     }
 
     private static BoardSnapshotPayload.BoardProfile boardProfile(ServerPlayer player) {
-        CourierProfile stats = Licenses.profile(player);
-        LicenseRank rank = RankRules.rankFor(stats);
-        for (ItemStack stack : Licenses.findLicense(player).stream().toList()) {
-            LicenseOwner owner = stack.get(ModComponents.LICENSE_OWNER.get());
-            if (owner != null && owner.isOwnedBy(player.getUUID())) {
-                LicenseRank onLicense = stack.get(ModComponents.LICENSE_RANK.get());
-                if (onLicense != null && onLicense.isAdmin()) {
-                    rank = onLicense;
-                }
-                break;
-            }
-        }
-        List<Integer> rankDefaults = List.of(0, 300, 1500, 5000, 15000);
-        List<? extends Integer> configured = CouriersServerConfig.RANK_XP.get();
-        int[] thresholds = new int[5];
-        for (int i = 0; i < 5; i++) {
-            thresholds[i] = i < configured.size() ? configured.get(i) : rankDefaults.get(i);
-        }
-        int acePercent = (int) Math.round(CouriersServerConfig.ACE_MIN_SUCCESS.get() * 100.0);
-        return new BoardSnapshotPayload.BoardProfile(
-                player.getGameProfile().getName(),
-                rank,
-                stats.delivered(),
-                stats.failed(),
-                stats.distance(),
-                stats.rewardSum(),
-                stats.villageDelivered(),
-                CouriersServerConfig.TRAINEE_FREE_CONTRACTS.get(),
-                CouriersServerConfig.TRAINEE_MAX_DISTANCE.get(),
-                stats.xp(),
-                thresholds[0],
-                thresholds[1],
-                thresholds[2],
-                thresholds[3],
-                thresholds[4],
-                acePercent);
+        return ProfileSnapshots.forPlayer(player);
     }
 
     public static void handleOpen(ServerPlayer player, OpenBoardPayload payload) {
@@ -380,7 +345,7 @@ public final class BoardPackets {
         }
     }
 
-    private static void denyTablet(ServerPlayer player) {
+    static void denyTablet(ServerPlayer player) {
         Component message = Component.translatable("ui.aerocouriers.error.need_tablet");
         player.displayClientMessage(message, true);
         player.sendSystemMessage(message);

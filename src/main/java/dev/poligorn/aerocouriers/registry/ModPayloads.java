@@ -4,6 +4,10 @@ import dev.poligorn.aerocouriers.client.ClientZones;
 import dev.poligorn.aerocouriers.net.BoardPackets;
 import dev.poligorn.aerocouriers.net.BoardSnapshotPayload;
 import dev.poligorn.aerocouriers.net.ClaimMailPayload;
+import dev.poligorn.aerocouriers.net.ClaimTraineeLicensePayload;
+import dev.poligorn.aerocouriers.net.PlayerProfilePayload;
+import dev.poligorn.aerocouriers.net.ProfilePackets;
+import dev.poligorn.aerocouriers.net.RequestPlayerProfilePayload;
 import dev.poligorn.aerocouriers.net.CouriersUiSoundPayload;
 import dev.poligorn.aerocouriers.net.ContractIntentPayload;
 import dev.poligorn.aerocouriers.net.CreateContractPayload;
@@ -44,6 +48,8 @@ public final class ModPayloads {
                 CouriersUiSoundPayload::handle);
         registrar.playToClient(StationSnapshotPayload.TYPE, StationSnapshotPayload.STREAM_CODEC,
                 StationSnapshotPayload::handle);
+        registrar.playToClient(PlayerProfilePayload.TYPE, PlayerProfilePayload.STREAM_CODEC,
+                PlayerProfilePayload::handle);
 
         registrar.playToServer(OpenBoardPayload.TYPE, OpenBoardPayload.STREAM_CODEC,
                 (payload, context) -> context.enqueueWork(() -> {
@@ -91,6 +97,18 @@ public final class ModPayloads {
                 (payload, context) -> context.enqueueWork(() -> {
                     if (context.player() instanceof ServerPlayer player) {
                         StationPackets.handleRename(player, payload);
+                    }
+                }));
+        registrar.playToServer(RequestPlayerProfilePayload.TYPE, RequestPlayerProfilePayload.STREAM_CODEC,
+                (payload, context) -> context.enqueueWork(() -> {
+                    if (context.player() instanceof ServerPlayer player) {
+                        ProfilePackets.handleRequest(player, payload);
+                    }
+                }));
+        registrar.playToServer(ClaimTraineeLicensePayload.TYPE, ClaimTraineeLicensePayload.STREAM_CODEC,
+                (payload, context) -> context.enqueueWork(() -> {
+                    if (context.player() instanceof ServerPlayer player) {
+                        ProfilePackets.handleClaimTrainee(player);
                     }
                 }));
     }
