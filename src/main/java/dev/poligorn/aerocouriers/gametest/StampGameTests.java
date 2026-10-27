@@ -47,7 +47,7 @@ public final class StampGameTests {
     @GameTest(template = CouriersGameTests.EMPTY, timeoutTicks = 200)
     public static void stampCreatesFromChestWithoutDuping(GameTestHelper helper) {
         Fixture f = new Fixture(helper);
-        ContractManager.Outcome created = f.stamp(20, 0);
+        ContractManager.Outcome created = f.stamp(20, 20);
         helper.assertTrue(created.success(), "stamp: " + created.message().getString());
         Contract contract = created.contract().orElseThrow();
         helper.assertTrue(contract.preplaced(), "stamp orders are preplaced");
@@ -71,7 +71,7 @@ public final class StampGameTests {
     @GameTest(template = CouriersGameTests.EMPTY, timeoutTicks = 200)
     public static void stampCancelReturnsCargoToMailbox(GameTestHelper helper) {
         Fixture f = new Fixture(helper);
-        Contract contract = f.stamp(20, 0).contract().orElseThrow();
+        Contract contract = f.stamp(20, 20).contract().orElseThrow();
         f.expect(f.manager.cancel(f.issuer, contract.id()), true, "cancel");
         helper.assertValueEqual(f.manager.byId(contract.id()).orElseThrow().state(), ContractState.EXPIRED,
                 "cancelled");
@@ -88,7 +88,7 @@ public final class StampGameTests {
     @GameTest(template = CouriersGameTests.EMPTY)
     public static void stampExpireReturnsCargoToMailbox(GameTestHelper helper) {
         Fixture f = new Fixture(helper);
-        Contract contract = f.stamp(20, 0).contract().orElseThrow();
+        Contract contract = f.stamp(20, 20).contract().orElseThrow();
         f.manager.tick(f.server(), contract.timing().expiresAt());
         helper.assertValueEqual(f.manager.byId(contract.id()).orElseThrow().state(), ContractState.EXPIRED,
                 "expired on the board");
@@ -128,7 +128,7 @@ public final class StampGameTests {
     public static void stampMediumContainerForHeavyCargo(GameTestHelper helper) {
         Fixture f = new Fixture(helper, LicenseRank.RANK3);
         fillChest(f, 8, 64, Items.COBBLESTONE);
-        ContractManager.Outcome created = f.stamp(50, 0);
+        ContractManager.Outcome created = f.stamp(50, 50);
         helper.assertTrue(created.success(), "stamp M: " + created.message().getString());
         Contract contract = created.contract().orElseThrow();
         helper.assertValueEqual(contract.size(), CargoSize.M, "contract size");
@@ -149,7 +149,7 @@ public final class StampGameTests {
     public static void stampLargeContainerForVeryHeavyCargo(GameTestHelper helper) {
         Fixture f = new Fixture(helper, LicenseRank.RANK3);
         fillChest(f, 24, 64, Items.COBBLESTONE);
-        ContractManager.Outcome created = f.stamp(80, 0);
+        ContractManager.Outcome created = f.stamp(80, 80);
         helper.assertTrue(created.success(), "stamp L: " + created.message().getString());
         Contract contract = created.contract().orElseThrow();
         helper.assertValueEqual(contract.size(), CargoSize.L, "contract size");

@@ -261,6 +261,10 @@ public final class ContractManager extends SavedData {
         if (collateral < 0) {
             return Outcome.error("negative_collateral");
         }
+        long minCollateral = Pricing.minP2pCollateral(reward, manifest);
+        if (collateral < minCollateral) {
+            return Outcome.error("collateral_below_minimum", minCollateral);
+        }
 
         UUID id = UUID.randomUUID();
         long fee = Pricing.fee(reward);
@@ -357,6 +361,10 @@ public final class ContractManager extends SavedData {
         }
         if (collateral < 0) {
             return Outcome.error("negative_collateral");
+        }
+        long minCollateral = Pricing.minP2pCollateral(reward, manifest);
+        if (collateral < minCollateral) {
+            return Outcome.error("collateral_below_minimum", minCollateral);
         }
 
         UUID id = UUID.randomUUID();

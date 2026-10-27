@@ -236,8 +236,11 @@ public final class StationContractSource implements ContractSource {
                 new Destination(to.dimension(), to.pos(), ZONE_RADIUS));
         long reward = Pricing.npcReward(distance, weight, random);
         long collateral = Pricing.npcCollateral(manifest, weight);
+        Destination origin = new Destination(from.dimension(), from.pos(), ZONE_RADIUS);
+        Destination destination = new Destination(to.dimension(), to.pos(), ZONE_RADIUS);
+        Pricing.NpcMoney money = Pricing.balanceNpcMoney(reward, collateral, size.get(), origin, destination);
         return ContractManager.get(level.getServer()).publishVillage(level, from, to, spot.get(), manifest, size.get(),
-                weight, reward, collateral, DEFAULT_DEADLINE_MINUTES, villageRare);
+                weight, money.reward(), money.collateral(), DEFAULT_DEADLINE_MINUTES, villageRare);
     }
 
     public static ResourceLocation biomeId(ServerLevel level, BlockPos pos) {

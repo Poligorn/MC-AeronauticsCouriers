@@ -40,6 +40,7 @@ public final class WaybillCreateScreen extends Screen {
     private WaybillCreateLayout layout = WaybillCreateLayout.compute(400, 300, 9, 0, false, false, 0);
     private boolean xaeroMap;
     private boolean xaeroList;
+    private @Nullable CourierButton submitButton;
 
     public WaybillCreateScreen(OpenWaybillCreatePayload preview) {
         super(Component.translatable("ui.aerocouriers.stamp.title"));
@@ -98,9 +99,10 @@ public final class WaybillCreateScreen extends Screen {
         addRenderableWidget(numberBox(2, minutes, v -> minutes = v));
         addRenderableWidget(numberBox(3, radius, v -> radius = v));
 
-        addRenderableWidget(CourierButton.create(
+        submitButton = CourierButton.create(
                 layout.submitX, layout.buttonY, layout.submitW, WaybillCreateLayout.FIELD_H,
-                Component.translatable("ui.aerocouriers.create.submit"), b -> submit()));
+                Component.translatable("ui.aerocouriers.create.submit"), b -> submit());
+        addRenderableWidget(submitButton);
         addRenderableWidget(CourierButton.create(
                 layout.cancelX, layout.buttonY, layout.cancelW, WaybillCreateLayout.FIELD_H,
                 Component.translatable("gui.cancel"), b -> onClose()));
@@ -205,6 +207,14 @@ public final class WaybillCreateScreen extends Screen {
             ClientCouriersSounds.playOrderDeny();
             return;
         }
+        long rewardValue = parseLong(reward, CreateContractPayload.DEFAULT_REWARD);
+        long collateralValue = parseLong(collateral, CreateContractPayload.DEFAULT_COLLATERAL);
+        long minCollateral = Pricing.minP2pCollateral(rewardValue, preview.cargo());
+        if (collateralValue < minCollateral) {
+            notice = Component.translatable("contract.aerocouriers.error.collateral_below_minimum", minCollateral);
+            ClientCouriersSounds.playOrderDeny();
+            return;
+        }
         PacketDistributor.sendToServer(new CreateContractPayload(
                 preview.origin(), to.get(), destinationDimension,
                 parseLong(reward, CreateContractPayload.DEFAULT_REWARD),
@@ -299,11 +309,18 @@ public final class WaybillCreateScreen extends Screen {
         long fee = Pricing.fee(rewardValue);
         int infoY = layout.infoY;
         int infoBottom = layout.infoY + layout.infoH;
+        long minCollateral = Pricing.minP2pCollateral(rewardValue, preview.cargo());
+        if (submitButton != null) {
+            submitButton.active = to.isPresent() && collateralValue >= minCollateral;
+        }
         if (to.isPresent()) {
             long min = Pricing.minReward(Math.sqrt(preview.origin().distSqr(to.get())));
             infoY = drawWrappedLimited(graphics, Component.translatable("ui.aerocouriers.create.min_reward", min),
                     textX, infoY, layout.infoW, infoBottom, WaybillCreateGui.TEXT_OK, mouseX, mouseY);
         }
+        infoY = drawWrappedLimited(graphics, Component.translatable("ui.aerocouriers.create.min_collateral", minCollateral),
+                textX, infoY, layout.infoW, infoBottom,
+                collateralValue >= minCollateral ? WaybillCreateGui.TEXT_OK : WaybillCreateGui.TEXT_BAD, mouseX, mouseY);
         infoY = drawWrappedLimited(graphics, Component.translatable("ui.aerocouriers.stamp.cost",
                         rewardValue, fee, collateralValue),
                 textX, infoY, layout.infoW, infoBottom, WaybillCreateGui.TEXT_ACCENT, mouseX, mouseY);

@@ -129,14 +129,14 @@ public final class ContractGameTests {
     public static void openContractExpiresAndCancelIsIssuerOnly(GameTestHelper helper) {
         Fixture f = new Fixture(helper);
         f.economy.deposit(f.issuer.getUUID(), 100, "test");
-        Contract first = f.create(20, 0);
+        Contract first = f.create(20, 20);
         f.expect(f.manager.cancel(f.courier, first.id()), false, "cancel by a stranger");
         f.expect(f.manager.cancel(f.issuer, first.id()), true, "cancel by the issuer");
         helper.assertValueEqual(f.state(first), ContractState.EXPIRED, "cancelled");
         helper.assertValueEqual(f.economy.balance(f.issuer.getUUID()), 99L, "reward back, fee burned");
 
         f.fillChest();
-        Contract second = f.create(20, 0);
+        Contract second = f.create(20, 20);
         f.manager.tick(f.server(), second.timing().expiresAt());
         helper.assertValueEqual(f.state(second), ContractState.EXPIRED, "expired on the board");
         helper.assertValueEqual(Mailbox.get(f.server()).contents(f.issuer.getUUID()).size(), 4, "both cargos mailed");
@@ -158,7 +158,8 @@ public final class ContractGameTests {
         helper.assertValueEqual(f.economy.balance(unlicensed.getUUID()), 100L, "nothing withdrawn");
 
         f.chest().setItem(0, new ItemStack(Items.SHULKER_BOX));
-        f.expect(f.tryCreate(20, 0), false, "shulker box in cargo");
+        f.expect(f.tryCreate(20, 10), false, "collateral below minimum");
+        f.expect(f.tryCreate(20, 20), false, "shulker box in cargo");
         helper.assertTrue(!f.chest().isEmpty(), "Rejected cargo stays in the chest");
         f.chest().clearContent();
         f.chest().setItem(0, new ItemStack(Items.DIRT));
@@ -303,13 +304,13 @@ public final class ContractGameTests {
             f.expect(f.manager.abandon(f.issuer, afterDelivery.id()), true, "clear delivered-next");
 
             f.fillChest();
-            Contract cancelled = f.create(20, 0);
+            Contract cancelled = f.create(20, 20);
             helper.assertTrue(f.manager.activeJobs(f.issuer.getUUID()).isEmpty(), "OPEN cancel candidate is not active");
             f.expect(f.manager.cancel(f.issuer, cancelled.id()), true, "cancel");
             helper.assertTrue(f.manager.activeJobs(f.issuer.getUUID()).isEmpty(), "cancel does not occupy a haul slot");
 
             f.fillChest();
-            Contract expired = f.create(20, 0);
+            Contract expired = f.create(20, 20);
             f.manager.tick(f.server(), expired.timing().expiresAt());
             helper.assertValueEqual(f.state(expired), ContractState.EXPIRED, "expired");
             helper.assertTrue(f.manager.activeJobs(f.issuer.getUUID()).isEmpty(), "expire frees any haul slot");

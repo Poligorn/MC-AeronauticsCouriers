@@ -1,6 +1,8 @@
 package dev.poligorn.aerocouriers.contract;
 
+import dev.poligorn.aerocouriers.cargo.CargoSize;
 import dev.poligorn.aerocouriers.config.CouriersServerConfig;
+import dev.poligorn.aerocouriers.license.LicenseRank;
 import java.util.List;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.item.ItemStack;
@@ -22,6 +24,48 @@ public final class Pricing {
     /** Burned on creation, on top of the reward the issuer pays into escrow. */
     public static long fee(long reward) {
         return Math.round(reward * CouriersServerConfig.P2P_FEE.get());
+    }
+
+    /**
+     * Minimum P2P collateral ({@code aerocouriers-server.toml} {@code p2p_min_collateral_ratio}): at least the
+     * reward, at least {@code reward × ratio}, and at least {@code cargo value × ratio} when value is known.
+     */
+    public static long minP2pCollateral(long reward, List<ItemStack> manifest) {
+        double ratio = CouriersServerConfig.SPEC.isLoaded()
+                ? CouriersServerConfig.P2P_MIN_COLLATERAL_RATIO.get()
+                : 0.5;
+        long min = Math.max(reward, Math.round(reward * ratio));
+        if (manifest != null) {
+            long value = ItemValues.of(manifest);
+            if (value > 0) {
+                min = Math.max(min, Math.round(value * ratio));
+            }
+        }
+        return min;
+    }
+
+    public record NpcMoney(long reward, long collateral) {
+    }
+
+    /**
+     * NPC generator: collateral is never below reward. If raising collateral to the reward would exceed the
+     * collateral cap implied by the pre-clamp route rank, the reward is lowered instead.
+     */
+    public static NpcMoney balanceNpcMoney(
+            long reward,
+            long collateral,
+            CargoSize size,
+            Destination origin,
+            Destination destination) {
+        LicenseRank rankAtCollateral = ContractDistances.routeRequiredRank(collateral, size, origin, destination);
+        long cap = RankRules.limits(rankAtCollateral).maxCollateral();
+        if (collateral < reward) {
+            if (reward > cap) {
+                reward = Math.max(1L, cap);
+            }
+            collateral = Math.max(collateral, reward);
+        }
+        return new NpcMoney(reward, collateral);
     }
 
     /** Late delivery pays half; the other half burns (GDD §11.2). */
