@@ -1,5 +1,6 @@
 package dev.poligorn.aerocouriers.config;
 
+import dev.poligorn.aerocouriers.cargo.CargoSize;
 import java.util.List;
 import net.neoforged.neoforge.common.ModConfigSpec;
 
@@ -24,6 +25,12 @@ public final class CouriersServerConfig {
     public static final ModConfigSpec.DoubleValue CARGO_MASS_SCALE;
     public static final ModConfigSpec.IntValue CARGO_DEBUG_LOG_INTERVAL;
     public static final ModConfigSpec.IntValue SPAWN_SEARCH_RADIUS;
+    public static final ModConfigSpec.IntValue CARGO_SLOTS_S;
+    public static final ModConfigSpec.IntValue CARGO_SLOTS_M;
+    public static final ModConfigSpec.IntValue CARGO_SLOTS_L;
+    public static final ModConfigSpec.IntValue CARGO_MAX_WEIGHT_S;
+    public static final ModConfigSpec.IntValue CARGO_MAX_WEIGHT_M;
+    public static final ModConfigSpec.IntValue CARGO_MAX_WEIGHT_L;
 
     public static final ModConfigSpec.BooleanValue PIRACY_ENABLED;
     public static final ModConfigSpec.DoubleValue PIRACY_BREAK_SECONDS;
@@ -85,8 +92,14 @@ public final class CouriersServerConfig {
                 .defineInRange("cargo_mass_scale", 0.25, 0.0, 10.0);
         CARGO_DEBUG_LOG_INTERVAL = b.comment("Prototype: log world position and velocity of debug containers every N ticks (0 = off)")
                 .defineInRange("debug_log_interval_ticks", 20, 0, 72000);
-        SPAWN_SEARCH_RADIUS = b.comment("How far from the pickup point to look for a free 3x3x3 spot with a solid base, blocks")
+        SPAWN_SEARCH_RADIUS = b.comment("How far from the pickup point to look for a free spot with a solid base, blocks")
                 .defineInRange("spawn_search_radius", 8, 0, 32);
+        CARGO_SLOTS_S = b.defineInRange("slots_s", 9, 1, 256);
+        CARGO_SLOTS_M = b.defineInRange("slots_m", 18, 1, 256);
+        CARGO_SLOTS_L = b.defineInRange("slots_l", 27, 1, 256);
+        CARGO_MAX_WEIGHT_S = b.defineInRange("max_weight_s", 256, 1, 1_000_000);
+        CARGO_MAX_WEIGHT_M = b.defineInRange("max_weight_m", 768, 1, 1_000_000);
+        CARGO_MAX_WEIGHT_L = b.defineInRange("max_weight_l", 2048, 1, 1_000_000);
         b.pop();
 
         b.push("progression");
@@ -155,6 +168,44 @@ public final class CouriersServerConfig {
         b.pop();
 
         SPEC = b.build();
+    }
+
+    public static int containerSlots(CargoSize size) {
+        if (!SPEC.isLoaded()) {
+            return defaultSlots(size);
+        }
+        return switch (size) {
+            case S -> CARGO_SLOTS_S.get();
+            case M -> CARGO_SLOTS_M.get();
+            case L -> CARGO_SLOTS_L.get();
+        };
+    }
+
+    public static int containerMaxWeight(CargoSize size) {
+        if (!SPEC.isLoaded()) {
+            return defaultMaxWeight(size);
+        }
+        return switch (size) {
+            case S -> CARGO_MAX_WEIGHT_S.get();
+            case M -> CARGO_MAX_WEIGHT_M.get();
+            case L -> CARGO_MAX_WEIGHT_L.get();
+        };
+    }
+
+    private static int defaultSlots(CargoSize size) {
+        return switch (size) {
+            case S -> 9;
+            case M -> 18;
+            case L -> 27;
+        };
+    }
+
+    private static int defaultMaxWeight(CargoSize size) {
+        return switch (size) {
+            case S -> 256;
+            case M -> 768;
+            case L -> 2048;
+        };
     }
 
     private CouriersServerConfig() {

@@ -41,8 +41,17 @@ public class CargoContainerBlockEntity extends BlockEntity {
         this.contractId = contractId;
         this.debug = debug;
         if (level != null && !level.isClientSide && contractId != null) {
-            BlockState withWaybill = getBlockState().setValue(CargoContainerBlock.WAYBILL, true);
-            level.setBlock(worldPosition, withWaybill, Block.UPDATE_CLIENTS);
+            BlockState here = getBlockState();
+            if (here.getBlock() instanceof CargoBlock cargo) {
+                BlockPos controller = cargo.controllerPos(worldPosition, here);
+                BlockState controllerState = level.getBlockState(controller);
+                for (BlockPos pos : cargo.structurePositions(controller, controllerState)) {
+                    BlockState part = level.getBlockState(pos);
+                    if (part.getBlock() instanceof CargoBlock) {
+                        level.setBlock(pos, part.setValue(CargoContainerBlock.WAYBILL, true), Block.UPDATE_CLIENTS);
+                    }
+                }
+            }
         }
         setChanged();
     }

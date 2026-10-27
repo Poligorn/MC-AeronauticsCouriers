@@ -28,7 +28,7 @@ public final class CargoEvents {
     }
 
     private static void onBreak(BlockEvent.BreakEvent event) {
-        if (!(event.getState().getBlock() instanceof CargoContainerBlock)
+        if (!(event.getState().getBlock() instanceof CargoBlock cargo)
                 || !(event.getLevel() instanceof ServerLevel level)) {
             return;
         }
@@ -37,7 +37,10 @@ public final class CargoEvents {
             event.setCanceled(true);
             return;
         }
-        damage(level, event.getPos(), player);
+        BlockPos controller = cargo.controllerPos(event.getPos(), event.getState());
+        damage(level, controller, player);
+        CargoStructure.dismantle(level, controller, cargo.size());
+        event.setCanceled(true);
     }
 
     private static void onDetonate(ExplosionEvent.Detonate event) {
@@ -46,8 +49,10 @@ public final class CargoEvents {
         }
         Player cause = event.getExplosion().getIndirectSourceEntity() instanceof Player p ? p : null;
         for (BlockPos pos : event.getAffectedBlocks()) {
-            if (level.getBlockState(pos).getBlock() instanceof CargoContainerBlock) {
-                damage(level, pos, cause);
+            if (level.getBlockState(pos).getBlock() instanceof CargoBlock cargo) {
+                BlockPos controller = cargo.controllerPos(pos, level.getBlockState(pos));
+                damage(level, controller, cause);
+                CargoStructure.dismantle(level, controller, cargo.size());
             }
         }
     }

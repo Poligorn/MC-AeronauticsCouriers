@@ -7,6 +7,7 @@ import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import dev.poligorn.aerocouriers.cargo.CargoContainerBlock;
+import dev.poligorn.aerocouriers.cargo.CargoSize;
 import dev.poligorn.aerocouriers.cargo.CargoSpawner;
 import dev.poligorn.aerocouriers.cargo.CargoTracker;
 import dev.poligorn.aerocouriers.contract.RankRules;
@@ -215,7 +216,8 @@ public final class CouriersCommands {
         UUID contractId = UUID.randomUUID();
         ServerPlayer player = source.getPlayer();
         Direction facing = player != null ? player.getDirection().getOpposite() : Direction.NORTH;
-        CargoSpawner.Result result = CargoSpawner.spawn(source.getLevel(), pos, fill, contractId, true, facing);
+        CargoSpawner.Result result = CargoSpawner.spawn(source.getLevel(), pos, CargoSize.S, fill, contractId, true,
+                facing);
         return switch (result) {
             case CargoSpawner.Result.Spawned spawned -> {
                 source.sendSuccess(() -> Component.translatable("commands.aerocouriers.spawncargo.success",

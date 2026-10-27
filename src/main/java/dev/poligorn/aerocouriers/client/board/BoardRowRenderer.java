@@ -1,8 +1,11 @@
 package dev.poligorn.aerocouriers.client.board;
 
+import dev.poligorn.aerocouriers.cargo.CargoSize;
 import dev.poligorn.aerocouriers.client.AerocouriersGuiSprites;
 import dev.poligorn.aerocouriers.client.TabletGui;
+import dev.poligorn.aerocouriers.contract.AcceptEligibility;
 import dev.poligorn.aerocouriers.net.BoardSnapshotPayload;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.function.BiConsumer;
 import net.minecraft.client.gui.Font;
@@ -137,6 +140,9 @@ public final class BoardRowRenderer {
         statX = drawStat(graphics, font, AerocouriersGuiSprites.ICON_LOCK, Long.toString(entry.collateral()), statX, y);
         String time = Component.translatable("ui.aerocouriers.row.time_compact", entry.minutesLeft()).getString();
         statX = drawStat(graphics, font, AerocouriersGuiSprites.ICON_CLOCK, time, statX, y);
+        CargoSize cargoSize = CargoSize.valueOf(entry.size().toUpperCase(Locale.ROOT));
+        String size = AcceptEligibility.sizeLabel(cargoSize).getString();
+        statX = drawStat(graphics, font, AerocouriersGuiSprites.ICON_CRATE, size, statX, y);
         if ("issuer".equals(entry.role())) {
             graphics.blitSprite(AerocouriersGuiSprites.ICON_STAR, statX + 2, y, BoardRowMetrics.LINE2_ICON,
                     BoardRowMetrics.LINE2_ICON);

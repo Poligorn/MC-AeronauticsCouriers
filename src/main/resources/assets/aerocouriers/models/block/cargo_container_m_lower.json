@@ -1,0 +1,9 @@
+{
+  "parent": "minecraft:block/cube_bottom_top",
+  "textures": {
+    "particle": "aerocouriers:block/cargo_container_side",
+    "bottom": "aerocouriers:block/cargo_container_bottom",
+    "top": "aerocouriers:block/cargo_container_top",
+    "side": "aerocouriers:block/cargo_container_side"
+  }
+}

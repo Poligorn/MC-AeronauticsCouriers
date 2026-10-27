@@ -2,6 +2,8 @@ package dev.poligorn.aerocouriers.registry;
 
 import dev.poligorn.aerocouriers.AeronauticsCouriers;
 import dev.poligorn.aerocouriers.cargo.CargoContainerBlock;
+import dev.poligorn.aerocouriers.cargo.CargoContainerLargeBlock;
+import dev.poligorn.aerocouriers.cargo.CargoContainerMediumBlock;
 import dev.poligorn.aerocouriers.cargo.CargoSize;
 import dev.poligorn.aerocouriers.village.PostStationBlock;
 import net.minecraft.world.level.block.SoundType;
@@ -15,16 +17,30 @@ public final class ModBlocks {
     public static final DeferredRegister.Blocks REGISTER = DeferredRegister.createBlocks(AeronauticsCouriers.MOD_ID);
 
     // No BlockItem on purpose: the container only ever appears through CargoSpawner (GDD §1, pillar 3).
+    private static BlockBehaviour.Properties cargoContainerProps() {
+        return BlockBehaviour.Properties.of()
+                .mapColor(MapColor.METAL)
+                .sound(SoundType.METAL)
+                .strength(50.0F, 6.0F)
+                .requiresCorrectToolForDrops()
+                .noLootTable()
+                .pushReaction(PushReaction.BLOCK);
+    }
+
     public static final DeferredBlock<CargoContainerBlock> CARGO_CONTAINER_S = REGISTER.registerBlock(
             "cargo_container_s",
             props -> new CargoContainerBlock(CargoSize.S, props),
-            BlockBehaviour.Properties.of()
-                    .mapColor(MapColor.METAL)
-                    .sound(SoundType.METAL)
-                    .strength(50.0F, 6.0F)
-                    .requiresCorrectToolForDrops()
-                    .noLootTable()
-                    .pushReaction(PushReaction.BLOCK));
+            cargoContainerProps());
+
+    public static final DeferredBlock<CargoContainerMediumBlock> CARGO_CONTAINER_M = REGISTER.registerBlock(
+            "cargo_container_m",
+            CargoContainerMediumBlock::new,
+            cargoContainerProps());
+
+    public static final DeferredBlock<CargoContainerLargeBlock> CARGO_CONTAINER_L = REGISTER.registerBlock(
+            "cargo_container_l",
+            CargoContainerLargeBlock::new,
+            cargoContainerProps());
 
     public static final DeferredBlock<PostStationBlock> POST_STATION = REGISTER.registerBlock(
             "post_station",

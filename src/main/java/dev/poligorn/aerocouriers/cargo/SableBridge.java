@@ -29,10 +29,32 @@ public final class SableBridge {
      * @return the new sub-level id, empty if Sable produced an object without mass (nothing assembled)
      */
     public static Optional<UUID> assembleSingleBlock(ServerLevel level, BlockPos anchor) {
+        return assembleStructure(level, anchor, List.of(anchor));
+    }
+
+    /**
+     * Assembles every block in {@code blocks} into one physics object. {@code anchor} is the controller block passed
+     * to Sable (usually the lowest segment).
+     */
+    public static Optional<UUID> assembleStructure(ServerLevel level, BlockPos anchor, List<BlockPos> blocks) {
+        int minX = Integer.MAX_VALUE;
+        int minY = Integer.MAX_VALUE;
+        int minZ = Integer.MAX_VALUE;
+        int maxX = Integer.MIN_VALUE;
+        int maxY = Integer.MIN_VALUE;
+        int maxZ = Integer.MIN_VALUE;
+        for (BlockPos pos : blocks) {
+            minX = Math.min(minX, pos.getX());
+            minY = Math.min(minY, pos.getY());
+            minZ = Math.min(minZ, pos.getZ());
+            maxX = Math.max(maxX, pos.getX());
+            maxY = Math.max(maxY, pos.getY());
+            maxZ = Math.max(maxZ, pos.getZ());
+        }
         BoundingBox3i bounds = new BoundingBox3i(
-                anchor.getX() - 1, anchor.getY() - 1, anchor.getZ() - 1,
-                anchor.getX() + 2, anchor.getY() + 2, anchor.getZ() + 2);
-        ServerSubLevel subLevel = SubLevelAssemblyHelper.assembleBlocks(level, anchor, List.of(anchor), bounds);
+                minX - 1, minY - 1, minZ - 1,
+                maxX + 2, maxY + 2, maxZ + 2);
+        ServerSubLevel subLevel = SubLevelAssemblyHelper.assembleBlocks(level, anchor, blocks, bounds);
         if (subLevel.getMassTracker().isInvalid()) {
             return Optional.empty();
         }

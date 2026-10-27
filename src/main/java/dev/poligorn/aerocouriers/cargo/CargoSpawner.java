@@ -1,7 +1,7 @@
 package dev.poligorn.aerocouriers.cargo;
 
-import dev.poligorn.aerocouriers.AeronauticsCouriers;
-import dev.poligorn.aerocouriers.registry.ModBlocks;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import net.minecraft.core.BlockPos;
@@ -31,10 +31,10 @@ public final class CargoSpawner {
     }
 
     /**
-     * Nearest free 3×3×3 spot with a sturdy block under its centre, within {@code radius} blocks horizontally and
-     * a few blocks vertically of {@code origin} (GDD §7.3, §12). Returns the bottom-centre block of the spot.
+     * Nearest free spot with a sturdy base, within {@code radius} blocks of {@code origin}. Returns the controller
+     * (bottom) anchor of the structure.
      */
-    public static Optional<BlockPos> findSpot(ServerLevel level, BlockPos origin, int radius) {
+    public static Optional<BlockPos> findSpot(ServerLevel level, BlockPos origin, int radius, CargoSize size) {
         BlockPos best = null;
         double bestDistance = Double.MAX_VALUE;
         BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
@@ -46,7 +46,7 @@ public final class CargoSpawner {
                         continue;
                     }
                     cursor.set(origin.getX() + dx, origin.getY() + dy, origin.getZ() + dz);
-                    if (isFreeSpot(level, cursor)) {
+                    if (CargoStructure.isSpawnClear(level, cursor, size)) {
                         best = cursor.immutable();
                         bestDistance = distance;
                     }
@@ -56,58 +56,57 @@ public final class CargoSpawner {
         return Optional.ofNullable(best);
     }
 
-    private static boolean isFreeSpot(ServerLevel level, BlockPos bottomCentre) {
-        BlockPos below = bottomCentre.below();
-        if (!level.isLoaded(below) || !level.getBlockState(below).isFaceSturdy(level, below, Direction.UP)) {
-            return false;
-        }
-        for (BlockPos pos : BlockPos.betweenClosed(bottomCentre.offset(-1, 0, -1), bottomCentre.offset(1, 2, 1))) {
-            BlockState state = level.getBlockState(pos);
-            if (!state.canBeReplaced() || !state.getFluidState().isEmpty()) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    /**
-     * Places a container on air. For stamp orders the source block must already have been removed without drops.
-     */
-    public static Result spawn(ServerLevel level, BlockPos pos, int fill, UUID contractId, boolean debug,
-                               Direction facing) {
-        if (!level.getBlockState(pos).canBeReplaced()) {
+    public static Result spawn(ServerLevel level, BlockPos anchor, CargoSize size, int fill, UUID contractId,
+                               boolean debug, Direction facing) {
+        if (!CargoStructure.isSpawnClear(level, anchor, size)) {
             return new Result.Occupied();
         }
-        BlockState state = ModBlocks.CARGO_CONTAINER_S.get().defaultBlockState()
-                .setValue(CargoContainerBlock.FILL, Math.clamp(fill, 0, CargoContainerBlock.MAX_FILL))
-                .setValue(CargoContainerBlock.FACING, facing)
-                .setValue(CargoContainerBlock.WAYBILL, contractId != null);
-        level.setBlock(pos, state, Block.UPDATE_ALL);
-        if (!(level.getBlockEntity(pos) instanceof CargoContainerBlockEntity be)) {
-            level.removeBlock(pos, false);
+        int clampedFill = Math.clamp(fill, 0, CargoContainerBlock.MAX_FILL);
+        boolean waybill = contractId != null;
+        List<BlockPos> placed = new ArrayList<>();
+        for (BlockPos offset : CargoStructure.offsets(size)) {
+            BlockPos pos = anchor.offset(offset);
+            if (!level.getBlockState(pos).canBeReplaced()) {
+                rollback(level, placed);
+                return new Result.Occupied();
+            }
+            BlockState state = CargoStructure.stateForPart(size, clampedFill, facing, waybill, offset);
+            level.setBlock(pos, state, Block.UPDATE_ALL);
+            placed.add(pos);
+        }
+        if (!(level.getBlockEntity(anchor) instanceof CargoContainerBlockEntity be)) {
+            rollback(level, placed);
             return new Result.AssemblyFailed();
         }
         be.bind(contractId, debug);
 
-        Optional<UUID> subLevel = SableBridge.assembleSingleBlock(level, pos);
+        Optional<UUID> subLevel = SableBridge.assembleStructure(level, anchor, placed);
         if (subLevel.isEmpty()) {
-            AeronauticsCouriers.LOGGER.warn("[cargo] Sable assembled no mass for container {} at {}", contractId, pos);
+            rollback(level, placed);
             return new Result.AssemblyFailed();
         }
-        AeronauticsCouriers.LOGGER.info("[cargo] Spawned container {} (fill {}) at {} as sub-level {}",
-                contractId, fill, pos, subLevel.get());
         return new Result.Spawned(subLevel.get());
     }
 
-    /** Removes a cargo block without treating it as a vanished in-transit container. */
-    public static boolean removeQuietly(ServerLevel level, BlockPos pos) {
-        if (!(level.getBlockEntity(pos) instanceof CargoContainerBlockEntity be)) {
+    /** Removes a cargo structure without treating it as a vanished in-transit container. */
+    public static boolean removeQuietly(ServerLevel level, BlockPos anyPart) {
+        BlockState state = level.getBlockState(anyPart);
+        if (!(state.getBlock() instanceof CargoBlock cargo)) {
             return false;
         }
-        be.markSelfRemoving();
-        BlockState cleared = level.getBlockState(pos).setValue(CargoContainerBlock.WAYBILL, false);
-        level.setBlock(pos, cleared, Block.UPDATE_CLIENTS);
-        return level.removeBlock(pos, false);
+        BlockPos controller = cargo.controllerPos(anyPart, state);
+        CargoSize size = cargo.size();
+        if (level.getBlockEntity(controller) instanceof CargoContainerBlockEntity be) {
+            be.markSelfRemoving();
+        }
+        CargoStructure.dismantle(level, controller, size);
+        return true;
+    }
+
+    private static void rollback(ServerLevel level, List<BlockPos> placed) {
+        for (BlockPos pos : placed) {
+            level.removeBlock(pos, false);
+        }
     }
 
     /** Reads {@link HorizontalDirectionalBlock#FACING} from a block about to be replaced (e.g. chest). */

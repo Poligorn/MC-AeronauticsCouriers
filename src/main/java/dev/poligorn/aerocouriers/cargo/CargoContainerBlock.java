@@ -27,6 +27,7 @@ import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.level.block.state.properties.IntegerProperty;
+import java.util.List;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Vector3d;
 
@@ -39,7 +40,7 @@ import org.joml.Vector3d;
  * TNT and cannons can destroy it (GDD §9.7). With piracy disabled it is unbreakable and explosion-proof.
  * Contract consequences of damage are in {@link CargoEvents}.
  */
-public class CargoContainerBlock extends BaseEntityBlock implements BlockSubLevelAssemblyListener {
+public class CargoContainerBlock extends BaseEntityBlock implements BlockSubLevelAssemblyListener, CargoBlock {
     public static final int MAX_FILL = 8;
     public static final IntegerProperty FILL = IntegerProperty.create("fill", 0, MAX_FILL);
     /** Door face; matches replaced chests and vanilla directional blocks. */
@@ -60,6 +61,21 @@ public class CargoContainerBlock extends BaseEntityBlock implements BlockSubLeve
 
     public CargoSize size() {
         return size;
+    }
+
+    @Override
+    public boolean isController(BlockState state) {
+        return true;
+    }
+
+    @Override
+    public BlockPos controllerPos(BlockPos pos, BlockState state) {
+        return pos;
+    }
+
+    @Override
+    public List<BlockPos> structurePositions(BlockPos controller, BlockState controllerState) {
+        return List.of(controller);
     }
 
     @Override
@@ -127,6 +143,9 @@ public class CargoContainerBlock extends BaseEntityBlock implements BlockSubLeve
     @Override
     public void afterMove(ServerLevel originLevel, ServerLevel resultingLevel, BlockState newState,
                           BlockPos oldPos, BlockPos newPos) {
+        if (!isController(newState)) {
+            return;
+        }
         // Iteration 1 checklist (GDD §16): confirm this fires when a ship is re-assembled with the container.
         AeronauticsCouriers.LOGGER.info("[cargo] Sable moved container {} -> {} ({} -> {})",
                 oldPos, newPos, originLevel.dimension().location(), resultingLevel.dimension().location());

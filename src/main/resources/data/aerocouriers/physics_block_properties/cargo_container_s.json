@@ -4,13 +4,29 @@
     "sable:mass": 2.0
   },
   "overrides": {
-    "fill=1": { "sable:mass": 10.0 },
-    "fill=2": { "sable:mass": 18.0 },
-    "fill=3": { "sable:mass": 26.0 },
-    "fill=4": { "sable:mass": 34.0 },
-    "fill=5": { "sable:mass": 42.0 },
-    "fill=6": { "sable:mass": 50.0 },
-    "fill=7": { "sable:mass": 58.0 },
-    "fill=8": { "sable:mass": 66.0 }
+    "fill=1": {
+      "sable:mass": 10.0
+    },
+    "fill=2": {
+      "sable:mass": 18.0
+    },
+    "fill=3": {
+      "sable:mass": 26.0
+    },
+    "fill=4": {
+      "sable:mass": 34.0
+    },
+    "fill=5": {
+      "sable:mass": 42.0
+    },
+    "fill=6": {
+      "sable:mass": 50.0
+    },
+    "fill=7": {
+      "sable:mass": 58.0
+    },
+    "fill=8": {
+      "sable:mass": 66.0
+    }
   }
 }

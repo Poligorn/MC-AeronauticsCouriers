@@ -9,6 +9,7 @@ import dev.poligorn.aerocouriers.client.board.BoardAcceptUi;
 import dev.poligorn.aerocouriers.client.board.BoardRowRenderer;
 import dev.poligorn.aerocouriers.client.board.MineListSection;
 import dev.poligorn.aerocouriers.client.navigation.ClientNavigation;
+import dev.poligorn.aerocouriers.cargo.CargoSize;
 import dev.poligorn.aerocouriers.contract.AcceptEligibility;
 import dev.poligorn.aerocouriers.client.board.TabletRowIconButton;
 import dev.poligorn.aerocouriers.contract.ContractState;
@@ -822,7 +823,8 @@ public final class CourierBoardScreen extends Screen {
                     Component.translatable("ui.aerocouriers.row.summary.rank", entry.requiredRank().displayName()),
                     Component.translatable("ui.aerocouriers.row.summary.deadline", entry.deadlineMinutes()),
                     Component.translatable("ui.aerocouriers.row.summary.time", entry.minutesLeft()),
-                    Component.translatable("ui.aerocouriers.row.summary.cargo", entry.weight(), entry.size()),
+                    Component.translatable("ui.aerocouriers.row.summary.cargo", entry.weight(),
+                            AcceptEligibility.sizeLabel(CargoSize.valueOf(entry.size().toUpperCase(Locale.ROOT)))),
                     Component.translatable("ui.aerocouriers.row.summary.distance", entry.distance()),
                     Component.translatable("ui.aerocouriers.row.summary.role",
                             Component.translatable("contract.aerocouriers.role." + entry.role())));

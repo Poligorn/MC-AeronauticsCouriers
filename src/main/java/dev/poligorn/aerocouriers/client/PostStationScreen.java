@@ -1,6 +1,8 @@
 package dev.poligorn.aerocouriers.client;
 
+import dev.poligorn.aerocouriers.cargo.CargoSize;
 import dev.poligorn.aerocouriers.client.board.BoardCargoTooltip;
+import dev.poligorn.aerocouriers.contract.AcceptEligibility;
 import dev.poligorn.aerocouriers.client.board.BoardRowLayout;
 import dev.poligorn.aerocouriers.client.board.BoardRowMetrics;
 import dev.poligorn.aerocouriers.client.board.BoardRowRenderer;
@@ -10,6 +12,7 @@ import dev.poligorn.aerocouriers.net.RenameStationPayload;
 import dev.poligorn.aerocouriers.net.StationSnapshotPayload;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
@@ -278,7 +281,8 @@ public final class PostStationScreen extends Screen {
                 Component.translatable("ui.aerocouriers.row.summary.rank", entry.requiredRank().displayName()),
                 Component.translatable("ui.aerocouriers.row.summary.deadline", entry.deadlineMinutes()),
                 Component.translatable("ui.aerocouriers.row.summary.time", entry.minutesLeft()),
-                Component.translatable("ui.aerocouriers.row.summary.cargo", entry.weight(), entry.size()),
+                Component.translatable("ui.aerocouriers.row.summary.cargo", entry.weight(),
+                        AcceptEligibility.sizeLabel(CargoSize.valueOf(entry.size().toUpperCase(Locale.ROOT)))),
                 Component.translatable("ui.aerocouriers.row.summary.distance", entry.distance()));
     }
 

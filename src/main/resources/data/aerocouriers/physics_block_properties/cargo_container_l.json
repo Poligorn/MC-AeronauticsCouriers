@@ -1,0 +1,32 @@
+{
+  "selector": "aerocouriers:cargo_container_l",
+  "properties": {
+    "sable:mass": 0.25
+  },
+  "overrides": {
+    "fill=1": {
+      "sable:mass": 8.25
+    },
+    "fill=2": {
+      "sable:mass": 16.25
+    },
+    "fill=3": {
+      "sable:mass": 24.25
+    },
+    "fill=4": {
+      "sable:mass": 32.25
+    },
+    "fill=5": {
+      "sable:mass": 40.25
+    },
+    "fill=6": {
+      "sable:mass": 48.25
+    },
+    "fill=7": {
+      "sable:mass": 56.25
+    },
+    "fill=8": {
+      "sable:mass": 64.25
+    }
+  }
+}

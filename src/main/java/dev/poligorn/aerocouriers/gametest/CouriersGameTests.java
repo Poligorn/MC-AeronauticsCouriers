@@ -1,6 +1,7 @@
 package dev.poligorn.aerocouriers.gametest;
 
 import dev.poligorn.aerocouriers.AeronauticsCouriers;
+import dev.poligorn.aerocouriers.cargo.CargoSize;
 import dev.poligorn.aerocouriers.cargo.CargoSpawner;
 import dev.poligorn.aerocouriers.cargo.CargoTracker;
 import dev.poligorn.aerocouriers.contract.RankRules;
@@ -124,7 +125,7 @@ public final class CouriersGameTests {
     public static void cargoContainerReportsWorldPosition(GameTestHelper helper) {
         UUID contractId = UUID.randomUUID();
         BlockPos pos = helper.absolutePos(new BlockPos(4, 4, 4));
-        var result = CargoSpawner.spawn(helper.getLevel(), pos, 8, contractId, true, Direction.NORTH);
+        var result = CargoSpawner.spawn(helper.getLevel(), pos, CargoSize.S, 8, contractId, true, Direction.NORTH);
         helper.assertTrue(result instanceof CargoSpawner.Result.Spawned, "Container was not assembled: " + result);
         helper.assertBlockPresent(Blocks.AIR, new BlockPos(4, 4, 4));
         helper.succeedWhen(() -> {

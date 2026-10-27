@@ -1,5 +1,7 @@
 {
   "values": [
-    "aerocouriers:cargo_container_s"
+    "aerocouriers:cargo_container_s",
+    "aerocouriers:cargo_container_m",
+    "aerocouriers:cargo_container_l"
   ]
 }

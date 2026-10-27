@@ -41,7 +41,7 @@ public final class AcceptEligibility {
             return Optional.of(new Denial("rank_limit_collateral", limits.maxCollateral()));
         }
         if (size.ordinal() > limits.maxSize().ordinal()) {
-            return Optional.of(new Denial("rank_limit_size", limits.maxSize().name()));
+            return Optional.of(new Denial("rank_limit_size", sizeLabel(limits.maxSize())));
         }
         if (distance > limits.maxDistance()) {
             String dist = limits.maxDistance() == Double.POSITIVE_INFINITY
@@ -76,6 +76,10 @@ public final class AcceptEligibility {
 
     public static String formatSize(CargoSize size) {
         return size.name();
+    }
+
+    public static Component sizeLabel(CargoSize size) {
+        return Component.translatable("cargo.aerocouriers.size." + size.getSerializedName());
     }
 
     public static String formatDistance(double blocks) {

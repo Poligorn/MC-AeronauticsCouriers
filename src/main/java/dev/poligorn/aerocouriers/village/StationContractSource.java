@@ -160,7 +160,7 @@ public final class StationContractSource implements ContractSource {
             return Optional.empty();
         }
         Optional<BlockPos> spot = CargoSpawner.findSpot(level, from.pos(),
-                CouriersServerConfig.SPAWN_SEARCH_RADIUS.get());
+                CouriersServerConfig.SPAWN_SEARCH_RADIUS.get(), size.get());
         if (spot.isEmpty()) {
             AeronauticsCouriers.LOGGER.debug("[station] No crate spot next to «{}»", from.name());
             return Optional.empty();

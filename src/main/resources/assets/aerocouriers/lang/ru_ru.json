@@ -71,7 +71,7 @@
   "contract.aerocouriers.error.too_far_from_cargo": "Встаньте не дальше %s блоков от контейнера с грузом",
   "contract.aerocouriers.error.forbidden_item": "В грузе нельзя перевозить %s (контейнеры внутри груза запрещены)",
   "contract.aerocouriers.error.empty_cargo": "Контейнер с грузом пуст",
-  "contract.aerocouriers.error.cargo_too_big": "Груз не помещается в один контейнер: %s стаков, вес %s",
+  "contract.aerocouriers.error.cargo_too_big": "Груз не помещается в один контейнер: %s стаков, вес %s. Заказы с несколькими контейнерами (ранг IV+) пока недоступны.",
   "contract.aerocouriers.error.reward_too_low": "Минимальная награда для такой дистанции — %s сп",
   "contract.aerocouriers.error.negative_collateral": "Залог не может быть отрицательным",
   "contract.aerocouriers.error.not_enough_money": "Не хватает денег: нужно %s сп, на счёте %s сп",
@@ -249,5 +249,11 @@
   "ui.aerocouriers.station.rename.action": "Переименовать",
   "ui.aerocouriers.nav.order": "Заказ #%s",
   "ui.aerocouriers.nav.distance": "%s м",
-  "ui.aerocouriers.nav.wrong_dimension": "Другое измерение"
+  "ui.aerocouriers.nav.wrong_dimension": "Другое измерение",
+  "block.aerocouriers.cargo_container_m": "Опечатанный грузовой контейнер (M)",
+  "block.aerocouriers.cargo_container_l": "Опечатанный грузовой контейнер (L)",
+  "cargo.aerocouriers.size.s": "S",
+  "cargo.aerocouriers.size.m": "M",
+  "cargo.aerocouriers.size.l": "L",
+  "ui.aerocouriers.accept.confirm.size": "Контейнер: %s"
 }

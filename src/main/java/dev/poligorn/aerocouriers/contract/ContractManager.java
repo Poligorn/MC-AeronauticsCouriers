@@ -368,7 +368,7 @@ public final class ContractManager extends SavedData {
         CargoContainers.removeWithoutDrop(level, access);
 
         int fill = size.get().fillFor(weight);
-        CargoSpawner.Result spawned = CargoSpawner.spawn(level, sourcePos, fill, id, false, facing);
+        CargoSpawner.Result spawned = CargoSpawner.spawn(level, sourcePos, size.get(), fill, id, false, facing);
         if (!(spawned instanceof CargoSpawner.Result.Spawned)) {
             economy.deposit(issuer.getUUID(), reward + fee, "create_refund:" + id);
             Mailbox.get(server).post(issuer.getUUID(), manifest);
@@ -409,7 +409,7 @@ public final class ContractManager extends SavedData {
         Destination destination = new Destination(to.dimension(), to.pos().immutable(), StationContractSource.ZONE_RADIUS);
         UUID id = UUID.randomUUID();
         int fill = size.fillFor(weight);
-        CargoSpawner.Result spawned = CargoSpawner.spawn(level, cratePos, fill, id, false, Direction.NORTH);
+        CargoSpawner.Result spawned = CargoSpawner.spawn(level, cratePos, size, fill, id, false, Direction.NORTH);
         if (!(spawned instanceof CargoSpawner.Result.Spawned)) {
             return Optional.empty();
         }
@@ -534,7 +534,7 @@ public final class ContractManager extends SavedData {
             return Outcome.error("pickup_not_loaded");
         }
         Optional<BlockPos> spot = CargoSpawner.findSpot(level, contract.origin().pos(),
-                CouriersServerConfig.SPAWN_SEARCH_RADIUS.get());
+                CouriersServerConfig.SPAWN_SEARCH_RADIUS.get(), contract.size());
         if (spot.isEmpty()) {
             put(contract.withPause(TICK_INTERVAL));
             long now = now(server);
@@ -549,7 +549,8 @@ public final class ContractManager extends SavedData {
             return Outcome.error("pickup_blocked", contract.origin().pos().toShortString());
         }
         int fill = contract.size().fillFor(contract.weight());
-        CargoSpawner.Result result = CargoSpawner.spawn(level, spot.get(), fill, id, false, Direction.NORTH);
+        CargoSpawner.Result result = CargoSpawner.spawn(level, spot.get(), contract.size(), fill, id, false,
+                Direction.NORTH);
         if (!(result instanceof CargoSpawner.Result.Spawned)) {
             return Outcome.error("spawn_failed");
         }

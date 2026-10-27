@@ -1,12 +1,14 @@
 package dev.poligorn.aerocouriers.client;
 
 import dev.poligorn.aerocouriers.client.board.BoardAcceptUi;
+import dev.poligorn.aerocouriers.cargo.CargoSize;
 import dev.poligorn.aerocouriers.contract.AcceptEligibility;
 import dev.poligorn.aerocouriers.contract.TraineeRules;
 import dev.poligorn.aerocouriers.net.BoardSnapshotPayload;
 import dev.poligorn.aerocouriers.net.ContractIntentPayload;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Renderable;
@@ -160,6 +162,8 @@ public final class BoardAcceptConfirmScreen extends Screen {
         lines.add(Component.translatable("ui.aerocouriers.accept.confirm.deadline",
                 entry.deadlineMinutes(), entry.minutesLeft()));
         lines.add(Component.translatable("ui.aerocouriers.accept.confirm.rank", entry.requiredRank().displayName()));
+        CargoSize cargoSize = CargoSize.valueOf(entry.size().toUpperCase(Locale.ROOT));
+        lines.add(Component.translatable("ui.aerocouriers.accept.confirm.size", AcceptEligibility.sizeLabel(cargoSize)));
         acceptBlocked().ifPresent(denial -> lines.add(denial.message().copy().withStyle(style -> style.withColor(0xFF5555))));
         return lines;
     }

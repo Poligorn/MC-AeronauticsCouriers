@@ -15,7 +15,10 @@ public final class ModBlockEntities {
     @SuppressWarnings("DataFlowIssue")
     public static final Supplier<BlockEntityType<CargoContainerBlockEntity>> CARGO_CONTAINER = REGISTER.register(
             "cargo_container",
-            () -> BlockEntityType.Builder.of(CargoContainerBlockEntity::new, ModBlocks.CARGO_CONTAINER_S.get())
+            () -> BlockEntityType.Builder.of(CargoContainerBlockEntity::new,
+                            ModBlocks.CARGO_CONTAINER_S.get(),
+                            ModBlocks.CARGO_CONTAINER_M.get(),
+                            ModBlocks.CARGO_CONTAINER_L.get())
                     .build(null));
 
     @SuppressWarnings("DataFlowIssue")

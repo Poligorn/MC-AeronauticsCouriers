@@ -71,7 +71,7 @@
   "contract.aerocouriers.error.too_far_from_cargo": "Stand within %s blocks of the cargo container",
   "contract.aerocouriers.error.forbidden_item": "%s cannot be shipped (containers inside cargo are forbidden)",
   "contract.aerocouriers.error.empty_cargo": "The cargo container is empty",
-  "contract.aerocouriers.error.cargo_too_big": "The cargo does not fit into one container: %s stacks, weight %s",
+  "contract.aerocouriers.error.cargo_too_big": "The cargo does not fit into one container: %s stacks, weight %s. Multi-container orders (rank IV+) are not available yet.",
   "contract.aerocouriers.error.reward_too_low": "The minimum reward for this distance is %s sp",
   "contract.aerocouriers.error.negative_collateral": "Collateral cannot be negative",
   "contract.aerocouriers.error.not_enough_money": "Not enough money: %s sp needed, %s sp available",
@@ -249,5 +249,11 @@
   "ui.aerocouriers.station.rename.action": "Rename",
   "ui.aerocouriers.nav.order": "Order #%s",
   "ui.aerocouriers.nav.distance": "%s m",
-  "ui.aerocouriers.nav.wrong_dimension": "Other dimension"
+  "ui.aerocouriers.nav.wrong_dimension": "Other dimension",
+  "block.aerocouriers.cargo_container_m": "Sealed Cargo Container (M)",
+  "block.aerocouriers.cargo_container_l": "Sealed Cargo Container (L)",
+  "cargo.aerocouriers.size.s": "S",
+  "cargo.aerocouriers.size.m": "M",
+  "cargo.aerocouriers.size.l": "L",
+  "ui.aerocouriers.accept.confirm.size": "Container: %s"
 }

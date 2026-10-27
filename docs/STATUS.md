@@ -2,7 +2,7 @@
 
 > Живой документ. Обновлять при каждом завершённом шаге итерации или изменении решения (см. `.cursor/rules/90-maintaining-docs.mdc`).
 
-**Обновлено:** 26.10.2026 · **Версия:** 0.1.0-alpha · **Итерация 6:** завершена (ранги + навигация §10.3). `./gradlew build` OK; GameTest в cloud-среде не гоняли. Jar: `build/libs/aerocouriers-0.1.0-alpha.jar`. Аудит: `docs/iteration6_audit.md`.
+**Обновлено:** 27.10.2026 · **Версия:** 0.1.0-alpha · **Итерация 6+:** контейнеры M/L (§8.1). `./gradlew build` — см. последний прогон агента. GameTest в cloud не гоняли.
 
 ## Сделано
 
@@ -23,7 +23,7 @@
 - Серверный и клиентский конфиги со всеми ключами GDD §15 (+ `[migration]`, `cargo.debug_log_interval_ticks`, `[debug] allow_self_accept`).
 
 ### Итерация 1 — прототип Sable (проверено на dev-сервере без игроков, через RCON)
-- Блок `aerocouriers:cargo_container_s` со свойством `fill=0..8`, неразрушаемый, без предмета и инвентаря; BE хранит только `contractId` (+ флаг `debug`).
+- Блоки `cargo_container_s` / `_m` / `_l` со свойством `fill=0..8`, без предмета в выживании; BE только на «нижнем» сегменте (S и M lower, L segment 0), хранит `contractId` (+ `debug`). M — двойной блок; L — 2×2×2, сборка Sable одним под-уровнем.
 - `/couriers spawncargo [pos] [fill]` ставит блок, пишет `contractId` в BE **до** сборки и собирает его в под-уровень (`SableBridge.assembleSingleBlock`).
 - Результаты прогона (Sable 2.0.6, Create 6.0.10, Aeronautics 1.3.0):
   - ✅ сборка одного блока работает, `afterMove` вызывается (блок уезжает в плот `~20 481 032, 128, ~20 481 032`);
