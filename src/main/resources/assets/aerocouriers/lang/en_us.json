@@ -38,6 +38,8 @@
   "commands.aerocouriers.spawncargo.occupied": "Position %s is occupied",
   "commands.aerocouriers.spawncargo.failed": "Sable did not assemble the container, see the server log",
   "commands.aerocouriers.cargo.none": "No loaded cargo containers have reported yet",
+  "commands.aerocouriers.manifest.line": "  %s × ",
+  "contract.aerocouriers.time.minutes": "%s min",
   "contract.aerocouriers.state.open": "open",
   "contract.aerocouriers.state.accepted": "accepted",
   "contract.aerocouriers.state.in_transit": "in transit",
