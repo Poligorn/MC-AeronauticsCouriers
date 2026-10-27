@@ -18,6 +18,8 @@ public final class CouriersServerConfig {
     public static final ModConfigSpec.IntValue MAX_OPEN_PER_PLAYER;
     public static final ModConfigSpec.BooleanValue PAUSE_ON_LOGOUT_SINGLEPLAYER;
     public static final ModConfigSpec.DoubleValue LATE_WINDOW;
+    public static final ModConfigSpec.IntValue PRICING_REWARD_DISTANCE_DIVISOR;
+    public static final ModConfigSpec.DoubleValue PRICING_REWARD_PER_WEIGHT;
 
     public static final ModConfigSpec.IntValue SPAWN_TRIGGER_RADIUS;
     public static final ModConfigSpec.DoubleValue DELIVERY_MAX_SPEED;
@@ -82,6 +84,12 @@ public final class CouriersServerConfig {
                 .define("pause_on_logout_singleplayer", true);
         LATE_WINDOW = b.comment("Late delivery window as a share of the deadline (reward and XP x0.5)")
                 .defineInRange("late_window", 0.25, 0.0, 10.0);
+        b.push("pricing");
+        PRICING_REWARD_DISTANCE_DIVISOR = b.comment("Distance term in P2P minimum reward: distance / this value (spurs)")
+                .defineInRange("reward_distance_divisor", 100, 1, 1_000_000);
+        PRICING_REWARD_PER_WEIGHT = b.comment("Extra spur reward per unit of cargo weight (NPC reward and P2P minimum)")
+                .defineInRange("reward_per_weight", 0.04, 0.0, 1000.0);
+        b.pop();
         ALLOW_CROSS_DIMENSION_ORDERS = b.comment("NPC generator may pair stations in different dimensions")
                 .define("allow_cross_dimension_orders", true);
         CROSS_DIMENSION_ORDER_CHANCE = b.comment("Share of candidate NPC pairs that may span dimensions (when allowed and another dimension has stations)")

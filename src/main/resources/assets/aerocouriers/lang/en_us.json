@@ -225,7 +225,7 @@
   "ui.aerocouriers.create.minutes": "Minutes",
   "ui.aerocouriers.create.radius": "Radius",
   "ui.aerocouriers.create.hint": "Cargo is taken from the chest at the pickup point. Stand within %s blocks of it.",
-  "ui.aerocouriers.create.min_reward": "Minimum reward for this distance: %s sp",
+  "ui.aerocouriers.create.min_reward": "Minimum reward for this distance and cargo weight: %s sp",
   "ui.aerocouriers.create.min_collateral": "Minimum collateral: %s sp",
   "ui.aerocouriers.create.submit": "Post order",
   "ui.aerocouriers.create.bad_coords": "Enter pickup and destination coordinates",

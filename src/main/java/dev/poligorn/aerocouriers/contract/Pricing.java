@@ -16,9 +16,21 @@ public final class Pricing {
     private Pricing() {
     }
 
-    /** Minimum reward {@code D/100} (anti-spam, and the XP floor of GDD §13). */
-    public static long minReward(double distance) {
-        return (long) Math.ceil(distance / 100.0);
+    /** Minimum reward {@code ceil(D / divisor + W × per_weight)} (anti-spam, GDD §7.1; XP floor §13). */
+    public static long minReward(double distance, double weight) {
+        return (long) Math.ceil(distance / rewardDistanceDivisor() + weight * rewardPerWeight());
+    }
+
+    private static double rewardDistanceDivisor() {
+        return CouriersServerConfig.SPEC.isLoaded()
+                ? CouriersServerConfig.PRICING_REWARD_DISTANCE_DIVISOR.get()
+                : 100.0;
+    }
+
+    private static double rewardPerWeight() {
+        return CouriersServerConfig.SPEC.isLoaded()
+                ? CouriersServerConfig.PRICING_REWARD_PER_WEIGHT.get()
+                : 0.04;
     }
 
     /** Burned on creation, on top of the reward the issuer pays into escrow. */
@@ -77,9 +89,9 @@ public final class Pricing {
         return CouriersServerConfig.LATE_WINDOW.get();
     }
 
-    /** {@code 16 + (D/60) × (1 + W/400)} × 0.8–1.2 (GDD §6.3). */
+    /** {@code 16 + (D/60) × (1 + W/400) + W × per_weight} × 0.8–1.2 (GDD §6.3, {@code [contracts.pricing]}). */
     public static long npcReward(double distance, double weight, RandomSource random) {
-        double base = 16.0 + (distance / 60.0) * (1.0 + weight / 400.0);
+        double base = 16.0 + (distance / 60.0) * (1.0 + weight / 400.0) + weight * rewardPerWeight();
         double factor = 0.8 + random.nextDouble() * 0.4;
         return Math.max(1, Math.round(base * factor));
     }

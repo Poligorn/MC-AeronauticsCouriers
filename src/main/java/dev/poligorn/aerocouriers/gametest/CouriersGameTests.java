@@ -4,6 +4,8 @@ import dev.poligorn.aerocouriers.AeronauticsCouriers;
 import dev.poligorn.aerocouriers.cargo.CargoSize;
 import dev.poligorn.aerocouriers.cargo.CargoSpawner;
 import dev.poligorn.aerocouriers.cargo.CargoTracker;
+import dev.poligorn.aerocouriers.contract.Destination;
+import dev.poligorn.aerocouriers.contract.Pricing;
 import dev.poligorn.aerocouriers.contract.RankRules;
 import dev.poligorn.aerocouriers.license.CourierProfile;
 import dev.poligorn.aerocouriers.license.LicenseOwner;
@@ -16,6 +18,8 @@ import java.util.UUID;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Vec3i;
+import net.minecraft.util.RandomSource;
+import net.minecraft.world.level.Level;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.nbt.NbtOps;
@@ -118,6 +122,27 @@ public final class CouriersGameTests {
         }
         CourierProfile decoded = CourierProfile.CODEC.parse(NbtOps.INSTANCE, encoded).getOrThrow();
         helper.assertValueEqual(decoded.rewardSum(), 0L, "default reward_sum");
+        helper.succeed();
+    }
+
+    @GameTest(template = EMPTY)
+    public static void pricingScalesWithCargoWeight(GameTestHelper helper) {
+        double distance = 600.0;
+        long lightNpc = Pricing.npcReward(distance, 48.0, RandomSource.create(7L));
+        long heavyNpc = Pricing.npcReward(distance, 2048.0, RandomSource.create(7L));
+        helper.assertTrue(heavyNpc >= lightNpc + 50,
+                "full L should pay much more than light S at same distance: light=" + lightNpc + " heavy=" + heavyNpc);
+
+        long minLight = Pricing.minReward(distance, 48.0);
+        long minHeavy = Pricing.minReward(distance, 2048.0);
+        helper.assertTrue(minHeavy >= minLight + 70,
+                "P2P minimum should scale with weight: light=" + minLight + " heavy=" + minHeavy);
+
+        Destination origin = new Destination(Level.OVERWORLD, BlockPos.ZERO, 8);
+        Destination dest = new Destination(Level.OVERWORLD, new BlockPos(600, 0, 0), 8);
+        Pricing.NpcMoney balanced = Pricing.balanceNpcMoney(heavyNpc, 5L, CargoSize.L, origin, dest);
+        helper.assertTrue(balanced.collateral() >= balanced.reward(),
+                "NPC collateral must stay at least the reward after weight raises payout");
         helper.succeed();
     }
 

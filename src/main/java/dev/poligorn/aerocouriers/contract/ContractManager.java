@@ -254,7 +254,7 @@ public final class ContractManager extends SavedData {
         }
 
         double distance = ContractDistances.pricingBlocks(origin, destination);
-        long minReward = Math.max(1, Pricing.minReward(distance));
+        long minReward = Math.max(1, Pricing.minReward(distance, weight));
         if (reward < minReward) {
             return Outcome.error("reward_too_low", minReward);
         }
@@ -355,7 +355,7 @@ public final class ContractManager extends SavedData {
         }
 
         double distance = ContractDistances.pricingBlocks(origin, destination);
-        long minReward = Math.max(1, Pricing.minReward(distance));
+        long minReward = Math.max(1, Pricing.minReward(distance, weight));
         if (reward < minReward) {
             return Outcome.error("reward_too_low", minReward);
         }

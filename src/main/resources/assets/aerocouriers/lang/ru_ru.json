@@ -225,7 +225,7 @@
   "ui.aerocouriers.create.minutes": "Минуты",
   "ui.aerocouriers.create.radius": "Радиус",
   "ui.aerocouriers.create.hint": "Груз берётся из сундука в точке погрузки. Встаньте не дальше %s блоков от него.",
-  "ui.aerocouriers.create.min_reward": "Минимальная награда на эту дистанцию: %s сп",
+  "ui.aerocouriers.create.min_reward": "Минимальная награда на эту дистанцию и вес груза: %s сп",
   "ui.aerocouriers.create.min_collateral": "Минимальный залог: %s сп",
   "ui.aerocouriers.create.submit": "Опубликовать",
   "ui.aerocouriers.create.bad_coords": "Укажите координаты погрузки и доставки",

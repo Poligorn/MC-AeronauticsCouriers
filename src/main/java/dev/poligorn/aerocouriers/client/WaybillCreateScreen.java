@@ -314,7 +314,7 @@ public final class WaybillCreateScreen extends Screen {
             submitButton.active = to.isPresent() && collateralValue >= minCollateral;
         }
         if (to.isPresent()) {
-            long min = Pricing.minReward(Math.sqrt(preview.origin().distSqr(to.get())));
+            long min = Pricing.minReward(Math.sqrt(preview.origin().distSqr(to.get())), preview.weight());
             infoY = drawWrappedLimited(graphics, Component.translatable("ui.aerocouriers.create.min_reward", min),
                     textX, infoY, layout.infoW, infoBottom, WaybillCreateGui.TEXT_OK, mouseX, mouseY);
         }
