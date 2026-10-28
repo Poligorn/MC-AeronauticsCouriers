@@ -24,7 +24,12 @@ public final class TransactionLog {
                 .resolve("transactions.log"));
     }
 
-    synchronized void write(String operation, UUID player, long spurs, String reason, long balanceAfter) {
+    /** Visible to GameTests outside this package. */
+    public static TransactionLog open(MinecraftServer server) {
+        return forServer(server);
+    }
+
+    public synchronized void write(String operation, UUID player, long spurs, String reason, long balanceAfter) {
         String line = String.join("\t", Instant.now().toString(), operation, player.toString(),
                 Long.toString(spurs), reason, Long.toString(balanceAfter)) + System.lineSeparator();
         try {

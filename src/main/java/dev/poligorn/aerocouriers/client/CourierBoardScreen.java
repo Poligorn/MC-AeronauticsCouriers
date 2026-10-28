@@ -761,7 +761,7 @@ public final class CourierBoardScreen extends Screen {
         }
         if (snapshot != null) {
             long balance = snapshot.balance();
-            Component balanceLine = Component.translatable("ui.aerocouriers.balance", balance);
+            Component balanceLine = BalanceDisplay.format(balance, snapshot.numismaticsEconomy());
             int balanceRight = sx + screenW() - BALANCE_RIGHT_PAD;
             int maxW = Math.max(8, balanceRight - balanceStripLeft);
             drawClipped(graphics, balanceLine, balanceStripLeft, mainTabRowY() + 8, maxW, TabletGui.TEXT, mouseX, mouseY);

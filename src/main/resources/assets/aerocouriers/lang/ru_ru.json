@@ -129,6 +129,8 @@
   "ui.aerocouriers.open": "Aeronautics Couriers",
   "ui.aerocouriers.loading": "Загрузка…",
   "ui.aerocouriers.balance": "Баланс: %s сп",
+  "ui.aerocouriers.balance.numismatics": "Баланс: %s сп",
+  "ui.aerocouriers.balance.numismatics_breakdown": "Баланс: %1$s сп (%2$s)",
   "ui.aerocouriers.mail.claim": "Забрать почту (%s)",
   "ui.aerocouriers.mail.tooltip": "Почта",
   "ui.aerocouriers.tab.mail": "Почта",

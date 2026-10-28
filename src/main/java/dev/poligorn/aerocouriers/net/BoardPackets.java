@@ -139,6 +139,7 @@ public final class BoardPackets {
                 safePage,
                 open.size(),
                 Economies.get(server).balance(self),
+                Economies.usesNumismatics(server),
                 CourierInbox.get(server).unread(self),
                 CourierInbox.get(server).unread(self),
                 operator,
@@ -256,7 +257,8 @@ public final class BoardPackets {
                 .limit(64)
                 .toList();
         CouriersNetwork.sendRegistryPayload(player, new OpenWaybillCreatePayload(
-                origin, cargo, weight, Economies.get(player.server).balance(player.getUUID()), stations),
+                origin, cargo, weight, Economies.get(player.server).balance(player.getUUID()),
+                Economies.usesNumismatics(player.server), stations),
                 OpenWaybillCreatePayload.STREAM_CODEC);
     }
 

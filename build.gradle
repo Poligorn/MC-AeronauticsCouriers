@@ -54,6 +54,15 @@ repositories {
             includeGroup 'xaero.lib'
         }
     }
+    exclusiveContent {
+        forRepository {
+            maven {
+                name = 'Modrinth'
+                url = 'https://api.modrinth.com/maven'
+            }
+        }
+        filter { includeGroup 'maven.modrinth' }
+    }
 }
 
 neoForge {
@@ -114,6 +123,9 @@ dependencies {
     compileOnly "xaero.minimap:xaerominimap-neoforge-1.21.1:${xaero_minimap_version}"
     compileOnly "xaero.map:xaeroworldmap-neoforge-1.21.1:${xaero_worldmap_version}"
     compileOnly "xaero.lib:xaerolib-neoforge-1.21.1:${xaero_lib_version}"
+
+    // Create: Numismatics — optional economy bridge, compileOnly (Modrinth Maven, do not ship or commit the jar).
+    compileOnly("maven.modrinth:numismatics:${numismatics_version}") { transitive = false }
 }
 
 var generateModMetadata = tasks.register("generateModMetadata", ProcessResources) {
@@ -133,6 +145,7 @@ var generateModMetadata = tasks.register("generateModMetadata", ProcessResources
             aeronautics_version_range    : aeronautics_version_range,
             xaero_minimap_version_range  : xaero_minimap_version_range,
             xaero_worldmap_version_range : xaero_worldmap_version_range,
+            numismatics_version_range    : numismatics_version_range,
     ]
     inputs.properties replaceProperties
     expand replaceProperties
@@ -201,6 +214,12 @@ tasks.register('checkBoardListFilters', Exec) {
     commandLine 'python3', layout.projectDirectory.file('tools/check_board_list_filters.py')
 }
 
+tasks.register('checkEconomyBackend', Exec) {
+    group = 'verification'
+    description = 'Pure-logic checks for economy backend selection and migration rules.'
+    commandLine 'python3', layout.projectDirectory.file('tools/check_economy_backend.py')
+}
+
 tasks.named('build') {
     dependsOn tasks.named('checkScreenRenderGuard')
     dependsOn tasks.named('checkProfileSkinLayout')
@@ -211,6 +230,7 @@ tasks.named('build') {
     dependsOn tasks.named('checkNavMath')
     dependsOn tasks.named('checkRankLimits')
     dependsOn tasks.named('checkBoardListFilters')
+    dependsOn tasks.named('checkEconomyBackend')
 }
 
 idea {

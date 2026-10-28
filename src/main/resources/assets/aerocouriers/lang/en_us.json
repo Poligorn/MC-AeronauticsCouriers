@@ -129,6 +129,8 @@
   "ui.aerocouriers.open": "Aeronautics Couriers",
   "ui.aerocouriers.loading": "Loading…",
   "ui.aerocouriers.balance": "Balance: %s sp",
+  "ui.aerocouriers.balance.numismatics": "Balance: %s sp",
+  "ui.aerocouriers.balance.numismatics_breakdown": "Balance: %1$s sp (%2$s)",
   "ui.aerocouriers.mail.claim": "Claim mail (%s)",
   "ui.aerocouriers.mail.tooltip": "Mail",
   "ui.aerocouriers.tab.mail": "Mail",

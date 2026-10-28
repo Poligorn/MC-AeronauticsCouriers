@@ -65,6 +65,7 @@ public final class CouriersServerConfig {
     public static final ModConfigSpec.IntValue CROSS_DIMENSION_DISTANCE;
 
     public static final ModConfigSpec.IntValue EMERALD_VALUE_SPURS;
+    public static final ModConfigSpec.ConfigValue<String> ECONOMY_BACKEND;
 
     public static final ModConfigSpec.IntValue MIGRATION_XP_CADET;
     public static final ModConfigSpec.IntValue MIGRATION_XP_SECOND;
@@ -154,6 +155,11 @@ public final class CouriersServerConfig {
         b.pop();
 
         b.push("economy");
+        ECONOMY_BACKEND = b.comment(
+                        "Money backend: auto (Numismatics bank account when the mod is loaded, else internal balance),",
+                        "numismatics (force bank account; falls back to internal with a warning if the mod is missing),",
+                        "internal (mod balance only)")
+                .define("backend", "auto");
         EMERALD_VALUE_SPURS = b.defineInRange("emerald_value_spurs", 8, 1, 4096);
         b.pop();
 

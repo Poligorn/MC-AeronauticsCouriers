@@ -19,6 +19,7 @@ public record OpenWaybillCreatePayload(
         List<ItemStack> cargo,
         double weight,
         long balance,
+        boolean numismaticsEconomy,
         List<BoardSnapshotPayload.StationHint> stations
 ) implements CustomPacketPayload {
     public static final Type<OpenWaybillCreatePayload> TYPE = new Type<>(AeronauticsCouriers.id("open_waybill_create"));
@@ -30,6 +31,7 @@ public record OpenWaybillCreatePayload(
                     OpenWaybillCreatePayload::cargo,
                     ByteBufCodecs.DOUBLE, OpenWaybillCreatePayload::weight,
                     ByteBufCodecs.VAR_LONG, OpenWaybillCreatePayload::balance,
+                    ByteBufCodecs.BOOL, OpenWaybillCreatePayload::numismaticsEconomy,
                     BoardSnapshotPayload.StationHint.STREAM_CODEC.apply(ByteBufCodecs.list(64)),
                     OpenWaybillCreatePayload::stations,
                     OpenWaybillCreatePayload::new);

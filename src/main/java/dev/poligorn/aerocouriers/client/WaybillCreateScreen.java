@@ -268,7 +268,7 @@ public final class WaybillCreateScreen extends Screen {
         int textX = layout.paperLeft + WaybillCreateLayout.PAD;
         int titleW = Math.max(32, layout.balanceX - textX - 8);
         drawClipped(graphics, title, textX, layout.headerY, titleW, WaybillCreateGui.TEXT, mouseX, mouseY);
-        drawClipped(graphics, Component.translatable("ui.aerocouriers.balance", preview.balance()),
+        drawClipped(graphics, BalanceDisplay.format(preview.balance(), preview.numismaticsEconomy()),
                 layout.balanceX, layout.headerY,
                 layout.paperLeft + layout.paperW - WaybillCreateLayout.PAD - layout.balanceX,
                 WaybillCreateGui.TEXT_MUTED, mouseX, mouseY);

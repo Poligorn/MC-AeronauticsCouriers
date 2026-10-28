@@ -11,7 +11,7 @@
 | Sable | 2.0.6 | `dev.ryanhcode.sable:sable-neoforge-1.21.1:2.0.6` (`compileOnly`, нетранзитивно) | maven.ryanhcode.dev/releases |
 | Sable Companion | 1.6.0 (вшит в Sable) | `dev.ryanhcode.sable-companion:sable-companion-common-1.21.1:1.6.0` (`jarJar`) | maven.ryanhcode.dev/releases |
 | Curios | 9.5.1+1.21.1 | `top.theillusivec4.curios:curios-neoforge:9.5.1+1.21.1` | maven.theillusivec4.top |
-| Numismatics | 1.1.0 (в GDD — 1.0.20) | ещё не подключён | ⚠️ API не сверен |
+| Numismatics | 1.1.0 (в GDD — 1.0.20) | `compileOnly maven.modrinth:numismatics:1.1.0+neoforge-mc1.21.1` | ✅ javap 1.1.0 jar |
 | Xaero's Minimap | 26.6.0 | `compileOnly xaero.minimap:xaerominimap-neoforge-1.21.1:26.6.0` | см. [xaero.md](xaero.md) |
 | Xaero's World Map | 1.47.0 | `compileOnly xaero.map:xaeroworldmap-neoforge-1.21.1:1.47.0` | см. [xaero.md](xaero.md) |
 | XaeroLib | 1.7.3 | `compileOnly xaero.lib:xaerolib-neoforge-1.21.1:1.7.3` (compileOnly не транзитивен) | ✅ по POM 26.6.0 / 1.47.0 |
@@ -79,8 +79,20 @@ Data Components (`DeferredRegister.createDataComponents`), Data Attachments (`At
 | Письмо в `AllIcons` | отдельной иконки конверта нет | ✅ нет |
 | Catnip на compile | `catnip-neoforge` в maven.createmod.net для 1.21.1 не опубликован (есть только `+mc26.1.2`); `IconButton`/`Label`/`ScrollInput` без него не скомпилировать | ✅ maven |
 
+## Create: Numismatics 1.1.0+neoforge-mc1.21.1 (экономика, 28.10.2026)
+| Что | Факт | Статус |
+|---|---|---|
+| Mod ID | `numismatics` (`Numismatics.MOD_ID`) | ✅ javap |
+| Maven (сборка) | `maven.modrinth:numismatics:1.1.0+neoforge-mc1.21.1`, `compileOnly`, non-transitive | ✅ Gradle resolve |
+| Менеджер счетов | `Numismatics.BANK` → `GlobalBankManager` | ✅ javap |
+| Счёт игрока | `GlobalBankManager.getAccount(UUID)` → `BankAccount` или null; `getOrCreateAccount(UUID, BankAccount.Type.PLAYER)` | ✅ javap |
+| Баланс | `BankAccount.getBalance()` → `int` (спуры) | ✅ javap |
+| Пополнение | `BankAccount.deposit(int spurs)` | ✅ javap |
+| Списание | `BankAccount.deduct(int spurs, boolean allowOverdraft)` → `boolean`; `false` = без ухода в минус | ✅ javap |
+| Дробление монет | `Coin.getCoinsFromSpurAmount(int)` (SPUR/BEVEL/…/SUN, `Coin.value` = номинал в спурах) | ✅ javap |
+| GDD §14.5 | Старые имена совпадают по смыслу; пакет `dev.ithundxr.createnumismatics.*`, не Create addon namespace | ✅ |
+
 ## Что ещё не проверено
-- Numismatics 1.1.0: `Numismatics.BANK`, `BankAccount.deduct/deposit`, `BankAccount.Type` (GDD §14.5 ⚠️).
 - Xaero: fair-play mod ID; выбор точки на карте **в игре** (код есть).
 - FFItemWeight: API для веса предметов.
 - Aeronautics: можно ли зацепить верёвку/лебёдку за наш блок (только в игре).

@@ -33,6 +33,7 @@ public record BoardSnapshotPayload(
         int page,
         int boardTotal,
         long balance,
+        boolean numismaticsEconomy,
         int mailCount,
         int notificationUnread,
         boolean operator,
@@ -366,6 +367,7 @@ public record BoardSnapshotPayload(
         buf.writeVarInt(p.page);
         buf.writeVarInt(p.boardTotal);
         buf.writeVarLong(p.balance);
+        buf.writeBoolean(p.numismaticsEconomy);
         buf.writeVarInt(p.mailCount);
         buf.writeVarInt(p.notificationUnread);
         buf.writeBoolean(p.operator);
@@ -393,6 +395,7 @@ public record BoardSnapshotPayload(
         int page = buf.readVarInt();
         int boardTotal = buf.readVarInt();
         long balance = buf.readVarLong();
+        boolean numismaticsEconomy = buf.readBoolean();
         int mailCount = buf.readVarInt();
         int notificationUnread = buf.readVarInt();
         boolean operator = buf.readBoolean();
@@ -402,7 +405,8 @@ public record BoardSnapshotPayload(
         Optional<Component> notice = buf.readBoolean()
                 ? Optional.of(ComponentSerialization.STREAM_CODEC.decode(buf))
                 : Optional.empty();
-        return new BoardSnapshotPayload(openScreen, page, boardTotal, balance, mailCount, notificationUnread, operator,
+        return new BoardSnapshotPayload(openScreen, page, boardTotal, balance, numismaticsEconomy, mailCount,
+                notificationUnread, operator,
                 licensed,
                 allowSelfAccept, requireTablet, notice,
                 BoardEntry.STREAM_CODEC.apply(ByteBufCodecs.list(PAGE_SIZE)).decode(buf),
