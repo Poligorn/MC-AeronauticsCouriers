@@ -32,7 +32,7 @@ public final class TabletGui {
     /** Nine-slice brass + bevel before the screen cavity (matches {@code tablet_frame}). */
     public static final int FRAME_BORDER = 16;
     /** Inset from the inner screen cavity to tabs, headings, lists, and chrome (all tablet UIs). */
-    public static final int CONTENT_INSET = 9;
+    public static final int CONTENT_INSET = 14;
     /** Antenna sprite size (2× legacy; matches {@code gen_tablet_antenna}). */
     public static final int ANTENNA_W = 20;
     public static final int ANTENNA_H = 64;
