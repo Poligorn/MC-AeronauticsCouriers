@@ -30,6 +30,8 @@ final class BoardAdminUi {
     private int playerStationIndex;
     private int configKeyIndex;
     private int adminScroll;
+    private @Nullable UUID pendingLicenseResetId;
+    private @Nullable String pendingLicenseResetName;
 
     BoardAdminUi(CourierBoardScreen screen) {
         this.screen = screen;
@@ -71,6 +73,8 @@ final class BoardAdminUi {
     private void selectSub(SubTab tab) {
         subTab = tab;
         adminScroll = 0;
+        pendingLicenseResetId = null;
+        pendingLicenseResetName = null;
         screen.refreshAdminContent();
     }
 
@@ -121,18 +125,52 @@ final class BoardAdminUi {
         if (selectedPlayer == null && !players.isEmpty()) {
             selectedPlayer = players.getFirst().id();
         }
+        int resetW = Math.min(108, sw / 3);
+        int nameW = Math.max(48, sw - 4 - resetW - 4);
         for (int i = 0; i < players.size() && i < 8; i++) {
             BoardSnapshotPayload.PlayerHint p = players.get(i);
             int rowY = y + i * rowH;
             boolean sel = p.id().equals(selectedPlayer);
-            screen.adminAddWidget(TabletButton.create(sx, rowY, sw - 4, 14,
+            screen.adminAddWidget(TabletButton.create(sx, rowY, nameW, 14,
                     Component.literal((sel ? "• " : "  ") + p.name()), b -> {
                         selectedPlayer = p.id();
+                        pendingLicenseResetId = null;
+                        pendingLicenseResetName = null;
+                        screen.refreshAdminContent();
+                    }));
+            screen.adminAddWidget(TabletButton.create(sx + nameW + 4, rowY, resetW, 14,
+                    Component.translatable("ui.aerocouriers.admin.player.reset_license"), b -> {
+                        pendingLicenseResetId = p.id();
+                        pendingLicenseResetName = p.name();
                         screen.refreshAdminContent();
                     }));
         }
+        int listBottom = y + Math.min(players.size(), 8) * rowH + 4;
+        if (pendingLicenseResetId != null && pendingLicenseResetName != null) {
+            int confirmY = listBottom;
+            int yesW = 44;
+            int noW = 44;
+            int textW = Math.max(48, sw - yesW - noW - 12);
+            screen.adminAddWidget(TabletButton.create(sx + textW + 8, confirmY, yesW, 14,
+                    Component.translatable("ui.aerocouriers.admin.player.reset_license.yes"), b -> {
+                        UUID targetId = pendingLicenseResetId;
+                        pendingLicenseResetId = null;
+                        pendingLicenseResetName = null;
+                        PacketDistributor.sendToServer(new OperatorBoardPayload(
+                                OperatorBoardPayload.Action.PLAYER_RESET_LICENSE, Optional.empty(),
+                                Optional.ofNullable(targetId), Optional.empty(), Optional.empty(), 0L, true));
+                        screen.refreshAdminContent();
+                    }));
+            screen.adminAddWidget(TabletButton.create(sx + textW + yesW + 12, confirmY, noW, 14,
+                    Component.translatable("ui.aerocouriers.admin.player.reset_license.no"), b -> {
+                        pendingLicenseResetId = null;
+                        pendingLicenseResetName = null;
+                        screen.refreshAdminContent();
+                    }));
+            listBottom = confirmY + 18;
+        }
         Optional<UUID> target = Optional.ofNullable(selectedPlayer);
-        int by = y + Math.min(players.size(), 8) * rowH + 8;
+        int by = listBottom + 4;
         int half = sw / 2 - 2;
         int col = 0;
         for (LicenseRank rank : LicenseRank.values()) {
@@ -248,6 +286,18 @@ final class BoardAdminUi {
 
     void render(GuiGraphics graphics, BoardSnapshotPayload snapshot, int sx, int headerY, int rowY, int sw,
                 @Nullable UUID selectedContract) {
+        if (subTab == SubTab.PLAYERS && pendingLicenseResetId != null && pendingLicenseResetName != null) {
+            int rowH = 14;
+            List<BoardSnapshotPayload.PlayerHint> players = snapshot.onlinePlayers();
+            int confirmY = rowY + Math.min(players.size(), 8) * rowH + 4;
+            int yesW = 44;
+            int noW = 44;
+            int textW = Math.max(48, sw - yesW - noW - 12);
+            Component question = Component.translatable("ui.aerocouriers.admin.player.reset_license.confirm",
+                    pendingLicenseResetName);
+            graphics.drawString(screen.adminFont(), question, sx, confirmY + 3, TabletGui.TEXT_WARN, false);
+            return;
+        }
         if (subTab != SubTab.ORDERS) {
             return;
         }

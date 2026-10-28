@@ -10,6 +10,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import top.theillusivec4.curios.api.CuriosApi;
+import top.theillusivec4.curios.api.SlotContext;
 import top.theillusivec4.curios.api.SlotResult;
 
 /**
@@ -43,6 +44,22 @@ public final class Licenses {
 
     public static void setProfile(Player player, CourierProfile profile) {
         player.setData(ModAttachments.COURIER_PROFILE, profile);
+    }
+
+    /** Removes every pilot license from Curios and inventory (admin reset). */
+    public static void removeAllPilotLicenses(Player player) {
+        CuriosApi.getCuriosInventory(player).ifPresent(handler -> {
+            for (SlotResult slot : handler.findCurios(stack -> stack.is(ModItems.PILOT_LICENSE.get()))) {
+                SlotContext ctx = slot.slotContext();
+                handler.setEquippedCurio(ctx.identifier(), ctx.index(), ItemStack.EMPTY);
+            }
+        });
+        var inv = player.getInventory();
+        for (int i = 0; i < inv.getContainerSize(); i++) {
+            if (inv.getItem(i).is(ModItems.PILOT_LICENSE.get())) {
+                inv.setItem(i, ItemStack.EMPTY);
+            }
+        }
     }
 
     public static LicenseRank rankOf(Player player) {

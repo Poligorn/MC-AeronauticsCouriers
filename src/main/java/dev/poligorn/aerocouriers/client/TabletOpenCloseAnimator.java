@@ -60,6 +60,14 @@ public final class TabletOpenCloseAnimator {
         return closing || rawProgress(partialTick) < 1.0F;
     }
 
+    /** Slide-in from below after the screen opens (not tab switches). */
+    public boolean isOpenSlideActive(float partialTick) {
+        if (!TabletAnim.enabled() || skipOpen || closing) {
+            return false;
+        }
+        return rawProgress(partialTick) < 1.0F;
+    }
+
     private float rawProgress(float partialTick) {
         if (closing) {
             float elapsed = elapsedMs(closingSince, partialTick);

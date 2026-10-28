@@ -37,38 +37,52 @@ public final class TabletScreenChrome {
         InGamePauseBackground.render(screen, graphics, mouseX, mouseY, partialTick, openClose.backdropAlpha(partialTick));
     }
 
-    public boolean blocksInput(boolean awaitingServerData, float partialTick) {
+    public boolean showLoadingGear(boolean awaitingServerData, float partialTick) {
         if (openClose.isClosing()) {
-            return true;
+            return false;
         }
         if (awaitingServerData) {
             return true;
         }
-        return openClose.isAnimating(partialTick);
+        return openClose.isOpenSlideActive(partialTick);
+    }
+
+    public boolean blocksInput(boolean awaitingServerData, float partialTick) {
+        if (openClose.isClosing()) {
+            return true;
+        }
+        return showLoadingGear(awaitingServerData, partialTick);
+    }
+
+    public float bodyTranslateY(float partialTick) {
+        return openClose.translateY(partialTick, lastScreenH, lastFrameTop, lastFrameH);
+    }
+
+    public double adjustMouseY(double mouseY, float partialTick) {
+        return mouseY - bodyTranslateY(partialTick);
     }
 
     public void drawTabletBody(GuiGraphics graphics, float partialTick, Runnable draw) {
-        float translateY = openClose.translateY(partialTick, lastScreenH, lastFrameTop, lastFrameH);
+        float translateY = bodyTranslateY(partialTick);
         TabletAnim.withTransform(graphics, 0.0F, translateY, 1.0F, draw);
     }
 
     public void drawLoadingGear(GuiGraphics graphics, int cavityX, int cavityY, int cavityW, int cavityH,
                                 boolean awaitingServerData, float partialTick) {
-        boolean blocked = blocksInput(awaitingServerData, partialTick);
-        float alpha = loadingGear.alpha(blocked);
+        boolean show = showLoadingGear(awaitingServerData, partialTick);
+        float alpha = loadingGear.alpha(show);
         loadingGear.render(graphics, cavityX, cavityY, cavityW, cavityH, alpha, partialTick);
     }
 
     /**
-     * Opacity for cavity content (tabs, lists, text). Fades in over {@link TabletLoadingGear}'s fade-out while the
-     * gear is visible or fading; instant {@code 1} when UI animations are disabled.
+     * Opacity for cavity content (tabs, lists, text). Hidden only while awaiting the first snapshot or during the
+     * open slide-in; tab switches keep {@code 1} and use {@link TabletTabSwitchEffects} only.
      */
     public float cavityContentAlpha(boolean awaitingServerData, float partialTick) {
         if (!TabletAnim.enabled()) {
             return 1.0F;
         }
-        boolean blocked = blocksInput(awaitingServerData, partialTick);
-        return 1.0F - loadingGear.alpha(blocked);
+        return showLoadingGear(awaitingServerData, partialTick) ? 0.0F : 1.0F;
     }
 
     public void drawCavityBackground(GuiGraphics graphics, int x, int y, int w, int h, float partialTick) {

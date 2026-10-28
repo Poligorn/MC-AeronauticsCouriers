@@ -295,6 +295,7 @@ public final class BoardPackets {
             case PLAYER_LICENSE -> playerLicense(target, payload);
             case PLAYER_WAYBILL -> AdminActions.grantWaybill(target);
             case PLAYER_MONEY -> AdminActions.grantMoney(target, payload.longArg() > 0 ? payload.longArg() : OperatorBoardPayload.TEST_MONEY);
+            case PLAYER_RESET_LICENSE -> playerResetLicense(player, payload, target);
             case ECONOMY_RELOAD -> AdminActions.reloadDatapacks(server);
             case ECONOMY_SHOW_VALUE -> AdminActions.handValue(player, false, 0);
             case ECONOMY_SET_VALUE -> AdminActions.handValue(player, true, payload.longArg());
@@ -316,6 +317,19 @@ public final class BoardPackets {
     private static ContractManager.Outcome playerLicense(ServerPlayer target, OperatorBoardPayload payload) {
         String raw = payload.arg1().orElse(LicenseRank.RANK1.getSerializedName());
         return AdminActions.grantLicense(target, LicenseRank.bySerializedName(raw));
+    }
+
+    private static ContractManager.Outcome playerResetLicense(ServerPlayer actor, OperatorBoardPayload payload,
+                                                              ServerPlayer target) {
+        if (payload.targetPlayer().isEmpty()) {
+            return new ContractManager.Outcome(false,
+                    Component.translatable("ui.aerocouriers.error.no_selection"), Optional.empty());
+        }
+        if (!payload.confirmed()) {
+            return new ContractManager.Outcome(false,
+                    Component.translatable("admin.aerocouriers.error.confirm"), Optional.empty());
+        }
+        return AdminActions.resetLicense(target);
     }
 
     @FunctionalInterface

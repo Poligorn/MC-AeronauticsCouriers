@@ -58,6 +58,8 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -361,14 +363,8 @@ public final class CourierBoardScreen extends Screen {
         int sx = screenLeft();
         int top = listTop();
         int panelW = screenW();
-        int closeW = 18;
-        int closeX = sx + panelW - closeW - 4;
         if (ClientBoard.viewingOtherProfile()) {
-            addRenderableWidget(TabletButton.create(closeX, top + 4, closeW, 14,
-                    Component.literal("\u2715"), b -> {
-                        ClientBoard.clearViewedProfile();
-                        init();
-                    }));
+            addRenderableWidget(profileCloseButton(sx, panelW));
         }
         if (!ClientBoard.viewingOtherProfile() && profile.neverHadPilotLicense()) {
             int btnW = Math.min(profileStatsWidth(sx), 220);
@@ -674,18 +670,20 @@ public final class CourierBoardScreen extends Screen {
         RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
         tabletChrome.tick();
         tabletChrome.layout(height, top(), panelH());
+        int contentMouseX = mouseX;
+        int contentMouseY = (int) tabletChrome.adjustMouseY(mouseY, partialTick);
         float cavityAlpha = tabletChrome.cavityContentAlpha(snapshot == null, partialTick);
         float contentAlpha = tabEffects.contentAlpha() * cavityAlpha;
         tabletChrome.drawTabletBody(graphics, partialTick, () -> {
             TabletGui.drawScreenBackground(graphics, cavityLeft(), cavityTop(), cavityW(), cavityH(), partialTick);
             if (cavityAlpha > 0.001F) {
                 tabEffects.drawHighlight(graphics, mainTabRowY(), TAB_H);
-                renderChromeWidgets(graphics, mouseX, mouseY, partialTick);
+                renderChromeWidgets(graphics, contentMouseX, contentMouseY, partialTick);
                 TabletAnim.withAlpha(graphics, contentAlpha, () -> {
-                    renderContentWidgets(graphics, mouseX, mouseY, partialTick);
-                    drawTabPanelContent(graphics, mouseX, mouseY, partialTick);
+                    renderContentWidgets(graphics, contentMouseX, contentMouseY, partialTick);
+                    drawTabPanelContent(graphics, contentMouseX, contentMouseY, partialTick);
                     if (tab == Tab.PROFILE) {
-                        renderProfileWidgetsOnTop(graphics, mouseX, mouseY, partialTick);
+                        renderProfileWidgetsOnTop(graphics, contentMouseX, contentMouseY, partialTick);
                     }
                 });
             }
@@ -695,14 +693,14 @@ public final class CourierBoardScreen extends Screen {
                     snapshot == null, partialTick);
         });
         RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
-        updateRowIconHover(mouseX, mouseY);
-        captureRowLine1HoverTips(mouseX, mouseY);
-        captureRowHoverTips(mouseX, mouseY);
+        updateRowIconHover(contentMouseX, contentMouseY);
+        captureRowLine1HoverTips(contentMouseX, contentMouseY);
+        captureRowHoverTips(contentMouseX, contentMouseY);
         if (hoverTip == null && hoverTipLines == null && hoverCargoComponent == null) {
-            captureProfileRankHover(mouseX, mouseY);
+            captureProfileRankHover(contentMouseX, contentMouseY);
         }
         if (hoverTip == null && hoverTipLines == null && hoverCargoComponent == null) {
-            captureButtonHint(mouseX, mouseY);
+            captureButtonHint(contentMouseX, contentMouseY);
         }
         renderTopLayerTooltips(graphics, mouseX, mouseY);
     }
@@ -1494,19 +1492,29 @@ public final class CourierBoardScreen extends Screen {
         if (tabletChrome.blocksInput(snapshot == null, 0.0F)) {
             return true;
         }
+        double adjustedY = tabletChrome.adjustMouseY(mouseY, 0.0F);
+        if (button == 0 && tab == Tab.PROFILE && ClientBoard.viewingOtherProfile()
+                && isOverProfileCloseButton((int) mouseX, (int) adjustedY)) {
+            closeViewedProfile();
+            return true;
+        }
         if (button == 0 && tab == Tab.MAIL) {
-            int index = mailRowAt(mouseX, mouseY);
-            if (index >= 0) {
-                List<NotificationSyncPayload.Line> entries = ClientNotifications.entries();
-                if (index < entries.size()) {
-                    entries.get(index).contractId().ifPresent(ClientBoard::focusContract);
-                    return true;
+            int mx = (int) mouseX;
+            int my = (int) adjustedY;
+            if (!isOverRowAction(mx, my)) {
+                int index = mailRowAt(mouseX, adjustedY);
+                if (index >= 0) {
+                    List<NotificationSyncPayload.Line> entries = ClientNotifications.entries();
+                    if (index < entries.size()) {
+                        entries.get(index).contractId().ifPresent(ClientBoard::focusContract);
+                        return true;
+                    }
                 }
             }
         }
         if (button == 0 && snapshot != null && (tab == Tab.BOARD || tab == Tab.MINE)) {
             int mx = (int) mouseX;
-            int my = (int) mouseY;
+            int my = (int) adjustedY;
             if (!isOverRowAction(mx, my)) {
                 BoardSnapshotPayload.BoardEntry customer = hitCustomerRow(mx, my);
                 if (customer != null) {
@@ -1523,7 +1531,7 @@ public final class CourierBoardScreen extends Screen {
                 }
             }
         }
-        return super.mouseClicked(mouseX, mouseY, button);
+        return super.mouseClicked(mouseX, adjustedY, button);
     }
 
     private void onCustomerClick(BoardSnapshotPayload.BoardEntry entry) {
@@ -1604,6 +1612,7 @@ public final class CourierBoardScreen extends Screen {
         if (tabletChrome.blocksInput(snapshot == null, 0.0F)) {
             return true;
         }
+        double adjustedY = tabletChrome.adjustMouseY(mouseY, 0.0F);
         if (tab == Tab.MAIL) {
             List<NotificationSyncPayload.Line> entries = ClientNotifications.entries();
             int before = mailScroll;
@@ -1630,7 +1639,46 @@ public final class CourierBoardScreen extends Screen {
                 return true;
             }
         }
-        return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
+        return super.mouseScrolled(mouseX, adjustedY, scrollX, scrollY);
+    }
+
+    private static final int PROFILE_CLOSE_W = 18;
+    private static final int PROFILE_CLOSE_H = 14;
+
+    private TabletButton profileCloseButton(int sx, int panelW) {
+        int x = profileCloseButtonX(sx, panelW);
+        int y = profileCloseButtonY();
+        return TabletButton.create(x, y, PROFILE_CLOSE_W, PROFILE_CLOSE_H, Component.literal("\u2715"),
+                b -> closeViewedProfile());
+    }
+
+    private int profileCloseButtonX(int sx, int panelW) {
+        return sx + panelW - PROFILE_CLOSE_W - 4;
+    }
+
+    private int profileCloseButtonY() {
+        return listTop() + 6;
+    }
+
+    private boolean isOverProfileCloseButton(int mouseX, int mouseY) {
+        if (!ClientBoard.viewingOtherProfile()) {
+            return false;
+        }
+        int sx = screenLeft();
+        int x = profileCloseButtonX(sx, screenW());
+        int y = profileCloseButtonY();
+        return mouseX >= x && mouseX < x + PROFILE_CLOSE_W && mouseY >= y && mouseY < y + PROFILE_CLOSE_H;
+    }
+
+    private void closeViewedProfile() {
+        if (!ClientBoard.viewingOtherProfile()) {
+            return;
+        }
+        ClientBoard.clearViewedProfile();
+        if (minecraft != null) {
+            minecraft.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
+        }
+        refreshBoardContent();
     }
 
     private int panelW() {

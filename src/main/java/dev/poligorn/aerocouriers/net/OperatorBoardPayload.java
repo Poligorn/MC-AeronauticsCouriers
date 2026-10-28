@@ -50,7 +50,8 @@ public record OperatorBoardPayload(
         ECONOMY_SET_WEIGHT,
         SERVER_REGEN,
         CONFIG_SET,
-        DEBUG_TOGGLE_SELF_ACCEPT
+        DEBUG_TOGGLE_SELF_ACCEPT,
+        PLAYER_RESET_LICENSE
     }
 
     public static final long TEST_MONEY = 500;

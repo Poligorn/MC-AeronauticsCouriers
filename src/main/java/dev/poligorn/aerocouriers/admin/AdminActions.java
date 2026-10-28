@@ -18,6 +18,7 @@ import dev.poligorn.aerocouriers.item.Waybills;
 import dev.poligorn.aerocouriers.license.CourierProfile;
 import dev.poligorn.aerocouriers.license.LicenseRank;
 import dev.poligorn.aerocouriers.license.Licenses;
+import dev.poligorn.aerocouriers.net.BoardPackets;
 import dev.poligorn.aerocouriers.contract.RankRules;
 import dev.poligorn.aerocouriers.village.StationAtlas;
 import dev.poligorn.aerocouriers.village.StationContractSource;
@@ -110,6 +111,16 @@ public final class AdminActions {
         int created = StationContractSource.INSTANCE.generate(server);
         return new ContractManager.Outcome(true,
                 Component.translatable("admin.aerocouriers.server.regen", cleared, created), Optional.empty());
+    }
+
+    public static ContractManager.Outcome resetLicense(ServerPlayer target) {
+        CourierProfile prior = Licenses.profile(target);
+        Licenses.removeAllPilotLicenses(target);
+        Licenses.setProfile(target, CourierProfile.EMPTY.withMigrated(prior.migrated()));
+        BoardPackets.syncSnapshot(target);
+        return new ContractManager.Outcome(true,
+                Component.translatable("admin.aerocouriers.player.license_reset", target.getDisplayName()),
+                Optional.empty());
     }
 
     public static ContractManager.Outcome grantLicense(ServerPlayer target, LicenseRank rank) {

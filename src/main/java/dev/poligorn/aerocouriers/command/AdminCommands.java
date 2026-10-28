@@ -53,6 +53,9 @@ public final class AdminCommands {
                 .requires(src -> src.hasPermission(OP))
                 .then(contractBranch())
                 .then(playerBranch())
+                .then(Commands.literal("resetlicense")
+                        .then(Commands.argument("player", EntityArgument.player())
+                                .executes(AdminCommands::playerResetLicense)))
                 .then(economyBranch())
                 .then(serverBranch());
     }
@@ -240,6 +243,11 @@ public final class AdminCommands {
         return report(ctx.getSource(), new ContractManager.Outcome(true,
                 Component.translatable("contract.aerocouriers.balance", target.getDisplayName(), balance),
                 Optional.empty()));
+    }
+
+    private static int playerResetLicense(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
+        ServerPlayer target = EntityArgument.getPlayer(ctx, "player");
+        return report(ctx.getSource(), AdminActions.resetLicense(target));
     }
 
     private static int economyReload(CommandContext<CommandSourceStack> ctx) {
