@@ -175,7 +175,7 @@
   "ui.aerocouriers.profile.license.already": "Лицензия уже надета",
   "ui.aerocouriers.profile.license.reissue_hint": "Переоформление лицензии — через почтовую службу",
   "ui.aerocouriers.profile.offline": "Игрок не в сети — профиль недоступен",
-  "ui.aerocouriers.profile.issuer.heading": "── Как заказчик ──",
+  "ui.aerocouriers.profile.issuer.heading": "── Заказчик ──",
   "ui.aerocouriers.profile.issuer.empty": "Заказов нет",
   "ui.aerocouriers.profile.issuer.line1": "Заказов: %s   Средняя цена: %s sp",
   "ui.aerocouriers.profile.issuer.line2": "Средний вес: %s   Контейнер: чаще %s",

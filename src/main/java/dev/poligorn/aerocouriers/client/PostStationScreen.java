@@ -143,24 +143,30 @@ public final class PostStationScreen extends Screen {
         hoverCargoComponent = null;
         tabletChrome.tick();
         tabletChrome.layout(height, panelTop(), panelH());
+        float cavityAlpha = tabletChrome.cavityContentAlpha(false, partialTick);
         tabletChrome.drawTabletBody(graphics, partialTick, () -> {
             TabletGui.drawScreenBackground(graphics, cavityLeft(), cavityTop(), cavityW(), cavityH(), partialTick);
-            for (Renderable widget : renderables) {
-                widget.render(graphics, mouseX, mouseY, partialTick);
-            }
-            int cx = contentLeft();
-            int cy = contentTop();
-            graphics.drawString(font, title, cx, cy, TabletGui.TEXT, false);
-            Component next = snapshot.reputationNextThreshold() < 0
-                    ? Component.translatable("ui.aerocouriers.reputation.max_tier")
-                    : Component.translatable("ui.aerocouriers.station.reputation_next",
-                            snapshot.reputationNextThreshold());
-            Component rep = Component.translatable("ui.aerocouriers.station.reputation",
-                    snapshot.reputation(), snapshot.reputationTier(), snapshot.bonusPercent(), next);
-            graphics.drawString(font, rep, cx, cy + (snapshot.canRename() ? 42 : 20), TabletGui.TEXT_MUTED, false);
+            if (cavityAlpha > 0.001F) {
+                TabletAnim.withAlpha(graphics, cavityAlpha, () -> {
+                    for (Renderable widget : renderables) {
+                        widget.render(graphics, mouseX, mouseY, partialTick);
+                    }
+                    int cx = contentLeft();
+                    int cy = contentTop();
+                    graphics.drawString(font, title, cx, cy, TabletGui.TEXT, false);
+                    Component next = snapshot.reputationNextThreshold() < 0
+                            ? Component.translatable("ui.aerocouriers.reputation.max_tier")
+                            : Component.translatable("ui.aerocouriers.station.reputation_next",
+                                    snapshot.reputationNextThreshold());
+                    Component rep = Component.translatable("ui.aerocouriers.station.reputation",
+                            snapshot.reputation(), snapshot.reputationTier(), snapshot.bonusPercent(), next);
+                    graphics.drawString(font, rep, cx, cy + (snapshot.canRename() ? 42 : 20), TabletGui.TEXT_MUTED,
+                            false);
 
-            renderOrderList(graphics, mouseX, mouseY);
-            renderRowIconsOnTop(graphics, mouseX, mouseY, partialTick);
+                    renderOrderList(graphics, mouseX, mouseY);
+                    renderRowIconsOnTop(graphics, mouseX, mouseY, partialTick);
+                });
+            }
             TabletGui.drawFrameChrome(graphics, panelLeft(), panelTop(), panelW(), panelH());
             tabletChrome.drawLoadingGear(graphics, cavityLeft(), cavityTop(), cavityW(), cavityH(), false, partialTick);
         });

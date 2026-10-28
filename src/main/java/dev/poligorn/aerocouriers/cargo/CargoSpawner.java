@@ -1,6 +1,7 @@
 package dev.poligorn.aerocouriers.cargo;
 
 import dev.poligorn.aerocouriers.AeronauticsCouriers;
+import dev.poligorn.aerocouriers.config.CouriersServerConfig;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -61,6 +62,25 @@ public final class CargoSpawner {
         return Optional.ofNullable(best);
     }
 
+    /**
+     * Picks a controller anchor for a new structure: {@code preferred} if clear, else a nearby offset where
+     * {@code preferred} is still part of the footprint, else {@link #findSpot}.
+     */
+    public static Optional<BlockPos> resolveAnchor(ServerLevel level, BlockPos preferred, CargoSize size) {
+        if (CargoStructure.isSpawnClear(level, preferred, size)) {
+            return Optional.of(preferred.immutable());
+        }
+        BlockPos.MutableBlockPos anchor = new BlockPos.MutableBlockPos();
+        for (BlockPos offset : CargoStructure.offsets(size)) {
+            anchor.set(preferred.getX() - offset.getX(), preferred.getY() - offset.getY(),
+                    preferred.getZ() - offset.getZ());
+            if (CargoStructure.isSpawnClear(level, anchor, size)) {
+                return Optional.of(anchor.immutable());
+            }
+        }
+        return findSpot(level, preferred, CouriersServerConfig.SPAWN_SEARCH_RADIUS.get(), size);
+    }
+
     public static Result spawn(ServerLevel level, BlockPos anchor, CargoSize size, int fill, UUID contractId,
                                boolean debug, Direction facing) {
         return spawn(level, anchor, size, fill, contractId, debug, facing, false);
@@ -116,20 +136,39 @@ public final class CargoSpawner {
         BlockPos controller = cargo.controllerPos(anyPart, state);
         BlockState controllerState = level.getBlockState(controller);
         List<BlockPos> blocks = cargo.structurePositions(controller, controllerState);
-        for (BlockPos pos : blocks) {
-            BlockState part = level.getBlockState(pos);
-            if (!(part.getBlock() instanceof CargoBlock)) {
-                return Optional.empty();
+        CargoContainerBlockEntity controllerBe = level.getBlockEntity(controller) instanceof CargoContainerBlockEntity be
+                ? be
+                : null;
+        if (controllerBe != null) {
+            controllerBe.markAssembling(true);
+        }
+        try {
+            for (BlockPos pos : blocks) {
+                if (pos.equals(controller)) {
+                    continue;
+                }
+                BlockState part = level.getBlockState(pos);
+                if (!(part.getBlock() instanceof CargoBlock)) {
+                    return Optional.empty();
+                }
+                if (CargoContainerBlock.isPhysicsLocked(part)) {
+                    level.setBlock(pos, part.setValue(CargoContainerBlock.LOCKED, false), Block.UPDATE_CLIENTS);
+                }
             }
-            if (CargoContainerBlock.isPhysicsLocked(part)) {
-                level.setBlock(pos, part.setValue(CargoContainerBlock.LOCKED, false), Block.UPDATE_ALL);
+            BlockState part = level.getBlockState(controller);
+            if (part.getBlock() instanceof CargoBlock && CargoContainerBlock.isPhysicsLocked(part)) {
+                level.setBlock(controller, part.setValue(CargoContainerBlock.LOCKED, false), Block.UPDATE_CLIENTS);
+            }
+            Optional<UUID> subLevel = SableBridge.assembleStructure(level, controller, blocks);
+            if (subLevel.isEmpty()) {
+                AeronauticsCouriers.LOGGER.warn("[cargo] Sable did not assemble unlocked container at {}", controller);
+            }
+            return subLevel;
+        } finally {
+            if (controllerBe != null) {
+                controllerBe.markAssembling(false);
             }
         }
-        Optional<UUID> subLevel = SableBridge.assembleStructure(level, controller, blocks);
-        if (subLevel.isEmpty()) {
-            AeronauticsCouriers.LOGGER.warn("[cargo] Sable did not assemble unlocked container at {}", controller);
-        }
-        return subLevel;
     }
 
     /** Removes a cargo structure without treating it as a vanished in-transit container. */

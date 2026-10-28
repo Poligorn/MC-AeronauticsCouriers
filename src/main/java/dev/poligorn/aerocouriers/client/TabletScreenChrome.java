@@ -59,6 +59,18 @@ public final class TabletScreenChrome {
         loadingGear.render(graphics, cavityX, cavityY, cavityW, cavityH, alpha, partialTick);
     }
 
+    /**
+     * Opacity for cavity content (tabs, lists, text). Fades in over {@link TabletLoadingGear}'s fade-out while the
+     * gear is visible or fading; instant {@code 1} when UI animations are disabled.
+     */
+    public float cavityContentAlpha(boolean awaitingServerData, float partialTick) {
+        if (!TabletAnim.enabled()) {
+            return 1.0F;
+        }
+        boolean blocked = blocksInput(awaitingServerData, partialTick);
+        return 1.0F - loadingGear.alpha(blocked);
+    }
+
     public void drawCavityBackground(GuiGraphics graphics, int x, int y, int w, int h, float partialTick) {
         drawTabletBody(graphics, partialTick, () -> TabletGui.drawScreenBackground(graphics, x, y, w, h, partialTick));
     }

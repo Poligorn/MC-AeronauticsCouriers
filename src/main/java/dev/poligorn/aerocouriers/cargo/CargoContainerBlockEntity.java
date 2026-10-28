@@ -31,6 +31,8 @@ public class CargoContainerBlockEntity extends BlockEntity {
     private int ticks;
     private boolean chunkUnloading;
     private boolean selfRemoving;
+    /** Suppresses {@link #setRemoved} while {@link CargoSpawner#unlockAndAssemble} updates block states. */
+    private boolean assembling;
 
     public CargoContainerBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.CARGO_CONTAINER.get(), pos, state);
@@ -69,6 +71,10 @@ public class CargoContainerBlockEntity extends BlockEntity {
         selfRemoving = true;
     }
 
+    public void markAssembling(boolean assembling) {
+        this.assembling = assembling;
+    }
+
     @Override
     public void onLoad() {
         super.onLoad();
@@ -91,7 +97,8 @@ public class CargoContainerBlockEntity extends BlockEntity {
     @Override
     public void setRemoved() {
         super.setRemoved();
-        if (!chunkUnloading && !selfRemoving && !debug && contractId != null && level instanceof ServerLevel serverLevel) {
+        if (!chunkUnloading && !selfRemoving && !assembling && !debug && contractId != null
+                && level instanceof ServerLevel serverLevel) {
             ContractManager.get(serverLevel.getServer()).containerRemoved(contractId, serverLevel.getGameTime());
         }
     }

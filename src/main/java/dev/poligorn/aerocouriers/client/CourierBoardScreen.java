@@ -82,7 +82,8 @@ public final class CourierBoardScreen extends Screen {
     private static final int SCREEN_BOTTOM_PAD = 4;
     private static final int SCROLL_COUNTER_H = 12;
     private static final int BALANCE_RIGHT_PAD = 8;
-    private static final int INBOX_ROW_H = 22;
+    private static final int INBOX_ROW_MIN_H = 22;
+    private static final int INBOX_ROW_PAD_V = 4;
     private static final int INBOX_ICON = 14;
     private static final int MINE_SUB_TOGGLE_H = 18;
     private static final int MINE_SUB_GAP = 4;
@@ -673,18 +674,21 @@ public final class CourierBoardScreen extends Screen {
         RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
         tabletChrome.tick();
         tabletChrome.layout(height, top(), panelH());
-        float contentAlpha = tabEffects.contentAlpha();
+        float cavityAlpha = tabletChrome.cavityContentAlpha(snapshot == null, partialTick);
+        float contentAlpha = tabEffects.contentAlpha() * cavityAlpha;
         tabletChrome.drawTabletBody(graphics, partialTick, () -> {
             TabletGui.drawScreenBackground(graphics, cavityLeft(), cavityTop(), cavityW(), cavityH(), partialTick);
-            tabEffects.drawHighlight(graphics, mainTabRowY(), TAB_H);
-            renderChromeWidgets(graphics, mouseX, mouseY, partialTick);
-            TabletAnim.withAlpha(graphics, contentAlpha, () -> {
-                renderContentWidgets(graphics, mouseX, mouseY, partialTick);
-                drawTabPanelContent(graphics, mouseX, mouseY, partialTick);
-                if (tab == Tab.PROFILE) {
-                    renderProfileWidgetsOnTop(graphics, mouseX, mouseY, partialTick);
-                }
-            });
+            if (cavityAlpha > 0.001F) {
+                tabEffects.drawHighlight(graphics, mainTabRowY(), TAB_H);
+                renderChromeWidgets(graphics, mouseX, mouseY, partialTick);
+                TabletAnim.withAlpha(graphics, contentAlpha, () -> {
+                    renderContentWidgets(graphics, mouseX, mouseY, partialTick);
+                    drawTabPanelContent(graphics, mouseX, mouseY, partialTick);
+                    if (tab == Tab.PROFILE) {
+                        renderProfileWidgetsOnTop(graphics, mouseX, mouseY, partialTick);
+                    }
+                });
+            }
             RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
             TabletGui.drawFrameChrome(graphics, left(), top(), panelW(), panelH());
             tabletChrome.drawLoadingGear(graphics, cavityLeft(), cavityTop(), cavityW(), cavityH(),
@@ -748,8 +752,6 @@ public final class CourierBoardScreen extends Screen {
         }
 
         if (snapshot == null) {
-            graphics.drawString(font, Component.translatable("ui.aerocouriers.loading"),
-                    sx, sy + 40, TabletGui.TEXT_MUTED, false);
             return;
         }
 
@@ -849,6 +851,9 @@ public final class CourierBoardScreen extends Screen {
         }
         y += PROFILE_ICON_SIZE + 4;
 
+        y = drawProfileIssuerBlock(graphics, profile, statsX, y, statsW);
+        y += 4;
+
         RankProgress.State progress = RankProgress.state(profile.xp(), rank, profile.rankXpThresholds());
         profileXpEffects.onProfile(rank, progress.fraction());
         float xpFraction = profileXpEffects.displayedFraction(progress.fraction());
@@ -906,24 +911,25 @@ public final class CourierBoardScreen extends Screen {
                     TabletGui.TEXT);
             y += 4;
         }
+    }
 
-        int issuerY = Math.max(y, contentTop + boxH - profileIssuerBlockHeight(profile) - 4);
-        issuerY = drawProfileStatBlock(graphics, Component.translatable("ui.aerocouriers.profile.issuer.heading"),
-                statsX, issuerY, statsW, TabletGui.TEXT_MUTED);
+    private int drawProfileIssuerBlock(GuiGraphics graphics, BoardSnapshotPayload.BoardProfile profile, int statsX,
+                                       int y, int statsW) {
+        y = drawProfileStatBlock(graphics, Component.translatable("ui.aerocouriers.profile.issuer.heading"),
+                statsX, y, statsW, TabletGui.TEXT_MUTED);
         if (profile.issuerOrders() <= 0) {
-            drawProfileStatBlock(graphics, Component.translatable("ui.aerocouriers.profile.issuer.empty"),
-                    statsX, issuerY, statsW, TabletGui.TEXT_MUTED);
-        } else {
-            dev.poligorn.aerocouriers.license.IssuerStats issuer = profile.issuerStats();
-            Component line1 = Component.translatable("ui.aerocouriers.profile.issuer.line1",
-                    issuer.orders(), issuer.averageReward());
-            issuerY = drawProfileStatBlock(graphics, line1, statsX, issuerY, statsW, TabletGui.TEXT);
-            CargoSize common = profile.issuerMostCommonSize().orElse(CargoSize.M);
-            Component sizeLabel = AcceptEligibility.sizeLabel(common);
-            Component line2 = Component.translatable("ui.aerocouriers.profile.issuer.line2",
-                    issuer.averageWeight(), sizeLabel);
-            drawProfileStatBlock(graphics, line2, statsX, issuerY, statsW, TabletGui.TEXT);
+            return drawProfileStatBlock(graphics, Component.translatable("ui.aerocouriers.profile.issuer.empty"),
+                    statsX, y, statsW, TabletGui.TEXT_MUTED);
         }
+        dev.poligorn.aerocouriers.license.IssuerStats issuer = profile.issuerStats();
+        Component line1 = Component.translatable("ui.aerocouriers.profile.issuer.line1",
+                issuer.orders(), issuer.averageReward());
+        y = drawProfileStatBlock(graphics, line1, statsX, y, statsW, TabletGui.TEXT);
+        CargoSize common = profile.issuerMostCommonSize().orElse(CargoSize.M);
+        Component sizeLabel = AcceptEligibility.sizeLabel(common);
+        Component line2 = Component.translatable("ui.aerocouriers.profile.issuer.line2",
+                issuer.averageWeight(), sizeLabel);
+        return drawProfileStatBlock(graphics, line2, statsX, y, statsW, TabletGui.TEXT);
     }
 
     private int profileSkinPanelWidth() {
@@ -959,16 +965,6 @@ public final class CourierBoardScreen extends Screen {
             }
         }
         return y + 4;
-    }
-
-    private static int profileIssuerBlockHeight(BoardSnapshotPayload.BoardProfile profile) {
-        int lines = 1;
-        if (profile.issuerOrders() <= 0) {
-            lines++;
-        } else {
-            lines += 2;
-        }
-        return lines * PROFILE_LINE_HEIGHT + 4;
     }
 
     private @Nullable LivingEntity resolveProfilePreviewEntity() {
@@ -1611,8 +1607,7 @@ public final class CourierBoardScreen extends Screen {
         if (tab == Tab.MAIL) {
             List<NotificationSyncPayload.Line> entries = ClientNotifications.entries();
             int before = mailScroll;
-            mailScroll = Mth.clamp(mailScroll - (int) Math.signum(scrollY), 0,
-                    Math.max(0, entries.size() - mailVisibleRows()));
+            mailScroll = Mth.clamp(mailScroll - (int) Math.signum(scrollY), 0, mailMaxScrollIndex(entries));
             if (mailScroll != before) {
                 mailRowButtonKey = null;
                 initMailTab();
@@ -1855,12 +1850,13 @@ public final class CourierBoardScreen extends Screen {
                 b -> PacketDistributor.sendToServer(InboxClearPlainPayload.INSTANCE)));
 
         int visible = mailVisibleRows();
-        mailScroll = Mth.clamp(mailScroll, 0, Math.max(0, entries.size() - visible));
+        mailScroll = Mth.clamp(mailScroll, 0, mailMaxScrollIndex(entries));
         int rowTop = mailListTop();
         for (int i = 0; i < visible && mailScroll + i < entries.size(); i++) {
             NotificationSyncPayload.Line line = entries.get(mailScroll + i);
-            int rowY = rowTop + i * INBOX_ROW_H;
-            int btnY = rowY + 3;
+            int rowY = mailRowTop(entries, mailScroll + i);
+            int rowH = inboxRowHeight(line, sw);
+            int btnY = rowY + (rowH - 14) / 2;
             int claimW = 54;
             int dismissW = 14;
             int dismissX = sx + sw - dismissW - 4;
@@ -1891,26 +1887,29 @@ public final class CourierBoardScreen extends Screen {
         mailRowEffects.onListPopulated(listKey, visible);
         for (int i = 0; i < visible && mailScroll + i < entries.size(); i++) {
             NotificationSyncPayload.Line line = entries.get(mailScroll + i);
-            int rowY = top + i * INBOX_ROW_H;
+            int listIndex = mailScroll + i;
+            int rowY = mailRowTop(entries, listIndex);
+            int rowH = inboxRowHeight(line, listW);
             boolean hover = mouseX >= sx && mouseX < sx + listW
-                    && mouseY >= rowY && mouseY < rowY + INBOX_ROW_H - 2;
+                    && mouseY >= rowY && mouseY < rowY + rowH - 2;
             float hoverStrength = mailRowEffects.hoverStrength(i, hover);
             float slideX = mailRowEffects.rowSlideX(i);
             float rowAlpha = mailRowEffects.rowAlpha(i);
-            TabletGui.drawRow(graphics, sx, rowY, listW, INBOX_ROW_H - 2, false, hoverStrength, rowAlpha, slideX);
+            TabletGui.drawRow(graphics, sx, rowY, listW, rowH - 2, false, hoverStrength, rowAlpha, slideX);
             graphics.pose().pushPose();
             graphics.pose().translate(slideX, 0.0F, 0.0F);
             TabletAnim.withAlpha(graphics, rowAlpha, () -> {
-                int iconY = rowY + (INBOX_ROW_H - INBOX_ICON) / 2 - 1;
+                int iconY = rowY + (rowH - INBOX_ICON) / 2 - 1;
                 var icon = line.hasItems() ? AerocouriersGuiSprites.ICON_CRATE : AerocouriersGuiSprites.BELL_TABLET;
                 graphics.blitSprite(icon, sx + 4, iconY, INBOX_ICON, INBOX_ICON);
                 int textX = sx + 4 + INBOX_ICON + 4;
                 int claimReserve = line.hasItems() ? 62 : 18;
                 int textW = listW - (textX - sx) - claimReserve - 4;
                 List<FormattedCharSequence> wrapped = font.split(line.text(), textW);
-                int ty = rowY + 4;
-                for (int lineIdx = 0; lineIdx < Math.min(2, wrapped.size()); lineIdx++) {
-                    graphics.drawString(font, wrapped.get(lineIdx), textX, ty, TabletGui.TEXT, false);
+                int textBlockH = wrapped.size() * font.lineHeight;
+                int ty = rowY + (rowH - textBlockH) / 2;
+                for (FormattedCharSequence row : wrapped) {
+                    graphics.drawString(font, row, textX, ty, TabletGui.TEXT, false);
                     ty += font.lineHeight;
                 }
             });
@@ -1920,11 +1919,11 @@ public final class CourierBoardScreen extends Screen {
 
     private void renderMailActionWidgetsOnTop(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         int listY = mailListTop();
-        int listBottom = listY + mailVisibleRows() * INBOX_ROW_H;
+        int listBottom = mailListBottom();
         for (Renderable widget : renderables) {
             if (widget instanceof TabletButton button) {
                 int y = button.getY();
-                if (y >= headingY() && y < listBottom + INBOX_ROW_H) {
+                if (y >= headingY() && y < listBottom) {
                     widget.render(graphics, mouseX, mouseY, partialTick);
                 }
             }
@@ -1937,12 +1936,14 @@ public final class CourierBoardScreen extends Screen {
         if (mouseX < left || mouseX >= left + listW) {
             return -1;
         }
-        int y = mailListTop();
+        List<NotificationSyncPayload.Line> entries = ClientNotifications.entries();
         int visible = mailVisibleRows();
-        for (int i = 0; i < visible && mailScroll + i < ClientNotifications.entries().size(); i++) {
-            int rowY = y + i * INBOX_ROW_H;
-            if (mouseY >= rowY && mouseY < rowY + INBOX_ROW_H - 2) {
-                return mailScroll + i;
+        for (int i = 0; i < visible && mailScroll + i < entries.size(); i++) {
+            int listIndex = mailScroll + i;
+            int rowY = mailRowTop(entries, listIndex);
+            int rowH = inboxRowHeight(entries.get(listIndex), listW);
+            if (mouseY >= rowY && mouseY < rowY + rowH - 2) {
+                return listIndex;
             }
         }
         return -1;
@@ -1952,8 +1953,81 @@ public final class CourierBoardScreen extends Screen {
         return headingY() + font.lineHeight + 6;
     }
 
+    private int mailListHeight() {
+        return contentBottom() - mailListTop();
+    }
+
+    private int mailListBottom() {
+        List<NotificationSyncPayload.Line> entries = ClientNotifications.entries();
+        int visible = mailVisibleRows();
+        if (visible == 0 || entries.isEmpty()) {
+            return mailListTop();
+        }
+        int last = Math.min(entries.size() - 1, mailScroll + visible - 1);
+        return mailRowTop(entries, last) + inboxRowHeight(entries.get(last), screenW());
+    }
+
+    private int inboxActionReserve(boolean hasItems) {
+        return hasItems ? 62 : 18;
+    }
+
+    private int inboxTextWidth(int listW, boolean hasItems) {
+        int textX = 4 + INBOX_ICON + 4;
+        return listW - textX - inboxActionReserve(hasItems) - 4;
+    }
+
+    private int inboxRowHeight(NotificationSyncPayload.Line line, int listW) {
+        int lines = font.split(line.text(), inboxTextWidth(listW, line.hasItems())).size();
+        int textH = Math.max(font.lineHeight, lines * font.lineHeight);
+        return Math.max(INBOX_ROW_MIN_H, INBOX_ROW_PAD_V * 2 + textH);
+    }
+
+    private int mailRowTop(List<NotificationSyncPayload.Line> entries, int listIndex) {
+        int y = mailListTop();
+        for (int i = mailScroll; i < listIndex; i++) {
+            y += inboxRowHeight(entries.get(i), screenW());
+        }
+        return y;
+    }
+
     private int mailVisibleRows() {
-        return Math.max(1, (contentBottom() - mailListTop()) / INBOX_ROW_H);
+        List<NotificationSyncPayload.Line> entries = ClientNotifications.entries();
+        int listH = mailListHeight();
+        if (listH <= 0 || entries.isEmpty()) {
+            return 0;
+        }
+        int used = 0;
+        int count = 0;
+        for (int i = mailScroll; i < entries.size(); i++) {
+            int rowH = inboxRowHeight(entries.get(i), screenW());
+            if (count > 0 && used + rowH > listH) {
+                break;
+            }
+            used += rowH;
+            count++;
+            if (used >= listH) {
+                break;
+            }
+        }
+        return count;
+    }
+
+    private int mailMaxScrollIndex(List<NotificationSyncPayload.Line> entries) {
+        if (entries.isEmpty()) {
+            return 0;
+        }
+        int last = entries.size() - 1;
+        int listH = mailListHeight();
+        for (int start = last; start >= 0; start--) {
+            int height = 0;
+            for (int i = start; i <= last; i++) {
+                height += inboxRowHeight(entries.get(i), screenW());
+            }
+            if (height >= listH || start == last) {
+                return start;
+            }
+        }
+        return 0;
     }
 
     @Override

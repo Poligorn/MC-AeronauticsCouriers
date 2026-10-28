@@ -183,11 +183,12 @@ public final class CourierInbox extends SavedData {
         if (items.isEmpty()) {
             throw new IllegalArgumentException("empty items");
         }
+        Component label = defaultCargoText(items);
         List<Message> list = messagesMutable(player);
         Message message = new Message(
                 nextId++,
                 ContractManager.now(server),
-                text,
+                label,
                 Optional.empty(),
                 false,
                 copyStacks(items));

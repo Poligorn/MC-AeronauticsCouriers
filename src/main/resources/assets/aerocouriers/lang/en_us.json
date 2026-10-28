@@ -175,7 +175,7 @@
   "ui.aerocouriers.profile.license.already": "You already wear a license",
   "ui.aerocouriers.profile.license.reissue_hint": "License reissue is handled by the postal service",
   "ui.aerocouriers.profile.offline": "Player is offline — profile unavailable",
-  "ui.aerocouriers.profile.issuer.heading": "── As customer ──",
+  "ui.aerocouriers.profile.issuer.heading": "── Issuer ──",
   "ui.aerocouriers.profile.issuer.empty": "No orders posted",
   "ui.aerocouriers.profile.issuer.line1": "Orders: %s   Avg. price: %s sp",
   "ui.aerocouriers.profile.issuer.line2": "Avg. weight: %s   Container: usually %s",

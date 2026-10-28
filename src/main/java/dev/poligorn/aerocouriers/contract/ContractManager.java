@@ -370,8 +370,17 @@ public final class ContractManager extends SavedData {
         CargoContainers.clear(access);
         CargoContainers.removeWithoutDrop(level, access);
 
+        Optional<BlockPos> anchor = CargoSpawner.resolveAnchor(level, sourcePos, size.get());
+        if (anchor.isEmpty()) {
+            economy.deposit(issuer.getUUID(), reward + fee, "create_refund:" + id);
+            Mailbox.get(server).post(issuer.getUUID(), manifest);
+            return Outcome.error("stamp_spawn_failed");
+        }
+        BlockPos pickup = anchor.get();
+        origin = new Destination(level.dimension(), pickup, destination.radius());
+
         int fill = size.get().fillFor(weight);
-        CargoSpawner.Result spawned = CargoSpawner.spawn(level, sourcePos, size.get(), fill, id, false, facing, true);
+        CargoSpawner.Result spawned = CargoSpawner.spawn(level, pickup, size.get(), fill, id, false, facing, true);
         if (!(spawned instanceof CargoSpawner.Result.Placed)) {
             economy.deposit(issuer.getUUID(), reward + fee, "create_refund:" + id);
             Mailbox.get(server).post(issuer.getUUID(), manifest);
@@ -484,6 +493,9 @@ public final class ContractManager extends SavedData {
             Escrow.get(server).addCollateral(id, collateralDue);
         }
         Contract accepted = contract.accepted(courier.getUUID(), now(server));
+        // Persist ACCEPTED before block updates: unlock touches block entities while the map still said OPEN,
+        // which made containerRemoved expire the stamp order and delete the crate.
+        put(accepted);
         // Stamp / NPC crates already stand at pickup; leaving ACCEPTED until the next tick let a courier
         // fly the crate away and then never reach IN_TRANSIT, so the rank-1 slot stayed occupied.
         if (accepted.preplaced()) {
@@ -492,8 +504,8 @@ public final class ContractManager extends SavedData {
                 CargoSpawner.unlockAndAssemble(pickup, accepted.origin().pos());
             }
             accepted = accepted.withState(ContractState.IN_TRANSIT);
+            put(accepted);
         }
-        put(accepted);
         if (!self) {
             notify(server, contract.issuer(), Component.translatable("contract.aerocouriers.notify.accepted",
                     contract.shortId(), courier.getDisplayName()), id);

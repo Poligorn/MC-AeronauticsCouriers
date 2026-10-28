@@ -60,4 +60,20 @@ public final class CargoStructureGameTests {
         helper.assertValueEqual(segments.size(), 12, "segment count");
         helper.succeed();
     }
+
+    @GameTest(template = CouriersGameTests.EMPTY)
+    public static void xlResolveAnchorFindsFootprint(GameTestHelper helper) {
+        for (int x = 0; x < 8; x++) {
+            for (int z = 0; z < 8; z++) {
+                helper.setBlock(new BlockPos(x, 0, z), net.minecraft.world.level.block.Blocks.STONE);
+            }
+        }
+        BlockPos click = helper.absolutePos(new BlockPos(3, 1, 3));
+        helper.setBlock(new BlockPos(3, 1, 3), net.minecraft.world.level.block.Blocks.CHEST);
+        var anchor = CargoSpawner.resolveAnchor(helper.getLevel(), click, CargoSize.XL);
+        helper.assertTrue(anchor.isPresent(), "XL anchor near chest");
+        helper.assertTrue(CargoStructure.isSpawnClear(helper.getLevel(), anchor.get(), CargoSize.XL),
+                "resolved anchor is spawn-clear");
+        helper.succeed();
+    }
 }
