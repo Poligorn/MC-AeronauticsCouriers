@@ -546,8 +546,8 @@ def gen_tablet_scroller() -> None:
 
 
 def gen_tablet_antenna() -> None:
-    """24×52: steel mount on top bezel + copper mast (rings) + square lamp; ~43 px above the frame."""
-    w, h = 24, 52
+    """24×78: steel mount on top bezel + long copper mast (rings) + square lamp."""
+    w, h = 24, 78
     steel_h = 9
     img = Image.new("RGBA", (w, h), TRANSPARENT)
     d = ImageDraw.Draw(img)
@@ -561,7 +561,7 @@ def gen_tablet_antenna() -> None:
     fill_rect(img, rod_l, mast_top, rod_r, h - steel_h, TB_COPPER_DK)
     fill_rect(img, rod_l + 1, mast_top + 1, rod_r - 1, h - steel_h - 1, TB_COPPER)
     fill_rect(img, rod_l + 1, mast_top + 1, rod_l + 2, h - steel_h - 2, TB_COPPER_HI)
-    for ring_y in (mast_top + 9, mast_top + 18, mast_top + 27):
+    for ring_y in (mast_top + 12, mast_top + 24, mast_top + 36, mast_top + 48):
         if ring_y + 3 <= h - steel_h:
             fill_rect(img, rod_l - 1, ring_y, rod_r + 1, ring_y + 3, TB_COPPER_EDGE)
             fill_rect(img, rod_l, ring_y + 1, rod_r, ring_y + 2, (0x55, 0x55, 0x55, 255))

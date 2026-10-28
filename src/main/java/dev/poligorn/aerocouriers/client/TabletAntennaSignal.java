@@ -17,7 +17,10 @@ public final class TabletAntennaSignal {
     private static final int[] RADII = {6, 11, 16};
     private static final int HALF_ANGLE_DEG = 52;
     private static final int SEND_COLOR = 0xFFE94A;
-    private static final int RECEIVE_COLOR = 0x88CCFF;
+    private static final int SEND_OUTLINE = 0x3A2306;
+    /** Saturated cyan with a navy outline: the pale blue used before vanished against the daytime sky. */
+    private static final int RECEIVE_COLOR = 0x2EE6FF;
+    private static final int RECEIVE_OUTLINE = 0x06204A;
     private static final int[][] ARC_POINTS = buildArcPoints();
 
     public enum Direction {
@@ -82,13 +85,13 @@ public final class TabletAntennaSignal {
                 continue;
             }
             int argb = ((int) (alpha * 255.0F) << 24) | (send ? SEND_COLOR : RECEIVE_COLOR);
-            int shadow = (int) (alpha * 110.0F) << 24;
+            int outline = ((int) (alpha * 200.0F) << 24) | (send ? SEND_OUTLINE : RECEIVE_OUTLINE);
             int[] points = ARC_POINTS[i];
             for (int k = 0; k < points.length; k += 2) {
                 int dx = points[k];
                 int dy = points[k + 1];
-                graphics.fill(tipX + dx + 1, tipY + dy, tipX + dx + 2, tipY + dy + 1, shadow);
-                graphics.fill(tipX - dx - 2, tipY + dy, tipX - dx - 1, tipY + dy + 1, shadow);
+                graphics.fill(tipX + dx - 1, tipY + dy - 1, tipX + dx + 2, tipY + dy + 2, outline);
+                graphics.fill(tipX - dx - 2, tipY + dy - 1, tipX - dx + 1, tipY + dy + 2, outline);
             }
             for (int k = 0; k < points.length; k += 2) {
                 int dx = points[k];
@@ -137,8 +140,9 @@ public final class TabletAntennaSignal {
             graphics.fill(tipX - r, tipY - r, tipX + r, tipY + r, 0x88FFFFAA);
             graphics.fill(tipX - 3, tipY - 3, tipX + 3, tipY + 3, 0xFFFFE94A);
         } else {
-            graphics.fill(tipX - r, tipY - r, tipX + r, tipY + r, 0x8899DDFF);
-            graphics.fill(tipX - 3, tipY - 3, tipX + 3, tipY + 3, 0xFF88CCFF);
+            graphics.fill(tipX - r - 1, tipY - r - 1, tipX + r + 1, tipY + r + 1, 0xC006204A);
+            graphics.fill(tipX - r, tipY - r, tipX + r, tipY + r, 0xB02EE6FF);
+            graphics.fill(tipX - 3, tipY - 3, tipX + 3, tipY + 3, 0xFFB8F6FF);
         }
     }
 }
