@@ -27,7 +27,7 @@ public record CouriersUiSoundPayload(Kind kind) implements CustomPacketPayload {
             switch (payload.kind()) {
                 case ORDER_ACCEPT -> {
                     ClientCouriersSounds.playOrderAccept();
-                    TabletAntennaSignal.trigger();
+                    TabletAntennaSignal.triggerSend();
                 }
                 case ORDER_DENY -> ClientCouriersSounds.playOrderDeny();
             }

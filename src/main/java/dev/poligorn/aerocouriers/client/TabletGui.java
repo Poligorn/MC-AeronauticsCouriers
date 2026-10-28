@@ -29,17 +29,15 @@ public final class TabletGui {
     private static final int TOOLTIP_BG = 0xF02C0900;
     private static final int GRID_STEP = 9;
 
-    /** Nine-slice brass + bevel before the screen cavity (matches {@code tablet_frame}). */
-    public static final int FRAME_BORDER = 30;
+    /** Nine-slice thin brass bezel (matches {@code tablet_frame}). */
+    public static final int FRAME_BORDER = 14;
     /** Inset from the inner screen cavity to tabs, headings, lists, and chrome (all tablet UIs). */
     public static final int CONTENT_INSET = 14;
-    /** Antenna sprite size (matches {@code gen_tablet_antenna}). */
     public static final int ANTENNA_W = 24;
-    /** Sprite height (mast + lamp + steel mount); see {@code gen_tablet_antenna}. */
-    public static final int ANTENNA_H = 54;
-    /** Y center of the tip lamp in {@link #ANTENNA_H} sprite space. */
+    /** Sprite height (long mast + lamp + steel mount); see {@code gen_tablet_antenna}. */
+    public static final int ANTENNA_H = 78;
     public static final int ANTENNA_LAMP_CY = 6;
-    /** Steel base pixels drawn on the top bezel ({@code [frameY, frameY + ANTENNA_MOUNT_H)}). */
+    /** Steel base on the top bezel ({@code [frameY, frameY + ANTENNA_MOUNT_H)}). */
     public static final int ANTENNA_MOUNT_H = 9;
 
     /** Mast + bulb pixels drawn above the frame top (sprite extends upward from the bezel). */
@@ -78,71 +76,10 @@ public final class TabletGui {
     public static void drawFrameChrome(GuiGraphics graphics, int frameX, int frameY, int frameW, int frameH) {
         if (frameW > 0 && frameH > 0) {
             graphics.blitSprite(AerocouriersGuiSprites.TABLET_FRAME, frameX, frameY, frameW, frameH);
-            drawFrameDecor(graphics, frameX, frameY, frameW, frameH);
         }
         graphics.blitSprite(AerocouriersGuiSprites.TABLET_DECOR_ANTENNA,
                 antennaLeft(frameX), antennaDrawY(frameY), ANTENNA_W, ANTENNA_H);
         TabletAntennaSignal.render(graphics, frameX, frameY);
-    }
-
-    private static final int PLATE_H_W = 28;
-    private static final int PLATE_H_H = 10;
-    private static final int PLATE_V_W = 10;
-    private static final int PLATE_V_H = 22;
-    private static final int RIVET_STEP = 7;
-    private static final int RIVET_SIZE = 5;
-    private static final int RIVETS_PER_CLUSTER = 4;
-
-    /** Bolt plates and sparse rivet clusters (not nine-slice tiled). */
-    static void drawFrameDecor(GuiGraphics graphics, int frameX, int frameY, int frameW, int frameH) {
-        int topPlateY = frameY + 4;
-        int bottomPlateY = frameY + frameH - PLATE_H_H - 4;
-        int leftPlateX = frameX + 4;
-        int rightPlateX = frameX + frameW - PLATE_V_W - 4;
-        int third = frameW / 3;
-        int twoThirds = (frameW * 2) / 3;
-        graphics.blitSprite(AerocouriersGuiSprites.TABLET_DECOR_BOLT_PLATE_H,
-                frameX + third - PLATE_H_W / 2, topPlateY, PLATE_H_W, PLATE_H_H);
-        graphics.blitSprite(AerocouriersGuiSprites.TABLET_DECOR_BOLT_PLATE_H,
-                frameX + twoThirds - PLATE_H_W / 2, topPlateY, PLATE_H_W, PLATE_H_H);
-        graphics.blitSprite(AerocouriersGuiSprites.TABLET_DECOR_BOLT_PLATE_H,
-                frameX + third - PLATE_H_W / 2, bottomPlateY, PLATE_H_W, PLATE_H_H);
-        graphics.blitSprite(AerocouriersGuiSprites.TABLET_DECOR_BOLT_PLATE_H,
-                frameX + twoThirds - PLATE_H_W / 2, bottomPlateY, PLATE_H_W, PLATE_H_H);
-        int sidePlateY = frameY + frameH / 2 - PLATE_V_H / 2;
-        graphics.blitSprite(AerocouriersGuiSprites.TABLET_DECOR_BOLT_PLATE_V,
-                leftPlateX, sidePlateY, PLATE_V_W, PLATE_V_H);
-        graphics.blitSprite(AerocouriersGuiSprites.TABLET_DECOR_BOLT_PLATE_V,
-                rightPlateX, sidePlateY, PLATE_V_W, PLATE_V_H);
-
-        int topRivetY = frameY + 20;
-        int bottomRivetY = frameY + frameH - 21;
-        int leftRivetX = frameX + 13;
-        int rightRivetX = frameX + frameW - 14;
-        drawRivetClusterH(graphics, frameX + third, topRivetY);
-        drawRivetClusterH(graphics, frameX + twoThirds, topRivetY);
-        drawRivetClusterH(graphics, frameX + third, bottomRivetY);
-        drawRivetClusterH(graphics, frameX + twoThirds, bottomRivetY);
-        drawRivetClusterV(graphics, leftRivetX, sidePlateY);
-        drawRivetClusterV(graphics, rightRivetX, sidePlateY);
-    }
-
-    private static void drawRivetClusterH(GuiGraphics graphics, int centerX, int y) {
-        int span = (RIVETS_PER_CLUSTER - 1) * RIVET_STEP;
-        int x0 = centerX - span / 2;
-        for (int i = 0; i < RIVETS_PER_CLUSTER; i++) {
-            graphics.blitSprite(AerocouriersGuiSprites.TABLET_DECOR_RIVET,
-                    x0 + i * RIVET_STEP, y, RIVET_SIZE, RIVET_SIZE);
-        }
-    }
-
-    private static void drawRivetClusterV(GuiGraphics graphics, int x, int centerY) {
-        int span = (RIVETS_PER_CLUSTER - 1) * RIVET_STEP;
-        int y0 = centerY - span / 2;
-        for (int i = 0; i < RIVETS_PER_CLUSTER; i++) {
-            graphics.blitSprite(AerocouriersGuiSprites.TABLET_DECOR_RIVET,
-                    x, y0 + i * RIVET_STEP, RIVET_SIZE, RIVET_SIZE);
-        }
     }
 
     public static void drawScreenBackground(GuiGraphics graphics, int x, int y, int w, int h, float partialTick) {

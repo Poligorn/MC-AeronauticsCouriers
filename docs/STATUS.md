@@ -2,7 +2,7 @@
 
 > Живой документ. Обновлять при каждом завершённом шаге итерации или изменении решения (см. `.cursor/rules/90-maintaining-docs.mdc`).
 
-**Обновлено:** 28.10.2026 · **Версия:** 0.1.2-alpha · Плейтест 0.1.1-alpha: рамка планшета (декор отдельно от nine-slice), иконки монет Numismatics через `renderItem`, мгновенное переключение вкладок. `./gradlew build` — OK (cloud).
+**Обновлено:** 28.10.2026 · **Версия:** 0.1.3-alpha · Планшет: тонкая латунная рамка 14 px, антенна (жёлтый send / голубой receive ~0.7 с), мгновенные вкладки, монеты Numismatics через `renderItem`. `./gradlew build` — OK (cloud).
 
 **Плейтест 28.10.2026:** бэклог правок — [docs/playtest_2026-10-28.md](playtest_2026-10-28.md). **XL-контейнер** 2×2×3 (§8.1): 45 слотов / 4096 вес, ранг IV+, `fee_multiplier_xl`, GameTest сегментов.
 **Обновлено:** 27.10.2026 · **Версия:** 0.1.0-alpha · **Итерация 6+:** контейнеры M/L (§8.1), админ-панель на планшете. `./gradlew build` проходит (cloud). GameTest в cloud не гоняли.
@@ -129,7 +129,7 @@
 - GameTest: `boardRequiresOrderTabletUnlessEquipped` (+1 к 30).
 
 ### CSI GUI на экранах (26.10.2026, только клиентский рендер)
-- **Доска заказов:** `TabletGui` — фон `#0A0200`, сетка `#241006`, `FRAME_BORDER=16`, `CONTENT_INSET=9`, антенна 2× (`tablet_decor_antenna` только). Вкладки: Заказы, **Текущие** / **История**, Профиль (+ Тест у OP). **Профиль:** строка «ник · ранг», полоса XP внутри текущего ранга (пороги из `[progression] rank_xp` в снимке), «До ранга …», при V/админе — «Максимальный ранг»; тултип полосы — лимиты следующего ранга (`RankRules` / `AcceptEligibility`); при блоке V — успешность ≥ `ace_min_success`. После доставки — `BoardPackets.syncSnapshot` обновляет снимок (XP на вкладке). Нижний footer уведомлений убран; колокол → экран уведомлений + звук. Принятие — `BoardAcceptConfirmScreen` (залог как на сервере, стажёр 0). Строки: `BoardRowRenderer` (редкий груз — `icon/rare_cargo_tablet`). Рендер: chrome после `super.render`, без `renderWithTooltip` в `render`. Почта — `icon/envelope_tablet`. `tools/gen_gui_sprites.py`.
+- **Доска заказов:** `TabletGui` — фон `#0A0200`, сетка `#241006`, `FRAME_BORDER=14`, `CONTENT_INSET=14`, антенна (`tablet_decor_antenna`, send/receive ~0.7 с). Мгновенное переключение вкладок. Иконки спуров — Numismatics `renderItem` или fallback PNG. Вкладки: Заказы, **Текущие** / **История**, Профиль (+ Админ-панель у OP). Остальное — см. GDD §10.2.
 - **Окно штампа (создание заказа):** без изменений — деревянная рамка `panel` + `paper_sheet` + `clipboard_clip` (`StampCreateGui`, `CourierButton`); тёмный текст на бумаге.
 - Клиентский конфиг `[gui] useVanillaSprites` (по умолчанию `false`) — кнопки/вкладки доски на `minecraft:widget/*`.
 - Превью: доска (4 вкладки, русский текст) — `tools/render_create_gui_preview.py` → `/opt/cursor/artifacts/board_tab{0..3}_400x240.png`, `480x300`, профиль — `board_profile_400x240.png`, `board_profile_480x300.png`; штамп — `tools/render_stamp_clipboard_preview.py`. Раскладка штампа: `CLIP_OVERHANG`.

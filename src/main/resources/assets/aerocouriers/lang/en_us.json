@@ -4,7 +4,7 @@
   "item.aerocouriers.transport_waybill": "Transport Waybill",
   "item.aerocouriers.transport_waybill.hint": "Single-use. Right-click a container to post an order",
   "item.aerocouriers.order_tablet": "Order Tablet",
-  "item.aerocouriers.order_tablet.tooltip": "Opens the job board (J). Wear in the Curios slot or hold in hand.",
+  "item.aerocouriers.order_tablet.tooltip": "Opens the job board (J). Wear in the Curios slot or hold in hand. Antenna: yellow pulse when you send, light blue when a notification arrives.",
   "item.aerocouriers.pilot_license": "Pilot License",
   "item.aerocouriers.pilot_license.unbound": "Not bound: wear it to sign it",
   "item.aerocouriers.pilot_license.owner": "Holder: %s",

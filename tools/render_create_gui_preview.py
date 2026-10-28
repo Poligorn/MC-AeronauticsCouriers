@@ -11,9 +11,9 @@ from PIL import Image, ImageDraw, ImageFont
 ROOT = Path(__file__).resolve().parents[1]
 SPRITES = ROOT / "src/main/resources/assets/aerocouriers/textures/gui/sprites"
 
-FRAME_BORDER = 30
+FRAME_BORDER = 14
 CONTENT_INSET = 14
-ANTENNA_W, ANTENNA_H = 24, 54
+ANTENNA_W, ANTENNA_H = 24, 78
 ANTENNA_MOUNT_H = 9
 ROW_ACTION_RESERVE = 158
 GRID_STEP = 9
@@ -93,50 +93,11 @@ def draw_screen_background(canvas: Image.Image, x: int, y: int, w: int, h: int) 
         d.line([(x, gy), (x + w, gy)], fill=GRID_LINE, width=1)
 
 
-def draw_frame_decor(canvas: Image.Image, fx: int, fy: int, fw: int, fh: int) -> None:
-    plate_h = load("tablet_decor_bolt_plate_h")
-    plate_v = load("tablet_decor_bolt_plate_v")
-    rivet = load("tablet_decor_rivet")
-    third = fw // 3
-    two_thirds = (fw * 2) // 3
-    phw, phh = plate_h.size
-    pvw, pvh = plate_v.size
-    top_y = fy + 4
-    bot_y = fy + fh - phh - 4
-    side_y = fy + fh // 2 - pvh // 2
-    for cx in (third, two_thirds):
-        canvas.alpha_composite(plate_h, (fx + cx - phw // 2, top_y))
-        canvas.alpha_composite(plate_h, (fx + cx - phw // 2, bot_y))
-    canvas.alpha_composite(plate_v, (fx + 4, side_y))
-    canvas.alpha_composite(plate_v, (fx + fw - pvw - 4, side_y))
-    step = 7
-    count = 4
-    span = (count - 1) * step
-
-    def cluster_h(center_x: int, y: int) -> None:
-        x0 = fx + center_x - span // 2
-        for i in range(count):
-            canvas.alpha_composite(rivet, (x0 + i * step, y))
-
-    def cluster_v(x: int, center_y: int) -> None:
-        y0 = center_y - span // 2
-        for i in range(count):
-            canvas.alpha_composite(rivet, (x, y0 + i * step))
-
-    cluster_h(third, fy + 20)
-    cluster_h(two_thirds, fy + 20)
-    cluster_h(third, fy + fh - 21)
-    cluster_h(two_thirds, fy + fh - 21)
-    cluster_v(fx + 13, side_y)
-    cluster_v(fx + fw - 14, side_y)
-
-
 def draw_monitor(canvas: Image.Image, fx: int, fy: int, fw: int, fh: int) -> tuple[int, int, int, int]:
     sx, sy = fx + FRAME_BORDER, fy + FRAME_BORDER
     sw, sh = fw - FRAME_BORDER * 2, fh - FRAME_BORDER * 2
     draw_screen_background(canvas, sx, sy, sw, sh)
     nine_slice_hollow(canvas, load("tablet_frame"), fx, fy, fw, fh, (FRAME_BORDER, FRAME_BORDER, FRAME_BORDER, FRAME_BORDER))
-    draw_frame_decor(canvas, fx, fy, fw, fh)
     ax = fx + FRAME_BORDER // 2
     ay = fy - (ANTENNA_H - ANTENNA_MOUNT_H)
     canvas.alpha_composite(load("tablet_decor_antenna").resize((ANTENNA_W, ANTENNA_H), Image.Resampling.NEAREST), (ax, ay))
@@ -399,9 +360,12 @@ def main() -> None:
             print("--- pixel verify board_profile_480x300 (profile labels) ---")
             img_p, screen_p = render_board(width, height, 2)
             sx, sy, sw, sh = screen_p
-            d = ImageDraw.Draw(img_p)
             sample = img_p.getpixel((sx + sw // 2 + 20, sy + 50))
             print(f"  profile text sample #{sample[0]:02X}{sample[1]:02X}{sample[2]:02X} (expect orange)")
+    frame_preview = out / "tablet_frame_preview_560x400.png"
+    img, _ = render_board(560, 400, 0)
+    img.save(frame_preview)
+    print(frame_preview)
     for width, height in [(400, 300), (480, 360)]:
         path = out / f"stamp_window_{width}x{height}.png"
         render_stamp(width, height).save(path)

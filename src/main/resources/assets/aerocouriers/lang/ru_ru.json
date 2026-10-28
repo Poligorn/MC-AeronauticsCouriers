@@ -4,7 +4,7 @@
   "item.aerocouriers.transport_waybill": "Транспортная накладная",
   "item.aerocouriers.transport_waybill.hint": "Одноразовая. ПКМ по контейнеру, чтобы оформить заказ",
   "item.aerocouriers.order_tablet": "Планшет заказов",
-  "item.aerocouriers.order_tablet.tooltip": "Открывает доску заказов (J). Носите в слоте Curios или держите в руке.",
+  "item.aerocouriers.order_tablet.tooltip": "Открывает доску заказов (J). Носите в слоте Curios или держите в руке. Антенна: жёлтый импульс при отправке, голубой — при входящем уведомлении.",
   "item.aerocouriers.pilot_license": "Лицензия пилота",
   "item.aerocouriers.pilot_license.unbound": "Не оформлена: наденьте, чтобы подписать",
   "item.aerocouriers.pilot_license.owner": "Владелец: %s",
