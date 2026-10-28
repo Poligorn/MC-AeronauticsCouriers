@@ -1,0 +1,68 @@
+package dev.poligorn.aerocouriers.client;
+
+import com.mojang.blaze3d.systems.RenderSystem;
+import dev.poligorn.aerocouriers.config.CouriersClientConfig;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.WidgetSprites;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
+
+/** Board tab: tablet monitor style or vanilla when configured. */
+public final class TabletTabButton extends Button {
+    private boolean selected;
+    private int badge;
+    private final boolean tabletChrome;
+
+    public TabletTabButton(int x, int y, int w, int h, Component label, Runnable onSelect) {
+        super(x, y, w, h, label, b -> onSelect.run(), DEFAULT_NARRATION);
+        this.tabletChrome = !CouriersClientConfig.useVanillaSprites();
+    }
+
+    public TabletTabButton selected(boolean selected) {
+        this.selected = selected;
+        return this;
+    }
+
+    public TabletTabButton badge(int unread) {
+        this.badge = Math.max(0, unread);
+        return this;
+    }
+
+    @Override
+    protected void renderWidget(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+        RenderSystem.enableBlend();
+        WidgetSprites sprites = tabletChrome
+                ? AerocouriersGuiSprites.tabletTabSprites(selected)
+                : AerocouriersGuiSprites.tabSprites(selected);
+        ResourceLocation sprite = sprites.get(selected, isHoveredOrFocused());
+        int drawH = selected ? height : height - 4;
+        int drawY = getY() + (selected ? 0 : 4);
+        graphics.blitSprite(sprite, getX(), drawY, width, drawH);
+        int color;
+        if (!active) {
+            color = tabletChrome ? TabletGui.TEXT_BUTTON_DISABLED : CreateGui.TEXT_BUTTON_DISABLED;
+        } else if (selected) {
+            color = tabletChrome ? TabletGui.TEXT_BRIGHT : CreateGui.TEXT_BUTTON;
+        } else if (isHoveredOrFocused() && tabletChrome) {
+            color = TabletGui.TEXT;
+        } else {
+            color = tabletChrome ? TabletGui.TEXT_MUTED : CreateGui.TEXT_MUTED;
+        }
+        var font = Minecraft.getInstance().font;
+        int textY = getY() + (height - 8) / 2;
+        graphics.drawCenteredString(font, getMessage(), getX() + width / 2, textY, color);
+        if (badge > 0) {
+            String label = badge > 99 ? "99+" : Integer.toString(badge);
+            int tw = font.width(label);
+            int bx = getX() + width - Math.min(tw + 4, 10);
+            int by = getY() - 1;
+            int badgeBg = tabletChrome ? 0xFF431A0F : 0xFF4A2D31;
+            int badgeText = tabletChrome ? TabletGui.TEXT_BRIGHT : 0xFFF8F8EC;
+            graphics.fill(bx - 1, by - 1, bx + tw + 2, by + 9, badgeBg);
+            graphics.drawString(font, label, bx, by, badgeText, false);
+        }
+    }
+}

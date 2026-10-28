@@ -1,0 +1,30 @@
+---
+description: Экономика — интерфейс Economy, мост к Create Numismatics, внутренний баланс и изумруды, формулы наград/залогов деревенских (NPC) заказов, источники и стоки денег (GDD §6.3, §11, §14.5). Применять при работе с пакетом economy, Pricing, наградами и залогами.
+globs: src/main/java/dev/poligorn/aerocouriers/economy/**, src/main/java/dev/poligorn/aerocouriers/contract/Pricing.java
+alwaysApply: false
+---
+
+# Экономика (GDD §6.3, §11, §14.5)
+
+- Единица — **спур** (Numismatics): спур 1 · бевел 8 · спрокет 16 · ког 64 · краун 512 · сан 4096.
+- Все операции — через `economy/Economy` (withdraw/deposit/balance); идемпотентно, лог `transactions.log`.
+- Numismatics опционален (мнение команды): мост `NumismaticsEconomy` грузится только при `ModList.isLoaded("numismatics")`. Без него — `InternalEconomy` (внутренний баланс) + обмен изумрудов, `emerald_value_spurs = 8`.
+- ⚠️ API Numismatics из GDD (`Numismatics.BANK.getAccount(UUID)`, `.deduct(int, boolean)`, `.deposit(int)`, `getOrCreateAccount(UUID, BankAccount.Type.PLAYER)`) **не сверен** с артефактом версии пака (1.1.0) — сверить перед реализацией моста.
+
+## Реализация
+- Получать экономику только через `Economies.get(server)` — она оборачивает бэкенд журналом `<мир>/aerocouriers/transactions.log`. `withdraw/deposit` принимают причину вида `reward:<contractId>`, `collateral:<id>`, `admin`.
+- Сейчас бэкенд один — `InternalEconomy` (SavedData `aerocouriers_balances`). Обмен изумрудов ещё не сделан.
+- Деньги по контрактам идут напрямую на счёт, почта (`Mailbox`) — только для предметов.
+
+## Формулы (NPC/деревенские заказы, §6.3)
+- Награда: `16 + (D/60) × (1 + W/400) + W × reward_per_weight` сп × случайно 0.8–1.2 (`[contracts.pricing]`).
+- P2P мин. награда: `ceil(D / reward_distance_divisor + W × reward_per_weight)`.
+- Залог = оценочная стоимость груза (§8.3: `item_values.json` → цена Marketplace ⚠️ → по редкости).
+- Провал NPC-заказа: залог **сгорает** (главный сток денег); груз уничтожается (CLARIFICATIONS).
+- Стажировка: первые `trainee_free_contracts` (3) NPC-заказа без залога при принятии; после 3-го — аванс `trainee_bonus` (100 сп). Лимит 800 блоков на генерацию коротких заказов — не сделан (берут любые пары ≤ 10 000).
+- Репутация станции — не сделана (итерация 5 отложила).
+
+## Источники и стоки (§11.2)
+Источники: награды NPC-заказов, аванс стажёра. Стоки: сгоревшие залоги NPC, комиссия P2P 5%, переоформление лицензии, вторая половина награды при опоздании. P2P — только перераспределение.
+
+Модель доходности (§11.3): залог/награда ≈ 1.6–3.2, один провал ≈ 2–3 заказа дохода.

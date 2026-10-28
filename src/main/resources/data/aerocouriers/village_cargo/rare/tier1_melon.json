@@ -1,0 +1,5 @@
+{
+  "min_reputation": 10,
+  "weight": 8,
+  "item": {"id": "minecraft:melon_seeds", "min": 1, "max": 4}
+}

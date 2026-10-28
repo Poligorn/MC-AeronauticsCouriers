@@ -1,0 +1,9 @@
+{
+  "min_reputation": 25,
+  "weight": 6,
+  "enchanted_book": {
+    "enchantments": ["minecraft:unbreaking", "minecraft:efficiency", "minecraft:feather_falling"],
+    "level_min": 1,
+    "level_max": 2
+  }
+}

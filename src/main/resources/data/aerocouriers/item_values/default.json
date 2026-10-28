@@ -1,0 +1,23 @@
+{
+  "collateral_factor": 1.0,
+  "rarity": {
+    "common": 2,
+    "uncommon": 8,
+    "rare": 32,
+    "epic": 128
+  },
+  "tags": {
+    "c:ingots": 8,
+    "c:gems": 16
+  },
+  "items": {
+    "minecraft:emerald": 8,
+    "minecraft:diamond": 64,
+    "minecraft:iron_ingot": 8,
+    "minecraft:gold_ingot": 16,
+    "minecraft:enchanted_book": 48,
+    "minecraft:beetroot_seeds": 2,
+    "minecraft:melon_seeds": 3,
+    "minecraft:cherry_sapling": 24
+  }
+}

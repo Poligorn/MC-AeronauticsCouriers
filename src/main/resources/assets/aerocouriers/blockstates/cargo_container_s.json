@@ -1,0 +1,12 @@
+{
+  "multipart": [
+    { "when": { "facing": "north", "waybill": false }, "apply": { "model": "aerocouriers:block/cargo_container_s", "y": 0 } },
+    { "when": { "facing": "east", "waybill": false }, "apply": { "model": "aerocouriers:block/cargo_container_s", "y": 90 } },
+    { "when": { "facing": "south", "waybill": false }, "apply": { "model": "aerocouriers:block/cargo_container_s", "y": 180 } },
+    { "when": { "facing": "west", "waybill": false }, "apply": { "model": "aerocouriers:block/cargo_container_s", "y": 270 } },
+    { "when": { "facing": "north", "waybill": true }, "apply": { "model": "aerocouriers:block/cargo_container_s_waybill", "y": 0 } },
+    { "when": { "facing": "east", "waybill": true }, "apply": { "model": "aerocouriers:block/cargo_container_s_waybill", "y": 90 } },
+    { "when": { "facing": "south", "waybill": true }, "apply": { "model": "aerocouriers:block/cargo_container_s_waybill", "y": 180 } },
+    { "when": { "facing": "west", "waybill": true }, "apply": { "model": "aerocouriers:block/cargo_container_s_waybill", "y": 270 } }
+  ]
+}

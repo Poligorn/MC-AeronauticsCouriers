@@ -1,0 +1,248 @@
+plugins {
+    id 'java-library'
+    id 'idea'
+    id 'net.neoforged.moddev' version '2.0.148'
+}
+
+tasks.named('wrapper', Wrapper).configure {
+    distributionType = Wrapper.DistributionType.BIN
+}
+
+version = mod_version
+group = mod_group_id
+
+base {
+    archivesName = mod_id
+}
+
+java.toolchain.languageVersion = JavaLanguageVersion.of(21)
+
+repositories {
+    exclusiveContent {
+        forRepository {
+            maven {
+                name = 'RyanHCode (Sable, Sable Companion, Aeronautics, Simulated)'
+                url = 'https://maven.ryanhcode.dev/releases'
+            }
+        }
+        filter {
+            includeGroup 'dev.ryanhcode.sable'
+            includeGroup 'dev.ryanhcode.sable-companion'
+            includeGroup 'dev.eriksonn.aeronautics'
+            includeGroup 'dev.simulated_team.simulated'
+        }
+    }
+    exclusiveContent {
+        forRepository {
+            maven {
+                name = 'Curios (TheIllusiveC4)'
+                url = 'https://maven.theillusivec4.top/'
+            }
+        }
+        filter { includeGroup 'top.theillusivec4.curios' }
+    }
+    exclusiveContent {
+        forRepository {
+            maven {
+                name = 'Xaero (Chocolate Minecraft)'
+                url = 'https://chocolateminecraft.com/maven'
+            }
+        }
+        filter {
+            includeGroup 'xaero.minimap'
+            includeGroup 'xaero.map'
+            includeGroup 'xaero.lib'
+        }
+    }
+    exclusiveContent {
+        forRepository {
+            maven {
+                name = 'Modrinth'
+                url = 'https://api.modrinth.com/maven'
+            }
+        }
+        filter { includeGroup 'maven.modrinth' }
+    }
+}
+
+neoForge {
+    version = project.neo_version
+
+    parchment {
+        mappingsVersion = project.parchment_mappings_version
+        minecraftVersion = project.parchment_minecraft_version
+    }
+
+    // Dev runs need the full mod set (Create, Aeronautics, Sable + Veil, ...) placed into run/mods manually;
+    // see README "Запуск в среде разработки".
+    runs {
+        client {
+            client()
+        }
+        server {
+            server()
+            programArgument '--nogui'
+        }
+        // Runs all aerocouriers GameTests and exits; needs the same run/mods as the other runs.
+        gameTestServer {
+            type = 'gameTestServer'
+            gameDirectory = project.file('run/gametest')
+        }
+        configureEach {
+            systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
+            logLevel = org.slf4j.event.Level.INFO
+        }
+    }
+
+    mods {
+        "${mod_id}" {
+            sourceSet(sourceSets.main)
+        }
+    }
+}
+
+configurations {
+    runtimeClasspath.extendsFrom localRuntime
+}
+
+dependencies {
+    // Curios 9 — required. Full jar so the API impl classes resolve in dev runs.
+    implementation "top.theillusivec4.curios:curios-neoforge:${curios_version}"
+
+    // Sable — required at runtime (provided by the pack), compile against the NeoForge jar only.
+    // Non-transitive: its runtime deps (Create, Veil, Rapier natives, ...) are the pack's business.
+    compileOnly("dev.ryanhcode.sable:sable-neoforge-1.21.1:${sable_version}") { transitive = false }
+
+    // Sable Companion — MIT, designed to be embedded (jar-in-jar).
+    // Open upper bound so a newer Companion shipped by a future Sable wins Jar-in-Jar resolution.
+    jarJar(implementation("dev.ryanhcode.sable-companion:sable-companion-common-1.21.1:[${sable_companion_version},)")) {
+        version { prefer sable_companion_version }
+    }
+
+    // Xaero — optional client bridge, ARR. compileOnly so the jars are never shipped or committed.
+    compileOnly "xaero.minimap:xaerominimap-neoforge-1.21.1:${xaero_minimap_version}"
+    compileOnly "xaero.map:xaeroworldmap-neoforge-1.21.1:${xaero_worldmap_version}"
+    compileOnly "xaero.lib:xaerolib-neoforge-1.21.1:${xaero_lib_version}"
+
+    // Create: Numismatics — optional economy bridge, compileOnly (Modrinth Maven, do not ship or commit the jar).
+    compileOnly("maven.modrinth:numismatics:${numismatics_version}") { transitive = false }
+}
+
+var generateModMetadata = tasks.register("generateModMetadata", ProcessResources) {
+    var replaceProperties = [
+            minecraft_version_range      : minecraft_version_range,
+            neo_version_range            : neo_version_range,
+            loader_version_range         : loader_version_range,
+            mod_id                       : mod_id,
+            mod_name                     : mod_name,
+            mod_license                  : mod_license,
+            mod_version                  : mod_version,
+            mod_authors                  : mod_authors,
+            sable_version_range          : sable_version_range,
+            sable_companion_version_range: sable_companion_version_range,
+            curios_version_range         : curios_version_range,
+            create_version_range         : create_version_range,
+            aeronautics_version_range    : aeronautics_version_range,
+            xaero_minimap_version_range  : xaero_minimap_version_range,
+            xaero_worldmap_version_range : xaero_worldmap_version_range,
+            numismatics_version_range    : numismatics_version_range,
+    ]
+    inputs.properties replaceProperties
+    expand replaceProperties
+    from "src/main/templates"
+    into "build/generated/sources/modMetadata"
+}
+sourceSets.main.resources.srcDir generateModMetadata
+neoForge.ideSyncTask generateModMetadata
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.compilerArgs << '-Xlint:deprecation'
+}
+
+tasks.register('checkScreenRenderGuard', Exec) {
+    group = 'verification'
+    description = 'Ensures Screen subclasses do not call renderWithTooltip (StackOverflow on 1.21.1).'
+    commandLine 'python3', layout.projectDirectory.file('tools/check_screen_render_guard.py')
+}
+
+tasks.register('checkProfileSkinLayout', Exec) {
+    group = 'verification'
+    description = 'Checks profile skin preview head/feet margins for standard window sizes.'
+    commandLine 'python3', layout.projectDirectory.file('tools/check_profile_skin_layout.py')
+}
+
+tasks.register('checkProfileSkinAngles', Exec) {
+    group = 'verification'
+    description = 'Checks profile skin look-angle clamps and Z depth at large scale.'
+    commandLine 'python3', layout.projectDirectory.file('tools/check_profile_skin_angles.py')
+}
+
+tasks.register('checkTraineeRules', Exec) {
+    group = 'verification'
+    description = 'Pure-logic checks for GDD §6.5 trainee distance rules.'
+    commandLine 'python3', layout.projectDirectory.file('tools/check_trainee_rules.py')
+}
+
+tasks.register('checkStationReputation', Exec) {
+    group = 'verification'
+    description = 'Pure-logic checks for GDD §6.4 reputation tiers.'
+    commandLine 'python3', layout.projectDirectory.file('tools/check_station_reputation.py')
+}
+
+tasks.register('checkVillageRareCargo', Exec) {
+    group = 'verification'
+    description = 'Pure-logic checks for village rare cargo table eligibility.'
+    commandLine 'python3', layout.projectDirectory.file('tools/check_village_rare_cargo.py')
+}
+
+tasks.register('checkNavMath', Exec) {
+    group = 'verification'
+    description = 'Pure-logic checks for navigation HUD bearing/distance math.'
+    commandLine 'python3', layout.projectDirectory.file('tools/check_nav_math.py')
+}
+
+tasks.register('checkRankLimits', Exec) {
+    group = 'verification'
+    description = 'Pure-logic checks for rank table accept limits.'
+    commandLine 'python3', layout.projectDirectory.file('tools/check_rank_limits.py')
+}
+
+tasks.register('checkBoardListFilters', Exec) {
+    group = 'verification'
+    description = 'Pure-logic checks for tablet list filter buckets.'
+    commandLine 'python3', layout.projectDirectory.file('tools/check_board_list_filters.py')
+}
+
+tasks.register('checkEconomyBackend', Exec) {
+    group = 'verification'
+    description = 'Pure-logic checks for economy backend selection and migration rules.'
+    commandLine 'python3', layout.projectDirectory.file('tools/check_economy_backend.py')
+}
+
+tasks.register('checkSpurBreakdown', Exec) {
+    group = 'verification'
+    description = 'Pure-logic checks for greedy spur denomination breakdown.'
+    commandLine 'python3', layout.projectDirectory.file('tools/check_spur_breakdown.py')
+}
+
+tasks.named('build') {
+    dependsOn tasks.named('checkScreenRenderGuard')
+    dependsOn tasks.named('checkProfileSkinLayout')
+    dependsOn tasks.named('checkProfileSkinAngles')
+    dependsOn tasks.named('checkTraineeRules')
+    dependsOn tasks.named('checkStationReputation')
+    dependsOn tasks.named('checkVillageRareCargo')
+    dependsOn tasks.named('checkNavMath')
+    dependsOn tasks.named('checkRankLimits')
+    dependsOn tasks.named('checkBoardListFilters')
+    dependsOn tasks.named('checkEconomyBackend')
+    dependsOn tasks.named('checkSpurBreakdown')
+}
+
+idea {
+    module {
+        downloadSources = true
+        downloadJavadoc = true
+    }
+}

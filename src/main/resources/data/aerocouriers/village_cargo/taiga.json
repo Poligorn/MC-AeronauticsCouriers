@@ -1,0 +1,12 @@
+{
+  "produces": [
+    {"id": "minecraft:spruce_log", "min": 12, "max": 24},
+    {"id": "minecraft:sweet_berries", "min": 8, "max": 16},
+    {"id": "minecraft:coal", "min": 8, "max": 16}
+  ],
+  "consumes": [
+    {"id": "minecraft:wheat", "min": 8, "max": 24},
+    {"id": "minecraft:iron_ingot", "min": 4, "max": 12},
+    {"id": "minecraft:bread", "min": 4, "max": 12}
+  ]
+}

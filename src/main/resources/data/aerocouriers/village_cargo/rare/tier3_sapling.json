@@ -1,0 +1,5 @@
+{
+  "min_reputation": 50,
+  "weight": 10,
+  "item": {"id": "minecraft:cherry_sapling", "min": 1, "max": 2}
+}

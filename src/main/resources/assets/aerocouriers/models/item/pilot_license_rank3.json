@@ -1,0 +1,4 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": { "layer0": "aerocouriers:item/pilot_license_rank3" }
+}

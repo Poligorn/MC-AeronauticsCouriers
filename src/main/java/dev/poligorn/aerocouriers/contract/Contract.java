@@ -1,0 +1,129 @@
+package dev.poligorn.aerocouriers.contract;
+
+import com.mojang.serialization.Codec;
+import com.mojang.serialization.codecs.RecordCodecBuilder;
+import dev.poligorn.aerocouriers.cargo.CargoSize;
+import dev.poligorn.aerocouriers.license.LicenseRank;
+import java.util.Optional;
+import java.util.UUID;
+import net.minecraft.core.UUIDUtil;
+
+/**
+ * Immutable contract (GDD §5.1). The manifest lives in {@link Escrow}, never here or in the container block.
+ * Times are overworld game ticks, so contracts do not tick down while the server is stopped.
+ *
+ * @param issuer    player UUID for {@link ContractType#PLAYER}; station UUID for {@link ContractType#VILLAGE}
+ * @param recipient player who gets delivery notices (defaults to the issuer); village orders use the destination station id
+ * @param weight    total cargo weight (GDD §8.2), the {@code W} of the XP formula
+ * @param preplaced {@code true} when the cargo container already stands at the pickup point (stamp orders)
+ * @param originSnapshot block(s) that held the cargo at creation; restored at P2P delivery
+ */
+public record Contract(UUID id, ContractType type, UUID issuer, UUID recipient, Optional<UUID> courier,
+                       Destination origin, Destination destination, CargoSize size, double weight,
+                       long reward, long collateral, LicenseRank requiredRank, Timing timing, ContractState state,
+                       boolean preplaced, Optional<OriginContainerSnapshot> originSnapshot) {
+
+    public static final Codec<Contract> CODEC = RecordCodecBuilder.create(instance -> instance.group(
+            UUIDUtil.CODEC.fieldOf("id").forGetter(Contract::id),
+            ContractType.CODEC.fieldOf("type").forGetter(Contract::type),
+            UUIDUtil.CODEC.fieldOf("issuer").forGetter(Contract::issuer),
+            UUIDUtil.CODEC.fieldOf("recipient").forGetter(Contract::recipient),
+            UUIDUtil.CODEC.optionalFieldOf("courier").forGetter(Contract::courier),
+            Destination.CODEC.fieldOf("origin").forGetter(Contract::origin),
+            Destination.CODEC.fieldOf("destination").forGetter(Contract::destination),
+            CargoSize.CODEC.fieldOf("size").forGetter(Contract::size),
+            Codec.DOUBLE.fieldOf("weight").forGetter(Contract::weight),
+            Codec.LONG.fieldOf("reward").forGetter(Contract::reward),
+            Codec.LONG.fieldOf("collateral").forGetter(Contract::collateral),
+            LicenseRank.CODEC.fieldOf("required_rank").forGetter(Contract::requiredRank),
+            Timing.CODEC.fieldOf("timing").forGetter(Contract::timing),
+            ContractState.CODEC.fieldOf("state").forGetter(Contract::state),
+            Codec.BOOL.optionalFieldOf("preplaced", false).forGetter(Contract::preplaced),
+            OriginContainerSnapshot.CODEC.optionalFieldOf("origin_snapshot").forGetter(Contract::originSnapshot)
+    ).apply(instance, Contract::new));
+
+    /**
+     * @param deadline   time allowed after acceptance, ticks
+     * @param acceptedAt game time of acceptance, {@code -1} while open
+     * @param paused     ticks the deadline was on hold because the pickup point was blocked (GDD §12)
+     */
+    public record Timing(long createdAt, long expiresAt, long deadline, long acceptedAt, long paused) {
+        public static final Codec<Timing> CODEC = RecordCodecBuilder.create(instance -> instance.group(
+                Codec.LONG.fieldOf("created_at").forGetter(Timing::createdAt),
+                Codec.LONG.fieldOf("expires_at").forGetter(Timing::expiresAt),
+                Codec.LONG.fieldOf("deadline").forGetter(Timing::deadline),
+                Codec.LONG.optionalFieldOf("accepted_at", -1L).forGetter(Timing::acceptedAt),
+                Codec.LONG.optionalFieldOf("paused", 0L).forGetter(Timing::paused)
+        ).apply(instance, Timing::new));
+
+        public long dueAt() {
+            return acceptedAt + paused + deadline;
+        }
+
+        /** End of the late window (GDD §9.6); after it the contract fails. */
+        public long lateUntil(double lateWindow) {
+            return dueAt() + (long) Math.floor(deadline * lateWindow);
+        }
+    }
+
+    public double distance() {
+        return ContractDistances.pricingBlocks(origin, destination);
+    }
+
+    public boolean crossDimension() {
+        return ContractDistances.isCrossDimension(origin, destination);
+    }
+
+    public boolean isCourier(UUID player) {
+        return courier.filter(player::equals).isPresent();
+    }
+
+    /**
+     * Board / list role. A self-accepted job (issuer == courier) is shown as {@code courier} while the
+     * deadline is running so the slot can be abandoned; an unpublished own order stays {@code issuer}.
+     */
+    public String roleFor(UUID viewer) {
+        if (isCourier(viewer) && state.isActive()) {
+            return "courier";
+        }
+        if (issuer.equals(viewer)) {
+            return "issuer";
+        }
+        return isCourier(viewer) ? "courier" : "board";
+    }
+
+    /** Whether board packets may include pickup coordinates for this viewer (anti-pirate until accept). */
+    public boolean revealsPickupTo(UUID viewer) {
+        if (issuer.equals(viewer)) {
+            return true;
+        }
+        return isCourier(viewer) && state != ContractState.OPEN;
+    }
+
+    public String shortId() {
+        return id.toString().substring(0, 8);
+    }
+
+    Contract withState(ContractState next) {
+        if (!state.canTransitionTo(next)) {
+            throw new IllegalStateException("Contract " + id + ": " + state + " -> " + next);
+        }
+        return new Contract(id, type, issuer, recipient, courier, origin, destination, size, weight, reward,
+                collateral, requiredRank, timing, next, preplaced, originSnapshot);
+    }
+
+    Contract accepted(UUID courierId, long now) {
+        Contract next = withState(ContractState.ACCEPTED);
+        return new Contract(id, type, issuer, recipient, Optional.of(courierId), origin, destination, size, weight,
+                reward, collateral, requiredRank,
+                new Timing(timing.createdAt(), timing.expiresAt(), timing.deadline(), now, 0), next.state, preplaced,
+                originSnapshot);
+    }
+
+    Contract withPause(long extraTicks) {
+        return new Contract(id, type, issuer, recipient, courier, origin, destination, size, weight, reward,
+                collateral, requiredRank,
+                new Timing(timing.createdAt(), timing.expiresAt(), timing.deadline(), timing.acceptedAt(),
+                        timing.paused() + extraTicks), state, preplaced, originSnapshot);
+    }
+}

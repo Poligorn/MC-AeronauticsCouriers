@@ -1,0 +1,62 @@
+---
+description: Форматы конфигов (aerocouriers-server.toml / client.toml) и datapack-файлов мода — веса, стоимости, таблицы груза, имена деревень, physics_block_properties Sable, слоты Curios (GDD §15). Применять при добавлении ключей конфига или JSON-ресурсов в data/.
+globs: src/main/java/dev/poligorn/aerocouriers/config/**, src/main/resources/data/**
+alwaysApply: false
+---
+
+# Конфиг и datapack (GDD §15)
+
+## `aerocouriers-server.toml` (ключи и значения по умолчанию)
+```toml
+[contracts]
+village_generation_interval_min = 10
+village_board_max = 12
+p2p_min_collateral_ratio = 0.5
+p2p_fee = 0.05
+max_open_per_player = 10        # незавершённые заказы заказчика (создание), не лимит перевозок
+pause_on_logout_singleplayer = true
+late_window = 0.25
+[cargo]
+spawn_trigger_radius = 64
+spawn_search_radius = 8
+delivery_max_speed = 0.5
+delivery_still_checks = 3
+cargo_mass_scale = 0.25
+[progression]
+rank_xp = [0, 300, 1500, 5000, 15000]
+ace_min_success = 0.90
+trainee_free_contracts = 3
+trainee_bonus = 100
+[economy]
+emerald_value_spurs = 8
+[piracy]             # §9.7 (ранее pvp_rules)
+enabled = true
+break_seconds = 10.0
+blast_resistance = 9.0
+drop_ratio = 0.5
+[stations]
+register_radius = 32
+village_dedup_radius = 96
+generate_in_villages = true
+[migration]
+# стартовый XP при миграции kubejs:pilot_license_<rank> (CLARIFICATIONS: «таблица в конфиге»)
+[debug]
+allow_self_accept = false   # только для тестов: заказчик может принять свой заказ
+```
+- Новый ключ: добавить в `CouriersServerConfig`, в эту таблицу и в STATUS (если это решение).
+- `cargo_mass_scale` **не** влияет на уже сгенерированный JSON массы — при смене пересчитать `physics_block_properties`.
+
+## `aerocouriers-client.toml`
+`[button] position / custom_x / custom_y` — см. `55-client-ui-xaero.mdc`.
+`[zones] enabled / particle_density / render_distance` — контур зон частицами (§10.3).
+
+## Datapack
+| Путь | Назначение |
+|---|---|
+| `data/aerocouriers/item_weights.json` | Вес предметов (блок 1.0 · слиток/самоцвет 0.11 · предмет 0.05 · инструмент/броня 0.5 · ведро 1.0). При наличии FFItemWeight — брать вес из него |
+| `data/aerocouriers/item_values.json` | Оценка стоимости |
+| `data/aerocouriers/village_cargo/<biome>.json` | Что производят/потребляют деревни |
+| `data/aerocouriers/station_names/*.json` | Словарь названий почтовых станций |
+| `data/aerocouriers/physics_block_properties/*.json` | Масса контейнеров (формат Sable: `selector`, `priority`, `properties`, `overrides` с ключами `"fill=N"`) ✅ |
+| `data/aerocouriers/curios/slots/license.json` + `data/aerocouriers/curios/entities/player.json` | Слот лицензии ✅ |
+| `data/curios/tags/item/license.json` | Какие предметы допускает слот (`curios:tag`-валидатор) ✅ |
