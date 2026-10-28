@@ -57,7 +57,7 @@ public final class TabletScreenChrome {
         return showLoadingGear(awaitingServerData, false, partialTick);
     }
 
-    /** Blocks tab-panel widgets but not main tab buttons (see {@link #blocksInput}). */
+    /** Blocks tab-panel widgets; main tab buttons only when not in tab-switch loading (see {@link #blocksInput}). */
     public boolean blocksTabContentInput(boolean awaitingServerData, boolean tabSwitchLoading, float partialTick) {
         if (blocksInput(awaitingServerData, partialTick)) {
             return true;
@@ -87,17 +87,14 @@ public final class TabletScreenChrome {
     }
 
     /**
-     * Opacity for cavity chrome during open / first snapshot wait. Tab-switch loading keeps {@code 1} so main tabs
-     * stay visible; panel content uses {@link TabletTabSwitchEffects#contentAlpha()}.
+     * Opacity gate for cavity UI during open / first snapshot wait / tab-switch loading. While {@code false}, only the
+     * grid and loading gear draw; after tab loading, {@link TabletTabSwitchEffects#contentAlpha()} fades everything in.
      */
     public float cavityContentAlpha(boolean awaitingServerData, boolean tabSwitchLoading, float partialTick) {
         if (!TabletAnim.enabled()) {
             return 1.0F;
         }
-        if (tabSwitchLoading) {
-            return 1.0F;
-        }
-        if (awaitingServerData || openClose.isOpenSlideActive(partialTick)) {
+        if (tabSwitchLoading || awaitingServerData || openClose.isOpenSlideActive(partialTick)) {
             return 0.0F;
         }
         return 1.0F;

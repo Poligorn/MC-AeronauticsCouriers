@@ -693,9 +693,9 @@ public final class CourierBoardScreen extends Screen {
         tabletChrome.drawTabletBody(graphics, partialTick, () -> {
             TabletGui.drawScreenBackground(graphics, cavityLeft(), cavityTop(), cavityW(), cavityH(), partialTick);
             if (cavityAlpha > 0.001F) {
-                tabEffects.drawHighlight(graphics, mainTabRowY(), TAB_H);
-                renderChromeWidgets(graphics, contentMouseX, contentMouseY, partialTick);
                 TabletAnim.withAlpha(graphics, contentAlpha, () -> {
+                    tabEffects.drawHighlight(graphics, mainTabRowY(), TAB_H);
+                    renderChromeWidgets(graphics, contentMouseX, contentMouseY, partialTick);
                     renderContentWidgets(graphics, contentMouseX, contentMouseY, partialTick);
                     drawTabPanelContent(graphics, contentMouseX, contentMouseY, partialTick);
                     if (tab == Tab.PROFILE) {
@@ -1532,7 +1532,7 @@ public final class CourierBoardScreen extends Screen {
         }
         double adjustedY = tabletChrome.adjustMouseY(mouseY, 0.0F);
         if (blocksTabPanelInput()) {
-            if (isOverMainTab(mouseX, adjustedY)) {
+            if (!tabEffects.isTabLoadingActive() && isOverMainTab(mouseX, adjustedY)) {
                 return super.mouseClicked(mouseX, adjustedY, button);
             }
             return true;
