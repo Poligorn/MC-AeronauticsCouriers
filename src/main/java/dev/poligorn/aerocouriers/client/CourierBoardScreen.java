@@ -5,7 +5,15 @@ import dev.poligorn.aerocouriers.client.board.BoardCargoTooltip;
 import dev.poligorn.aerocouriers.client.board.BoardRowDebug;
 import dev.poligorn.aerocouriers.client.board.BoardRowLayout;
 import dev.poligorn.aerocouriers.client.board.BoardRowMetrics;
+import dev.poligorn.aerocouriers.client.board.BoardAcceptOverlay;
 import dev.poligorn.aerocouriers.client.board.BoardAcceptUi;
+import dev.poligorn.aerocouriers.client.board.BoardCardRenderer;
+import dev.poligorn.aerocouriers.client.board.BoardDetailsOverlay;
+import dev.poligorn.aerocouriers.client.board.BoardOverlayHost;
+import dev.poligorn.aerocouriers.client.board.TabletCardIconButton;
+import dev.poligorn.aerocouriers.client.board.TabletDraw;
+import dev.poligorn.aerocouriers.client.board.TabletPalette;
+import dev.poligorn.aerocouriers.contract.RankRules;
 import dev.poligorn.aerocouriers.client.board.BoardEntryPickup;
 import dev.poligorn.aerocouriers.client.board.BoardRowRenderer;
 import dev.poligorn.aerocouriers.client.board.MineListSection;
@@ -94,6 +102,10 @@ public final class CourierBoardScreen extends Screen {
     static final int ADMIN_SUB_GAP = 4;
     private static final int FILTER_SUMMARY_H = 11;
     private static final int VILLAGE_REFRESH_HEADER_H = 11;
+    private static final int MINE_ACTION_W = 58;
+    private static final int STATUS_LINE_H = 11;
+    private static final int LIST_HEADING_H = 11;
+    private static final int COUNT_LABEL_H = 13;
 
     /** Left edge of the balance strip (right of last tab). */
     private int balanceStripLeft;
@@ -118,7 +130,7 @@ public final class CourierBoardScreen extends Screen {
     private @Nullable BoardCargoTooltip hoverCargoComponent;
     private @Nullable SpurBreakdownTooltip hoverSpurBreakdown;
     private @Nullable Component hoverSpurHeader;
-    private @Nullable UUID mapHoverOrder;
+    private @Nullable ItemStack hoverItem;
     private @Nullable UUID crateHoverOrder;
     /** Visible list rows whose action buttons depend on {@link #initListButtons}; avoids rebuild on timer-only updates. */
     private @Nullable String listRowButtonKey;
@@ -130,6 +142,9 @@ public final class CourierBoardScreen extends Screen {
     private final ProfileXpBarEffects profileXpEffects = new ProfileXpBarEffects();
     private int mailScroll;
     private @Nullable String mailRowButtonKey;
+    private final BoardOverlayHost overlayHost = new OverlayHost();
+    private @Nullable BoardDetailsOverlay detailsOverlay;
+    private @Nullable BoardAcceptOverlay acceptOverlay;
 
     public CourierBoardScreen(@Nullable BoardSnapshotPayload snapshot) {
         super(Component.translatable("ui.aerocouriers.board.title"));
@@ -237,10 +252,10 @@ public final class CourierBoardScreen extends Screen {
         if (tab == Tab.ADMIN) {
             initAdmin();
         } else if (tab == Tab.BOARD || tab == Tab.MINE) {
+            initFilterBar(screenLeft());
             if (tab == Tab.MINE) {
                 initMineSubToggles(screenLeft());
             }
-            initFilterBar(screenLeft());
             initListButtons(listEntries(), tab == Tab.BOARD);
         }
         if (tab == Tab.BOARD || tab == Tab.MINE) {
@@ -253,6 +268,7 @@ public final class CourierBoardScreen extends Screen {
     }
 
     void openViewedProfile(PlayerProfilePayload payload) {
+        closeOverlays();
         Tab previous = tab;
         if (previous != Tab.PROFILE) {
             tabEffects.onTabSwitch(mainTabs.get(previous), mainTabs.get(Tab.PROFILE));
@@ -278,10 +294,10 @@ public final class CourierBoardScreen extends Screen {
         if (tab == Tab.ADMIN) {
             initAdmin();
         } else if (tab == Tab.BOARD || tab == Tab.MINE) {
+            initFilterBar(screenLeft());
             if (tab == Tab.MINE) {
                 initMineSubToggles(screenLeft());
             }
-            initFilterBar(screenLeft());
             initListButtons(listEntries(), tab == Tab.BOARD);
         }
     }
@@ -319,7 +335,8 @@ public final class CourierBoardScreen extends Screen {
     private void removeTabletButtons() {
         List<AbstractWidget> remove = new ArrayList<>();
         for (Renderable widget : renderables) {
-            if (widget instanceof TabletButton || widget instanceof TabletRowIconButton) {
+            if (widget instanceof TabletButton || widget instanceof TabletRowIconButton
+                    || widget instanceof TabletCardIconButton) {
                 remove.add((AbstractWidget) widget);
             }
         }
@@ -404,10 +421,10 @@ public final class CourierBoardScreen extends Screen {
             initAdmin();
         } else if (tab == Tab.BOARD || tab == Tab.MINE) {
             int sx = screenLeft();
+            initFilterBar(sx);
             if (tab == Tab.MINE) {
                 initMineSubToggles(sx);
             }
-            initFilterBar(sx);
             initListButtons(listEntries(), tab == Tab.BOARD);
         } else if (tab == Tab.PROFILE) {
             initProfileButtons();
@@ -508,50 +525,29 @@ public final class CourierBoardScreen extends Screen {
     }
 
     private void initListButtons(List<BoardSnapshotPayload.BoardEntry> all, boolean boardTab) {
-        int sx = screenLeft();
-        int sw = screenW();
         int visible = visibleRows();
         scroll = Mth.clamp(scroll, 0, Math.max(0, all.size() - visible));
-        int rowTop = listTop();
+        int x1 = cardRight();
         for (int i = 0; i < visible && scroll + i < all.size(); i++) {
             BoardSnapshotPayload.BoardEntry entry = all.get(scroll + i);
-            int rowY = rowTop + i * rowH();
-            int btnY = BoardRowMetrics.buttonY(rowY);
-            boolean hasSecondary = hasSecondaryAction(entry, boardTab);
-            BoardRowLayout layout = BoardRowLayout.forRow(sx, sw, hasSecondary);
-            addRenderableWidget(new TabletRowIconButton(
-                    layout.mapX(), btnY, entry.id(), TabletRowIconButton.Kind.MAP, this::onMapIconClick));
-            addRenderableWidget(new TabletRowIconButton(
-                    layout.crateX(), btnY, entry.id(), TabletRowIconButton.Kind.CRATE, null));
-            if (boardTab && entry.state() == ContractState.OPEN
-                    && (!"issuer".equals(entry.role()) || snapshot.allowSelfAccept())) {
-                TabletButton accept = TabletButton.create(
-                        layout.secondaryX(), btnY, layout.secondaryW(), BoardRowMetrics.BUTTON_HEIGHT,
-                        Component.translatable("ui.aerocouriers.accept", collateralDue(entry)),
-                        b -> onAccept(entry));
-                BoardSnapshotPayload.BoardProfile profile = snapshot != null
-                        ? snapshot.profile()
-                        : BoardSnapshotPayload.BoardProfile.EMPTY;
-                int activeHauls = snapshot != null ? BoardAcceptUi.countActiveHauls(snapshot.mine()) : 0;
-                Optional<AcceptEligibility.Denial> denial = BoardAcceptUi.denial(entry, profile, activeHauls);
-                accept.active = snapshot != null && snapshot.licensed() && denial.isEmpty();
-                if (!accept.active) {
-                    if (snapshot == null || !snapshot.licensed()) {
-                        accept.hint(Component.translatable("contract.aerocouriers.error.no_license"));
-                    } else if (denial.isPresent()) {
-                        accept.hint(denial.get().message());
-                    }
-                }
-                addRenderableWidget(accept);
-            } else if (!boardTab && "issuer".equals(entry.role()) && entry.state() == ContractState.OPEN) {
-                addRenderableWidget(TabletButton.create(
-                        layout.secondaryX(), btnY, layout.secondaryW(), BoardRowMetrics.BUTTON_HEIGHT,
+            int y = cardY(i);
+            boolean locked = cardLocked(entry);
+            boolean noProfile = entry.villageCustomer() || entry.customerId().isEmpty();
+            addRenderableWidget(new TabletCardIconButton(x1 - 38, y + 4, entry.id(),
+                    TabletCardIconButton.Kind.PROFILE, locked || noProfile, this::onCardProfileClick));
+            addRenderableWidget(new TabletCardIconButton(x1 - 20, y + 4, entry.id(),
+                    TabletCardIconButton.Kind.CARGO, locked, this::openDetails));
+            if (boardTab) {
+                continue;
+            }
+            int bx = x1 - BoardCardRenderer.ICONS_W - MINE_ACTION_W - 2;
+            if ("issuer".equals(entry.role()) && entry.state() == ContractState.OPEN) {
+                addRenderableWidget(TabletButton.create(bx, y + 4, MINE_ACTION_W, TabletCardIconButton.SIZE,
                         Component.translatable("ui.aerocouriers.cancel"), b ->
                                 PacketDistributor.sendToServer(
                                         new ContractIntentPayload(ContractIntentPayload.Kind.CANCEL, entry.id()))));
-            } else if (!boardTab && "courier".equals(entry.role()) && entry.state().isActive()) {
-                addRenderableWidget(TabletButton.create(
-                        layout.secondaryX(), btnY, layout.secondaryW(), BoardRowMetrics.BUTTON_HEIGHT,
+            } else if ("courier".equals(entry.role()) && entry.state().isActive()) {
+                addRenderableWidget(TabletButton.create(bx, y + 4, MINE_ACTION_W, TabletCardIconButton.SIZE,
                         Component.translatable("ui.aerocouriers.abandon"), b ->
                                 PacketDistributor.sendToServer(
                                         new ContractIntentPayload(ContractIntentPayload.Kind.ABANDON, entry.id()))));
@@ -560,35 +556,54 @@ public final class CourierBoardScreen extends Screen {
     }
 
     private boolean hasSecondaryAction(BoardSnapshotPayload.BoardEntry entry, boolean boardTab) {
-        if (boardTab && entry.state() == ContractState.OPEN
-                && (!"issuer".equals(entry.role()) || snapshot != null && snapshot.allowSelfAccept())) {
-            return true;
+        if (boardTab) {
+            return false;
         }
-        if (!boardTab && "issuer".equals(entry.role()) && entry.state() == ContractState.OPEN) {
-            return true;
-        }
-        return !boardTab && "courier".equals(entry.role()) && entry.state().isActive();
+        return "issuer".equals(entry.role()) && entry.state() == ContractState.OPEN
+                || "courier".equals(entry.role()) && entry.state().isActive();
     }
 
-    private void onMapIconClick(UUID orderId) {
+    private boolean cardLocked(BoardSnapshotPayload.BoardEntry entry) {
+        return tab == Tab.BOARD && snapshot != null && entry.state() == ContractState.OPEN
+                && BoardAcceptUi.rowRankLocked(entry, snapshot.profile().rank());
+    }
+
+    private void onCardProfileClick(UUID orderId) {
         if (snapshot == null) {
             return;
         }
-        snapshot.find(orderId).ifPresent(entry -> {
-            XaeroOrderBridge.onPreviewDestination(
-                    entry.id(), entry.destinationDimension(), entry.destinationPos(), entry.shortId());
-            XaeroOrderBridge.openWorldMapAt(entry.destinationPos());
-        });
+        snapshot.find(orderId).ifPresent(this::onCustomerClick);
     }
 
-    private void onAccept(BoardSnapshotPayload.BoardEntry entry) {
-        selected = entry.id();
+    private void openDetails(UUID orderId) {
+        if (snapshot == null || snapshot.find(orderId).isEmpty()) {
+            return;
+        }
+        selected = orderId;
+        acceptOverlay = null;
+        detailsOverlay = new BoardDetailsOverlay(overlayHost, orderId);
+    }
+
+    private boolean overlayOpen() {
+        return detailsOverlay != null || acceptOverlay != null;
+    }
+
+    private void closeTopOverlay() {
+        if (acceptOverlay != null) {
+            acceptOverlay = null;
+        } else {
+            detailsOverlay = null;
+        }
+    }
+
+    private void closeOverlays() {
+        acceptOverlay = null;
+        detailsOverlay = null;
+    }
+
+    private void playClick() {
         if (minecraft != null) {
-            BoardSnapshotPayload.BoardProfile profile = snapshot != null
-                    ? snapshot.profile()
-                    : BoardSnapshotPayload.BoardProfile.EMPTY;
-            int activeHauls = BoardAcceptUi.countActiveHauls(snapshot.mine());
-            minecraft.setScreen(new BoardAcceptConfirmScreen(this, entry, profile, activeHauls));
+            minecraft.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
         }
     }
 
@@ -691,8 +706,11 @@ public final class CourierBoardScreen extends Screen {
         RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
         tabletChrome.tick();
         tabletChrome.layout(height, top(), panelH());
-        int contentMouseX = mouseX;
-        int contentMouseY = (int) tabletChrome.adjustMouseY(mouseY, partialTick);
+        int overlayMouseY = (int) tabletChrome.adjustMouseY(mouseY, partialTick);
+        syncOverlays();
+        boolean overlay = overlayOpen();
+        int contentMouseX = overlay ? -1 : mouseX;
+        int contentMouseY = overlay ? -1 : overlayMouseY;
         boolean tabLoading = tabEffects.isTabLoadingActive();
         float cavityAlpha = tabletChrome.cavityContentAlpha(snapshot == null, tabLoading, partialTick);
         float contentAlpha = tabEffects.contentAlpha() * cavityAlpha;
@@ -710,6 +728,9 @@ public final class CourierBoardScreen extends Screen {
                 });
             }
             RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+            if (overlay && cavityAlpha > 0.001F) {
+                renderOverlays(graphics, mouseX, overlayMouseY, partialTick);
+            }
             TabletGui.drawFrameChrome(graphics, left(), top(), panelW(), panelH());
             tabletChrome.drawLoadingGear(graphics, cavityLeft(), cavityTop(), cavityW(), cavityH(),
                     snapshot == null, tabLoading, partialTick);
@@ -717,9 +738,7 @@ public final class CourierBoardScreen extends Screen {
         RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
         if (!tabEffects.isTabLoadingActive()) {
             updateRowIconHover(contentMouseX, contentMouseY);
-            captureRowLine1HoverTips(contentMouseX, contentMouseY);
-            captureRowLine2SpurHover(contentMouseX, contentMouseY);
-            captureRowHoverTips(contentMouseX, contentMouseY);
+            captureCardHover(contentMouseX, contentMouseY);
             if (hoverTip == null && hoverTipLines == null && hoverCargoComponent == null && hoverSpurBreakdown == null) {
                 captureProfileRankHover(contentMouseX, contentMouseY);
             }
@@ -727,7 +746,104 @@ public final class CourierBoardScreen extends Screen {
                 captureButtonHint(contentMouseX, contentMouseY);
             }
         }
+        if (overlay) {
+            captureOverlayHover();
+        }
         renderTopLayerTooltips(graphics, mouseX, mouseY);
+    }
+
+    /** Drops overlays whose order left the snapshot (accepted elsewhere, expired, cancelled). */
+    private void renderStatusLine(GuiGraphics graphics, int sx) {
+        BoardSnapshotPayload.BoardProfile profile = snapshot.profile();
+        LicenseRank rank = profile.rank();
+        String roman = BoardCardRenderer.roman(rank);
+        String title = rank.displayName().getString();
+        String left = title.startsWith(roman + " ") ? roman + " · " + title.substring(roman.length() + 1) : title;
+        int y = statusLineY();
+        graphics.drawString(font, left, sx + 1, y, TabletPalette.SEC, false);
+
+        int active = BoardAcceptUi.countActiveHauls(snapshot.mine());
+        int maxActive = RankRules.limits(rank).maxActive();
+        long atStake = 0;
+        for (BoardSnapshotPayload.BoardEntry entry : snapshot.mine()) {
+            if ("courier".equals(entry.role()) && entry.state().isActive()) {
+                atStake += entry.collateral();
+            }
+        }
+        String head = Component.translatable("ui.aerocouriers.status.active", active, maxActive).getString();
+        String amount = TabletDraw.num(atStake);
+        if (atStake > 0) {
+            head += " · " + Component.translatable("ui.aerocouriers.status.collateral").getString() + " ";
+        }
+        int right = sx + screenW();
+        int x = right - font.width(head) - (atStake > 0 ? font.width(amount) : 0);
+        x = Math.max(x, sx + font.width(left) + 12);
+        graphics.drawString(font, head, x, y, TabletPalette.SEC, false);
+        if (atStake > 0) {
+            graphics.drawString(font, amount, x + font.width(head), y, TabletPalette.CORAL, false);
+        }
+    }
+
+    private void syncOverlays() {
+        if (snapshot == null) {
+            closeOverlays();
+            return;
+        }
+        if (acceptOverlay != null && snapshot.find(acceptOverlay.orderId()).isEmpty()) {
+            acceptOverlay = null;
+        }
+        if (detailsOverlay != null && snapshot.find(detailsOverlay.orderId()).isEmpty()) {
+            detailsOverlay = null;
+        }
+    }
+
+    private void renderOverlays(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        int cx = cavityLeft();
+        int cy = cavityTop();
+        int cw = cavityW();
+        int ch = cavityH();
+        graphics.pose().pushPose();
+        graphics.pose().translate(0.0F, 0.0F, 150.0F);
+        graphics.fill(cx, cy, cx + cw, cy + ch, TabletPalette.SCRIM);
+        graphics.pose().popPose();
+        if (detailsOverlay != null) {
+            detailsOverlay.layout(cx + 4, cy + 4, cw - 8, ch - 8);
+            detailsOverlay.render(graphics, acceptOverlay == null ? mouseX : -1, acceptOverlay == null ? mouseY : -1,
+                    partialTick);
+        }
+        if (acceptOverlay != null) {
+            if (detailsOverlay != null) {
+                graphics.pose().pushPose();
+                graphics.pose().translate(0.0F, 0.0F, 350.0F);
+                graphics.fill(cx, cy, cx + cw, cy + ch, TabletPalette.SCRIM);
+                graphics.pose().popPose();
+                graphics.pose().pushPose();
+                graphics.pose().translate(0.0F, 0.0F, 200.0F);
+            }
+            acceptOverlay.measure();
+            acceptOverlay.layout(cx + 4, cy + 4, cw - 8, ch - 8);
+            acceptOverlay.render(graphics, mouseX, mouseY, partialTick);
+            if (detailsOverlay != null) {
+                graphics.pose().popPose();
+            }
+        }
+    }
+
+    private void captureOverlayHover() {
+        hoverTip = null;
+        hoverTipLines = null;
+        hoverCargoComponent = null;
+        hoverSpurBreakdown = null;
+        hoverSpurHeader = null;
+        hoverItem = null;
+        if (acceptOverlay != null) {
+            hoverTipLines = acceptOverlay.hoverLines();
+            return;
+        }
+        if (detailsOverlay != null) {
+            hoverItem = detailsOverlay.hoveredStack();
+            hoverTipLines = detailsOverlay.hoverLines();
+        }
     }
 
     private void renderChromeWidgets(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
@@ -756,23 +872,27 @@ public final class CourierBoardScreen extends Screen {
     private void drawTabPanelContent(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         int sx = screenLeft();
         int sy = screenTop();
-        int headingY = headingY();
-        if (tab != Tab.PROFILE) {
-            graphics.drawString(font, tabHeading(), sx, headingY, TabletGui.TEXT, false);
+        if (listTab()) {
+            graphics.drawString(font, tabHeading(), sx + 1, listHeadingY(), TabletPalette.TXT, false);
+        } else if (tab != Tab.PROFILE) {
+            graphics.drawString(font, tabHeading(), sx, headingY(), TabletGui.TEXT, false);
+        }
+        if (snapshot != null && listTab()) {
+            renderStatusLine(graphics, sx);
         }
         if (snapshot != null && tab == Tab.BOARD && showsTraineeHint(snapshot.profile())) {
             Component hint = Component.translatable("ui.aerocouriers.trainee.hint",
                     snapshot.profile().traineeFreeContracts() - snapshot.profile().villageDelivered(),
                     snapshot.profile().traineeMaxDistance());
-            drawWrapped(graphics, hint, sx, headingY + font.lineHeight + 2, screenW(), TabletGui.TEXT_MUTED);
+            drawWrapped(graphics, hint, sx + 1, statusLineY() + STATUS_LINE_H, screenW(), TabletPalette.TEAL);
         }
         if (snapshot != null) {
             long balance = snapshot.balance();
-            int balanceRight = sx + screenW() - BALANCE_RIGHT_PAD;
-            int maxW = Math.max(8, balanceRight - balanceStripLeft);
-            SpurAmountUi.Bounds balanceBounds = SpurAmountUi.drawLabeled(
-                    graphics, font, BalanceDisplay.balanceLabel(), balance, balanceStripLeft, mainTabRowY() + 8, maxW,
-                    TabletGui.TEXT, TabletGui.TEXT);
+            int right = sx + screenW() - 1;
+            int w = SpurAmountUi.width(font, balance, false);
+            int x = Math.max(balanceStripLeft, right - w);
+            SpurAmountUi.Bounds balanceBounds = SpurAmountUi.draw(graphics, font, balance, x, mainTabRowY() + 6,
+                    false, TabletPalette.GOLD);
             offerSpurTooltip(balance, balanceBounds, mouseX, mouseY);
         }
 
@@ -781,7 +901,6 @@ public final class CourierBoardScreen extends Screen {
         }
 
         if (tab == Tab.BOARD || tab == Tab.MINE) {
-            renderFilterChrome(graphics, sx);
             renderVillageRefreshHeader(graphics, sx);
             renderList(graphics, listEntries(), sx, mouseX, mouseY);
             renderListActionWidgetsOnTop(graphics, mouseX, mouseY, partialTick);
@@ -831,19 +950,20 @@ public final class CourierBoardScreen extends Screen {
         if (tabletChrome.blocksInput(snapshot == null, 0.0F)) {
             return true;
         }
+        if (overlayOpen()) {
+            if (keyCode == org.lwjgl.glfw.GLFW.GLFW_KEY_ESCAPE) {
+                closeTopOverlay();
+                return true;
+            }
+            if (minecraft != null && minecraft.options.keyInventory.matches(keyCode, scanCode)) {
+                return true;
+            }
+            return super.keyPressed(keyCode, scanCode, modifiers);
+        }
         if (blocksTabPanelInput()) {
             return true;
         }
         return super.keyPressed(keyCode, scanCode, modifiers);
-    }
-
-    @Override
-    public void removed() {
-        if (mapHoverOrder != null) {
-            XaeroOrderBridge.onLeaveDestination(mapHoverOrder);
-            mapHoverOrder = null;
-        }
-        super.removed();
     }
 
     private void renderProfile(GuiGraphics graphics, BoardSnapshotPayload.BoardProfile profile, int sx,
@@ -1139,85 +1259,72 @@ public final class CourierBoardScreen extends Screen {
 
     private void renderListActionWidgetsOnTop(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         int listY = listTop();
-        int listBottom = listY + visibleRows() * rowH();
+        int listBottom = listPanelBottom();
         for (Renderable widget : renderables) {
-            if (widget instanceof TabletRowIconButton) {
+            if (widget instanceof TabletCardIconButton) {
                 widget.render(graphics, mouseX, mouseY, partialTick);
             } else if (widget instanceof TabletButton button && button.getY() >= listY && button.getY() < listBottom) {
                 widget.render(graphics, mouseX, mouseY, partialTick);
             }
         }
     }
-
     private void renderList(GuiGraphics graphics, List<BoardSnapshotPayload.BoardEntry> all, int sx,
                             int mouseX, int mouseY) {
+        int visible = visibleRows();
+        scroll = Mth.clamp(scroll, 0, Math.max(0, all.size() - visible));
+        int listY = listTop();
+        int cx1 = sx + screenW() - 1;
+        int ly1 = listPanelBottom();
+        TabletDraw.box(graphics, sx, listY, cx1, ly1, TabletPalette.LIST_BG, TabletPalette.BRASS);
         if (all.isEmpty()) {
             Component message = rawListEntries().isEmpty()
                     ? listEmptyMessage()
                     : Component.translatable("ui.aerocouriers.filters.empty");
-            graphics.drawString(font, message, sx, listTop() + 4, TabletGui.TEXT_MUTED, false);
+            graphics.drawString(font, message, sx + 8, listY + 8, TabletPalette.SEC, false);
             return;
         }
-        int visible = visibleRows();
-        scroll = Mth.clamp(scroll, 0, Math.max(0, all.size() - visible));
-        int sw = screenW();
-        int frameLeft = sx + BoardRowMetrics.ROW_FRAME_SIDE;
-        int textLeft = frameLeft + BoardRowMetrics.ROW_INSET_LEFT;
-        BoardRowLayout reserve = BoardRowLayout.forRow(sx, sw, true);
-        int textRight = reserve.textRight();
-        int textW = Math.max(8, textRight - textLeft);
-        int listY = listTop();
-        int listH = visible * rowH();
         String listKey = (listRowButtonKey != null ? listRowButtonKey : "") + "|" + tab + "|" + scroll;
         listRowEffects.onListPopulated(listKey, visible);
-        TabletGui.drawListPanel(graphics, sx + 2, listY - 2, sw - 4, listH + 2);
-        graphics.enableScissor(sx + 2, listY - 2, sx + sw - 2, listY + listH);
-        try {
-            for (int i = 0; i < visible && scroll + i < all.size(); i++) {
-                BoardSnapshotPayload.BoardEntry entry = all.get(scroll + i);
-                int rowY = listY + i * rowH();
-                boolean hasSecondary = hasSecondaryAction(entry, tab == Tab.BOARD);
-                BoardRowLayout layout = BoardRowLayout.forRow(sx, sw, hasSecondary);
-                int frameRight = layout.hasSecondary()
-                        ? layout.secondaryX() + BoardRowLayout.SECONDARY_W
-                        : layout.crateX() + BoardRowLayout.ICON;
-                int frameW = Math.max(8, frameRight - frameLeft);
-                float slideX = listRowEffects.rowSlideX(i);
-                float rowAlpha = listRowEffects.rowAlpha(i);
-                TabletGui.drawRow(graphics, frameLeft, rowY, frameW, rowH(), entry.id().equals(selected), 0.0F,
-                        rowAlpha, slideX);
-                graphics.pose().pushPose();
-                graphics.pose().translate(slideX, 0.0F, 0.0F);
-                TabletAnim.withAlpha(graphics, rowAlpha,
-                        () -> renderOrderRow(graphics, entry, rowY, textLeft, textW, mouseX, mouseY));
-                graphics.pose().popPose();
-                BoardRowDebug.logRow(
-                        i,
-                        frameLeft,
-                        rowY,
-                        frameW,
-                        rowH(),
-                        BoardRowMetrics.line1Y(rowY),
-                        BoardRowMetrics.line2Y(rowY),
-                        textLeft,
-                        textRight,
-                        layout.mapX(),
-                        layout.crateX(),
-                        BoardRowMetrics.buttonY(rowY));
-            }
-        } finally {
-            graphics.disableScissor();
+        int x0 = cardLeft();
+        int x1 = cardRight();
+        for (int i = 0; i < visible && scroll + i < all.size(); i++) {
+            BoardSnapshotPayload.BoardEntry entry = all.get(scroll + i);
+            int y = cardY(i);
+            boolean hovered = !overlayOpen() && mouseX >= x0 && mouseX <= x1 && mouseY >= y
+                    && mouseY < y + BoardCardRenderer.CARD_H;
+            boolean boardTab = tab == Tab.BOARD;
+            BoardCardRenderer.Style style = new BoardCardRenderer.Style(
+                    boardTab,
+                    entry.id().equals(selected),
+                    hovered,
+                    cardLocked(entry),
+                    collateralDue(entry),
+                    boardTab && entry.collateral() > 0 && collateralDue(entry) <= 0,
+                    hasSecondaryAction(entry, boardTab) ? MINE_ACTION_W + 4 : 0);
+            float slideX = listRowEffects.rowSlideX(i);
+            float rowAlpha = listRowEffects.rowAlpha(i);
+            graphics.pose().pushPose();
+            graphics.pose().translate(slideX, 0.0F, 0.0F);
+            TabletAnim.withAlpha(graphics, rowAlpha,
+                    () -> BoardCardRenderer.render(graphics, font, entry, x0, x1, y, style));
+            graphics.pose().popPose();
         }
 
         if (all.size() > visible) {
-            graphics.drawString(font, Component.translatable("ui.aerocouriers.scroll",
-                            scroll + 1, Math.min(scroll + visible, all.size()), all.size()),
-                    sx, scrollCounterY(), TabletGui.TEXT_MUTED, false);
-            float thumb = visible / (float) all.size();
+            int trackTop = listY + 2;
+            int trackBottom = ly1 - 2;
+            graphics.fill(cx1 - 7, trackTop, cx1 - 1, trackBottom + 1, TabletPalette.SCROLL_TRACK);
+            int trackH = trackBottom - trackTop - 1;
+            int thumbH = Math.max(9, Math.round(trackH * (visible / (float) all.size())));
             float progress = scroll / (float) Math.max(1, all.size() - visible);
-            TabletGui.drawScrollbar(graphics, sx + screenW() - 6, listTop(), visible * rowH(), progress, thumb);
+            int thumbY = trackTop + 1 + Math.round((trackH - thumbH) * progress);
+            graphics.fill(cx1 - 6, thumbY, cx1 - 2, thumbY + thumbH, TabletPalette.GOLD);
         }
-
+        int total = rawListEntries().size();
+        Component count = all.size() == total
+                ? TabletDraw.plural("ui.aerocouriers.board.count", total, total)
+                : Component.translatable("ui.aerocouriers.filters.shown", all.size(), total);
+        graphics.drawString(font, count, sx + 1, ly1 + 4, TabletPalette.SEC, false);
     }
 
     private void drawClipped(GuiGraphics graphics, Component text, int x, int y, int width, int color,
@@ -1283,10 +1390,14 @@ public final class CourierBoardScreen extends Screen {
         if (remaining < 0) {
             return;
         }
-        int y = villageRefreshHeaderY();
-        VillageRefreshUi.renderHeader(graphics, font, sx, sx + screenW(), y, remaining);
+        String label = VillageRefreshUi.countdownLabel(remaining).getString();
+        int right = sx + screenW();
+        int x = right - font.width(label) - 11;
+        int y = listHeadingY();
+        dev.poligorn.aerocouriers.client.board.PixelGlyphs.draw(graphics, x, y,
+                dev.poligorn.aerocouriers.client.board.PixelGlyphs.CLOCK, TabletPalette.BLUE);
+        graphics.drawString(font, label, x + 11, y, TabletPalette.BLUE, false);
     }
-
     private boolean showsVillageRefreshHeader() {
         if (snapshot == null || tab != Tab.BOARD || tabEffects.isTabLoadingActive()) {
             return false;
@@ -1295,40 +1406,6 @@ public final class CourierBoardScreen extends Screen {
             return false;
         }
         return VillageRefreshUi.relevantForBoardFilters(ClientBoard.boardFilters());
-    }
-
-    private int villageRefreshHeaderY() {
-        return listTop() - VILLAGE_REFRESH_HEADER_H;
-    }
-
-    private void renderFilterChrome(GuiGraphics graphics, int sx) {
-        if (filterBarHeight <= 0) {
-            return;
-        }
-        int summaryY = filterBarTop() + filterBarHeight + 2;
-        if (showsFilterSummary()) {
-            int total = rawListEntries().size();
-            int shown = listEntries().size();
-            graphics.drawString(font,
-                    Component.translatable("ui.aerocouriers.filters.shown", shown, total),
-                    sx, summaryY, TabletGui.TEXT_MUTED, false);
-        }
-    }
-
-    private boolean showsFilterSummary() {
-        if (tab != Tab.BOARD && tab != Tab.MINE) {
-            return false;
-        }
-        int total = rawListEntries().size();
-        int shown = listEntries().size();
-        if (total == 0) {
-            return false;
-        }
-        boolean filtered = shown != total;
-        if (tab == Tab.BOARD) {
-            return filtered || !ClientBoard.boardFilters().isDefault();
-        }
-        return filtered || !ClientBoard.mineFilters(ClientBoard.mineSection()).isDefault(ClientBoard.mineSection());
     }
 
     private void renderAdminFilterChrome(GuiGraphics graphics, int sx, int y) {
@@ -1358,6 +1435,13 @@ public final class CourierBoardScreen extends Screen {
     }
 
     private void renderTopLayerTooltips(GuiGraphics graphics, int mouseX, int mouseY) {
+        if (hoverItem != null && !hoverItem.isEmpty()) {
+            graphics.pose().pushPose();
+            graphics.pose().translate(0.0F, 0.0F, 500.0F);
+            graphics.renderTooltip(font, hoverItem, mouseX, mouseY);
+            graphics.pose().popPose();
+            return;
+        }
         if (hoverSpurBreakdown != null && hoverSpurHeader != null) {
             graphics.renderTooltip(font, List.of(hoverSpurHeader), Optional.of(hoverSpurBreakdown), mouseX, mouseY);
             return;
@@ -1376,19 +1460,6 @@ public final class CourierBoardScreen extends Screen {
         }
     }
 
-    private void renderOrderRow(GuiGraphics graphics, BoardSnapshotPayload.BoardEntry entry, int rowTop, int x, int width,
-                                int mouseX, int mouseY) {
-        if (tab == Tab.BOARD && snapshot != null && entry.state() == ContractState.OPEN
-                && BoardAcceptUi.rowRankLocked(entry, snapshot.profile().rank())) {
-            int h = rowH();
-            graphics.fill(x - 2, rowTop, x + width + 2, rowTop + h, 0x66000000);
-            graphics.blitSprite(AerocouriersGuiSprites.ICON_LOCK, x + width - 18, rowTop + 4, 16, 16);
-        }
-        BoardRowRenderer.renderLine1(
-                graphics, font, entry, x, BoardRowMetrics.line1Y(rowTop), width, mouseX, mouseY, false, null);
-        BoardRowRenderer.renderLine2(graphics, font, entry, x, BoardRowMetrics.line2Y(rowTop), width);
-    }
-
     private void offerSpurTooltip(long spurs, SpurAmountUi.Bounds bounds, int mouseX, int mouseY) {
         if (hoverSpurBreakdown != null || bounds == null) {
             return;
@@ -1399,137 +1470,18 @@ public final class CourierBoardScreen extends Screen {
         }
     }
 
-    private void captureRowLine2SpurHover(int mouseX, int mouseY) {
-        if (snapshot == null || tab != Tab.BOARD && tab != Tab.MINE) {
-            return;
-        }
-        if (hoverSpurBreakdown != null) {
-            return;
-        }
-        List<BoardSnapshotPayload.BoardEntry> all = listEntries();
-        int visible = visibleRows();
-        int listY = listTop();
-        int sx = screenLeft();
-        int sw = screenW();
-        for (int i = 0; i < visible && scroll + i < all.size(); i++) {
-            BoardSnapshotPayload.BoardEntry entry = all.get(scroll + i);
-            int y = listY + i * rowH();
-            int line2Y = BoardRowMetrics.line2Y(y);
-            Long hovered = BoardRowRenderer.hitLine2SpurAmount(font, entry, sx + 6, line2Y, mouseX, mouseY);
-            if (hovered != null) {
-                hoverSpurBreakdown = new SpurBreakdownTooltip(hovered);
-                hoverSpurHeader = Component.translatable("ui.aerocouriers.spur.tooltip.header", hovered);
-                return;
-            }
-        }
-    }
-
-    private void captureRowHoverTips(int mouseX, int mouseY) {
-        if (snapshot == null || tab != Tab.BOARD && tab != Tab.MINE) {
-            return;
-        }
-        if (hoverTip != null || hoverTipLines != null || hoverCargoComponent != null || hoverSpurBreakdown != null
-                || isOverRowIcon(mouseX, mouseY)) {
-            return;
-        }
-        List<BoardSnapshotPayload.BoardEntry> all = listEntries();
-        int visible = visibleRows();
-        int listY = listTop();
-        int sx = screenLeft();
-        int sw = screenW();
-        BoardRowLayout layout = BoardRowLayout.forRow(sx, sw, true);
-        int textRight = layout.textRight();
-        for (int i = 0; i < visible && scroll + i < all.size(); i++) {
-            BoardSnapshotPayload.BoardEntry entry = all.get(scroll + i);
-            int y = listY + i * rowH();
-            if (mouseX < sx + 6 || mouseX >= textRight || mouseY < y || mouseY >= y + rowH()) {
-                continue;
-            }
-            int line2Y = BoardRowMetrics.line2Y(y);
-            if (BoardRowRenderer.hitLine2SpurAmount(font, entry, sx + 6, line2Y, mouseX, mouseY) != null) {
-                continue;
-            }
-            if (isOverRowAction(mouseX, mouseY) || isOverCustomerArea(entry, y, textRight, mouseX, mouseY)) {
-                continue;
-            }
-            hoverTipLines = List.of(
-                    Component.translatable("ui.aerocouriers.row.summary.reward", entry.reward()),
-                    Component.translatable("ui.aerocouriers.row.summary.collateral", entry.collateral()),
-                    Component.translatable("ui.aerocouriers.row.summary.rank", entry.requiredRank().displayName()),
-                    Component.translatable("ui.aerocouriers.row.summary.deadline", entry.deadlineMinutes()),
-                    Component.translatable("ui.aerocouriers.row.summary.time", entry.minutesLeft()),
-                    Component.translatable("ui.aerocouriers.row.summary.cargo", entry.weight(),
-                            AcceptEligibility.sizeLabel(CargoSize.valueOf(entry.size().toUpperCase(Locale.ROOT)))),
-                    Component.translatable("ui.aerocouriers.row.summary.distance", entry.distance()),
-                    Component.translatable("ui.aerocouriers.row.summary.role",
-                            Component.translatable("contract.aerocouriers.role." + entry.role())));
-            return;
-        }
-    }
-
-    private void captureRowLine1HoverTips(int mouseX, int mouseY) {
-        if (snapshot == null || tab != Tab.BOARD && tab != Tab.MINE) {
-            return;
-        }
-        if (hoverTip != null || hoverTipLines != null || hoverCargoComponent != null || isOverRowIcon(mouseX, mouseY)) {
-            return;
-        }
-        if (isOverRowAction(mouseX, mouseY)) {
-            return;
-        }
-        List<BoardSnapshotPayload.BoardEntry> all = listEntries();
-        int visible = visibleRows();
-        int listY = listTop();
-        int sx = screenLeft();
-        int sw = screenW();
-        int textLeft = sx + BoardRowMetrics.ROW_FRAME_SIDE + BoardRowMetrics.ROW_INSET_LEFT;
-        for (int i = 0; i < visible && scroll + i < all.size(); i++) {
-            BoardSnapshotPayload.BoardEntry entry = all.get(scroll + i);
-            int rowY = listY + i * rowH();
-            if (mouseY < rowY || mouseY >= rowY + rowH()) {
-                continue;
-            }
-            boolean hasSecondary = hasSecondaryAction(entry, tab == Tab.BOARD);
-            BoardRowLayout layout = BoardRowLayout.forRow(sx, sw, hasSecondary);
-            if (mouseX < textLeft || mouseX >= layout.textRight()) {
-                return;
-            }
-            int textW = Math.max(8, layout.textRight() - textLeft);
-            BoardRowRenderer.Line1Hover line1 = BoardRowRenderer.hitLine1Hover(
-                    font,
-                    entry,
-                    textLeft,
-                    BoardRowMetrics.line1Y(rowY),
-                    textW,
-                    mouseX,
-                    mouseY,
-                    (tip, ignored) -> hoverTip = tip);
-            if (line1.tooltip() != null) {
-                hoverTip = line1.tooltip();
-                return;
-            }
-            Component rare = BoardRowRenderer.hitRareCargoHover(
-                    entry, textLeft, BoardRowMetrics.line2Y(rowY), textW, mouseX, mouseY);
-            if (rare != null) {
-                hoverTip = rare;
-            }
-            return;
-        }
-    }
-
     private boolean isOverRowIcon(int mouseX, int mouseY) {
         for (Renderable widget : renderables) {
-            if (widget instanceof TabletRowIconButton icon && icon.isMouseOver(mouseX, mouseY)) {
+            if (widget instanceof TabletCardIconButton icon && icon.isMouseOver(mouseX, mouseY)) {
                 return true;
             }
         }
         return false;
     }
-
     private boolean isOverRowAction(int mouseX, int mouseY) {
         for (Renderable widget : renderables) {
             if (widget instanceof AbstractWidget w && w.isMouseOver(mouseX, mouseY)) {
-                if (w instanceof TabletButton || w instanceof TabletRowIconButton) {
+                if (w instanceof TabletButton || w instanceof TabletRowIconButton || w instanceof TabletCardIconButton) {
                     return true;
                 }
             }
@@ -1538,38 +1490,13 @@ public final class CourierBoardScreen extends Screen {
     }
 
     private void updateRowIconHover(int mouseX, int mouseY) {
-        UUID nextMap = null;
         UUID nextCrate = null;
         for (Renderable widget : renderables) {
-            if (widget instanceof TabletRowIconButton icon && icon.isMouseOver(mouseX, mouseY)) {
-                if (icon.kind() == TabletRowIconButton.Kind.MAP) {
-                    nextMap = icon.orderId();
-                } else {
-                    nextCrate = icon.orderId();
-                }
+            if (widget instanceof TabletCardIconButton icon && icon.isMouseOver(mouseX, mouseY)
+                    && icon.kind() == TabletCardIconButton.Kind.CARGO) {
+                nextCrate = icon.orderId();
             }
         }
-        final UUID hoveredMap = nextMap;
-        if (hoveredMap != null && snapshot != null) {
-            snapshot.find(hoveredMap).ifPresent(entry -> {
-                hoverTip = buildMapTooltip(entry);
-                if (!Objects.equals(mapHoverOrder, hoveredMap)) {
-                    XaeroOrderBridge.onHoverDestination(entry.id(), entry.destinationDimension(), entry.destinationPos(),
-                            entry.shortId());
-                }
-            });
-        } else if (mapHoverOrder != null && snapshot != null) {
-            snapshot.find(mapHoverOrder).ifPresent(e -> {
-                if (!keepsPersistentWaypoint(e)) {
-                    XaeroOrderBridge.onLeaveDestination(e.id());
-                }
-            });
-            if (nextCrate == null) {
-                hoverTip = null;
-            }
-        }
-        mapHoverOrder = nextMap;
-
         if (nextCrate != null && snapshot != null) {
             snapshot.find(nextCrate).ifPresent(this::applyCrateHover);
         } else {
@@ -1578,6 +1505,29 @@ public final class CourierBoardScreen extends Screen {
         crateHoverOrder = nextCrate;
     }
 
+    /** Profile icon names the customer; a rank-locked card explains why it is grey. */
+    private void captureCardHover(int mouseX, int mouseY) {
+        if (snapshot == null || !listTab() || hoverCargoComponent != null) {
+            return;
+        }
+        for (Renderable widget : renderables) {
+            if (widget instanceof TabletCardIconButton icon && icon.isMouseOver(mouseX, mouseY)
+                    && icon.kind() == TabletCardIconButton.Kind.PROFILE) {
+                snapshot.find(icon.orderId()).ifPresent(entry -> hoverTip = entry.villageCustomer()
+                        ? Component.translatable("ui.aerocouriers.card.customer_village", entry.customerName())
+                        : Component.translatable("ui.aerocouriers.card.customer_profile", entry.customerName()));
+                return;
+            }
+        }
+        if (isOverRowAction(mouseX, mouseY)) {
+            return;
+        }
+        BoardSnapshotPayload.BoardEntry entry = hitCard(mouseX, mouseY);
+        if (entry != null && cardLocked(entry)) {
+            hoverTip = Component.translatable("ui.aerocouriers.card.locked_tooltip",
+                    BoardCardRenderer.roman(entry.requiredRank()));
+        }
+    }
     private void applyCrateHover(BoardSnapshotPayload.BoardEntry entry) {
         List<net.minecraft.world.item.ItemStack> stacks = entry.cargoStacks();
         int shown = Math.min(BoardCargoTooltip.MAX_SHOWN, stacks.size());
@@ -1589,37 +1539,18 @@ public final class CourierBoardScreen extends Screen {
         hoverTip = Component.translatable("ui.aerocouriers.row.cargo_heading");
     }
 
-    private Component buildMapTooltip(BoardSnapshotPayload.BoardEntry entry) {
-        int distance = XaeroOrderBridge.distanceBlocks(entry.destinationPos(), entry.destinationDimension());
-        if (distance < 0) {
-            distance = entry.distance();
-        }
-        Component pickup = BoardEntryPickup.mapTooltipPickup(entry);
-        Component delivery = formatPos(entry.destinationPos(), entry.destinationDimension());
-        if (XaeroOrderBridge.xaeroMinimapPresent()) {
-            return Component.translatable("ui.aerocouriers.row.map_tooltip.xaero",
-                    pickup, delivery, distance,
-                    Component.translatable("ui.aerocouriers.row.map_open_hint"));
-        }
-        return Component.translatable("ui.aerocouriers.row.map_tooltip", pickup, delivery, distance);
-    }
-
-    private static Component formatPos(BlockPos pos, ResourceKey<Level> dimension) {
-        return Component.translatable("ui.aerocouriers.row.coords",
-                pos.getX(), pos.getY(), pos.getZ(), dimension.location().toString());
-    }
-
-    private boolean keepsPersistentWaypoint(BoardSnapshotPayload.BoardEntry entry) {
-        return "courier".equals(entry.role()) && entry.state().isActive()
-                && ClientZones.get().stream().anyMatch(z -> z.orderId().equals(entry.id()) && z.delivery());
-    }
-
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (tabletChrome.blocksInput(snapshot == null, 0.0F)) {
             return true;
         }
         double adjustedY = tabletChrome.adjustMouseY(mouseY, 0.0F);
+        if (acceptOverlay != null) {
+            return acceptOverlay.mouseClicked(mouseX, adjustedY, button);
+        }
+        if (detailsOverlay != null) {
+            return detailsOverlay.mouseClicked(mouseX, adjustedY, button);
+        }
         if (blocksTabPanelInput()) {
             if (!tabEffects.isTabLoadingActive() && isOverMainTab(mouseX, adjustedY)) {
                 return super.mouseClicked(mouseX, adjustedY, button);
@@ -1649,17 +1580,13 @@ public final class CourierBoardScreen extends Screen {
             int mx = (int) mouseX;
             int my = (int) adjustedY;
             if (!isOverRowAction(mx, my)) {
-                BoardSnapshotPayload.BoardEntry customer = hitCustomerRow(mx, my);
-                if (customer != null) {
-                    onCustomerClick(customer);
-                    return true;
-                }
-                BoardSnapshotPayload.BoardEntry row = hitRowBody(mx, my);
+                BoardSnapshotPayload.BoardEntry row = hitCard(mx, my);
                 if (row != null) {
-                    selected = row.id();
                     if (row.state().isActive() && "courier".equals(row.role())) {
                         ClientNavigation.setFocusedOrder(row.id());
                     }
+                    playClick();
+                    openDetails(row.id());
                     return true;
                 }
             }
@@ -1674,78 +1601,29 @@ public final class CourierBoardScreen extends Screen {
         entry.customerId().ifPresent(ClientBoard::requestPlayerProfile);
     }
 
-    private @Nullable BoardSnapshotPayload.BoardEntry hitCustomerRow(int mouseX, int mouseY) {
+    private @Nullable BoardSnapshotPayload.BoardEntry hitCard(int mouseX, int mouseY) {
         List<BoardSnapshotPayload.BoardEntry> all = listEntries();
         int visible = visibleRows();
-        int listY = listTop();
-        int sx = screenLeft();
-        BoardRowLayout layout = BoardRowLayout.forRow(sx, screenW(), true);
-        int textRight = layout.textRight();
+        if (mouseX < cardLeft() || mouseX > cardRight()) {
+            return null;
+        }
         for (int i = 0; i < visible && scroll + i < all.size(); i++) {
-            BoardSnapshotPayload.BoardEntry entry = all.get(scroll + i);
-            if (entry.villageCustomer() || entry.customerId().isEmpty()) {
-                continue;
-            }
-            int rowY = listY + i * rowH();
-            if (isOverCustomerArea(entry, rowY, textRight, mouseX, mouseY)) {
-                return entry;
+            int y = cardY(i);
+            if (mouseY >= y && mouseY < y + BoardCardRenderer.CARD_H) {
+                return all.get(scroll + i);
             }
         }
         return null;
     }
-
-    private boolean isOverCustomerArea(BoardSnapshotPayload.BoardEntry entry, int rowY, int textRight, int mouseX,
-                                       int mouseY) {
-        int line1Y = BoardRowMetrics.line1Y(rowY);
-        if (mouseY < line1Y || mouseY >= line1Y + 9) {
-            return false;
-        }
-        int sx = screenLeft();
-        int textLeft = sx + BoardRowMetrics.ROW_FRAME_SIDE + BoardRowMetrics.ROW_INSET_LEFT;
-        int faceStart = textLeft + font.width("#" + entry.shortId()) + BoardRowMetrics.ID_STATUS_GAP
-                + Math.min(font.width(entry.state().displayName().getString()), 88) + 4;
-        int faceEnd = faceStart + BoardRowMetrics.CUSTOMER_FACE + BoardRowMetrics.FACE_NAME_GAP
-                + font.width(entry.customerName());
-        return mouseX >= faceStart && mouseX < Math.min(faceEnd, textRight);
-    }
-
-    private @Nullable BoardSnapshotPayload.BoardEntry hitRowBody(int mouseX, int mouseY) {
-        List<BoardSnapshotPayload.BoardEntry> all = listEntries();
-        int visible = visibleRows();
-        int listY = listTop();
-        int sx = screenLeft();
-        int sw = screenW();
-        int frameLeft = sx + BoardRowMetrics.ROW_FRAME_SIDE;
-        for (int i = 0; i < visible && scroll + i < all.size(); i++) {
-            BoardSnapshotPayload.BoardEntry entry = all.get(scroll + i);
-            int rowY = listY + i * rowH();
-            if (mouseY < rowY || mouseY >= rowY + rowH()) {
-                continue;
-            }
-            if (isOverCustomerArea(entry, rowY, Integer.MAX_VALUE, mouseX, mouseY)) {
-                continue;
-            }
-            boolean hasSecondary = hasSecondaryAction(entry, tab == Tab.BOARD);
-            BoardRowLayout layout = BoardRowLayout.forRow(sx, sw, hasSecondary);
-            if (mouseX >= layout.mapX()) {
-                continue;
-            }
-            int frameRight = layout.hasSecondary()
-                    ? layout.secondaryX() + BoardRowLayout.SECONDARY_W
-                    : layout.crateX() + BoardRowLayout.ICON;
-            if (mouseX >= frameLeft && mouseX < frameRight) {
-                return entry;
-            }
-        }
-        return null;
-    }
-
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
         if (tabletChrome.blocksInput(snapshot == null, 0.0F)) {
             return true;
         }
         if (blocksTabPanelInput()) {
+            return true;
+        }
+        if (overlayOpen()) {
             return true;
         }
         double adjustedY = tabletChrome.adjustMouseY(mouseY, 0.0F);
@@ -1817,14 +1695,14 @@ public final class CourierBoardScreen extends Screen {
         refreshBoardContent();
     }
 
+    /** At GUI scale 3 (640×360) the frame is 620×309: six two-line cards and the details window fit. */
     private int panelW() {
-        return Mth.clamp((int) (width * 0.74), 428, Math.max(428, width - 40));
+        return Math.max(428, Math.min(width - 20, Math.max(620, (int) (width * 0.74))));
     }
 
     private int panelH() {
-        int maxH = TabletGui.maxFrameHeight(height);
-        int preferred = (int) (height * 0.80);
-        return Math.min(maxH, Math.max(200, preferred));
+        int maxH = Math.max(200, height - TabletGui.antennaOverhangTop() - 8);
+        return Math.min(maxH, Math.max(309, (int) (height * 0.80)));
     }
 
     private int left() {
@@ -1868,10 +1746,6 @@ public final class CourierBoardScreen extends Screen {
         return TabletGui.contentHeight(panelH());
     }
 
-    private int rowH() {
-        return BoardRowMetrics.rowHeight();
-    }
-
     private Component tabHeading() {
         return switch (tab) {
             case BOARD -> Component.translatable("ui.aerocouriers.board.heading.board");
@@ -1891,26 +1765,51 @@ public final class CourierBoardScreen extends Screen {
                 && TraineeRules.onTraineeVillageContracts(profile.villageDelivered(), profile.traineeFreeContracts());
     }
 
+    private boolean listTab() {
+        return tab == Tab.BOARD || tab == Tab.MINE;
+    }
+
+    /** Rank on the left, active hauls and collateral at stake on the right (board and «Мои»). */
+    private int statusLineY() {
+        return mainTabRowY() + TAB_H + 4;
+    }
+
     private int filterBarTop() {
-        int y = headingY() + font.lineHeight + 6 + traineeHintBlockHeight();
+        if (listTab()) {
+            return statusLineY() + STATUS_LINE_H + traineeHintBlockHeight();
+        }
+        return headingY() + font.lineHeight + 6;
+    }
+
+    private int listHeadingY() {
+        return filterBarTop() + filterBarHeight + 4;
+    }
+
+    private int listTop() {
+        if (!listTab()) {
+            return filterBarTop();
+        }
+        int y = listHeadingY() + LIST_HEADING_H;
         if (tab == Tab.MINE) {
-            y += font.lineHeight + MINE_SUB_GAP + MINE_SUB_TOGGLE_H + MINE_SUB_GAP;
+            y += MINE_SUB_TOGGLE_H + MINE_SUB_GAP;
         }
         return y;
     }
 
-    private int listTop() {
-        int y = filterBarTop();
-        if (tab == Tab.BOARD || tab == Tab.MINE) {
-            y += filterBarHeight + 4;
-            if (showsFilterSummary()) {
-                y += FILTER_SUMMARY_H;
-            }
-            if (showsVillageRefreshHeader()) {
-                y += VILLAGE_REFRESH_HEADER_H;
-            }
-        }
-        return y;
+    private int cardY(int index) {
+        return listTop() + 3 + index * BoardCardRenderer.PITCH;
+    }
+
+    private int cardLeft() {
+        return screenLeft() + BoardCardRenderer.LEFT_INSET;
+    }
+
+    private int cardRight() {
+        return screenLeft() + screenW() - 1 - BoardCardRenderer.RIGHT_INSET;
+    }
+
+    private int listPanelBottom() {
+        return listTop() + 3 + BoardCardRenderer.PITCH * visibleRows();
     }
 
     private int adminOrdersHeaderY(int subY) {
@@ -1938,7 +1837,7 @@ public final class CourierBoardScreen extends Screen {
     }
 
     private int mineSubToggleY() {
-        return headingY() + font.lineHeight + MINE_SUB_GAP;
+        return listHeadingY() + LIST_HEADING_H;
     }
 
     private List<BoardSnapshotPayload.BoardEntry> listEntries() {
@@ -2004,24 +1903,8 @@ public final class CourierBoardScreen extends Screen {
         return screenTop() + screenH() - SCREEN_BOTTOM_PAD;
     }
 
-    private int scrollCounterY() {
-        return contentBottom() - SCROLL_COUNTER_H;
-    }
-
-    private int listBottom() {
-        int bottom = contentBottom() - 4;
-        if (snapshot != null && (tab == Tab.BOARD || tab == Tab.MINE)) {
-            List<BoardSnapshotPayload.BoardEntry> all = listEntries();
-            int rowsWithoutCounter = Math.max(3, (bottom - listTop()) / rowH());
-            if (all.size() > rowsWithoutCounter) {
-                bottom -= SCROLL_COUNTER_H;
-            }
-        }
-        return bottom;
-    }
-
     private int visibleRows() {
-        return Math.max(3, (listBottom() - listTop()) / rowH());
+        return Math.max(1, (contentBottom() - COUNT_LABEL_H - listTop() - 3) / BoardCardRenderer.PITCH);
     }
 
     private void initMailTab() {
@@ -2220,5 +2103,92 @@ public final class CourierBoardScreen extends Screen {
     @Override
     public boolean isPauseScreen() {
         return true;
+    }
+
+    private final class OverlayHost implements BoardOverlayHost {
+        @Override
+        public net.minecraft.client.gui.Font font() {
+            return font;
+        }
+
+        @Override
+        public Optional<BoardSnapshotPayload.BoardEntry> entry(UUID id) {
+            return snapshot == null ? Optional.empty() : snapshot.find(id);
+        }
+
+        @Override
+        public long balance() {
+            return snapshot == null ? 0L : snapshot.balance();
+        }
+
+        @Override
+        public LicenseRank viewerRank() {
+            return snapshot == null ? LicenseRank.RANK1 : snapshot.profile().rank();
+        }
+
+        @Override
+        public long collateralDue(BoardSnapshotPayload.BoardEntry entry) {
+            return CourierBoardScreen.this.collateralDue(entry);
+        }
+
+        @Override
+        public boolean traineeFree(BoardSnapshotPayload.BoardEntry entry) {
+            return entry.collateral() > 0 && CourierBoardScreen.this.collateralDue(entry) <= 0;
+        }
+
+        @Override
+        public boolean offersAccept(BoardSnapshotPayload.BoardEntry entry) {
+            return snapshot != null && entry.state() == ContractState.OPEN
+                    && snapshot.board().stream().anyMatch(e -> e.id().equals(entry.id()))
+                    && (!"issuer".equals(entry.role()) || snapshot.allowSelfAccept());
+        }
+
+        @Override
+        public Optional<Component> acceptDenial(BoardSnapshotPayload.BoardEntry entry) {
+            if (snapshot == null || !snapshot.licensed()) {
+                return Optional.of(Component.translatable("contract.aerocouriers.error.no_license"));
+            }
+            int activeHauls = BoardAcceptUi.countActiveHauls(snapshot.mine());
+            return BoardAcceptUi.denial(entry, snapshot.profile(), activeHauls).map(AcceptEligibility.Denial::message);
+        }
+
+        @Override
+        public boolean mapAvailable() {
+            return XaeroOrderBridge.xaeroMinimapPresent() || XaeroOrderBridge.xaeroWorldMapPresent();
+        }
+
+        @Override
+        public void showOnMap(BoardSnapshotPayload.BoardEntry entry) {
+            XaeroOrderBridge.onPreviewDestination(
+                    entry.id(), entry.destinationDimension(), entry.destinationPos(), entry.shortId());
+        }
+
+        @Override
+        public void openCustomerProfile(BoardSnapshotPayload.BoardEntry entry) {
+            onCustomerClick(entry);
+        }
+
+        @Override
+        public void openAcceptConfirm(BoardSnapshotPayload.BoardEntry entry) {
+            acceptOverlay = new BoardAcceptOverlay(this, entry.id());
+        }
+
+        @Override
+        public void closeDetails() {
+            detailsOverlay = null;
+            acceptOverlay = null;
+        }
+
+        @Override
+        public void closeAcceptConfirm() {
+            acceptOverlay = null;
+        }
+
+        @Override
+        public void confirmAccept(BoardSnapshotPayload.BoardEntry entry) {
+            selected = entry.id();
+            closeOverlays();
+            PacketDistributor.sendToServer(new ContractIntentPayload(ContractIntentPayload.Kind.ACCEPT, entry.id()));
+        }
     }
 }

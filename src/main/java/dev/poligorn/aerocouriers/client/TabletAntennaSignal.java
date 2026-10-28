@@ -3,14 +3,22 @@ package dev.poligorn.aerocouriers.client;
 import dev.poligorn.aerocouriers.config.CouriersClientConfig;
 import net.minecraft.Util;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.resources.ResourceLocation;
 
-/** Antenna tip pulse: yellow outward (send) or light-blue inward (receive), ~0.7 s. */
+/**
+ * Antenna tip pulse: three pixel arcs per side (radii 6/11/16 GUI px, ±52°). Send — yellow arcs run outward from
+ * the lamp; receive — blue arcs run inward and the lamp flashes at the end.
+ */
 public final class TabletAntennaSignal {
-    public static final long DURATION_MS = 700L;
+    public static final long DURATION_MS = 900L;
     private static final long LAMP_FLASH_MS = 160L;
-    private static final int SIGNAL_W = 56;
-    private static final int SIGNAL_H = 14;
+    private static final long ARC_STEP_MS = 200L;
+    private static final long ARC_LIFE_MS = 460L;
+    private static final long ARC_FADE_IN_MS = 70L;
+    private static final int[] RADII = {6, 11, 16};
+    private static final int HALF_ANGLE_DEG = 52;
+    private static final int SEND_COLOR = 0xFFE94A;
+    private static final int RECEIVE_COLOR = 0x88CCFF;
+    private static final int[][] ARC_POINTS = buildArcPoints();
 
     public enum Direction {
         SEND,
@@ -40,91 +48,66 @@ public final class TabletAntennaSignal {
             return;
         }
         long elapsed = Util.getMillis() - triggeredAt;
-        if (elapsed > DURATION_MS && CouriersClientConfig.uiAnimations()) {
+        boolean animate = CouriersClientConfig.uiAnimations();
+        if (elapsed > DURATION_MS || !animate && elapsed > LAMP_FLASH_MS) {
             return;
         }
-        if (!CouriersClientConfig.uiAnimations() && elapsed > LAMP_FLASH_MS) {
-            return;
-        }
-
         int tipX = TabletGui.antennaLeft(frameX) + TabletGui.ANTENNA_W / 2;
         int tipY = TabletGui.antennaDrawY(frameY) + TabletGui.ANTENNA_LAMP_CY;
-        boolean lampOn = lampActive(elapsed);
-        if (lampOn) {
-            drawLampFlash(graphics, tipX, tipY, direction == Direction.SEND);
+        boolean send = direction == Direction.SEND;
+        if (send ? elapsed <= LAMP_FLASH_MS : !animate || elapsed >= DURATION_MS - LAMP_FLASH_MS) {
+            drawLampFlash(graphics, tipX, tipY, send);
         }
-        if (!CouriersClientConfig.uiAnimations()) {
+        if (!animate) {
             return;
         }
-        int stage = stageAt(elapsed, direction);
-        if (stage <= 0) {
-            return;
-        }
-        float fade = fadeAt(elapsed, direction, stage);
-        if (fade <= 0.01F) {
-            return;
-        }
-        ResourceLocation sprite = signalSprite(direction, stage);
-        TabletAnim.withAlpha(graphics, fade, () -> graphics.blitSprite(sprite,
-                tipX - SIGNAL_W / 2, tipY - SIGNAL_H / 2, SIGNAL_W, SIGNAL_H));
-    }
-
-    private static boolean lampActive(long elapsed) {
-        if (direction == Direction.SEND) {
-            return elapsed <= LAMP_FLASH_MS
-                    || elapsed < DURATION_MS && stageAt(elapsed, Direction.SEND) >= 1;
-        }
-        return elapsed >= DURATION_MS - LAMP_FLASH_MS;
-    }
-
-    private static int stageAt(long elapsed, Direction dir) {
-        if (dir == Direction.SEND) {
-            if (elapsed < 220L) {
-                return 1;
+        for (int i = 0; i < RADII.length; i++) {
+            int order = send ? i : RADII.length - 1 - i;
+            float alpha = arcAlpha(elapsed - order * ARC_STEP_MS);
+            if (alpha <= 0.01F) {
+                continue;
             }
-            if (elapsed < 480L) {
-                return 2;
+            int argb = ((int) (alpha * 255.0F) << 24) | (send ? SEND_COLOR : RECEIVE_COLOR);
+            int[] points = ARC_POINTS[i];
+            for (int k = 0; k < points.length; k += 2) {
+                int dx = points[k];
+                int dy = points[k + 1];
+                graphics.fill(tipX + dx, tipY + dy, tipX + dx + 1, tipY + dy + 1, argb);
+                graphics.fill(tipX - dx - 1, tipY + dy, tipX - dx, tipY + dy + 1, argb);
             }
-            if (elapsed < DURATION_MS) {
-                return 3;
-            }
-            return 0;
         }
-        if (elapsed < 220L) {
-            return 3;
-        }
-        if (elapsed < 480L) {
-            return 2;
-        }
-        if (elapsed < DURATION_MS - LAMP_FLASH_MS) {
-            return 1;
-        }
-        return 0;
     }
 
-    private static float fadeAt(long elapsed, Direction dir, int stage) {
-        if (dir == Direction.SEND && stage == 3) {
-            return 1.0F - TabletAnim.easeInCubic((elapsed - 500L) / 200.0F);
+    private static float arcAlpha(long t) {
+        if (t < 0L || t > ARC_LIFE_MS) {
+            return 0.0F;
         }
-        if (dir == Direction.RECEIVE && stage == 3) {
-            return TabletAnim.easeInCubic(elapsed / 220.0F);
+        if (t < ARC_FADE_IN_MS) {
+            return t / (float) ARC_FADE_IN_MS;
         }
-        return 1.0F;
+        return 1.0F - TabletAnim.easeInCubic((t - ARC_FADE_IN_MS) / (float) (ARC_LIFE_MS - ARC_FADE_IN_MS));
     }
 
-    private static ResourceLocation signalSprite(Direction dir, int stage) {
-        if (dir == Direction.RECEIVE) {
-            return switch (stage) {
-                case 1 -> AerocouriersGuiSprites.TABLET_ANTENNA_SIGNAL_RX_1;
-                case 2 -> AerocouriersGuiSprites.TABLET_ANTENNA_SIGNAL_RX_2;
-                default -> AerocouriersGuiSprites.TABLET_ANTENNA_SIGNAL_RX_3;
-            };
+    /** Right-side pixel offsets per radius; the left side is mirrored. Deduplicated so alpha does not stack. */
+    private static int[][] buildArcPoints() {
+        int[][] out = new int[RADII.length][];
+        for (int i = 0; i < RADII.length; i++) {
+            java.util.LinkedHashSet<Long> seen = new java.util.LinkedHashSet<>();
+            for (int a = -HALF_ANGLE_DEG; a <= HALF_ANGLE_DEG; a++) {
+                double t = Math.toRadians(a);
+                int dx = (int) Math.round(RADII[i] * Math.cos(t));
+                int dy = (int) Math.round(RADII[i] * Math.sin(t));
+                seen.add(((long) dx << 32) | (dy & 0xFFFFFFFFL));
+            }
+            int[] pts = new int[seen.size() * 2];
+            int k = 0;
+            for (long packed : seen) {
+                pts[k++] = (int) (packed >> 32);
+                pts[k++] = (int) packed;
+            }
+            out[i] = pts;
         }
-        return switch (stage) {
-            case 1 -> AerocouriersGuiSprites.TABLET_ANTENNA_SIGNAL_1;
-            case 2 -> AerocouriersGuiSprites.TABLET_ANTENNA_SIGNAL_2;
-            default -> AerocouriersGuiSprites.TABLET_ANTENNA_SIGNAL_3;
-        };
+        return out;
     }
 
     private static void drawLampFlash(GuiGraphics graphics, int tipX, int tipY, boolean send) {

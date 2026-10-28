@@ -35,7 +35,7 @@ public final class TabletGui {
     public static final int CONTENT_INSET = 14;
     public static final int ANTENNA_W = 24;
     /** Sprite height (long mast + lamp + steel mount); see {@code gen_tablet_antenna}. */
-    public static final int ANTENNA_H = 78;
+    public static final int ANTENNA_H = 52;
     public static final int ANTENNA_LAMP_CY = 6;
     /** Steel base on the top bezel ({@code [frameY, frameY + ANTENNA_MOUNT_H)}). */
     public static final int ANTENNA_MOUNT_H = 9;

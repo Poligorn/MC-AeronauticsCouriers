@@ -19,6 +19,7 @@ public final class TabletPalette {
     public static final int BRASS_LIGHT = 0xFFC87D32;
     public static final int BRASS_DIM = 0xFF6E461E;
     public static final int LIST_BG = 0xFF1E0F07;
+    public static final int SCROLL_TRACK = 0xFF241208;
     public static final int CHIP_BG = 0xFF24140A;
     public static final int TAB_BG = 0xFF160A05;
 

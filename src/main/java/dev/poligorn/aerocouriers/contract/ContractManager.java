@@ -448,6 +448,27 @@ public final class ContractManager extends SavedData {
         return Optional.of(contract);
     }
 
+    /**
+     * Dev seed only ({@code /couriers dev seed}, not registered in production): a player order from an arbitrary
+     * issuer without charging the issuer or emptying a container. {@code ageMinutes} back-dates the creation time.
+     */
+    public Contract publishDevPlayerOrder(MinecraftServer server, UUID issuer, Destination origin,
+                                          Destination destination, List<ItemStack> manifest, CargoSize size,
+                                          long reward, long collateral, int deadlineMinutes, int ageMinutes) {
+        long now = now(server);
+        long created = now - (long) ageMinutes * Pricing.TICKS_PER_MINUTE;
+        long deadline = deadlineMinutes * Pricing.TICKS_PER_MINUTE;
+        UUID id = UUID.randomUUID();
+        Contract contract = new Contract(id, ContractType.PLAYER, issuer, issuer, Optional.empty(),
+                origin, destination, size, Weights.of(manifest), reward, collateral,
+                ContractDistances.routeRequiredRank(collateral, size, origin, destination),
+                new Contract.Timing(created, created + deadline, deadline, -1, 0), ContractState.OPEN, false,
+                Optional.empty());
+        Escrow.get(server).open(id, manifest, reward);
+        put(contract);
+        return contract;
+    }
+
     /** GDD §7.2: own contracts cannot be taken unless {@code debug.allow_self_accept}; collateral is atomic. */
     public Outcome accept(ServerPlayer courier, UUID id) {
         MinecraftServer server = courier.server;

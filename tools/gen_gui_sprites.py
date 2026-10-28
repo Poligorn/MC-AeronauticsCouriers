@@ -545,55 +545,9 @@ def gen_tablet_scroller() -> None:
     )
 
 
-def _signal_bracket(d: ImageDraw.ImageDraw, cx: int, cy: int, spread: int, alpha: int) -> None:
-    col = (0xFF, 0xE9, 0x4A, alpha)
-    dark = (0xFF, 0xAF, 0x55, alpha)
-    lx = cx - spread
-    rx = cx + spread
-    for dy, lx_off, rx_off in ((0, 0, 0), (1, -1, 1), (2, -1, 1), (3, 0, 0)):
-        y = cy + dy - 1
-        d.point((lx + lx_off, y), fill=col)
-        d.point((rx + rx_off, y), fill=col)
-        if dy in (1, 2):
-            d.point((lx + lx_off - 1, y), fill=dark)
-            d.point((rx + rx_off + 1, y), fill=dark)
-
-
-def _signal_bracket_rx(d: ImageDraw.ImageDraw, cx: int, cy: int, spread: int, alpha: int) -> None:
-    col = (0x88, 0xCC, 0xFF, alpha)
-    dark = (0x55, 0xAA, 0xEE, alpha)
-    lx = cx - spread
-    rx = cx + spread
-    for dy, lx_off, rx_off in ((0, 0, 0), (1, -1, 1), (2, -1, 1), (3, 0, 0)):
-        y = cy + dy - 1
-        d.point((lx + lx_off, y), fill=col)
-        d.point((rx + rx_off, y), fill=col)
-        if dy in (1, 2):
-            d.point((lx + lx_off - 1, y), fill=dark)
-            d.point((rx + rx_off + 1, y), fill=dark)
-
-
-def gen_tablet_antenna_signal() -> None:
-    """Yellow send brackets (outward pulse) and blue receive brackets (inward pulse)."""
-    w, h = 56, 14
-    for stage, spreads, alpha in ((1, (5,), 255), (2, (5, 12), 255), (3, (12,), 140)):
-        img = Image.new("RGBA", (w, h), TRANSPARENT)
-        d = ImageDraw.Draw(img)
-        cx = w // 2
-        cy = h // 2
-        for spread in spreads:
-            _signal_bracket(d, cx, cy, spread, alpha)
-        save_sprite(f"tablet_antenna_signal_{stage}", img, None)
-        img_rx = Image.new("RGBA", (w, h), TRANSPARENT)
-        d_rx = ImageDraw.Draw(img_rx)
-        for spread in spreads:
-            _signal_bracket_rx(d_rx, cx, cy, spread, alpha)
-        save_sprite(f"tablet_antenna_signal_rx_{stage}", img_rx, None)
-
-
 def gen_tablet_antenna() -> None:
-    """24×78: steel mount on top bezel + long copper mast (rings) + square lamp."""
-    w, h = 24, 78
+    """24×52: steel mount on top bezel + copper mast (rings) + square lamp; ~43 px above the frame."""
+    w, h = 24, 52
     steel_h = 9
     img = Image.new("RGBA", (w, h), TRANSPARENT)
     d = ImageDraw.Draw(img)
@@ -607,7 +561,7 @@ def gen_tablet_antenna() -> None:
     fill_rect(img, rod_l, mast_top, rod_r, h - steel_h, TB_COPPER_DK)
     fill_rect(img, rod_l + 1, mast_top + 1, rod_r - 1, h - steel_h - 1, TB_COPPER)
     fill_rect(img, rod_l + 1, mast_top + 1, rod_l + 2, h - steel_h - 2, TB_COPPER_HI)
-    for ring_y in (mast_top + 12, mast_top + 24, mast_top + 36, mast_top + 48):
+    for ring_y in (mast_top + 9, mast_top + 18, mast_top + 27):
         if ring_y + 3 <= h - steel_h:
             fill_rect(img, rod_l - 1, ring_y, rod_r + 1, ring_y + 3, TB_COPPER_EDGE)
             fill_rect(img, rod_l, ring_y + 1, rod_r, ring_y + 2, (0x55, 0x55, 0x55, 255))
@@ -706,7 +660,6 @@ def gen_tablet() -> None:
     gen_tablet_list_row()
     gen_tablet_scroller()
     gen_tablet_antenna()
-    gen_tablet_antenna_signal()
     gen_envelope_tablet()
     gen_bell_icons()
     gen_board_row_icons()

@@ -110,6 +110,9 @@ public final class CouriersCommands {
         root.then(ContractCommands.balance());
         root.then(ContractCommands.money());
         root.then(StationCommands.station());
+        if (!net.neoforged.fml.loading.FMLEnvironment.production) {
+            root.then(DevSeedCommands.dev());
+        }
 
         dispatcher.register(root);
     }
