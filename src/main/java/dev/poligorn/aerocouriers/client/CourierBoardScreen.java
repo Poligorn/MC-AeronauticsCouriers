@@ -687,7 +687,8 @@ public final class CourierBoardScreen extends Screen {
         tabletChrome.layout(height, top(), panelH());
         int contentMouseX = mouseX;
         int contentMouseY = (int) tabletChrome.adjustMouseY(mouseY, partialTick);
-        float cavityAlpha = tabletChrome.cavityContentAlpha(snapshot == null, partialTick);
+        boolean tabLoading = tabEffects.isTabLoadingActive();
+        float cavityAlpha = tabletChrome.cavityContentAlpha(snapshot == null, tabLoading, partialTick);
         float contentAlpha = tabEffects.contentAlpha() * cavityAlpha;
         tabletChrome.drawTabletBody(graphics, partialTick, () -> {
             TabletGui.drawScreenBackground(graphics, cavityLeft(), cavityTop(), cavityW(), cavityH(), partialTick);
@@ -705,17 +706,19 @@ public final class CourierBoardScreen extends Screen {
             RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
             TabletGui.drawFrameChrome(graphics, left(), top(), panelW(), panelH());
             tabletChrome.drawLoadingGear(graphics, cavityLeft(), cavityTop(), cavityW(), cavityH(),
-                    snapshot == null, partialTick);
+                    snapshot == null, tabLoading, partialTick);
         });
         RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
-        updateRowIconHover(contentMouseX, contentMouseY);
-        captureRowLine1HoverTips(contentMouseX, contentMouseY);
-        captureRowHoverTips(contentMouseX, contentMouseY);
-        if (hoverTip == null && hoverTipLines == null && hoverCargoComponent == null) {
-            captureProfileRankHover(contentMouseX, contentMouseY);
-        }
-        if (hoverTip == null && hoverTipLines == null && hoverCargoComponent == null) {
-            captureButtonHint(contentMouseX, contentMouseY);
+        if (!tabEffects.isTabLoadingActive()) {
+            updateRowIconHover(contentMouseX, contentMouseY);
+            captureRowLine1HoverTips(contentMouseX, contentMouseY);
+            captureRowHoverTips(contentMouseX, contentMouseY);
+            if (hoverTip == null && hoverTipLines == null && hoverCargoComponent == null) {
+                captureProfileRankHover(contentMouseX, contentMouseY);
+            }
+            if (hoverTip == null && hoverTipLines == null && hoverCargoComponent == null) {
+                captureButtonHint(contentMouseX, contentMouseY);
+            }
         }
         renderTopLayerTooltips(graphics, mouseX, mouseY);
     }
@@ -800,9 +803,25 @@ public final class CourierBoardScreen extends Screen {
         tabletChrome.requestClose(super::onClose);
     }
 
+    private boolean blocksTabPanelInput() {
+        return tabletChrome.blocksTabContentInput(snapshot == null, tabEffects.isTabLoadingActive(), 0.0F);
+    }
+
+    private boolean isOverMainTab(double mouseX, double mouseY) {
+        for (TabletTabButton button : mainTabs.values()) {
+            if (button.isMouseOver(mouseX, mouseY)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
         if (tabletChrome.blocksInput(snapshot == null, 0.0F)) {
+            return true;
+        }
+        if (blocksTabPanelInput()) {
             return true;
         }
         return super.keyPressed(keyCode, scanCode, modifiers);
@@ -1512,6 +1531,12 @@ public final class CourierBoardScreen extends Screen {
             return true;
         }
         double adjustedY = tabletChrome.adjustMouseY(mouseY, 0.0F);
+        if (blocksTabPanelInput()) {
+            if (isOverMainTab(mouseX, adjustedY)) {
+                return super.mouseClicked(mouseX, adjustedY, button);
+            }
+            return true;
+        }
         if (button == 0 && tab == Tab.PROFILE && ClientBoard.viewingOtherProfile()
                 && isOverProfileCloseButton((int) mouseX, (int) adjustedY)) {
             closeViewedProfile();
@@ -1629,6 +1654,9 @@ public final class CourierBoardScreen extends Screen {
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
         if (tabletChrome.blocksInput(snapshot == null, 0.0F)) {
+            return true;
+        }
+        if (blocksTabPanelInput()) {
             return true;
         }
         double adjustedY = tabletChrome.adjustMouseY(mouseY, 0.0F);

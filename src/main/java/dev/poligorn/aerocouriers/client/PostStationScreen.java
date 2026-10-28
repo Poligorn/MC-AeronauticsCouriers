@@ -143,7 +143,7 @@ public final class PostStationScreen extends Screen {
         hoverCargoComponent = null;
         tabletChrome.tick();
         tabletChrome.layout(height, panelTop(), panelH());
-        float cavityAlpha = tabletChrome.cavityContentAlpha(false, partialTick);
+        float cavityAlpha = tabletChrome.cavityContentAlpha(false, false, partialTick);
         tabletChrome.drawTabletBody(graphics, partialTick, () -> {
             TabletGui.drawScreenBackground(graphics, cavityLeft(), cavityTop(), cavityW(), cavityH(), partialTick);
             if (cavityAlpha > 0.001F) {
@@ -168,7 +168,7 @@ public final class PostStationScreen extends Screen {
                 });
             }
             TabletGui.drawFrameChrome(graphics, panelLeft(), panelTop(), panelW(), panelH());
-            tabletChrome.drawLoadingGear(graphics, cavityLeft(), cavityTop(), cavityW(), cavityH(), false, partialTick);
+            tabletChrome.drawLoadingGear(graphics, cavityLeft(), cavityTop(), cavityW(), cavityH(), false, false, partialTick);
         });
         updateRowIconHover(mouseX, mouseY);
         captureRowHoverTips(mouseX, mouseY);

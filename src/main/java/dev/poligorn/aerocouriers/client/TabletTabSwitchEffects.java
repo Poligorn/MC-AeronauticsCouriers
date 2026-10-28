@@ -4,8 +4,10 @@ import net.minecraft.Util;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 
-/** Tab highlight slide and content fade on the order board. */
+/** Tab highlight slide, loading gear, and content fade on the order board. */
 public final class TabletTabSwitchEffects {
+    /** Grid + spinning gear before new tab content fades in. */
+    public static final long TAB_LOADING_MS = 275L;
     private static final long HIGHLIGHT_MS = 150L;
     private static final long CONTENT_MS = 120L;
     private static final int HIGHLIGHT_COLOR = 0xFFFFAF55;
@@ -30,11 +32,22 @@ public final class TabletTabSwitchEffects {
         switchAt = Util.getMillis();
     }
 
+    /** {@code true} while tab content is hidden and the loading gear is shown. */
+    public boolean isTabLoadingActive() {
+        if (!TabletAnim.enabled() || switchAt == Long.MIN_VALUE) {
+            return false;
+        }
+        return Util.getMillis() - switchAt < TAB_LOADING_MS;
+    }
+
     public float contentAlpha() {
-        if (switchAt == Long.MIN_VALUE) {
+        if (!TabletAnim.enabled() || switchAt == Long.MIN_VALUE) {
             return 1.0F;
         }
-        return TabletAnim.progress(switchAt, CONTENT_MS);
+        if (isTabLoadingActive()) {
+            return 0.0F;
+        }
+        return TabletAnim.progress(switchAt + TAB_LOADING_MS, CONTENT_MS);
     }
 
     public void drawHighlight(GuiGraphics graphics, int tabTop, int tabHeight) {

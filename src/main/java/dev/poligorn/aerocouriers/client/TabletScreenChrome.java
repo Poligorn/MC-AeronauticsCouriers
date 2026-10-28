@@ -37,11 +37,14 @@ public final class TabletScreenChrome {
         InGamePauseBackground.render(screen, graphics, mouseX, mouseY, partialTick, openClose.backdropAlpha(partialTick));
     }
 
-    public boolean showLoadingGear(boolean awaitingServerData, float partialTick) {
+    public boolean showLoadingGear(boolean awaitingServerData, boolean tabSwitchLoading, float partialTick) {
         if (openClose.isClosing()) {
             return false;
         }
         if (awaitingServerData) {
+            return true;
+        }
+        if (tabSwitchLoading) {
             return true;
         }
         return openClose.isOpenSlideActive(partialTick);
@@ -51,7 +54,15 @@ public final class TabletScreenChrome {
         if (openClose.isClosing()) {
             return true;
         }
-        return showLoadingGear(awaitingServerData, partialTick);
+        return showLoadingGear(awaitingServerData, false, partialTick);
+    }
+
+    /** Blocks tab-panel widgets but not main tab buttons (see {@link #blocksInput}). */
+    public boolean blocksTabContentInput(boolean awaitingServerData, boolean tabSwitchLoading, float partialTick) {
+        if (blocksInput(awaitingServerData, partialTick)) {
+            return true;
+        }
+        return tabSwitchLoading;
     }
 
     public float bodyTranslateY(float partialTick) {
@@ -68,21 +79,28 @@ public final class TabletScreenChrome {
     }
 
     public void drawLoadingGear(GuiGraphics graphics, int cavityX, int cavityY, int cavityW, int cavityH,
-                                boolean awaitingServerData, float partialTick) {
-        boolean show = showLoadingGear(awaitingServerData, partialTick);
-        float alpha = loadingGear.alpha(show);
+                                boolean awaitingServerData, boolean tabSwitchLoading, float partialTick) {
+        boolean show = showLoadingGear(awaitingServerData, tabSwitchLoading, partialTick);
+        boolean blocked = show && (awaitingServerData || tabSwitchLoading || openClose.isOpenSlideActive(partialTick));
+        float alpha = loadingGear.alpha(blocked);
         loadingGear.render(graphics, cavityX, cavityY, cavityW, cavityH, alpha, partialTick);
     }
 
     /**
-     * Opacity for cavity content (tabs, lists, text). Hidden only while awaiting the first snapshot or during the
-     * open slide-in; tab switches keep {@code 1} and use {@link TabletTabSwitchEffects} only.
+     * Opacity for cavity chrome during open / first snapshot wait. Tab-switch loading keeps {@code 1} so main tabs
+     * stay visible; panel content uses {@link TabletTabSwitchEffects#contentAlpha()}.
      */
-    public float cavityContentAlpha(boolean awaitingServerData, float partialTick) {
+    public float cavityContentAlpha(boolean awaitingServerData, boolean tabSwitchLoading, float partialTick) {
         if (!TabletAnim.enabled()) {
             return 1.0F;
         }
-        return showLoadingGear(awaitingServerData, partialTick) ? 0.0F : 1.0F;
+        if (tabSwitchLoading) {
+            return 1.0F;
+        }
+        if (awaitingServerData || openClose.isOpenSlideActive(partialTick)) {
+            return 0.0F;
+        }
+        return 1.0F;
     }
 
     public void drawCavityBackground(GuiGraphics graphics, int x, int y, int w, int h, float partialTick) {
