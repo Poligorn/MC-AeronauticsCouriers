@@ -6,11 +6,12 @@ import dev.poligorn.aerocouriers.client.board.BoardRowDebug;
 import dev.poligorn.aerocouriers.client.board.BoardRowLayout;
 import dev.poligorn.aerocouriers.client.board.BoardRowMetrics;
 import dev.poligorn.aerocouriers.client.board.BoardAcceptOverlay;
+import dev.poligorn.aerocouriers.client.board.BoardActionConfirmOverlay;
+import dev.poligorn.aerocouriers.client.board.BoardConfirmOverlay;
 import dev.poligorn.aerocouriers.client.board.BoardAcceptUi;
 import dev.poligorn.aerocouriers.client.board.BoardCardRenderer;
 import dev.poligorn.aerocouriers.client.board.BoardDetailsOverlay;
 import dev.poligorn.aerocouriers.client.board.BoardOverlayHost;
-import dev.poligorn.aerocouriers.client.board.TabletCardIconButton;
 import dev.poligorn.aerocouriers.client.board.TabletDraw;
 import dev.poligorn.aerocouriers.client.board.TabletPalette;
 import dev.poligorn.aerocouriers.contract.RankRules;
@@ -102,7 +103,6 @@ public final class CourierBoardScreen extends Screen {
     static final int ADMIN_SUB_GAP = 4;
     private static final int FILTER_SUMMARY_H = 11;
     private static final int VILLAGE_REFRESH_HEADER_H = 11;
-    private static final int MINE_ACTION_W = 72;
     private static final int STATUS_LINE_H = 11;
     private static final int LIST_HEADING_H = 11;
     private static final int COUNT_LABEL_H = 13;
@@ -131,7 +131,6 @@ public final class CourierBoardScreen extends Screen {
     private @Nullable SpurBreakdownTooltip hoverSpurBreakdown;
     private @Nullable Component hoverSpurHeader;
     private @Nullable ItemStack hoverItem;
-    private @Nullable UUID crateHoverOrder;
     /** Visible list rows whose action buttons depend on {@link #initListButtons}; avoids rebuild on timer-only updates. */
     private @Nullable String listRowButtonKey;
     private @Nullable ProfileRankBar.Layout profileRankBarLayout;
@@ -144,7 +143,7 @@ public final class CourierBoardScreen extends Screen {
     private @Nullable String mailRowButtonKey;
     private final BoardOverlayHost overlayHost = new OverlayHost();
     private @Nullable BoardDetailsOverlay detailsOverlay;
-    private @Nullable BoardAcceptOverlay acceptOverlay;
+    private @Nullable BoardConfirmOverlay confirmOverlay;
 
     public CourierBoardScreen(@Nullable BoardSnapshotPayload snapshot) {
         super(Component.translatable("ui.aerocouriers.board.title"));
@@ -335,8 +334,7 @@ public final class CourierBoardScreen extends Screen {
     private void removeTabletButtons() {
         List<AbstractWidget> remove = new ArrayList<>();
         for (Renderable widget : renderables) {
-            if (widget instanceof TabletButton || widget instanceof TabletRowIconButton
-                    || widget instanceof TabletCardIconButton) {
+            if (widget instanceof TabletButton || widget instanceof TabletRowIconButton) {
                 remove.add((AbstractWidget) widget);
             }
         }
@@ -525,42 +523,7 @@ public final class CourierBoardScreen extends Screen {
     }
 
     private void initListButtons(List<BoardSnapshotPayload.BoardEntry> all, boolean boardTab) {
-        int visible = visibleRows();
-        scroll = Mth.clamp(scroll, 0, Math.max(0, all.size() - visible));
-        int x1 = cardRight();
-        for (int i = 0; i < visible && scroll + i < all.size(); i++) {
-            BoardSnapshotPayload.BoardEntry entry = all.get(scroll + i);
-            int y = cardY(i);
-            boolean locked = cardLocked(entry);
-            boolean noProfile = entry.villageCustomer() || entry.customerId().isEmpty();
-            addRenderableWidget(new TabletCardIconButton(x1 - 38, y + 4, entry.id(),
-                    TabletCardIconButton.Kind.PROFILE, locked || noProfile, this::onCardProfileClick));
-            addRenderableWidget(new TabletCardIconButton(x1 - 20, y + 4, entry.id(),
-                    TabletCardIconButton.Kind.CARGO, locked, this::openDetails));
-            if (boardTab) {
-                continue;
-            }
-            int bx = x1 - BoardCardRenderer.ICONS_W - MINE_ACTION_W - 2;
-            if ("issuer".equals(entry.role()) && entry.state() == ContractState.OPEN) {
-                addRenderableWidget(TabletButton.create(bx, y + 4, MINE_ACTION_W, TabletCardIconButton.SIZE,
-                        Component.translatable("ui.aerocouriers.cancel"), b ->
-                                PacketDistributor.sendToServer(
-                                        new ContractIntentPayload(ContractIntentPayload.Kind.CANCEL, entry.id()))));
-            } else if ("courier".equals(entry.role()) && entry.state().isActive()) {
-                addRenderableWidget(TabletButton.create(bx, y + 4, MINE_ACTION_W, TabletCardIconButton.SIZE,
-                        Component.translatable("ui.aerocouriers.abandon"), b ->
-                                PacketDistributor.sendToServer(
-                                        new ContractIntentPayload(ContractIntentPayload.Kind.ABANDON, entry.id()))));
-            }
-        }
-    }
-
-    private boolean hasSecondaryAction(BoardSnapshotPayload.BoardEntry entry, boolean boardTab) {
-        if (boardTab) {
-            return false;
-        }
-        return "issuer".equals(entry.role()) && entry.state() == ContractState.OPEN
-                || "courier".equals(entry.role()) && entry.state().isActive();
+        scroll = Mth.clamp(scroll, 0, Math.max(0, all.size() - visibleRows()));
     }
 
     private boolean cardLocked(BoardSnapshotPayload.BoardEntry entry) {
@@ -575,36 +538,33 @@ public final class CourierBoardScreen extends Screen {
         return minecraft.getConnection().getPlayerInfo(entry.customerId().get()) != null;
     }
 
-    private void onCardProfileClick(UUID orderId) {
-        if (snapshot == null) {
-            return;
-        }
-        snapshot.find(orderId).ifPresent(this::onCustomerClick);
-    }
-
     private void openDetails(UUID orderId) {
         if (snapshot == null || snapshot.find(orderId).isEmpty()) {
             return;
         }
         selected = orderId;
-        acceptOverlay = null;
+        confirmOverlay = null;
         detailsOverlay = new BoardDetailsOverlay(overlayHost, orderId);
     }
 
+    private static boolean activeHaul(BoardSnapshotPayload.BoardEntry entry) {
+        return "courier".equals(entry.role()) && entry.state().isActive();
+    }
+
     private boolean overlayOpen() {
-        return detailsOverlay != null || acceptOverlay != null;
+        return detailsOverlay != null || confirmOverlay != null;
     }
 
     private void closeTopOverlay() {
-        if (acceptOverlay != null) {
-            acceptOverlay = null;
+        if (confirmOverlay != null) {
+            confirmOverlay = null;
         } else {
             detailsOverlay = null;
         }
     }
 
     private void closeOverlays() {
-        acceptOverlay = null;
+        confirmOverlay = null;
         detailsOverlay = null;
     }
 
@@ -744,7 +704,6 @@ public final class CourierBoardScreen extends Screen {
         });
         RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
         if (!tabEffects.isTabLoadingActive()) {
-            updateRowIconHover(contentMouseX, contentMouseY);
             captureCardHover(contentMouseX, contentMouseY);
             if (hoverTip == null && hoverTipLines == null && hoverCargoComponent == null && hoverSpurBreakdown == null) {
                 captureProfileRankHover(contentMouseX, contentMouseY);
@@ -796,8 +755,8 @@ public final class CourierBoardScreen extends Screen {
             closeOverlays();
             return;
         }
-        if (acceptOverlay != null && snapshot.find(acceptOverlay.orderId()).isEmpty()) {
-            acceptOverlay = null;
+        if (confirmOverlay != null && snapshot.find(confirmOverlay.orderId()).isEmpty()) {
+            confirmOverlay = null;
         }
         if (detailsOverlay != null && snapshot.find(detailsOverlay.orderId()).isEmpty()) {
             detailsOverlay = null;
@@ -815,10 +774,10 @@ public final class CourierBoardScreen extends Screen {
         graphics.pose().popPose();
         if (detailsOverlay != null) {
             detailsOverlay.layout(cx + 4, cy + 4, cw - 8, ch - 8);
-            detailsOverlay.render(graphics, acceptOverlay == null ? mouseX : -1, acceptOverlay == null ? mouseY : -1,
+            detailsOverlay.render(graphics, confirmOverlay == null ? mouseX : -1, confirmOverlay == null ? mouseY : -1,
                     partialTick);
         }
-        if (acceptOverlay != null) {
+        if (confirmOverlay != null) {
             if (detailsOverlay != null) {
                 graphics.pose().pushPose();
                 graphics.pose().translate(0.0F, 0.0F, 350.0F);
@@ -827,9 +786,9 @@ public final class CourierBoardScreen extends Screen {
                 graphics.pose().pushPose();
                 graphics.pose().translate(0.0F, 0.0F, 200.0F);
             }
-            acceptOverlay.measure();
-            acceptOverlay.layout(cx + 4, cy + 4, cw - 8, ch - 8);
-            acceptOverlay.render(graphics, mouseX, mouseY, partialTick);
+            confirmOverlay.measure();
+            confirmOverlay.layout(cx + 4, cy + 4, cw - 8, ch - 8);
+            confirmOverlay.render(graphics, mouseX, mouseY, partialTick);
             if (detailsOverlay != null) {
                 graphics.pose().popPose();
             }
@@ -843,8 +802,8 @@ public final class CourierBoardScreen extends Screen {
         hoverSpurBreakdown = null;
         hoverSpurHeader = null;
         hoverItem = null;
-        if (acceptOverlay != null) {
-            hoverTipLines = acceptOverlay.hoverLines();
+        if (confirmOverlay != null) {
+            hoverTipLines = confirmOverlay.hoverLines();
             return;
         }
         if (detailsOverlay != null) {
@@ -1268,9 +1227,7 @@ public final class CourierBoardScreen extends Screen {
         int listY = listTop();
         int listBottom = listPanelBottom();
         for (Renderable widget : renderables) {
-            if (widget instanceof TabletCardIconButton) {
-                widget.render(graphics, mouseX, mouseY, partialTick);
-            } else if (widget instanceof TabletButton button && button.getY() >= listY && button.getY() < listBottom) {
+            if (widget instanceof TabletButton button && button.getY() >= listY && button.getY() < listBottom) {
                 widget.render(graphics, mouseX, mouseY, partialTick);
             }
         }
@@ -1306,8 +1263,7 @@ public final class CourierBoardScreen extends Screen {
                     hovered,
                     cardLocked(entry),
                     collateralDue(entry),
-                    boardTab && entry.collateral() > 0 && collateralDue(entry) <= 0,
-                    hasSecondaryAction(entry, boardTab) ? MINE_ACTION_W + 4 : 0);
+                    boardTab && entry.collateral() > 0 && collateralDue(entry) <= 0);
             float slideX = listRowEffects.rowSlideX(i);
             float rowAlpha = listRowEffects.rowAlpha(i);
             graphics.pose().pushPose();
@@ -1477,18 +1433,10 @@ public final class CourierBoardScreen extends Screen {
         }
     }
 
-    private boolean isOverRowIcon(int mouseX, int mouseY) {
-        for (Renderable widget : renderables) {
-            if (widget instanceof TabletCardIconButton icon && icon.isMouseOver(mouseX, mouseY)) {
-                return true;
-            }
-        }
-        return false;
-    }
     private boolean isOverRowAction(int mouseX, int mouseY) {
         for (Renderable widget : renderables) {
             if (widget instanceof AbstractWidget w && w.isMouseOver(mouseX, mouseY)) {
-                if (w instanceof TabletButton || w instanceof TabletRowIconButton || w instanceof TabletCardIconButton) {
+                if (w instanceof TabletButton || w instanceof TabletRowIconButton) {
                     return true;
                 }
             }
@@ -1496,36 +1444,10 @@ public final class CourierBoardScreen extends Screen {
         return false;
     }
 
-    private void updateRowIconHover(int mouseX, int mouseY) {
-        UUID nextCrate = null;
-        for (Renderable widget : renderables) {
-            if (widget instanceof TabletCardIconButton icon && icon.isMouseOver(mouseX, mouseY)
-                    && icon.kind() == TabletCardIconButton.Kind.CARGO) {
-                nextCrate = icon.orderId();
-            }
-        }
-        if (nextCrate != null && snapshot != null) {
-            snapshot.find(nextCrate).ifPresent(this::applyCrateHover);
-        } else {
-            hoverCargoComponent = null;
-        }
-        crateHoverOrder = nextCrate;
-    }
-
-    /** Profile icon names the customer; a rank-locked card explains why it is grey. */
+    /** A rank-locked card explains why it is grey. */
     private void captureCardHover(int mouseX, int mouseY) {
         if (snapshot == null || !listTab() || hoverCargoComponent != null) {
             return;
-        }
-        for (Renderable widget : renderables) {
-            if (widget instanceof TabletCardIconButton icon && icon.isMouseOver(mouseX, mouseY)
-                    && icon.kind() == TabletCardIconButton.Kind.PROFILE) {
-                snapshot.find(icon.orderId()).ifPresent(entry -> hoverTip = entry.villageCustomer()
-                        ? Component.translatable("ui.aerocouriers.card.customer_village", entry.customerName())
-                        : Component.translatable(customerOnline(entry) ? "ui.aerocouriers.card.customer_profile"
-                        : "ui.aerocouriers.card.customer_offline", entry.customerName()));
-                return;
-            }
         }
         if (isOverRowAction(mouseX, mouseY)) {
             return;
@@ -1536,25 +1458,14 @@ public final class CourierBoardScreen extends Screen {
                     BoardCardRenderer.roman(entry.requiredRank()));
         }
     }
-    private void applyCrateHover(BoardSnapshotPayload.BoardEntry entry) {
-        List<net.minecraft.world.item.ItemStack> stacks = entry.cargoStacks();
-        int shown = Math.min(BoardCargoTooltip.MAX_SHOWN, stacks.size());
-        int hidden = Math.max(0, entry.manifest().size() - shown);
-        hoverCargoComponent = new BoardCargoTooltip(
-                stacks.subList(0, shown),
-                hidden,
-                entry.weight());
-        hoverTip = Component.translatable("ui.aerocouriers.row.cargo_heading");
-    }
-
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (tabletChrome.blocksInput(snapshot == null, 0.0F)) {
             return true;
         }
         double adjustedY = tabletChrome.adjustMouseY(mouseY, 0.0F);
-        if (acceptOverlay != null) {
-            return acceptOverlay.mouseClicked(mouseX, adjustedY, button);
+        if (confirmOverlay != null) {
+            return confirmOverlay.mouseClicked(mouseX, adjustedY, button);
         }
         if (detailsOverlay != null) {
             return detailsOverlay.mouseClicked(mouseX, adjustedY, button);
@@ -2161,12 +2072,17 @@ public final class CourierBoardScreen extends Screen {
         }
 
         @Override
-        public boolean mapAvailable() {
-            return XaeroOrderBridge.xaeroMinimapPresent() || XaeroOrderBridge.xaeroWorldMapPresent();
+        public boolean mapAvailable(BoardSnapshotPayload.BoardEntry entry) {
+            return activeHaul(entry) || XaeroOrderBridge.xaeroMinimapPresent()
+                    || XaeroOrderBridge.xaeroWorldMapPresent();
         }
 
         @Override
         public void showOnMap(BoardSnapshotPayload.BoardEntry entry) {
+            if (activeHaul(entry)) {
+                ClientNavigation.setFocusedOrder(entry.id());
+                return;
+            }
             XaeroOrderBridge.onPreviewDestination(
                     entry.id(), entry.destinationDimension(), entry.destinationPos(), entry.shortId());
         }
@@ -2183,18 +2099,29 @@ public final class CourierBoardScreen extends Screen {
 
         @Override
         public void openAcceptConfirm(BoardSnapshotPayload.BoardEntry entry) {
-            acceptOverlay = new BoardAcceptOverlay(this, entry.id());
+            confirmOverlay = new BoardAcceptOverlay(this, entry.id());
         }
 
         @Override
         public void closeDetails() {
             detailsOverlay = null;
-            acceptOverlay = null;
+            confirmOverlay = null;
         }
 
         @Override
-        public void closeAcceptConfirm() {
-            acceptOverlay = null;
+        public void closeConfirm() {
+            confirmOverlay = null;
+        }
+
+        @Override
+        public void openActionConfirm(BoardSnapshotPayload.BoardEntry entry, ContractIntentPayload.Kind action) {
+            confirmOverlay = new BoardActionConfirmOverlay(this, entry.id(), action);
+        }
+
+        @Override
+        public void confirmAction(BoardSnapshotPayload.BoardEntry entry, ContractIntentPayload.Kind action) {
+            closeOverlays();
+            PacketDistributor.sendToServer(new ContractIntentPayload(action, entry.id()));
         }
 
         @Override

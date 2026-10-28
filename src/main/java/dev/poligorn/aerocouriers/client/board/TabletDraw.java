@@ -13,6 +13,7 @@ public final class TabletDraw {
         PRIMARY,
         MAP,
         SECONDARY,
+        DANGER,
         DISABLED
     }
 
@@ -105,6 +106,12 @@ public final class TabletDraw {
                         hovered ? TabletPalette.hoverBrighten(TabletPalette.MAP_BG) : TabletPalette.MAP_BG,
                         hovered ? TabletPalette.TXT : TabletPalette.BLUE);
                 textColor = TabletPalette.BLUE;
+            }
+            case DANGER -> {
+                box(graphics, x, y, x + w - 1, y + BUTTON_H - 1,
+                        hovered ? TabletPalette.hoverBrighten(TabletPalette.WARN_BG) : TabletPalette.WARN_BG,
+                        hovered ? TabletPalette.TXT : TabletPalette.CORAL);
+                textColor = hovered ? TabletPalette.TXT : TabletPalette.CORAL;
             }
             case DISABLED -> {
                 box(graphics, x, y, x + w - 1, y + BUTTON_H - 1, TabletPalette.DISABLED_BG,

@@ -14,8 +14,8 @@ public final class BoardCardRenderer {
     /** Card right edge (inclusive) is {@code listRight - RIGHT_INSET}; leaves room for the scrollbar. */
     public static final int RIGHT_INSET = 11;
     public static final int LEFT_INSET = 3;
-    /** Two 17 px icon buttons + gaps at the right of the card. */
-    public static final int ICONS_W = 44;
+    /** Gap between the card's right edge and the reward/collateral column. */
+    public static final int RIGHT_PAD = 8;
     private static final int DEST_MAX_W = 110;
     private static final int NEW_AGE_MINUTES = 10;
 
@@ -25,8 +25,7 @@ public final class BoardCardRenderer {
             boolean hovered,
             boolean locked,
             long collateralDue,
-            boolean traineeFree,
-            int rightReserve
+            boolean traineeFree
     ) {
     }
 
@@ -47,7 +46,7 @@ public final class BoardCardRenderer {
         }
         int tc = style.locked() ? TabletPalette.LOCKC : TabletPalette.TXT;
         int sc = style.locked() ? TabletPalette.LOCKC : TabletPalette.SEC;
-        int rx = x1 - ICONS_W - style.rightReserve();
+        int rx = x1 - RIGHT_PAD;
 
         // Right column first so the route can be clipped against it.
         int line1RightLeft;
@@ -86,6 +85,14 @@ public final class BoardCardRenderer {
             TabletDraw.text(graphics, font, s, x + 3, y + 3, TabletPalette.TEAL);
             x += w + 3;
         }
+        if (!style.boardTab()) {
+            String s = statusLabel(entry);
+            int color = statusColor(entry);
+            int w = font.width(s) + 5;
+            TabletDraw.box(graphics, x, y + 2, x + w, y + 12, dim(color), color);
+            TabletDraw.text(graphics, font, s, x + 3, y + 3, color);
+            x += w + 3;
+        }
         if (deadlineWarn(entry)) {
             String s = Component.translatable("ui.aerocouriers.card.deadline_warn").getString();
             TabletDraw.box(graphics, x, y + 2, x + font.width(s) + 13, y + 12, TabletPalette.WARN_BG,
@@ -113,9 +120,9 @@ public final class BoardCardRenderer {
                     .getString();
         }
         TabletDraw.textRight(graphics, font, depos, rx, y2, deposColor, false);
-        String middle = style.boardTab()
+        String middle = style.boardTab() || !"issuer".equals(entry.role())
                 ? entry.rewardPer1000Blocks() + "/1000"
-                : entry.state().displayName().getString();
+                : Component.translatable("ui.aerocouriers.card.role_issuer").getString();
         TabletDraw.textRight(graphics, font, TabletDraw.trunc(font, middle, 80), rx - 90, y2, sc, false);
 
         x = x0 + 18;
@@ -134,7 +141,7 @@ public final class BoardCardRenderer {
             TabletDraw.text(graphics, font, cargo, x, y2, sc);
             x += font.width(cargo) + 4;
         }
-        if (x + 30 < line2Max) {
+        if (x + 30 < line2Max && !entry.state().isFinal()) {
             TabletDraw.text(graphics, font, "·", x, y2, sc);
             x += 6;
             PixelGlyphs.draw(graphics, x, y2, PixelGlyphs.CLOCK, sc);
@@ -147,6 +154,9 @@ public final class BoardCardRenderer {
 
     private static int badgeWidth(Font font, BoardSnapshotPayload.BoardEntry entry, Style style) {
         int w = 0;
+        if (!style.boardTab()) {
+            w += font.width(statusLabel(entry)) + 8;
+        }
         if (isNew(entry, style)) {
             w += font.width("NEW") + 9;
         }
@@ -166,6 +176,39 @@ public final class BoardCardRenderer {
             return false;
         }
         return entry.minutesLeft() * 5 < entry.deadlineMinutes();
+    }
+
+    /** «Мои»: what the haul is waiting for, from the viewer's side (courier or customer). */
+    public static String statusLabel(BoardSnapshotPayload.BoardEntry entry) {
+        boolean courier = "courier".equals(entry.role());
+        String key = switch (entry.state()) {
+            case OPEN -> "ui.aerocouriers.card.status.open";
+            case ACCEPTED -> courier ? "ui.aerocouriers.card.status.pickup" : "ui.aerocouriers.card.status.accepted";
+            case IN_TRANSIT -> "ui.aerocouriers.card.status.transit";
+            case DELIVERED -> "ui.aerocouriers.card.status.delivered";
+            case EXPIRED -> "ui.aerocouriers.card.status.expired";
+            case FAILED -> "ui.aerocouriers.card.status.failed";
+        };
+        return Component.translatable(key).getString();
+    }
+
+    /** Matches the world beams and Xaero waypoints: yellow = pick up, blue = deliver. */
+    public static int statusColor(BoardSnapshotPayload.BoardEntry entry) {
+        return switch (entry.state()) {
+            case OPEN -> TabletPalette.SEC;
+            case ACCEPTED -> TabletPalette.GOLD;
+            case IN_TRANSIT -> TabletPalette.BLUE;
+            case DELIVERED -> TabletPalette.TEAL;
+            case EXPIRED -> TabletPalette.LOCKC;
+            case FAILED -> TabletPalette.CORAL;
+        };
+    }
+
+    static int dim(int argb) {
+        int r = ((argb >> 16) & 0xFF) * 22 / 100;
+        int g = ((argb >> 8) & 0xFF) * 22 / 100;
+        int b = (argb & 0xFF) * 22 / 100;
+        return 0xFF000000 | (r << 16) | (g << 8) | b;
     }
 
     public static boolean originIsPlayer(BoardSnapshotPayload.BoardEntry entry) {

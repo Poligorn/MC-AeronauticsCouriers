@@ -3,6 +3,7 @@ package dev.poligorn.aerocouriers.client.board;
 import dev.poligorn.aerocouriers.cargo.CargoSize;
 import dev.poligorn.aerocouriers.contract.ContractState;
 import dev.poligorn.aerocouriers.net.BoardSnapshotPayload;
+import dev.poligorn.aerocouriers.net.ContractIntentPayload;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -36,6 +37,13 @@ public final class BoardDetailsOverlay extends TabletOverlay {
     private static final int ACCEPT_X = BACK_X - 8 - ACCEPT_W;
     private static final int CLOSE_X = W - 17;
     private static final int CLOSE_Y = 2;
+
+    private enum Action {
+        ACCEPT,
+        ABANDON,
+        CANCEL,
+        NONE
+    }
 
     private final BoardOverlayHost host;
     private final UUID orderId;
@@ -104,7 +112,16 @@ public final class BoardDetailsOverlay extends TabletOverlay {
         }
         String id = "#" + e.shortId();
         int idX = TabletDraw.textRight(graphics, font, id, CLOSE_X - 8, 4, TabletPalette.LOCKC, false);
-        drawRoute(graphics, font, e, 10, 4, idX - 10, TabletPalette.TXT);
+        int routeRight = idX - 10;
+        if (!host.offersAccept(e)) {
+            String status = BoardCardRenderer.statusLabel(e);
+            int color = BoardCardRenderer.statusColor(e);
+            int chipX = idX - 8 - font.width(status) - 5;
+            TabletDraw.box(graphics, chipX, 2, chipX + font.width(status) + 5, 12, BoardCardRenderer.dim(color), color);
+            TabletDraw.text(graphics, font, status, chipX + 3, 3, color);
+            routeRight = chipX - 8;
+        }
+        drawRoute(graphics, font, e, 10, 4, routeRight - 10, TabletPalette.TXT);
     }
 
     /** Bold «Откуда → Куда» with house/face glyphs, clipped to {@code maxW}. */
@@ -179,7 +196,8 @@ public final class BoardDetailsOverlay extends TabletOverlay {
             if (k < stacks.size() && !stacks.get(k).isEmpty()) {
                 ItemStack stack = stacks.get(k);
                 graphics.renderItem(stack, sx + 1, sy + 1);
-                graphics.renderItemDecorations(font, stack, sx + 1, sy + 1);
+                graphics.renderItemDecorations(font, stack, sx + 1, sy + 1, "");
+                drawStackCount(graphics, font, stack, sx, sy);
                 if (TabletDraw.inside(mx, my, sx, sy, SLOT, SLOT)) {
                     hoveredStack = stack;
                     graphics.fill(sx + 1, sy + 1, sx + SLOT - 1, sy + SLOT - 1, 0x40FFFFFF);
@@ -207,6 +225,18 @@ public final class BoardDetailsOverlay extends TabletOverlay {
             TabletDraw.text(graphics, font, Component.translatable("ui.aerocouriers.details.weight_hint").getString(),
                     px0 + 6, wy + 22, TabletPalette.LOCKC);
         }
+    }
+
+    /** Vanilla places the count one pixel too far right/down for an 18 px slot, so its shadow covers the border. */
+    private static void drawStackCount(GuiGraphics graphics, Font font, ItemStack stack, int sx, int sy) {
+        if (stack.getCount() <= 1) {
+            return;
+        }
+        String count = String.valueOf(stack.getCount());
+        graphics.pose().pushPose();
+        graphics.pose().translate(0.0F, 0.0F, 200.0F);
+        graphics.drawString(font, count, sx + SLOT - 1 - font.width(count), sy + SLOT - 9, 0xFFFFFFFF, true);
+        graphics.pose().popPose();
     }
 
     private static void drawCrate(GuiGraphics graphics, Font font, int x, int y, String letter) {
@@ -371,26 +401,61 @@ public final class BoardDetailsOverlay extends TabletOverlay {
         return ry + 3;
     }
 
+    private Action action(BoardSnapshotPayload.BoardEntry e) {
+        if (host.offersAccept(e)) {
+            return Action.ACCEPT;
+        }
+        if ("courier".equals(e.role()) && e.state().isActive()) {
+            return Action.ABANDON;
+        }
+        if ("issuer".equals(e.role()) && e.state() == ContractState.OPEN) {
+            return Action.CANCEL;
+        }
+        return Action.NONE;
+    }
+
+    private String mapCaption(BoardSnapshotPayload.BoardEntry e, boolean mapOk) {
+        if (action(e) == Action.ABANDON) {
+            String key = mapShown ? "ui.aerocouriers.details.nav_focused"
+                    : e.state() == ContractState.ACCEPTED ? "ui.aerocouriers.details.nav_pickup"
+                    : "ui.aerocouriers.details.nav_delivery";
+            return Component.translatable(key).getString();
+        }
+        return !mapOk
+                ? Component.translatable("ui.aerocouriers.details.map_needs_xaero").getString()
+                : mapShown ? Component.translatable("ui.aerocouriers.details.map_shown").getString()
+                : Component.translatable("ui.aerocouriers.details.map_hint").getString();
+    }
+
     private void renderButtons(GuiGraphics graphics, Font font, BoardSnapshotPayload.BoardEntry e, int mx, int my) {
         int by = BUTTONS_Y;
         TabletDraw.hline(graphics, 10, W - 11, by - 6, TabletPalette.DIVIDER);
-        boolean mapOk = host.mapAvailable();
+        boolean mapOk = host.mapAvailable(e);
         TabletDraw.button(graphics, font, MAP_X, by, MAP_W,
                 Component.translatable("ui.aerocouriers.details.show_on_map").getString(),
                 mapOk ? TabletDraw.ButtonKind.MAP : TabletDraw.ButtonKind.DISABLED, PixelGlyphs.PIN,
                 mapOk && TabletDraw.inside(mx, my, MAP_X, by, MAP_W, TabletDraw.BUTTON_H));
-        String mapCaption = !mapOk
-                ? Component.translatable("ui.aerocouriers.details.map_needs_xaero").getString()
-                : mapShown ? Component.translatable("ui.aerocouriers.details.map_shown").getString()
-                : Component.translatable("ui.aerocouriers.details.map_hint").getString();
-        TabletDraw.text(graphics, font, TabletDraw.trunc(font, mapCaption, ACCEPT_X - MAP_X - 8), MAP_X, by + 23,
-                mapShown ? TabletPalette.TEAL : TabletPalette.LOCKC);
+        int mapCaptionColor = mapShown ? TabletPalette.TEAL
+                : action(e) == Action.ABANDON ? BoardCardRenderer.statusColor(e) : TabletPalette.LOCKC;
+        TabletDraw.text(graphics, font, TabletDraw.trunc(font, mapCaption(e, mapOk), ACCEPT_X - MAP_X - 8), MAP_X,
+                by + 23, mapCaptionColor);
 
         TabletDraw.button(graphics, font, BACK_X, by, BACK_W,
                 Component.translatable("ui.aerocouriers.details.back").getString(), TabletDraw.ButtonKind.SECONDARY,
                 null, TabletDraw.inside(mx, my, BACK_X, by, BACK_W, TabletDraw.BUTTON_H));
 
-        if (!host.offersAccept(e)) {
+        Action action = action(e);
+        if (action == Action.NONE) {
+            return;
+        }
+        if (action != Action.ACCEPT) {
+            String label = Component.translatable(action == Action.ABANDON ? "ui.aerocouriers.abandon"
+                    : "ui.aerocouriers.cancel_confirm.button").getString();
+            TabletDraw.button(graphics, font, ACCEPT_X, by, ACCEPT_W, label, TabletDraw.ButtonKind.DANGER, null,
+                    TabletDraw.inside(mx, my, ACCEPT_X, by, ACCEPT_W, TabletDraw.BUTTON_H));
+            String caption = Component.translatable("ui.aerocouriers.details.accept_hint").getString();
+            TabletDraw.text(graphics, font, caption, ACCEPT_X + ACCEPT_W / 2 - font.width(caption) / 2, by + 23,
+                    TabletPalette.LOCKC);
             return;
         }
         Optional<Component> denial = host.acceptDenial(e);
@@ -433,16 +498,23 @@ public final class BoardDetailsOverlay extends TabletOverlay {
             host.closeDetails();
             return true;
         }
-        if (TabletDraw.inside(mx, my, MAP_X, BUTTONS_Y, MAP_W, TabletDraw.BUTTON_H) && host.mapAvailable()) {
+        if (TabletDraw.inside(mx, my, MAP_X, BUTTONS_Y, MAP_W, TabletDraw.BUTTON_H) && host.mapAvailable(e)) {
             click();
             host.showOnMap(e);
             mapShown = true;
             return true;
         }
-        if (host.offersAccept(e) && host.acceptDenial(e).isEmpty()
-                && TabletDraw.inside(mx, my, ACCEPT_X, BUTTONS_Y, ACCEPT_W, TabletDraw.BUTTON_H)) {
+        boolean onAction = TabletDraw.inside(mx, my, ACCEPT_X, BUTTONS_Y, ACCEPT_W, TabletDraw.BUTTON_H);
+        Action action = action(e);
+        if (onAction && action == Action.ACCEPT && host.acceptDenial(e).isEmpty()) {
             click();
             host.openAcceptConfirm(e);
+            return true;
+        }
+        if (onAction && (action == Action.ABANDON || action == Action.CANCEL)) {
+            click();
+            host.openActionConfirm(e, action == Action.ABANDON
+                    ? ContractIntentPayload.Kind.ABANDON : ContractIntentPayload.Kind.CANCEL);
             return true;
         }
         if (!e.villageCustomer() && e.customerId().isPresent()

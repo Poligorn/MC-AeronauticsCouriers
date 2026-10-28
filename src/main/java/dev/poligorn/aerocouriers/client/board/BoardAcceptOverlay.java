@@ -11,7 +11,7 @@ import net.minecraft.util.FormattedCharSequence;
 import org.jetbrains.annotations.Nullable;
 
 /** «Принять заказ?» with the risk block over the dimmed board (mockup 2_accept). */
-public final class BoardAcceptOverlay extends TabletOverlay {
+public final class BoardAcceptOverlay extends BoardConfirmOverlay {
     public static final int W = 304;
     private static final int HEADER_H = 14;
     private static final int LABEL_X = 10;
@@ -36,10 +36,12 @@ public final class BoardAcceptOverlay extends TabletOverlay {
         this.orderId = orderId;
     }
 
+    @Override
     public UUID orderId() {
         return orderId;
     }
 
+    @Override
     public @Nullable List<Component> hoverLines() {
         return hoverLines;
     }
@@ -54,7 +56,7 @@ public final class BoardAcceptOverlay extends TabletOverlay {
         return height;
     }
 
-    /** Recomputes the dynamic height (risk text length) before {@link #layout}. */
+    @Override
     public void measure() {
         host.entry(orderId).ifPresent(e -> {
             Font font = host.font();
@@ -195,7 +197,7 @@ public final class BoardAcceptOverlay extends TabletOverlay {
     protected boolean clickLocal(int mx, int my, int button) {
         Optional<BoardSnapshotPayload.BoardEntry> found = host.entry(orderId);
         if (found.isEmpty()) {
-            host.closeAcceptConfirm();
+            host.closeConfirm();
             return true;
         }
         if (button != 0) {
@@ -205,7 +207,7 @@ public final class BoardAcceptOverlay extends TabletOverlay {
         if (TabletDraw.inside(mx, my, CLOSE_X, CLOSE_Y, 13, 12)
                 || TabletDraw.inside(mx, my, CANCEL_X, buttonsY, CANCEL_W, TabletDraw.BUTTON_H)) {
             click();
-            host.closeAcceptConfirm();
+            host.closeConfirm();
             return true;
         }
         if (canConfirm(e) && TabletDraw.inside(mx, my, CONFIRM_X, buttonsY, CONFIRM_W, TabletDraw.BUTTON_H)) {

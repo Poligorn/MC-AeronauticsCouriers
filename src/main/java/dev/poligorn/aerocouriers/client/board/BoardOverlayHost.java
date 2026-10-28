@@ -2,6 +2,7 @@ package dev.poligorn.aerocouriers.client.board;
 
 import dev.poligorn.aerocouriers.license.LicenseRank;
 import dev.poligorn.aerocouriers.net.BoardSnapshotPayload;
+import dev.poligorn.aerocouriers.net.ContractIntentPayload;
 import java.util.Optional;
 import java.util.UUID;
 import net.minecraft.client.gui.Font;
@@ -27,7 +28,8 @@ public interface BoardOverlayHost {
     /** Licence/rank/limit reason the order cannot be taken (money is checked by the confirm window). */
     Optional<Component> acceptDenial(BoardSnapshotPayload.BoardEntry entry);
 
-    boolean mapAvailable();
+    /** Xaero preview pin for board orders; active hauls also work without Xaero (beam + compass focus). */
+    boolean mapAvailable(BoardSnapshotPayload.BoardEntry entry);
 
     void showOnMap(BoardSnapshotPayload.BoardEntry entry);
 
@@ -40,7 +42,12 @@ public interface BoardOverlayHost {
 
     void closeDetails();
 
-    void closeAcceptConfirm();
+    void closeConfirm();
 
     void confirmAccept(BoardSnapshotPayload.BoardEntry entry);
+
+    /** {@code ABANDON} for the courier's active haul, {@code CANCEL} for the customer's open order. */
+    void openActionConfirm(BoardSnapshotPayload.BoardEntry entry, ContractIntentPayload.Kind action);
+
+    void confirmAction(BoardSnapshotPayload.BoardEntry entry, ContractIntentPayload.Kind action);
 }
