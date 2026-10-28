@@ -530,7 +530,7 @@
   "ui.aerocouriers.abandon.risk": "Abandoning is a failure: your %s sp collateral goes to the customer and the %s sp reward returns to them. The failure is recorded in your profile.",
   "ui.aerocouriers.abandon.risk.npc": "Abandoning is a failure: the %s sp collateral burns, the cargo is destroyed and the %s sp reward is not paid. The station's reputation drops.",
   "ui.aerocouriers.abandon.cargo.accepted": "The cargo has not been picked up — it returns to the customer's mailbox. The waypoint and beam disappear.",
-  "ui.aerocouriers.abandon.cargo.in_transit": "You already carry the cargo — its contents go to your mailbox. The waypoint and beam disappear.",
+  "ui.aerocouriers.abandon.cargo.in_transit": "The cargo contents go to your mailbox. The waypoint and beam disappear.",
   "ui.aerocouriers.abandon.cargo.npc": "The order's waypoint and beam disappear from the map.",
   "ui.aerocouriers.abandon.reward_lost": "not paid",
   "ui.aerocouriers.abandon.collateral_burns": "burns",
@@ -544,5 +544,12 @@
   "ui.aerocouriers.details.nav_delivery": "blue delivery waypoint on the map",
   "ui.aerocouriers.details.nav_focused": "compass and beam now lead to this order",
   "ui.aerocouriers.waypoint.pickup": "Pickup #%s",
-  "ui.aerocouriers.waypoint.delivery": "Delivery #%s"
+  "ui.aerocouriers.waypoint.delivery": "Delivery #%s",
+  "aerocouriers.configuration.beam_enabled": "Beams over order waypoints",
+  "aerocouriers.configuration.beam_height": "Beam height",
+  "aerocouriers.configuration.beam_render_distance": "Beam render distance",
+  "aerocouriers.configuration.beam_fade_start": "Beam fade when close",
+  "aerocouriers.configuration.beam_pickup_color": "Pickup beam colour (r,g,b)",
+  "aerocouriers.configuration.beam_delivery_color": "Delivery beam colour (r,g,b)",
+  "aerocouriers.configuration.hud_enabled": "Navigation compass HUD"
 }

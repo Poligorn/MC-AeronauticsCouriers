@@ -417,7 +417,7 @@ public final class BoardDetailsOverlay extends TabletOverlay {
     private String mapCaption(BoardSnapshotPayload.BoardEntry e, boolean mapOk) {
         if (action(e) == Action.ABANDON) {
             String key = mapShown ? "ui.aerocouriers.details.nav_focused"
-                    : e.state() == ContractState.ACCEPTED ? "ui.aerocouriers.details.nav_pickup"
+                    : !e.cargoPickedUp() ? "ui.aerocouriers.details.nav_pickup"
                     : "ui.aerocouriers.details.nav_delivery";
             return Component.translatable(key).getString();
         }

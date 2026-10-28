@@ -530,7 +530,7 @@
   "ui.aerocouriers.abandon.risk": "Отказ — это провал: залог %s сп уходит заказчику, награда %s сп возвращается ему. Провал попадёт в ваш профиль.",
   "ui.aerocouriers.abandon.risk.npc": "Отказ — это провал: залог %s сп сгорает, груз уничтожается, награда %s сп не выплачивается. Репутация станции снизится.",
   "ui.aerocouriers.abandon.cargo.accepted": "Груз ещё не забран — он вернётся заказчику в почту. Точка и луч исчезнут.",
-  "ui.aerocouriers.abandon.cargo.in_transit": "Груз уже у вас — его содержимое придёт в вашу почту. Точка и луч исчезнут.",
+  "ui.aerocouriers.abandon.cargo.in_transit": "Содержимое груза придёт в вашу почту. Точка и луч исчезнут.",
   "ui.aerocouriers.abandon.cargo.npc": "Точка и луч заказа исчезнут с карты.",
   "ui.aerocouriers.abandon.reward_lost": "не будет выплачена",
   "ui.aerocouriers.abandon.collateral_burns": "сгорает",
@@ -544,5 +544,12 @@
   "ui.aerocouriers.details.nav_delivery": "голубая точка доставки на карте",
   "ui.aerocouriers.details.nav_focused": "компас и луч ведут к этому заказу",
   "ui.aerocouriers.waypoint.pickup": "Погрузка #%s",
-  "ui.aerocouriers.waypoint.delivery": "Доставка #%s"
+  "ui.aerocouriers.waypoint.delivery": "Доставка #%s",
+  "aerocouriers.configuration.beam_enabled": "Лучи над точками заказов",
+  "aerocouriers.configuration.beam_height": "Высота луча",
+  "aerocouriers.configuration.beam_render_distance": "Дальность отрисовки луча",
+  "aerocouriers.configuration.beam_fade_start": "Затухание луча вблизи",
+  "aerocouriers.configuration.beam_pickup_color": "Цвет луча погрузки (r,g,b)",
+  "aerocouriers.configuration.beam_delivery_color": "Цвет луча доставки (r,g,b)",
+  "aerocouriers.configuration.hud_enabled": "Компас навигации на экране"
 }

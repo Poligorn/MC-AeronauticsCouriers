@@ -169,6 +169,7 @@ public final class PayloadCodecGameTests {
                 45,
                 4096,
                 10.0,
-                3L);
+                3L,
+                false);
     }
 }

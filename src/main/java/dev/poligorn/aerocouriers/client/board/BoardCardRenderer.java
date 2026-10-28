@@ -183,8 +183,8 @@ public final class BoardCardRenderer {
         boolean courier = "courier".equals(entry.role());
         String key = switch (entry.state()) {
             case OPEN -> "ui.aerocouriers.card.status.open";
-            case ACCEPTED -> courier ? "ui.aerocouriers.card.status.pickup" : "ui.aerocouriers.card.status.accepted";
-            case IN_TRANSIT -> "ui.aerocouriers.card.status.transit";
+            case ACCEPTED, IN_TRANSIT -> entry.cargoPickedUp() ? "ui.aerocouriers.card.status.transit"
+                    : courier ? "ui.aerocouriers.card.status.pickup" : "ui.aerocouriers.card.status.accepted";
             case DELIVERED -> "ui.aerocouriers.card.status.delivered";
             case EXPIRED -> "ui.aerocouriers.card.status.expired";
             case FAILED -> "ui.aerocouriers.card.status.failed";
@@ -196,8 +196,7 @@ public final class BoardCardRenderer {
     public static int statusColor(BoardSnapshotPayload.BoardEntry entry) {
         return switch (entry.state()) {
             case OPEN -> TabletPalette.SEC;
-            case ACCEPTED -> TabletPalette.GOLD;
-            case IN_TRANSIT -> TabletPalette.BLUE;
+            case ACCEPTED, IN_TRANSIT -> entry.cargoPickedUp() ? TabletPalette.BLUE : TabletPalette.GOLD;
             case DELIVERED -> TabletPalette.TEAL;
             case EXPIRED -> TabletPalette.LOCKC;
             case FAILED -> TabletPalette.CORAL;

@@ -21,11 +21,13 @@ import dev.poligorn.aerocouriers.village.StationContractSource;
 import dev.poligorn.aerocouriers.village.StationReputation;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
@@ -76,6 +78,7 @@ public final class ContractManager extends SavedData {
     /** A container block that disappeared and did not report from anywhere else for this long is destroyed. */
     public static final long MISSING_GRACE_TICKS = 60;
     private static final long TICK_INTERVAL = 20;
+    private static final int PICKUP_MARGIN = 4;
     private static final long BLOCKED_NOTICE_INTERVAL = 60L * 20;
 
     public enum FailReason {
@@ -123,6 +126,11 @@ public final class ContractManager extends SavedData {
     /** Failures of couriers who were offline when their contract failed; applied to the profile on login. */
     private final Map<UUID, Integer> pendingFailures = new HashMap<>();
     private final List<Delivery> recentDeliveries = new ArrayList<>();
+    /**
+     * IN_TRANSIT contracts whose container has left the pickup area. Stamp/NPC crates switch to IN_TRANSIT on accept
+     * while still standing at the pickup, so the state alone cannot tell the courier where to fly next.
+     */
+    private final Set<UUID> pickedUp = new HashSet<>();
 
     // Transient, rebuilt after a restart.
     private final Map<UUID, Integer> stillChecks = new HashMap<>();
@@ -1077,6 +1085,7 @@ public final class ContractManager extends SavedData {
     }
 
     public void tick(MinecraftServer server, long now) {
+        detectPickups(server);
         double lateWindow = Pricing.lateWindow();
         int spawnRadius = CouriersServerConfig.SPAWN_TRIGGER_RADIUS.get();
         for (Contract contract : List.copyOf(contracts.values())) {
@@ -1140,6 +1149,9 @@ public final class ContractManager extends SavedData {
 
     private void put(Contract contract) {
         Contract previous = contracts.put(contract.id(), contract);
+        if (!contract.state().isActive()) {
+            pickedUp.remove(contract.id());
+        }
         setDirty();
         boolean changed = previous == null || previous.state() != contract.state();
         if (changed && server != null && contract.courier().isPresent()) {
@@ -1150,6 +1162,34 @@ public final class ContractManager extends SavedData {
         }
     }
 
+    /** Marks IN_TRANSIT cargo that moved beyond the pickup area (spawn spot search included) and re-sends zones. */
+    private void detectPickups(MinecraftServer server) {
+        for (Contract contract : contracts.values()) {
+            if (contract.state() != ContractState.IN_TRANSIT || pickedUp.contains(contract.id())) {
+                continue;
+            }
+            Optional<CargoTracker.Snapshot> snapshot = CargoTracker.get(contract.id());
+            if (snapshot.isEmpty()) {
+                continue;
+            }
+            Vec3 at = new Vec3(snapshot.get().position().x(), snapshot.get().position().y(),
+                    snapshot.get().position().z());
+            double area = Math.max(contract.origin().radius(), CouriersServerConfig.SPAWN_SEARCH_RADIUS.get())
+                    + PICKUP_MARGIN;
+            if (contract.origin().within(snapshot.get().dimension(), at, area)) {
+                continue;
+            }
+            pickedUp.add(contract.id());
+            setDirty();
+            contract.courier().map(id -> server.getPlayerList().getPlayer(id)).ifPresent(this::syncZones);
+        }
+    }
+
+    /** Whether the courier already took the cargo away from the pickup point (delivery waypoint instead of pickup). */
+    public boolean cargoPickedUp(UUID id) {
+        return pickedUp.contains(id);
+    }
+
     /** Sends the courier the zones of their active contracts for the particle outline (GDD §10.3). */
     public void syncZones(ServerPlayer courier) {
         if (!courier.connection.hasChannel(ZoneSyncPayload.TYPE)) {
@@ -1158,7 +1198,7 @@ public final class ContractManager extends SavedData {
         List<ZoneSyncPayload.Zone> zones = byCourier(courier.getUUID())
                 .filter(c -> c.state().isActive())
                 .map(c -> {
-                    boolean delivery = c.state() == ContractState.IN_TRANSIT;
+                    boolean delivery = c.state() == ContractState.IN_TRANSIT && pickedUp.contains(c.id());
                     Destination zone = delivery ? c.destination() : c.origin();
                     return new ZoneSyncPayload.Zone(c.id(), c.shortId(), zone.dimension(), zone.pos(), zone.radius(),
                             delivery);
@@ -1174,6 +1214,7 @@ public final class ContractManager extends SavedData {
     // ---- persistence ----
 
     private static final Codec<Map<UUID, Integer>> PENDING_CODEC = Codec.unboundedMap(UUIDUtil.STRING_CODEC, Codec.INT);
+    private static final Codec<List<UUID>> PICKED_UP_CODEC = UUIDUtil.STRING_CODEC.listOf();
 
     public static ContractManager load(CompoundTag tag, HolderLookup.Provider registries) {
         ContractManager manager = new ContractManager();
@@ -1184,6 +1225,10 @@ public final class ContractManager extends SavedData {
                 .ifPresent(manager.pendingFailures::putAll);
         Delivery.CODEC.listOf().parse(NbtOps.INSTANCE, tag.get("recent_deliveries")).result()
                 .ifPresent(manager.recentDeliveries::addAll);
+        if (tag.contains("picked_up")) {
+            PICKED_UP_CODEC.parse(NbtOps.INSTANCE, tag.get("picked_up")).result()
+                    .ifPresent(manager.pickedUp::addAll);
+        }
         return manager;
     }
 
@@ -1193,6 +1238,7 @@ public final class ContractManager extends SavedData {
                 .getOrThrow());
         tag.put("pending_failures", PENDING_CODEC.encodeStart(NbtOps.INSTANCE, pendingFailures).getOrThrow());
         tag.put("recent_deliveries", Delivery.CODEC.listOf().encodeStart(NbtOps.INSTANCE, recentDeliveries).getOrThrow());
+        tag.put("picked_up", PICKED_UP_CODEC.encodeStart(NbtOps.INSTANCE, List.copyOf(pickedUp)).getOrThrow());
         return tag;
     }
 }

@@ -296,7 +296,9 @@ public record BoardSnapshotPayload(
             int maxWeight,
             double weightValue,
             /** Game minutes since the order was published. */
-            long ageMinutes
+            long ageMinutes,
+            /** Active haul whose container already left the pickup area (stamp/NPC crates are IN_TRANSIT at once). */
+            boolean cargoPickedUp
     ) {
         public static final StreamCodec<RegistryFriendlyByteBuf, BoardEntry> STREAM_CODEC =
                 StreamCodec.of(BoardEntry::write, BoardEntry::read);
@@ -344,6 +346,7 @@ public record BoardSnapshotPayload(
             ByteBufCodecs.VAR_INT.encode(buf, e.maxWeight);
             buf.writeDouble(e.weightValue);
             ByteBufCodecs.VAR_LONG.encode(buf, e.ageMinutes);
+            buf.writeBoolean(e.cargoPickedUp);
         }
 
         private static BoardEntry read(RegistryFriendlyByteBuf buf) {
@@ -383,7 +386,8 @@ public record BoardSnapshotPayload(
                     ByteBufCodecs.VAR_INT.decode(buf),
                     ByteBufCodecs.VAR_INT.decode(buf),
                     buf.readDouble(),
-                    ByteBufCodecs.VAR_LONG.decode(buf));
+                    ByteBufCodecs.VAR_LONG.decode(buf),
+                    buf.readBoolean());
         }
     }
 

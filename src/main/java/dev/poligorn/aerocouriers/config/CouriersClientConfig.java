@@ -1,5 +1,6 @@
 package dev.poligorn.aerocouriers.config;
 
+import net.minecraft.util.Mth;
 import net.neoforged.neoforge.common.ModConfigSpec;
 
 /**
@@ -32,7 +33,8 @@ public final class CouriersClientConfig {
     public static final ModConfigSpec.DoubleValue NAV_BEAM_HEIGHT;
     public static final ModConfigSpec.IntValue NAV_BEAM_RENDER_DISTANCE;
     public static final ModConfigSpec.DoubleValue NAV_BEAM_FADE_START;
-    public static final ModConfigSpec.ConfigValue<String> NAV_BEAM_COLOR;
+    public static final ModConfigSpec.ConfigValue<String> NAV_BEAM_PICKUP_COLOR;
+    public static final ModConfigSpec.ConfigValue<String> NAV_BEAM_DELIVERY_COLOR;
 
     public static final ModConfigSpec.BooleanValue NAV_HUD_ENABLED;
     public static final ModConfigSpec.EnumValue<HudCorner> NAV_HUD_CORNER;
@@ -94,16 +96,27 @@ public final class CouriersClientConfig {
         b.pop();
 
         b.push("navigation");
-        NAV_BEAM_ENABLED = b.comment("Vertical beacon beam at pickup/delivery for your active hauls")
+        NAV_BEAM_ENABLED = b.comment("Vertical beams at your active hauls: yellow = pickup, blue = delivery")
+                .translation("aerocouriers.configuration.beam_enabled")
                 .define("beam_enabled", true);
-        NAV_BEAM_HEIGHT = b.comment("Beam height in blocks").defineInRange("beam_height", 256.0, 16.0, 512.0);
+        NAV_BEAM_HEIGHT = b.comment("Beam height in blocks")
+                .translation("aerocouriers.configuration.beam_height")
+                .defineInRange("beam_height", 256.0, 16.0, 512.0);
         NAV_BEAM_RENDER_DISTANCE = b.comment("Do not draw the beam farther than this (blocks)")
+                .translation("aerocouriers.configuration.beam_render_distance")
                 .defineInRange("beam_render_distance", 512, 32, 2048);
         NAV_BEAM_FADE_START = b.comment("Full opacity until this distance; fades when closer (blocks)")
+                .translation("aerocouriers.configuration.beam_fade_start")
                 .defineInRange("beam_fade_start", 12.0, 2.0, 64.0);
-        NAV_BEAM_COLOR = b.comment("Beam RGB as \"r,g,b\" (0–1), default gold")
-                .define("beam_color", "1.0,0.75,0.2");
-        NAV_HUD_ENABLED = b.comment("Compass HUD with distance and order id").define("hud_enabled", true);
+        NAV_BEAM_PICKUP_COLOR = b.comment("Pickup beam RGB as \"r,g,b\" (0–1), default yellow")
+                .translation("aerocouriers.configuration.beam_pickup_color")
+                .define("beam_pickup_color", "1.0,0.82,0.15");
+        NAV_BEAM_DELIVERY_COLOR = b.comment("Delivery beam RGB as \"r,g,b\" (0–1), default blue")
+                .translation("aerocouriers.configuration.beam_delivery_color")
+                .define("beam_delivery_color", "0.2,0.72,1.0");
+        NAV_HUD_ENABLED = b.comment("Compass HUD with distance and order id")
+                .translation("aerocouriers.configuration.hud_enabled")
+                .define("hud_enabled", true);
         NAV_HUD_CORNER = b.comment("Screen corner for the navigation HUD (offsets apply inward from that corner)")
                 .defineEnum("hud_corner", HudCorner.TOP_LEFT);
         NAV_HUD_OFFSET_X = b.defineInRange("hud_offset_x", 8, 0, 4000);
@@ -217,23 +230,24 @@ public final class CouriersClientConfig {
         }
     }
 
-    public static float[] navBeamColorRgb() {
+    public static float[] navBeamColorRgb(boolean delivery) {
+        float[] fallback = delivery ? new float[] {0.2f, 0.72f, 1.0f} : new float[] {1.0f, 0.82f, 0.15f};
         try {
-            String raw = NAV_BEAM_COLOR.get();
+            String raw = (delivery ? NAV_BEAM_DELIVERY_COLOR : NAV_BEAM_PICKUP_COLOR).get();
             if (raw == null) {
-                return new float[] {1f, 0.75f, 0.2f};
+                return fallback;
             }
             String[] parts = raw.split(",");
             if (parts.length < 3) {
-                return new float[] {1f, 0.75f, 0.2f};
+                return fallback;
             }
             return new float[] {
-                    Float.parseFloat(parts[0].trim()),
-                    Float.parseFloat(parts[1].trim()),
-                    Float.parseFloat(parts[2].trim())
+                    Mth.clamp(Float.parseFloat(parts[0].trim()), 0f, 1f),
+                    Mth.clamp(Float.parseFloat(parts[1].trim()), 0f, 1f),
+                    Mth.clamp(Float.parseFloat(parts[2].trim()), 0f, 1f)
             };
         } catch (IllegalStateException | NumberFormatException ignored) {
-            return new float[] {1f, 0.75f, 0.2f};
+            return fallback;
         }
     }
 

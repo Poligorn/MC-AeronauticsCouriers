@@ -23,7 +23,8 @@ final class XaeroLegacyWaypoints {
             BlockPos pos,
             String label,
             XaeroWaypointSymbols.Kind symbolKind,
-            boolean persistent
+            boolean persistent,
+            WaypointColor color
     ) {
         try {
             MinimapSession session = BuiltInHudModules.MINIMAP.getCurrentSession();
@@ -43,7 +44,7 @@ final class XaeroLegacyWaypoints {
             Waypoint waypoint = new Waypoint(
                     pos.getX(), pos.getY(), pos.getZ(),
                     label, symbol,
-                    WaypointColor.GOLD, purpose, true);
+                    color, purpose, true);
             for (Waypoint existing : set.getWaypoints()) {
                 if (label.equals(existing.getName()) && existing.isTemporary()) {
                     set.remove(existing);

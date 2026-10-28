@@ -483,7 +483,9 @@ public final class BoardPackets {
                 contract.size().slots(),
                 contract.size().maxWeight(),
                 contract.weight(),
-                Math.max(0, (now - contract.timing().createdAt()) / Pricing.TICKS_PER_MINUTE));
+                Math.max(0, (now - contract.timing().createdAt()) / Pricing.TICKS_PER_MINUTE),
+                contract.state() == ContractState.IN_TRANSIT
+                        && ContractManager.get(server).cargoPickedUp(contract.id()));
     }
 
     private static boolean isStation(StationAtlas atlas, Destination dest) {
