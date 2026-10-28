@@ -18,7 +18,9 @@ public record StationSnapshotPayload(
         int reputationTier,
         int reputationNextThreshold,
         boolean canRename,
-        List<BoardSnapshotPayload.BoardEntry> orders
+        List<BoardSnapshotPayload.BoardEntry> orders,
+        long nextVillageRefreshGameTime,
+        long snapshotOverworldGameTime
 ) implements CustomPacketPayload {
     public static final Type<StationSnapshotPayload> TYPE = new Type<>(AeronauticsCouriers.id("station_snapshot"));
     public static final int MAX_ORDERS = 32;
@@ -35,6 +37,8 @@ public record StationSnapshotPayload(
         ByteBufCodecs.VAR_INT.encode(buf, payload.reputationNextThreshold());
         buf.writeBoolean(payload.canRename());
         BoardSnapshotPayload.BoardEntry.STREAM_CODEC.apply(ByteBufCodecs.list(MAX_ORDERS)).encode(buf, payload.orders());
+        ByteBufCodecs.VAR_LONG.encode(buf, payload.nextVillageRefreshGameTime());
+        ByteBufCodecs.VAR_LONG.encode(buf, payload.snapshotOverworldGameTime());
     }
 
     private static StationSnapshotPayload read(RegistryFriendlyByteBuf buf) {
@@ -46,7 +50,9 @@ public record StationSnapshotPayload(
                 ByteBufCodecs.VAR_INT.decode(buf),
                 ByteBufCodecs.VAR_INT.decode(buf),
                 buf.readBoolean(),
-                BoardSnapshotPayload.BoardEntry.STREAM_CODEC.apply(ByteBufCodecs.list(MAX_ORDERS)).decode(buf));
+                BoardSnapshotPayload.BoardEntry.STREAM_CODEC.apply(ByteBufCodecs.list(MAX_ORDERS)).decode(buf),
+                ByteBufCodecs.VAR_LONG.decode(buf),
+                ByteBufCodecs.VAR_LONG.decode(buf));
     }
 
     public static void handle(StationSnapshotPayload payload,

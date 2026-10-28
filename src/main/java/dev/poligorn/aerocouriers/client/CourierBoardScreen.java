@@ -21,6 +21,7 @@ import dev.poligorn.aerocouriers.client.navigation.ClientNavigation;
 import dev.poligorn.aerocouriers.cargo.CargoSize;
 import dev.poligorn.aerocouriers.contract.AcceptEligibility;
 import dev.poligorn.aerocouriers.client.board.TabletRowIconButton;
+import dev.poligorn.aerocouriers.client.board.VillageRefreshUi;
 import dev.poligorn.aerocouriers.contract.ContractState;
 import dev.poligorn.aerocouriers.license.LicenseRank;
 import dev.poligorn.aerocouriers.contract.TraineeRules;
@@ -92,6 +93,7 @@ public final class CourierBoardScreen extends Screen {
     static final int ADMIN_SUB_TOGGLE_H = 18;
     static final int ADMIN_SUB_GAP = 4;
     private static final int FILTER_SUMMARY_H = 11;
+    private static final int VILLAGE_REFRESH_HEADER_H = 11;
 
     /** Left edge of the balance strip (right of last tab). */
     private int balanceStripLeft;
@@ -780,6 +782,7 @@ public final class CourierBoardScreen extends Screen {
 
         if (tab == Tab.BOARD || tab == Tab.MINE) {
             renderFilterChrome(graphics, sx);
+            renderVillageRefreshHeader(graphics, sx);
             renderList(graphics, listEntries(), sx, mouseX, mouseY);
             renderListActionWidgetsOnTop(graphics, mouseX, mouseY, partialTick);
         } else if (tab == Tab.PROFILE) {
@@ -1270,6 +1273,32 @@ public final class CourierBoardScreen extends Screen {
         if (!lines.isEmpty()) {
             hoverTipLines = lines;
         }
+    }
+
+    private void renderVillageRefreshHeader(GuiGraphics graphics, int sx) {
+        if (!showsVillageRefreshHeader()) {
+            return;
+        }
+        int remaining = VillageRefreshUi.remainingTicks(minecraft);
+        if (remaining < 0) {
+            return;
+        }
+        int y = villageRefreshHeaderY();
+        VillageRefreshUi.renderHeader(graphics, font, sx, sx + screenW(), y, remaining);
+    }
+
+    private boolean showsVillageRefreshHeader() {
+        if (snapshot == null || tab != Tab.BOARD || tabEffects.isTabLoadingActive()) {
+            return false;
+        }
+        if (!VillageRefreshUi.isEnabled(snapshot.nextVillageRefreshGameTime())) {
+            return false;
+        }
+        return VillageRefreshUi.relevantForBoardFilters(ClientBoard.boardFilters());
+    }
+
+    private int villageRefreshHeaderY() {
+        return listTop() - VILLAGE_REFRESH_HEADER_H;
     }
 
     private void renderFilterChrome(GuiGraphics graphics, int sx) {
@@ -1876,6 +1905,9 @@ public final class CourierBoardScreen extends Screen {
             y += filterBarHeight + 4;
             if (showsFilterSummary()) {
                 y += FILTER_SUMMARY_H;
+            }
+            if (showsVillageRefreshHeader()) {
+                y += VILLAGE_REFRESH_HEADER_H;
             }
         }
         return y;

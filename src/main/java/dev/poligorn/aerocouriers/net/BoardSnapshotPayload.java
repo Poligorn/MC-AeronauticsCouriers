@@ -47,7 +47,11 @@ public record BoardSnapshotPayload(
         BoardProfile profile,
         List<AdminActiveEntry> adminActive,
         List<PlayerHint> onlinePlayers,
-        List<String> adminConfigLines
+        List<String> adminConfigLines,
+        /** Absolute overworld game time of the next NPC board generation; 0 if disabled. */
+        long nextVillageRefreshGameTime,
+        /** Overworld game time when this snapshot was built (client countdown baseline). */
+        long snapshotOverworldGameTime
 ) implements CustomPacketPayload {
     public static final Type<BoardSnapshotPayload> TYPE = new Type<>(AeronauticsCouriers.id("board_snapshot"));
     public static final int PAGE_SIZE = PayloadLimits.BOARD_PAGE;
@@ -388,6 +392,8 @@ public record BoardSnapshotPayload(
                 .encode(buf, PayloadLimits.cap(p.onlinePlayers, PayloadLimits.ONLINE_PLAYERS));
         ByteBufCodecs.STRING_UTF8.apply(ByteBufCodecs.list(PayloadLimits.ADMIN_CONFIG_LINES))
                 .encode(buf, PayloadLimits.cap(p.adminConfigLines, PayloadLimits.ADMIN_CONFIG_LINES));
+        ByteBufCodecs.VAR_LONG.encode(buf, p.nextVillageRefreshGameTime);
+        ByteBufCodecs.VAR_LONG.encode(buf, p.snapshotOverworldGameTime);
     }
 
     private static BoardSnapshotPayload read(RegistryFriendlyByteBuf buf) {
@@ -405,17 +411,25 @@ public record BoardSnapshotPayload(
         Optional<Component> notice = buf.readBoolean()
                 ? Optional.of(ComponentSerialization.STREAM_CODEC.decode(buf))
                 : Optional.empty();
+        List<BoardEntry> board = BoardEntry.STREAM_CODEC.apply(ByteBufCodecs.list(PAGE_SIZE)).decode(buf);
+        List<BoardEntry> mine = BoardEntry.STREAM_CODEC.apply(ByteBufCodecs.list(PayloadLimits.BOARD_MINE)).decode(buf);
+        List<StationHint> stations =
+                StationHint.STREAM_CODEC.apply(ByteBufCodecs.list(PayloadLimits.STATION_HINTS)).decode(buf);
+        BoardProfile profile = BoardProfile.STREAM_CODEC.decode(buf);
+        List<AdminActiveEntry> adminActive =
+                AdminActiveEntry.STREAM_CODEC.apply(ByteBufCodecs.list(PayloadLimits.ADMIN_ACTIVE)).decode(buf);
+        List<PlayerHint> onlinePlayers =
+                PlayerHint.STREAM_CODEC.apply(ByteBufCodecs.list(PayloadLimits.ONLINE_PLAYERS)).decode(buf);
+        List<String> adminConfigLines =
+                ByteBufCodecs.STRING_UTF8.apply(ByteBufCodecs.list(PayloadLimits.ADMIN_CONFIG_LINES)).decode(buf);
+        long nextVillageRefreshGameTime = ByteBufCodecs.VAR_LONG.decode(buf);
+        long snapshotOverworldGameTime = ByteBufCodecs.VAR_LONG.decode(buf);
         return new BoardSnapshotPayload(openScreen, page, boardTotal, balance, numismaticsEconomy, mailCount,
                 notificationUnread, operator,
                 licensed,
                 allowSelfAccept, requireTablet, notice,
-                BoardEntry.STREAM_CODEC.apply(ByteBufCodecs.list(PAGE_SIZE)).decode(buf),
-                BoardEntry.STREAM_CODEC.apply(ByteBufCodecs.list(PayloadLimits.BOARD_MINE)).decode(buf),
-                StationHint.STREAM_CODEC.apply(ByteBufCodecs.list(PayloadLimits.STATION_HINTS)).decode(buf),
-                BoardProfile.STREAM_CODEC.decode(buf),
-                AdminActiveEntry.STREAM_CODEC.apply(ByteBufCodecs.list(PayloadLimits.ADMIN_ACTIVE)).decode(buf),
-                PlayerHint.STREAM_CODEC.apply(ByteBufCodecs.list(PayloadLimits.ONLINE_PLAYERS)).decode(buf),
-                ByteBufCodecs.STRING_UTF8.apply(ByteBufCodecs.list(PayloadLimits.ADMIN_CONFIG_LINES)).decode(buf));
+                board, mine, stations, profile, adminActive, onlinePlayers, adminConfigLines,
+                nextVillageRefreshGameTime, snapshotOverworldGameTime);
     }
 
     public Optional<BoardEntry> find(UUID id) {

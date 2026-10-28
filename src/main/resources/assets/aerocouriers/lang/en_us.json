@@ -308,6 +308,8 @@
   "ui.aerocouriers.station.reputation_next": "next tier at %s reputation",
   "ui.aerocouriers.station.orders.header": "Open NPC orders from this station",
   "ui.aerocouriers.station.orders.empty": "No open village orders here right now.",
+  "ui.aerocouriers.village_refresh.in": "New orders in %s",
+  "ui.aerocouriers.village_refresh.soon": "New orders soon",
   "ui.aerocouriers.station.open_board": "Job board",
   "ui.aerocouriers.station.rename": "Station name",
   "ui.aerocouriers.station.rename.action": "Rename",

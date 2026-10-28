@@ -7,6 +7,7 @@ import dev.poligorn.aerocouriers.client.board.BoardRowLayout;
 import dev.poligorn.aerocouriers.client.board.BoardRowMetrics;
 import dev.poligorn.aerocouriers.client.board.BoardEntryPickup;
 import dev.poligorn.aerocouriers.client.board.BoardRowRenderer;
+import dev.poligorn.aerocouriers.client.board.VillageRefreshUi;
 import dev.poligorn.aerocouriers.client.board.TabletRowIconButton;
 import dev.poligorn.aerocouriers.net.BoardSnapshotPayload;
 import dev.poligorn.aerocouriers.net.RenameStationPayload;
@@ -46,6 +47,11 @@ public final class PostStationScreen extends Screen {
     public PostStationScreen(StationSnapshotPayload snapshot) {
         super(Component.translatable("ui.aerocouriers.station.title", snapshot.name()));
         this.snapshot = snapshot;
+        if (VillageRefreshUi.isEnabled(snapshot.nextVillageRefreshGameTime())) {
+            VillageRefreshUi.applySnapshot(snapshot.nextVillageRefreshGameTime(), snapshot.snapshotOverworldGameTime());
+        } else {
+            VillageRefreshUi.clear();
+        }
     }
 
     @Override
@@ -178,13 +184,13 @@ public final class PostStationScreen extends Screen {
     private void renderOrderList(GuiGraphics graphics, int mouseX, int mouseY) {
         int listTop = listTopY();
         List<BoardSnapshotPayload.BoardEntry> orders = snapshot.orders();
+        int headerY = listTop - font.lineHeight - 2;
+        renderStationOrdersHeader(graphics, headerY);
         if (orders.isEmpty()) {
             graphics.drawString(font, Component.translatable("ui.aerocouriers.station.orders.empty"),
                     contentLeft(), listTop, TabletGui.TEXT_MUTED, false);
             return;
         }
-        graphics.drawString(font, Component.translatable("ui.aerocouriers.station.orders.header"),
-                contentLeft(), listTop - font.lineHeight - 2, TabletGui.TEXT, false);
         int sx = contentLeft() + 2;
         int sw = contentW() - 4;
         int visible = visibleRows();
@@ -218,6 +224,19 @@ public final class PostStationScreen extends Screen {
             });
             graphics.pose().popPose();
         }
+    }
+
+    private void renderStationOrdersHeader(GuiGraphics graphics, int headerY) {
+        graphics.drawString(font, Component.translatable("ui.aerocouriers.station.orders.header"),
+                contentLeft(), headerY, TabletGui.TEXT, false);
+        if (!VillageRefreshUi.isEnabled(snapshot.nextVillageRefreshGameTime())) {
+            return;
+        }
+        int remaining = VillageRefreshUi.remainingTicks(minecraft);
+        if (remaining < 0) {
+            return;
+        }
+        VillageRefreshUi.renderHeader(graphics, font, contentLeft(), contentLeft() + contentW(), headerY, remaining);
     }
 
     private void rebuildRowIcons() {

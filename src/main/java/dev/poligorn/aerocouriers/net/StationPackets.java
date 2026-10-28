@@ -5,6 +5,7 @@ import dev.poligorn.aerocouriers.contract.ContractType;
 import dev.poligorn.aerocouriers.village.PostStationBlockEntity;
 import dev.poligorn.aerocouriers.village.StationAtlas;
 import dev.poligorn.aerocouriers.village.StationReputation;
+import dev.poligorn.aerocouriers.village.VillageRefreshTiming;
 import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
@@ -39,6 +40,8 @@ public final class StationPackets {
                 .limit(StationSnapshotPayload.MAX_ORDERS)
                 .map(c -> BoardPackets.boardEntry(player, c))
                 .toList();
+        long overworldGameTime = player.server.overworld().getGameTime();
+        long nextVillageRefresh = VillageRefreshTiming.nextRefreshGameTime(player.server).orElse(0L);
         CouriersNetwork.sendRegistryPayload(player, new StationSnapshotPayload(
                 pos.immutable(),
                 station.name(),
@@ -47,7 +50,9 @@ public final class StationPackets {
                 tier,
                 nextThreshold,
                 player.hasPermissions(OP),
-                orders), StationSnapshotPayload.STREAM_CODEC);
+                orders,
+                nextVillageRefresh,
+                overworldGameTime), StationSnapshotPayload.STREAM_CODEC);
     }
 
     public static void handleOpen(ServerPlayer player, OpenStationPayload payload) {

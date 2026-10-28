@@ -5,6 +5,7 @@ import dev.poligorn.aerocouriers.client.board.AdminOrdersFilterState;
 import dev.poligorn.aerocouriers.client.board.BoardTabFilterState;
 import dev.poligorn.aerocouriers.client.board.MineListSection;
 import dev.poligorn.aerocouriers.client.board.MineTabFilterState;
+import dev.poligorn.aerocouriers.client.board.VillageRefreshUi;
 import dev.poligorn.aerocouriers.net.BoardSnapshotPayload;
 import dev.poligorn.aerocouriers.net.ClaimTraineeLicensePayload;
 import dev.poligorn.aerocouriers.net.OpenBoardPayload;
@@ -95,6 +96,11 @@ public final class ClientBoard {
 
     public static void apply(BoardSnapshotPayload payload) {
         requireTablet = payload.requireTablet();
+        if (VillageRefreshUi.isEnabled(payload.nextVillageRefreshGameTime())) {
+            VillageRefreshUi.applySnapshot(payload.nextVillageRefreshGameTime(), payload.snapshotOverworldGameTime());
+        } else {
+            VillageRefreshUi.clear();
+        }
         XaeroOrderBridge.onBoardSnapshot(payload);
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.screen instanceof CourierBoardScreen screen) {

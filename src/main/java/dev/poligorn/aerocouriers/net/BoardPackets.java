@@ -25,6 +25,7 @@ import dev.poligorn.aerocouriers.contract.RankRules;
 import dev.poligorn.aerocouriers.registry.ModComponents;
 import dev.poligorn.aerocouriers.village.StationAtlas;
 import dev.poligorn.aerocouriers.village.StationReputation;
+import dev.poligorn.aerocouriers.village.VillageRefreshTiming;
 import com.mojang.authlib.GameProfile;
 import java.util.Comparator;
 import java.util.List;
@@ -134,6 +135,8 @@ public final class BoardPackets {
                         .limit(PayloadLimits.ADMIN_CONFIG_LINES)
                         .toList()
                 : List.of();
+        long overworldGameTime = server.overworld().getGameTime();
+        long nextVillageRefresh = VillageRefreshTiming.nextRefreshGameTime(server).orElse(0L);
         return new BoardSnapshotPayload(
                 openScreen,
                 safePage,
@@ -153,7 +156,9 @@ public final class BoardPackets {
                 boardProfile(player),
                 adminActive,
                 online,
-                configLines);
+                configLines,
+                nextVillageRefresh,
+                overworldGameTime);
     }
 
     private static BoardSnapshotPayload.AdminActiveEntry adminEntry(Contract contract, StationAtlas atlas,

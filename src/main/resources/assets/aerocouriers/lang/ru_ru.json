@@ -308,6 +308,8 @@
   "ui.aerocouriers.station.reputation_next": "следующий уровень при %s репутации",
   "ui.aerocouriers.station.orders.header": "Открытые заказы деревни с этой станции",
   "ui.aerocouriers.station.orders.empty": "Сейчас нет открытых заказов.",
+  "ui.aerocouriers.village_refresh.in": "Новые заказы через %s",
+  "ui.aerocouriers.village_refresh.soon": "Новые заказы скоро",
   "ui.aerocouriers.station.open_board": "Доска заказов",
   "ui.aerocouriers.station.rename": "Название станции",
   "ui.aerocouriers.station.rename.action": "Переименовать",
