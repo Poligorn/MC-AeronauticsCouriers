@@ -44,9 +44,6 @@ public final class TabletScreenChrome {
         if (awaitingServerData) {
             return true;
         }
-        if (tabSwitchLoading) {
-            return true;
-        }
         return openClose.isOpenSlideActive(partialTick);
     }
 
@@ -81,20 +78,17 @@ public final class TabletScreenChrome {
     public void drawLoadingGear(GuiGraphics graphics, int cavityX, int cavityY, int cavityW, int cavityH,
                                 boolean awaitingServerData, boolean tabSwitchLoading, float partialTick) {
         boolean show = showLoadingGear(awaitingServerData, tabSwitchLoading, partialTick);
-        boolean blocked = show && (awaitingServerData || tabSwitchLoading || openClose.isOpenSlideActive(partialTick));
+        boolean blocked = show && (awaitingServerData || openClose.isOpenSlideActive(partialTick));
         float alpha = loadingGear.alpha(blocked);
         loadingGear.render(graphics, cavityX, cavityY, cavityW, cavityH, alpha, partialTick);
     }
 
-    /**
-     * Opacity gate for cavity UI during open / first snapshot wait / tab-switch loading. While {@code false}, only the
-     * grid and loading gear draw; after tab loading, {@link TabletTabSwitchEffects#contentAlpha()} fades everything in.
-     */
+    /** Opacity gate for cavity UI during open / first snapshot wait. Tab switches are instant. */
     public float cavityContentAlpha(boolean awaitingServerData, boolean tabSwitchLoading, float partialTick) {
         if (!TabletAnim.enabled()) {
             return 1.0F;
         }
-        if (tabSwitchLoading || awaitingServerData || openClose.isOpenSlideActive(partialTick)) {
+        if (awaitingServerData || openClose.isOpenSlideActive(partialTick)) {
             return 0.0F;
         }
         return 1.0F;

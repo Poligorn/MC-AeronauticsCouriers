@@ -401,6 +401,29 @@ def _rivet_row(img: Image.Image, x0: int, y0: int, x1: int, step: int = 7) -> No
         x += step
 
 
+def _brass_grain_tile(img: Image.Image, x0: int, y0: int, x1: int, y1: int) -> None:
+    """Subtle speckle that tiles cleanly on stretched nine-slice edges."""
+    px = img.load()
+    for y in range(y0, y1):
+        for x in range(x0, x1):
+            if (x * 3 + y * 5) % 11 == 0:
+                px[x, y] = TB_SH
+            elif (x * 7 + y * 2) % 13 == 0:
+                px[x, y] = TB_MED
+
+
+def _inner_lip(img: Image.Image, border: int) -> None:
+    """Thin dark line at the screen cavity — not a wide flat band."""
+    px = img.load()
+    inner = border - 2
+    for x in range(inner, img.width - inner):
+        px[x, inner] = TB_INNER
+        px[x, img.height - 1 - inner] = TB_DK
+    for y in range(inner, img.height - inner):
+        px[inner, y] = TB_INNER
+        px[img.width - 1 - inner, y] = TB_DK
+
+
 def _miter_corner(img: Image.Image, ox: int, oy: int, flip_x: bool, flip_y: bool) -> None:
     px = img.load()
     for i in range(14):
@@ -416,7 +439,7 @@ def _miter_corner(img: Image.Image, ox: int, oy: int, flip_x: bool, flip_y: bool
 
 
 def gen_tablet_frame() -> None:
-    """30px nine-slice brass monitor bezel: screws, plates, rivets, miter seams, inner lip."""
+    """30px nine-slice brass bezel only (tileable edges). Decor is separate sprites."""
     w, h = 128, 128
     border = 30
     img = Image.new("RGBA", (w, h), TRANSPARENT)
@@ -430,20 +453,15 @@ def gen_tablet_frame() -> None:
     fill_rect(img, 1, h - 7, w - 1, h - 1, TB_DK)
     fill_rect(img, w - 12, 5, w - 2, h - 5, TB_SH)
     fill_rect(img, 5, h - 12, w - 5, h - 2, TB_SH)
-    fill_rect(img, 24, 24, w - 24, h - 24, TB_INNER)
+    _brass_grain_tile(img, 1, 1, w - 1, h - 1)
     fill_rect(img, border, border, w - border, h - border, TRANSPARENT)
+    _inner_lip(img, border)
     _miter_corner(img, 0, 0, False, False)
     _miter_corner(img, w - border, 0, True, False)
     _miter_corner(img, 0, h - border, False, True)
     _miter_corner(img, w - border, h - border, True, True)
     for cx, cy in ((14, 14), (w - 15, 14), (14, h - 15), (w - 15, h - 15)):
         _corner_screw(img, cx, cy)
-    _bolt_plate(img, (w - 28) // 2, 4, 28, 10)
-    _bolt_plate(img, (w - 28) // 2, h - 14, 28, 10)
-    _bolt_plate(img, 4, (h - 22) // 2, 10, 22)
-    _bolt_plate(img, w - 14, (h - 22) // 2, 10, 22)
-    _rivet_row(img, 36, 20, w - 36)
-    _rivet_row(img, 36, h - 21, w - 36)
     px = img.load()
     for y in range(border, h - border):
         px[13, y] = TB_DK
@@ -453,6 +471,19 @@ def gen_tablet_frame() -> None:
         img,
         {"width": w, "height": h, "border": {"left": border, "top": border, "right": border, "bottom": border}},
     )
+
+
+def gen_tablet_frame_decor() -> None:
+    """Fixed-position bolt plates and rivet glyph (blit on top of nine-slice frame)."""
+    plate_h = Image.new("RGBA", (28, 10), TRANSPARENT)
+    _bolt_plate(plate_h, 0, 0, 28, 10)
+    save_sprite("tablet_decor_bolt_plate_h", plate_h, None)
+    plate_v = Image.new("RGBA", (10, 22), TRANSPARENT)
+    _bolt_plate(plate_v, 0, 0, 10, 22)
+    save_sprite("tablet_decor_bolt_plate_v", plate_v, None)
+    rivet = Image.new("RGBA", (5, 5), TRANSPARENT)
+    _rivet(rivet, 2, 2)
+    save_sprite("tablet_decor_rivet", rivet, None)
 
 
 def gen_tablet_grid() -> None:
@@ -677,6 +708,7 @@ def gen_envelope_tablet() -> None:
 
 def gen_tablet() -> None:
     gen_tablet_frame()
+    gen_tablet_frame_decor()
     gen_tablet_grid()
     gen_tablet_buttons()
     gen_tablet_tabs()

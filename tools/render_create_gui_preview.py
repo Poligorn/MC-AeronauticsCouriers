@@ -93,11 +93,56 @@ def draw_screen_background(canvas: Image.Image, x: int, y: int, w: int, h: int) 
         d.line([(x, gy), (x + w, gy)], fill=GRID_LINE, width=1)
 
 
+def draw_frame_decor(canvas: Image.Image, fx: int, fy: int, fw: int, fh: int) -> None:
+    plate_h = load("tablet_decor_bolt_plate_h")
+    plate_v = load("tablet_decor_bolt_plate_v")
+    rivet = load("tablet_decor_rivet")
+    third = fw // 3
+    two_thirds = (fw * 2) // 3
+    phw, phh = plate_h.size
+    pvw, pvh = plate_v.size
+    top_y = fy + 4
+    bot_y = fy + fh - phh - 4
+    side_y = fy + fh // 2 - pvh // 2
+    for cx in (third, two_thirds):
+        canvas.alpha_composite(plate_h, (fx + cx - phw // 2, top_y))
+        canvas.alpha_composite(plate_h, (fx + cx - phw // 2, bot_y))
+    canvas.alpha_composite(plate_v, (fx + 4, side_y))
+    canvas.alpha_composite(plate_v, (fx + fw - pvw - 4, side_y))
+    step = 7
+    pad = 36
+
+    def rivets_h(x0: int, y: int, x1: int) -> None:
+        x = x0
+        while x < x1:
+            canvas.alpha_composite(rivet, (x, y))
+            x += step
+
+    def rivets_v(x: int, y0: int, y1: int) -> None:
+        y = y0
+        while y < y1:
+            canvas.alpha_composite(rivet, (x, y))
+            y += step
+
+    rivets_h(fx + pad, fy + 20, fx + third - phw // 2 - 4)
+    rivets_h(fx + third + phw // 2 + 4, fy + 20, fx + two_thirds - phw // 2 - 4)
+    rivets_h(fx + two_thirds + phw // 2 + 4, fy + 20, fx + fw - pad)
+    rivets_h(fx + pad, fy + fh - 21, fx + third - phw // 2 - 4)
+    rivets_h(fx + third + phw // 2 + 4, fy + fh - 21, fx + two_thirds - phw // 2 - 4)
+    rivets_h(fx + two_thirds + phw // 2 + 4, fy + fh - 21, fx + fw - pad)
+    lx, rx = fx + 13, fx + fw - 14
+    rivets_v(lx, fy + pad, side_y - pvh // 2 - 4)
+    rivets_v(lx, side_y + pvh // 2 + 4, fy + fh - pad)
+    rivets_v(rx, fy + pad, side_y - pvh // 2 - 4)
+    rivets_v(rx, side_y + pvh // 2 + 4, fy + fh - pad)
+
+
 def draw_monitor(canvas: Image.Image, fx: int, fy: int, fw: int, fh: int) -> tuple[int, int, int, int]:
     sx, sy = fx + FRAME_BORDER, fy + FRAME_BORDER
     sw, sh = fw - FRAME_BORDER * 2, fh - FRAME_BORDER * 2
     draw_screen_background(canvas, sx, sy, sw, sh)
     nine_slice_hollow(canvas, load("tablet_frame"), fx, fy, fw, fh, (FRAME_BORDER, FRAME_BORDER, FRAME_BORDER, FRAME_BORDER))
+    draw_frame_decor(canvas, fx, fy, fw, fh)
     ax = fx + FRAME_BORDER // 2
     ay = fy - (ANTENNA_H - ANTENNA_BASE_H)
     canvas.alpha_composite(load("tablet_decor_antenna").resize((ANTENNA_W, ANTENNA_H), Image.Resampling.NEAREST), (ax, ay))
