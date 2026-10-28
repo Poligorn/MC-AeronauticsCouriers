@@ -35,15 +35,16 @@ public final class TabletGui {
     public static final int CONTENT_INSET = 14;
     /** Antenna sprite size (matches {@code gen_tablet_antenna}). */
     public static final int ANTENNA_W = 24;
-    public static final int ANTENNA_H = 84;
+    /** Sprite height (mast + lamp + steel mount); see {@code gen_tablet_antenna}. */
+    public static final int ANTENNA_H = 54;
     /** Y center of the tip lamp in {@link #ANTENNA_H} sprite space. */
     public static final int ANTENNA_LAMP_CY = 6;
-    /** Brass foot height in the sprite; equals top {@link #FRAME_BORDER} bezel when drawn flush. */
-    public static final int ANTENNA_BASE_H = FRAME_BORDER;
+    /** Steel base pixels drawn on the top bezel ({@code [frameY, frameY + ANTENNA_MOUNT_H)}). */
+    public static final int ANTENNA_MOUNT_H = 9;
 
     /** Mast + bulb pixels drawn above the frame top (sprite extends upward from the bezel). */
     public static int antennaOverhangTop() {
-        return ANTENNA_H - ANTENNA_BASE_H;
+        return ANTENNA_H - ANTENNA_MOUNT_H;
     }
 
     /** Antenna X offset from frame left (top-left on the bezel). */
@@ -51,7 +52,7 @@ public final class TabletGui {
         return frameX + FRAME_BORDER / 2;
     }
 
-    /** Sprite Y so the foot covers {@code [frameY, frameY + ANTENNA_BASE_H)}. */
+    /** Sprite Y so the steel mount covers {@code [frameY, frameY + ANTENNA_MOUNT_H)}. */
     public static int antennaDrawY(int frameY) {
         return frameY - antennaOverhangTop();
     }
@@ -90,9 +91,9 @@ public final class TabletGui {
     private static final int PLATE_V_H = 22;
     private static final int RIVET_STEP = 7;
     private static final int RIVET_SIZE = 5;
-    private static final int RIVET_CORNER_PAD = 36;
+    private static final int RIVETS_PER_CLUSTER = 4;
 
-    /** Bolt plates and rivet rows at fixed fractions of the frame (not nine-slice tiled). */
+    /** Bolt plates and sparse rivet clusters (not nine-slice tiled). */
     static void drawFrameDecor(GuiGraphics graphics, int frameX, int frameY, int frameW, int frameH) {
         int topPlateY = frameY + 4;
         int bottomPlateY = frameY + frameH - PLATE_H_H - 4;
@@ -118,43 +119,29 @@ public final class TabletGui {
         int bottomRivetY = frameY + frameH - 21;
         int leftRivetX = frameX + 13;
         int rightRivetX = frameX + frameW - 14;
-        drawRivetRun(graphics, frameX + RIVET_CORNER_PAD, topRivetY,
-                frameX + third - PLATE_H_W / 2 - 4, topRivetY);
-        drawRivetRun(graphics, frameX + third + PLATE_H_W / 2 + 4, topRivetY,
-                frameX + twoThirds - PLATE_H_W / 2 - 4, topRivetY);
-        drawRivetRun(graphics, frameX + twoThirds + PLATE_H_W / 2 + 4, topRivetY,
-                frameX + frameW - RIVET_CORNER_PAD, topRivetY);
-        drawRivetRun(graphics, frameX + RIVET_CORNER_PAD, bottomRivetY,
-                frameX + third - PLATE_H_W / 2 - 4, bottomRivetY);
-        drawRivetRun(graphics, frameX + third + PLATE_H_W / 2 + 4, bottomRivetY,
-                frameX + twoThirds - PLATE_H_W / 2 - 4, bottomRivetY);
-        drawRivetRun(graphics, frameX + twoThirds + PLATE_H_W / 2 + 4, bottomRivetY,
-                frameX + frameW - RIVET_CORNER_PAD, bottomRivetY);
-        drawRivetRunVertical(graphics, leftRivetX, frameY + RIVET_CORNER_PAD,
-                leftRivetX, sidePlateY - PLATE_V_H / 2 - 4);
-        drawRivetRunVertical(graphics, leftRivetX, sidePlateY + PLATE_V_H / 2 + 4,
-                leftRivetX, frameY + frameH - RIVET_CORNER_PAD);
-        drawRivetRunVertical(graphics, rightRivetX, frameY + RIVET_CORNER_PAD,
-                rightRivetX, sidePlateY - PLATE_V_H / 2 - 4);
-        drawRivetRunVertical(graphics, rightRivetX, sidePlateY + PLATE_V_H / 2 + 4,
-                rightRivetX, frameY + frameH - RIVET_CORNER_PAD);
+        drawRivetClusterH(graphics, frameX + third, topRivetY);
+        drawRivetClusterH(graphics, frameX + twoThirds, topRivetY);
+        drawRivetClusterH(graphics, frameX + third, bottomRivetY);
+        drawRivetClusterH(graphics, frameX + twoThirds, bottomRivetY);
+        drawRivetClusterV(graphics, leftRivetX, sidePlateY);
+        drawRivetClusterV(graphics, rightRivetX, sidePlateY);
     }
 
-    private static void drawRivetRun(GuiGraphics graphics, int x0, int y, int x1, int y1) {
-        if (x1 <= x0) {
-            return;
-        }
-        for (int x = x0; x < x1; x += RIVET_STEP) {
-            graphics.blitSprite(AerocouriersGuiSprites.TABLET_DECOR_RIVET, x, y, RIVET_SIZE, RIVET_SIZE);
+    private static void drawRivetClusterH(GuiGraphics graphics, int centerX, int y) {
+        int span = (RIVETS_PER_CLUSTER - 1) * RIVET_STEP;
+        int x0 = centerX - span / 2;
+        for (int i = 0; i < RIVETS_PER_CLUSTER; i++) {
+            graphics.blitSprite(AerocouriersGuiSprites.TABLET_DECOR_RIVET,
+                    x0 + i * RIVET_STEP, y, RIVET_SIZE, RIVET_SIZE);
         }
     }
 
-    private static void drawRivetRunVertical(GuiGraphics graphics, int x, int y0, int x1, int y1) {
-        if (y1 <= y0) {
-            return;
-        }
-        for (int y = y0; y < y1; y += RIVET_STEP) {
-            graphics.blitSprite(AerocouriersGuiSprites.TABLET_DECOR_RIVET, x, y, RIVET_SIZE, RIVET_SIZE);
+    private static void drawRivetClusterV(GuiGraphics graphics, int x, int centerY) {
+        int span = (RIVETS_PER_CLUSTER - 1) * RIVET_STEP;
+        int y0 = centerY - span / 2;
+        for (int i = 0; i < RIVETS_PER_CLUSTER; i++) {
+            graphics.blitSprite(AerocouriersGuiSprites.TABLET_DECOR_RIVET,
+                    x, y0 + i * RIVET_STEP, RIVET_SIZE, RIVET_SIZE);
         }
     }
 

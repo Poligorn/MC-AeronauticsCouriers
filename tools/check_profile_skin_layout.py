@@ -12,8 +12,8 @@ HEAD_MARGIN_FRAC = 0.07
 FRAME_BORDER = 30
 CONTENT_INSET = 14
 ANTENNA_W = 24
-ANTENNA_H = 84
-ANTENNA_BASE_H = FRAME_BORDER
+ANTENNA_H = 54
+ANTENNA_MOUNT_H = 9
 TAB_Y = 2
 TAB_H = 20
 HEADING_GAP = 7
@@ -25,14 +25,14 @@ def panel_w(width: int) -> int:
 
 
 def panel_h(height: int) -> int:
-    over = ANTENNA_H - ANTENNA_BASE_H
+    over = ANTENNA_H - ANTENNA_MOUNT_H
     max_h = max(200, height - over - 12)
     preferred = int(height * 0.80)
     return min(max_h, max(200, preferred))
 
 
 def frame_top(screen_h: int, frame_h: int) -> int:
-    over = ANTENNA_H - ANTENNA_BASE_H
+    over = ANTENNA_H - ANTENNA_MOUNT_H
     block_h = over + frame_h
     block_top = max(2, (screen_h - block_h) // 2)
     return block_top + over

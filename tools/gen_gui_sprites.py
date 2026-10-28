@@ -596,29 +596,25 @@ def gen_tablet_antenna_signal() -> None:
 
 
 def gen_tablet_antenna() -> None:
-    """24×84: steel mount + 30px brass foot + copper mast with rings + signal lamp."""
-    w, h = 24, 84
-    base = 30
+    """24×54: steel mount flush on top bezel + copper mast + lamp (no brass foot square)."""
+    w, h = 24, 54
     steel_h = 9
     img = Image.new("RGBA", (w, h), TRANSPARENT)
     d = ImageDraw.Draw(img)
     cx = w // 2
-    fill_rect(img, 1, h - base, w - 1, h, TB_SH)
-    fill_rect(img, 2, h - base + 1, w - 2, h - 1, TB_MID)
-    fill_rect(img, 3, h - base + 3, w - 3, h - 2, TB_HI)
-    fill_rect(img, 2, h - base + 1, w - 2, h - base + 3, TB_DK)
-    fill_rect(img, 2, h - base - steel_h, w - 2, h - base, (0x66, 0x6A, 0x72, 255))
-    fill_rect(img, 3, h - base - steel_h + 1, w - 3, h - base - 1, (0x88, 0x8C, 0x94, 255))
+    fill_rect(img, 2, h - steel_h, w - 2, h, (0x66, 0x6A, 0x72, 255))
+    fill_rect(img, 3, h - steel_h + 1, w - 3, h - 1, (0x88, 0x8C, 0x94, 255))
     for rx in (5, w - 7):
-        d.ellipse((rx, h - base - steel_h + 2, rx + 3, h - base - steel_h + 5), fill=(0xBB, 0xBB, 0xBB, 255), outline=BLACK)
+        d.ellipse((rx, h - steel_h + 2, rx + 3, h - steel_h + 5), fill=(0xBB, 0xBB, 0xBB, 255), outline=BLACK)
     rod_l, rod_r = cx - 3, cx + 3
     mast_top = 11
-    fill_rect(img, rod_l, mast_top, rod_r, h - base - steel_h, TB_COPPER_DK)
-    fill_rect(img, rod_l + 1, mast_top + 1, rod_r - 1, h - base - steel_h - 1, TB_COPPER)
-    fill_rect(img, rod_l + 1, mast_top + 1, rod_l + 2, h - base - steel_h - 2, TB_COPPER_HI)
+    fill_rect(img, rod_l, mast_top, rod_r, h - steel_h, TB_COPPER_DK)
+    fill_rect(img, rod_l + 1, mast_top + 1, rod_r - 1, h - steel_h - 1, TB_COPPER)
+    fill_rect(img, rod_l + 1, mast_top + 1, rod_l + 2, h - steel_h - 2, TB_COPPER_HI)
     for ring_y in (mast_top + 10, mast_top + 22, mast_top + 34):
-        fill_rect(img, rod_l - 1, ring_y, rod_r + 1, ring_y + 3, TB_COPPER_EDGE)
-        fill_rect(img, rod_l, ring_y + 1, rod_r, ring_y + 2, (0x55, 0x55, 0x55, 255))
+        if ring_y + 3 <= h - steel_h:
+            fill_rect(img, rod_l - 1, ring_y, rod_r + 1, ring_y + 3, TB_COPPER_EDGE)
+            fill_rect(img, rod_l, ring_y + 1, rod_r, ring_y + 2, (0x55, 0x55, 0x55, 255))
     fill_rect(img, cx - 4, 2, cx + 4, 10, (0xFF, 0xE9, 0x4A, 255))
     fill_rect(img, cx - 3, 3, cx + 3, 9, (0xFF, 0xFF, 0xAA, 255))
     d.rectangle((cx - 4, 2, cx + 4, 10), outline=BLACK)

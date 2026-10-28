@@ -13,8 +13,8 @@ SPRITES = ROOT / "src/main/resources/assets/aerocouriers/textures/gui/sprites"
 
 FRAME_BORDER = 30
 CONTENT_INSET = 14
-ANTENNA_W, ANTENNA_H = 24, 84
-ANTENNA_BASE_H = FRAME_BORDER
+ANTENNA_W, ANTENNA_H = 24, 54
+ANTENNA_MOUNT_H = 9
 ROW_ACTION_RESERVE = 158
 GRID_STEP = 9
 SCREEN_FILL = (0x0A, 0x02, 0x00)
@@ -77,7 +77,7 @@ def nine_slice_hollow(canvas: Image.Image, patch: Image.Image, x: int, y: int, w
 
 
 def frame_pos(screen_w: int, screen_h: int, frame_w: int, frame_h: int) -> tuple[int, int]:
-    over = ANTENNA_H - ANTENNA_BASE_H
+    over = ANTENNA_H - ANTENNA_MOUNT_H
     fx = max(2, (screen_w - frame_w) // 2)
     block_top = max(2, (screen_h - frame_h - over) // 2)
     fy = block_top + over
@@ -110,31 +110,25 @@ def draw_frame_decor(canvas: Image.Image, fx: int, fy: int, fw: int, fh: int) ->
     canvas.alpha_composite(plate_v, (fx + 4, side_y))
     canvas.alpha_composite(plate_v, (fx + fw - pvw - 4, side_y))
     step = 7
-    pad = 36
+    count = 4
+    span = (count - 1) * step
 
-    def rivets_h(x0: int, y: int, x1: int) -> None:
-        x = x0
-        while x < x1:
-            canvas.alpha_composite(rivet, (x, y))
-            x += step
+    def cluster_h(center_x: int, y: int) -> None:
+        x0 = fx + center_x - span // 2
+        for i in range(count):
+            canvas.alpha_composite(rivet, (x0 + i * step, y))
 
-    def rivets_v(x: int, y0: int, y1: int) -> None:
-        y = y0
-        while y < y1:
-            canvas.alpha_composite(rivet, (x, y))
-            y += step
+    def cluster_v(x: int, center_y: int) -> None:
+        y0 = center_y - span // 2
+        for i in range(count):
+            canvas.alpha_composite(rivet, (x, y0 + i * step))
 
-    rivets_h(fx + pad, fy + 20, fx + third - phw // 2 - 4)
-    rivets_h(fx + third + phw // 2 + 4, fy + 20, fx + two_thirds - phw // 2 - 4)
-    rivets_h(fx + two_thirds + phw // 2 + 4, fy + 20, fx + fw - pad)
-    rivets_h(fx + pad, fy + fh - 21, fx + third - phw // 2 - 4)
-    rivets_h(fx + third + phw // 2 + 4, fy + fh - 21, fx + two_thirds - phw // 2 - 4)
-    rivets_h(fx + two_thirds + phw // 2 + 4, fy + fh - 21, fx + fw - pad)
-    lx, rx = fx + 13, fx + fw - 14
-    rivets_v(lx, fy + pad, side_y - pvh // 2 - 4)
-    rivets_v(lx, side_y + pvh // 2 + 4, fy + fh - pad)
-    rivets_v(rx, fy + pad, side_y - pvh // 2 - 4)
-    rivets_v(rx, side_y + pvh // 2 + 4, fy + fh - pad)
+    cluster_h(third, fy + 20)
+    cluster_h(two_thirds, fy + 20)
+    cluster_h(third, fy + fh - 21)
+    cluster_h(two_thirds, fy + fh - 21)
+    cluster_v(fx + 13, side_y)
+    cluster_v(fx + fw - 14, side_y)
 
 
 def draw_monitor(canvas: Image.Image, fx: int, fy: int, fw: int, fh: int) -> tuple[int, int, int, int]:
@@ -144,7 +138,7 @@ def draw_monitor(canvas: Image.Image, fx: int, fy: int, fw: int, fh: int) -> tup
     nine_slice_hollow(canvas, load("tablet_frame"), fx, fy, fw, fh, (FRAME_BORDER, FRAME_BORDER, FRAME_BORDER, FRAME_BORDER))
     draw_frame_decor(canvas, fx, fy, fw, fh)
     ax = fx + FRAME_BORDER // 2
-    ay = fy - (ANTENNA_H - ANTENNA_BASE_H)
+    ay = fy - (ANTENNA_H - ANTENNA_MOUNT_H)
     canvas.alpha_composite(load("tablet_decor_antenna").resize((ANTENNA_W, ANTENNA_H), Image.Resampling.NEAREST), (ax, ay))
     return sx, sy, sw, sh
 
@@ -223,7 +217,7 @@ def try_font(size: int = 8) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
 def render_board(w: int, h: int, tab: int) -> tuple[Image.Image, tuple[int, int, int, int]]:
     canvas = Image.new("RGBA", (w, h), (32, 32, 48, 255))
     margin = 8
-    over = ANTENNA_H - ANTENNA_BASE_H
+    over = ANTENNA_H - ANTENNA_MOUNT_H
     fw = min(int(w * 0.72), w - margin * 2)
     fh = min(int(h * 0.80), h - margin * 2 - over)
     fw = max(320, fw)
