@@ -49,9 +49,9 @@ public record BoardSnapshotPayload(
         List<String> adminConfigLines
 ) implements CustomPacketPayload {
     public static final Type<BoardSnapshotPayload> TYPE = new Type<>(AeronauticsCouriers.id("board_snapshot"));
-    public static final int PAGE_SIZE = 20;
+    public static final int PAGE_SIZE = PayloadLimits.BOARD_PAGE;
     /** Max item stacks synced per board row for crate hover tooltips. */
-    public static final int CARGO_STACK_LIMIT = 54;
+    public static final int CARGO_STACK_LIMIT = PayloadLimits.CARGO_STACK_SYNC;
 
     public record CargoLine(int count, String name) {
         public static final StreamCodec<RegistryFriendlyByteBuf, CargoLine> STREAM_CODEC = StreamCodec.composite(
@@ -303,7 +303,8 @@ public record BoardSnapshotPayload(
             LicenseRank.STREAM_CODEC.encode(buf, e.requiredRank);
             ByteBufCodecs.VAR_LONG.encode(buf, e.deadlineMinutes);
             ByteBufCodecs.VAR_LONG.encode(buf, e.minutesLeft);
-            CargoLine.STREAM_CODEC.apply(ByteBufCodecs.list(CARGO_STACK_LIMIT)).encode(buf, e.manifest);
+            CargoLine.STREAM_CODEC.apply(ByteBufCodecs.list(PayloadLimits.WIRE_ITEM_STACK_LIST))
+                    .encode(buf, PayloadLimits.cap(e.manifest, CARGO_STACK_LIMIT));
             ByteBufCodecs.optional(UUIDUtil.STREAM_CODEC).encode(buf, e.customerId);
             ByteBufCodecs.STRING_UTF8.encode(buf, e.customerName);
             buf.writeBoolean(e.villageCustomer);
@@ -311,7 +312,8 @@ public record BoardSnapshotPayload(
             BlockPos.STREAM_CODEC.encode(buf, e.originPos);
             ResourceKey.streamCodec(Registries.DIMENSION).encode(buf, e.destinationDimension);
             BlockPos.STREAM_CODEC.encode(buf, e.destinationPos);
-            ItemStack.STREAM_CODEC.apply(ByteBufCodecs.list(CARGO_STACK_LIMIT)).encode(buf, e.cargoStacks);
+            ItemStack.STREAM_CODEC.apply(ByteBufCodecs.list(PayloadLimits.WIRE_ITEM_STACK_LIST))
+                    .encode(buf, PayloadLimits.cap(e.cargoStacks, CARGO_STACK_LIMIT));
             ByteBufCodecs.VAR_INT.encode(buf, e.customerStationReputation);
             buf.writeBoolean(e.villageRare);
             ByteBufCodecs.VAR_INT.encode(buf, e.customerReputationTier);
@@ -337,7 +339,7 @@ public record BoardSnapshotPayload(
                     LicenseRank.STREAM_CODEC.decode(buf),
                     ByteBufCodecs.VAR_LONG.decode(buf),
                     ByteBufCodecs.VAR_LONG.decode(buf),
-                    CargoLine.STREAM_CODEC.apply(ByteBufCodecs.list(CARGO_STACK_LIMIT)).decode(buf),
+                    CargoLine.STREAM_CODEC.apply(ByteBufCodecs.list(PayloadLimits.WIRE_ITEM_STACK_LIST)).decode(buf),
                     ByteBufCodecs.optional(UUIDUtil.STREAM_CODEC).decode(buf),
                     ByteBufCodecs.STRING_UTF8.decode(buf),
                     buf.readBoolean(),
@@ -345,7 +347,7 @@ public record BoardSnapshotPayload(
                     BlockPos.STREAM_CODEC.decode(buf),
                     ResourceKey.streamCodec(Registries.DIMENSION).decode(buf),
                     BlockPos.STREAM_CODEC.decode(buf),
-                    ItemStack.STREAM_CODEC.apply(ByteBufCodecs.list(CARGO_STACK_LIMIT)).decode(buf),
+                    ItemStack.STREAM_CODEC.apply(ByteBufCodecs.list(PayloadLimits.WIRE_ITEM_STACK_LIST)).decode(buf),
                     ByteBufCodecs.VAR_INT.decode(buf),
                     buf.readBoolean(),
                     ByteBufCodecs.VAR_INT.decode(buf),
@@ -372,13 +374,18 @@ public record BoardSnapshotPayload(
         buf.writeBoolean(p.requireTablet);
         buf.writeBoolean(p.notice.isPresent());
         p.notice.ifPresent(component -> ComponentSerialization.STREAM_CODEC.encode(buf, component));
-        BoardEntry.STREAM_CODEC.apply(ByteBufCodecs.list(PAGE_SIZE)).encode(buf, p.board);
-        BoardEntry.STREAM_CODEC.apply(ByteBufCodecs.list(64)).encode(buf, p.mine);
-        StationHint.STREAM_CODEC.apply(ByteBufCodecs.list(64)).encode(buf, p.stations);
+        BoardEntry.STREAM_CODEC.apply(ByteBufCodecs.list(PAGE_SIZE)).encode(buf, PayloadLimits.cap(p.board, PAGE_SIZE));
+        BoardEntry.STREAM_CODEC.apply(ByteBufCodecs.list(PayloadLimits.BOARD_MINE))
+                .encode(buf, PayloadLimits.cap(p.mine, PayloadLimits.BOARD_MINE));
+        StationHint.STREAM_CODEC.apply(ByteBufCodecs.list(PayloadLimits.STATION_HINTS))
+                .encode(buf, PayloadLimits.cap(p.stations, PayloadLimits.STATION_HINTS));
         BoardProfile.STREAM_CODEC.encode(buf, p.profile);
-        AdminActiveEntry.STREAM_CODEC.apply(ByteBufCodecs.list(64)).encode(buf, p.adminActive);
-        PlayerHint.STREAM_CODEC.apply(ByteBufCodecs.list(64)).encode(buf, p.onlinePlayers);
-        ByteBufCodecs.STRING_UTF8.apply(ByteBufCodecs.list(32)).encode(buf, p.adminConfigLines);
+        AdminActiveEntry.STREAM_CODEC.apply(ByteBufCodecs.list(PayloadLimits.ADMIN_ACTIVE))
+                .encode(buf, PayloadLimits.cap(p.adminActive, PayloadLimits.ADMIN_ACTIVE));
+        PlayerHint.STREAM_CODEC.apply(ByteBufCodecs.list(PayloadLimits.ONLINE_PLAYERS))
+                .encode(buf, PayloadLimits.cap(p.onlinePlayers, PayloadLimits.ONLINE_PLAYERS));
+        ByteBufCodecs.STRING_UTF8.apply(ByteBufCodecs.list(PayloadLimits.ADMIN_CONFIG_LINES))
+                .encode(buf, PayloadLimits.cap(p.adminConfigLines, PayloadLimits.ADMIN_CONFIG_LINES));
     }
 
     private static BoardSnapshotPayload read(RegistryFriendlyByteBuf buf) {
@@ -399,12 +406,12 @@ public record BoardSnapshotPayload(
                 licensed,
                 allowSelfAccept, requireTablet, notice,
                 BoardEntry.STREAM_CODEC.apply(ByteBufCodecs.list(PAGE_SIZE)).decode(buf),
-                BoardEntry.STREAM_CODEC.apply(ByteBufCodecs.list(64)).decode(buf),
-                StationHint.STREAM_CODEC.apply(ByteBufCodecs.list(64)).decode(buf),
+                BoardEntry.STREAM_CODEC.apply(ByteBufCodecs.list(PayloadLimits.BOARD_MINE)).decode(buf),
+                StationHint.STREAM_CODEC.apply(ByteBufCodecs.list(PayloadLimits.STATION_HINTS)).decode(buf),
                 BoardProfile.STREAM_CODEC.decode(buf),
-                AdminActiveEntry.STREAM_CODEC.apply(ByteBufCodecs.list(64)).decode(buf),
-                PlayerHint.STREAM_CODEC.apply(ByteBufCodecs.list(64)).decode(buf),
-                ByteBufCodecs.STRING_UTF8.apply(ByteBufCodecs.list(32)).decode(buf));
+                AdminActiveEntry.STREAM_CODEC.apply(ByteBufCodecs.list(PayloadLimits.ADMIN_ACTIVE)).decode(buf),
+                PlayerHint.STREAM_CODEC.apply(ByteBufCodecs.list(PayloadLimits.ONLINE_PLAYERS)).decode(buf),
+                ByteBufCodecs.STRING_UTF8.apply(ByteBufCodecs.list(PayloadLimits.ADMIN_CONFIG_LINES)).decode(buf));
     }
 
     public Optional<BoardEntry> find(UUID id) {

@@ -10,6 +10,7 @@ import dev.poligorn.aerocouriers.contract.ContractState;
 import dev.poligorn.aerocouriers.contract.Destination;
 import dev.poligorn.aerocouriers.contract.Escrow;
 import dev.poligorn.aerocouriers.contract.CouriersNotifications;
+import dev.poligorn.aerocouriers.contract.ManifestLimits;
 import dev.poligorn.aerocouriers.contract.Mailbox;
 import dev.poligorn.aerocouriers.contract.CourierInbox;
 import dev.poligorn.aerocouriers.contract.Pricing;
@@ -58,7 +59,8 @@ public final class BoardPackets {
         if (!canSendBoard(player)) {
             return;
         }
-        PacketDistributor.sendToPlayer(player, snapshot(player, 0, false, Optional.empty()));
+        CouriersNetwork.sendRegistryPayload(player, snapshot(player, 0, false, Optional.empty()),
+                BoardSnapshotPayload.STREAM_CODEC);
     }
 
     public static void open(ServerPlayer player, int page, boolean openScreen, Optional<Component> notice) {
@@ -71,7 +73,8 @@ public final class BoardPackets {
             denyTablet(player);
             return;
         }
-        PacketDistributor.sendToPlayer(player, snapshot(player, page, openScreen, notice));
+        CouriersNetwork.sendRegistryPayload(player, snapshot(player, page, openScreen, notice),
+                BoardSnapshotPayload.STREAM_CODEC);
         if (openScreen) {
             CouriersNotifications.sync(player);
         }
@@ -122,11 +125,13 @@ public final class BoardPackets {
         List<BoardSnapshotPayload.PlayerHint> online = operator
                 ? server.getPlayerList().getPlayers().stream()
                         .map(p -> new BoardSnapshotPayload.PlayerHint(p.getUUID(), p.getGameProfile().getName()))
+                        .limit(PayloadLimits.ONLINE_PLAYERS)
                         .toList()
                 : List.of();
         List<String> configLines = operator
                 ? CouriersConfigEditor.listCommon().stream()
                         .map(k -> k.path() + "=" + k.current())
+                        .limit(PayloadLimits.ADMIN_CONFIG_LINES)
                         .toList()
                 : List.of();
         return new BoardSnapshotPayload(
@@ -231,10 +236,17 @@ public final class BoardPackets {
             sendUiSound(player, CouriersUiSoundPayload.Kind.ORDER_DENY);
             return;
         }
-        List<ItemStack> cargo = access.get().items().stream()
-                .limit(BoardSnapshotPayload.CARGO_STACK_LIMIT)
-                .toList();
-        double weight = Weights.of(cargo);
+        List<ItemStack> allCargo = access.get().items();
+        Optional<Component> cargoError = ManifestLimits.validateMessage(allCargo);
+        if (cargoError.isPresent()) {
+            Component message = cargoError.get();
+            player.sendSystemMessage(message);
+            player.displayClientMessage(message, true);
+            sendUiSound(player, CouriersUiSoundPayload.Kind.ORDER_DENY);
+            return;
+        }
+        List<ItemStack> cargo = PayloadLimits.cap(allCargo, BoardSnapshotPayload.CARGO_STACK_LIMIT);
+        double weight = Weights.of(allCargo);
         StationAtlas atlas = StationAtlas.get(player.server);
         boolean allStations = player.hasPermissions(OP);
         List<BoardSnapshotPayload.StationHint> stations = atlas.all().stream()
@@ -243,8 +255,9 @@ public final class BoardPackets {
                 .map(s -> new BoardSnapshotPayload.StationHint(s.name(), s.pos(), s.dimension()))
                 .limit(64)
                 .toList();
-        PacketDistributor.sendToPlayer(player, new OpenWaybillCreatePayload(
-                origin, cargo, weight, Economies.get(player.server).balance(player.getUUID()), stations));
+        CouriersNetwork.sendRegistryPayload(player, new OpenWaybillCreatePayload(
+                origin, cargo, weight, Economies.get(player.server).balance(player.getUUID()), stations),
+                OpenWaybillCreatePayload.STREAM_CODEC);
     }
 
     public static void handleCreate(ServerPlayer player, CreateContractPayload payload) {

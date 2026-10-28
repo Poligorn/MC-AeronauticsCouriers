@@ -243,6 +243,10 @@ public final class ContractManager extends SavedData {
         if (manifest.isEmpty()) {
             return Outcome.error("empty_cargo");
         }
+        Optional<Outcome> cargoReject = ManifestLimits.rejectContract(manifest);
+        if (cargoReject.isPresent()) {
+            return cargoReject.get();
+        }
         double weight = Weights.of(manifest);
         Optional<CargoSize> size = CargoSize.smallestFor(manifest.size(), weight);
         if (size.isEmpty()) {
@@ -339,6 +343,10 @@ public final class ContractManager extends SavedData {
         }
         if (manifest.isEmpty()) {
             return Outcome.error("empty_cargo");
+        }
+        Optional<Outcome> cargoReject = ManifestLimits.rejectContract(manifest);
+        if (cargoReject.isPresent()) {
+            return cargoReject.get();
         }
         double weight = Weights.of(manifest);
         Optional<CargoSize> size = CargoSize.smallestFor(manifest.size(), weight);

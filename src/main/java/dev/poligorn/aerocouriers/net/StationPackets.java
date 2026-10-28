@@ -13,7 +13,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.neoforged.neoforge.network.PacketDistributor;
 
 public final class StationPackets {
     private static final int OP = Commands.LEVEL_GAMEMASTERS;
@@ -40,7 +39,7 @@ public final class StationPackets {
                 .limit(StationSnapshotPayload.MAX_ORDERS)
                 .map(c -> BoardPackets.boardEntry(player, c))
                 .toList();
-        PacketDistributor.sendToPlayer(player, new StationSnapshotPayload(
+        CouriersNetwork.sendRegistryPayload(player, new StationSnapshotPayload(
                 pos.immutable(),
                 station.name(),
                 reputation,
@@ -48,7 +47,7 @@ public final class StationPackets {
                 tier,
                 nextThreshold,
                 player.hasPermissions(OP),
-                orders));
+                orders), StationSnapshotPayload.STREAM_CODEC);
     }
 
     public static void handleOpen(ServerPlayer player, OpenStationPayload payload) {

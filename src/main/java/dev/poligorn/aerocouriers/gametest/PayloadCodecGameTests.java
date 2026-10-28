@@ -4,6 +4,7 @@ import dev.poligorn.aerocouriers.AeronauticsCouriers;
 import dev.poligorn.aerocouriers.cargo.CargoSize;
 import dev.poligorn.aerocouriers.contract.ContractState;
 import dev.poligorn.aerocouriers.license.LicenseRank;
+import dev.poligorn.aerocouriers.contract.ManifestLimits;
 import dev.poligorn.aerocouriers.net.BoardSnapshotPayload;
 import dev.poligorn.aerocouriers.net.OpenWaybillCreatePayload;
 import io.netty.buffer.Unpooled;
@@ -21,11 +22,42 @@ import net.minecraft.world.level.Level;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 
-/** Network payload codecs must accept XL-sized cargo (45+ manifest lines). */
+/** Network payload codecs must tolerate oversized cargo lists without disconnecting players. */
 @GameTestHolder(AeronauticsCouriers.MOD_ID)
 @PrefixGameTestTemplate(false)
 public final class PayloadCodecGameTests {
     private PayloadCodecGameTests() {
+    }
+
+    @GameTest(template = CouriersGameTests.EMPTY)
+    public static void boardEntryEncodesHugeManifestWithoutThrow(GameTestHelper helper) {
+        RegistryFriendlyByteBuf buf = new RegistryFriendlyByteBuf(Unpooled.buffer(), helper.getLevel().registryAccess());
+        List<BoardSnapshotPayload.CargoLine> manifest = new ArrayList<>();
+        List<ItemStack> stacks = new ArrayList<>();
+        for (int i = 0; i < 200; i++) {
+            manifest.add(new BoardSnapshotPayload.CargoLine(1, "stack-" + i));
+            stacks.add(new ItemStack(Items.COBBLESTONE, 1));
+        }
+        BoardSnapshotPayload.BoardEntry entry = sampleEntry("XL", manifest, stacks);
+        BoardSnapshotPayload.BoardEntry.STREAM_CODEC.encode(buf, entry);
+        buf.readerIndex(0);
+        BoardSnapshotPayload.BoardEntry decoded = BoardSnapshotPayload.BoardEntry.STREAM_CODEC.decode(buf);
+        helper.assertValueEqual(decoded.manifest().size(), BoardSnapshotPayload.CARGO_STACK_LIMIT,
+                "manifest clamped on wire");
+        helper.assertValueEqual(decoded.cargoStacks().size(), BoardSnapshotPayload.CARGO_STACK_LIMIT,
+                "stacks clamped on wire");
+        helper.succeed();
+    }
+
+    @GameTest(template = CouriersGameTests.EMPTY)
+    public static void manifestLimitsRejectHugeCargo(GameTestHelper helper) {
+        List<ItemStack> stacks = new ArrayList<>();
+        for (int i = 0; i < 200; i++) {
+            stacks.add(new ItemStack(Items.STONE));
+        }
+        helper.assertTrue(ManifestLimits.rejectContract(stacks).isPresent(), "200 stacks rejected");
+        helper.assertTrue(ManifestLimits.validateMessage(stacks).isPresent(), "validation message");
+        helper.succeed();
     }
 
     @GameTest(template = CouriersGameTests.EMPTY)
@@ -76,6 +108,22 @@ public final class PayloadCodecGameTests {
         buf.readerIndex(0);
         OpenWaybillCreatePayload decoded = OpenWaybillCreatePayload.STREAM_CODEC.decode(buf);
         helper.assertValueEqual(decoded.cargo().size(), 45, "cargo round-trip");
+        helper.succeed();
+    }
+
+    @GameTest(template = CouriersGameTests.EMPTY)
+    public static void waybillPreviewEncodesLargeCargoList(GameTestHelper helper) {
+        RegistryFriendlyByteBuf buf = new RegistryFriendlyByteBuf(Unpooled.buffer(), helper.getLevel().registryAccess());
+        List<ItemStack> cargo = new ArrayList<>();
+        for (int i = 0; i < 200; i++) {
+            cargo.add(new ItemStack(Items.IRON_INGOT, 1));
+        }
+        OpenWaybillCreatePayload payload = new OpenWaybillCreatePayload(
+                BlockPos.ZERO, cargo, 200.0, 1000L, List.of());
+        OpenWaybillCreatePayload.STREAM_CODEC.encode(buf, payload);
+        buf.readerIndex(0);
+        OpenWaybillCreatePayload decoded = OpenWaybillCreatePayload.STREAM_CODEC.decode(buf);
+        helper.assertValueEqual(decoded.cargo().size(), 200, "large cargo round-trip");
         helper.succeed();
     }
 
