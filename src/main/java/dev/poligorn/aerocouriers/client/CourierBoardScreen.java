@@ -114,6 +114,8 @@ public final class CourierBoardScreen extends Screen {
     private @Nullable Component hoverTip;
     private @Nullable List<Component> hoverTipLines;
     private @Nullable BoardCargoTooltip hoverCargoComponent;
+    private @Nullable SpurBreakdownTooltip hoverSpurBreakdown;
+    private @Nullable Component hoverSpurHeader;
     private @Nullable UUID mapHoverOrder;
     private @Nullable UUID crateHoverOrder;
     /** Visible list rows whose action buttons depend on {@link #initListButtons}; avoids rebuild on timer-only updates. */
@@ -681,6 +683,8 @@ public final class CourierBoardScreen extends Screen {
         hoverTip = null;
         hoverTipLines = null;
         hoverCargoComponent = null;
+        hoverSpurBreakdown = null;
+        hoverSpurHeader = null;
         RenderSystem.disableDepthTest();
         RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
         tabletChrome.tick();
@@ -712,11 +716,12 @@ public final class CourierBoardScreen extends Screen {
         if (!tabEffects.isTabLoadingActive()) {
             updateRowIconHover(contentMouseX, contentMouseY);
             captureRowLine1HoverTips(contentMouseX, contentMouseY);
+            captureRowLine2SpurHover(contentMouseX, contentMouseY);
             captureRowHoverTips(contentMouseX, contentMouseY);
-            if (hoverTip == null && hoverTipLines == null && hoverCargoComponent == null) {
+            if (hoverTip == null && hoverTipLines == null && hoverCargoComponent == null && hoverSpurBreakdown == null) {
                 captureProfileRankHover(contentMouseX, contentMouseY);
             }
-            if (hoverTip == null && hoverTipLines == null && hoverCargoComponent == null) {
+            if (hoverTip == null && hoverTipLines == null && hoverCargoComponent == null && hoverSpurBreakdown == null) {
                 captureButtonHint(contentMouseX, contentMouseY);
             }
         }
@@ -761,10 +766,12 @@ public final class CourierBoardScreen extends Screen {
         }
         if (snapshot != null) {
             long balance = snapshot.balance();
-            Component balanceLine = BalanceDisplay.format(balance, snapshot.numismaticsEconomy());
             int balanceRight = sx + screenW() - BALANCE_RIGHT_PAD;
             int maxW = Math.max(8, balanceRight - balanceStripLeft);
-            drawClipped(graphics, balanceLine, balanceStripLeft, mainTabRowY() + 8, maxW, TabletGui.TEXT, mouseX, mouseY);
+            SpurAmountUi.Bounds balanceBounds = SpurAmountUi.drawLabeled(
+                    graphics, font, BalanceDisplay.balanceLabel(), balance, balanceStripLeft, mainTabRowY() + 8, maxW,
+                    TabletGui.TEXT, TabletGui.TEXT);
+            offerSpurTooltip(balance, balanceBounds, mouseX, mouseY);
         }
 
         if (snapshot == null) {
@@ -923,10 +930,19 @@ public final class CourierBoardScreen extends Screen {
             y = drawProfileStatBlock(graphics,
                     Component.translatable("ui.aerocouriers.profile.failed", profile.failed()), statsX, y, statsW,
                     TabletGui.TEXT);
-            y = drawProfileStatBlock(graphics,
-                    Component.translatable("ui.aerocouriers.profile.avg_reward",
-                            formatAverage(profile.rewardSum(), profile.delivered())),
-                    statsX, y, statsW, TabletGui.TEXT);
+            if (profile.delivered() <= 0) {
+                y = drawProfileStatBlock(graphics,
+                        Component.translatable("ui.aerocouriers.profile.avg_reward",
+                                Component.translatable("ui.aerocouriers.profile.dash")),
+                        statsX, y, statsW, TabletGui.TEXT);
+            } else {
+                long avgReward = profile.rewardSum() / profile.delivered();
+                String avgLabel = Component.translatable("ui.aerocouriers.profile.avg_reward.label").getString();
+                SpurAmountUi.Bounds avgBounds = SpurAmountUi.drawLabeled(
+                        graphics, font, avgLabel, avgReward, statsX, y, statsW, TabletGui.TEXT, TabletGui.TEXT);
+                offerSpurTooltip(avgReward, avgBounds, mouseX, mouseY);
+                y += PROFILE_LINE_HEIGHT;
+            }
             y = drawProfileStatBlock(graphics,
                     Component.translatable("ui.aerocouriers.profile.avg_distance",
                             formatAverage(profile.distance(), profile.delivered())),
@@ -1313,6 +1329,10 @@ public final class CourierBoardScreen extends Screen {
     }
 
     private void renderTopLayerTooltips(GuiGraphics graphics, int mouseX, int mouseY) {
+        if (hoverSpurBreakdown != null && hoverSpurHeader != null) {
+            graphics.renderTooltip(font, List.of(hoverSpurHeader), Optional.of(hoverSpurBreakdown), mouseX, mouseY);
+            return;
+        }
         if (hoverCargoComponent != null) {
             List<Component> lines = hoverTip == null ? List.of() : List.of(hoverTip);
             graphics.renderTooltip(font, lines, Optional.of(hoverCargoComponent), mouseX, mouseY);
@@ -1340,11 +1360,47 @@ public final class CourierBoardScreen extends Screen {
         BoardRowRenderer.renderLine2(graphics, font, entry, x, BoardRowMetrics.line2Y(rowTop), width);
     }
 
+    private void offerSpurTooltip(long spurs, SpurAmountUi.Bounds bounds, int mouseX, int mouseY) {
+        if (hoverSpurBreakdown != null || bounds == null) {
+            return;
+        }
+        if (bounds.contains(mouseX, mouseY)) {
+            hoverSpurBreakdown = new SpurBreakdownTooltip(spurs);
+            hoverSpurHeader = Component.translatable("ui.aerocouriers.spur.tooltip.header", spurs);
+        }
+    }
+
+    private void captureRowLine2SpurHover(int mouseX, int mouseY) {
+        if (snapshot == null || tab != Tab.BOARD && tab != Tab.MINE) {
+            return;
+        }
+        if (hoverSpurBreakdown != null) {
+            return;
+        }
+        List<BoardSnapshotPayload.BoardEntry> all = listEntries();
+        int visible = visibleRows();
+        int listY = listTop();
+        int sx = screenLeft();
+        int sw = screenW();
+        for (int i = 0; i < visible && scroll + i < all.size(); i++) {
+            BoardSnapshotPayload.BoardEntry entry = all.get(scroll + i);
+            int y = listY + i * rowH();
+            int line2Y = BoardRowMetrics.line2Y(y);
+            Long hovered = BoardRowRenderer.hitLine2SpurAmount(font, entry, sx + 6, line2Y, mouseX, mouseY);
+            if (hovered != null) {
+                hoverSpurBreakdown = new SpurBreakdownTooltip(hovered);
+                hoverSpurHeader = Component.translatable("ui.aerocouriers.spur.tooltip.header", hovered);
+                return;
+            }
+        }
+    }
+
     private void captureRowHoverTips(int mouseX, int mouseY) {
         if (snapshot == null || tab != Tab.BOARD && tab != Tab.MINE) {
             return;
         }
-        if (hoverTip != null || hoverTipLines != null || hoverCargoComponent != null || isOverRowIcon(mouseX, mouseY)) {
+        if (hoverTip != null || hoverTipLines != null || hoverCargoComponent != null || hoverSpurBreakdown != null
+                || isOverRowIcon(mouseX, mouseY)) {
             return;
         }
         List<BoardSnapshotPayload.BoardEntry> all = listEntries();
@@ -1358,6 +1414,10 @@ public final class CourierBoardScreen extends Screen {
             BoardSnapshotPayload.BoardEntry entry = all.get(scroll + i);
             int y = listY + i * rowH();
             if (mouseX < sx + 6 || mouseX >= textRight || mouseY < y || mouseY >= y + rowH()) {
+                continue;
+            }
+            int line2Y = BoardRowMetrics.line2Y(y);
+            if (BoardRowRenderer.hitLine2SpurAmount(font, entry, sx + 6, line2Y, mouseX, mouseY) != null) {
                 continue;
             }
             if (isOverRowAction(mouseX, mouseY) || isOverCustomerArea(entry, y, textRight, mouseX, mouseY)) {

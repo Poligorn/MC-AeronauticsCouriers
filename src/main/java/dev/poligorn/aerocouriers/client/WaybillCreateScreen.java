@@ -39,6 +39,8 @@ public final class WaybillCreateScreen extends Screen {
     private ResourceKey<Level> destinationDimension = Level.OVERWORLD;
     private @Nullable Component notice;
     private @Nullable Component hoverTip;
+    private @Nullable SpurBreakdownTooltip hoverSpurBreakdown;
+    private @Nullable Component hoverSpurHeader;
     private WaybillCreateLayout layout = WaybillCreateLayout.compute(400, 300, 9, 0, false, false, 0, 0);
     private boolean xaeroMap;
     private boolean xaeroList;
@@ -261,6 +263,8 @@ public final class WaybillCreateScreen extends Screen {
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         hoverTip = null;
+        hoverSpurBreakdown = null;
+        hoverSpurHeader = null;
         RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
         super.render(graphics, mouseX, mouseY, partialTick);
         RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
@@ -268,10 +272,14 @@ public final class WaybillCreateScreen extends Screen {
         int textX = layout.paperLeft + WaybillCreateLayout.PAD;
         int titleW = Math.max(32, layout.balanceX - textX - 8);
         drawClipped(graphics, title, textX, layout.headerY, titleW, WaybillCreateGui.TEXT, mouseX, mouseY);
-        drawClipped(graphics, BalanceDisplay.format(preview.balance(), preview.numismaticsEconomy()),
-                layout.balanceX, layout.headerY,
-                layout.paperLeft + layout.paperW - WaybillCreateLayout.PAD - layout.balanceX,
-                WaybillCreateGui.TEXT_MUTED, mouseX, mouseY);
+        int balanceMaxW = layout.paperLeft + layout.paperW - WaybillCreateLayout.PAD - layout.balanceX;
+        SpurAmountUi.Bounds balanceBounds = SpurAmountUi.drawLabeled(
+                graphics, font, BalanceDisplay.balanceLabel(), preview.balance(), layout.balanceX, layout.headerY,
+                balanceMaxW, WaybillCreateGui.TEXT_MUTED, WaybillCreateGui.TEXT_MUTED);
+        if (balanceBounds.contains(mouseX, mouseY)) {
+            hoverSpurBreakdown = new SpurBreakdownTooltip(preview.balance());
+            hoverSpurHeader = Component.translatable("ui.aerocouriers.spur.tooltip.header", preview.balance());
+        }
         Component originText = Component.translatable("ui.aerocouriers.stamp.origin", preview.origin().toShortString());
         Component weightText = Component.translatable("ui.aerocouriers.stamp.weight",
                 String.format(java.util.Locale.ROOT, "%.1f", preview.weight()));
@@ -345,7 +353,9 @@ public final class WaybillCreateScreen extends Screen {
             });
         }
         xaeroPicker.render(graphics, mouseX, mouseY);
-        if (hoverTip != null) {
+        if (hoverSpurBreakdown != null && hoverSpurHeader != null) {
+            graphics.renderTooltip(font, List.of(hoverSpurHeader), Optional.of(hoverSpurBreakdown), mouseX, mouseY);
+        } else if (hoverTip != null) {
             CreateGui.drawSpeechTooltip(graphics, font, hoverTip, mouseX, mouseY, 240);
         }
     }

@@ -37,6 +37,7 @@ public final class AeroCouriersClient {
 
     private static void registerTooltips(RegisterClientTooltipComponentFactoriesEvent event) {
         event.register(BoardCargoTooltip.class, BoardCargoClientTooltip::new);
+        event.register(SpurBreakdownTooltip.class, SpurBreakdownClientTooltip::new);
     }
 
     private static void onClientSetup(FMLClientSetupEvent event) {

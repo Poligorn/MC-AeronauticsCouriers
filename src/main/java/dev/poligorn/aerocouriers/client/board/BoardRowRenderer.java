@@ -2,6 +2,7 @@ package dev.poligorn.aerocouriers.client.board;
 
 import dev.poligorn.aerocouriers.cargo.CargoSize;
 import dev.poligorn.aerocouriers.client.AerocouriersGuiSprites;
+import dev.poligorn.aerocouriers.client.SpurAmountUi;
 import dev.poligorn.aerocouriers.client.TabletGui;
 import dev.poligorn.aerocouriers.contract.AcceptEligibility;
 import dev.poligorn.aerocouriers.net.BoardSnapshotPayload;
@@ -143,8 +144,10 @@ public final class BoardRowRenderer {
     public static void renderLine2(GuiGraphics graphics, Font font, BoardSnapshotPayload.BoardEntry entry, int x, int y,
                                    int width) {
         int statX = x;
-        statX = drawStat(graphics, font, AerocouriersGuiSprites.ICON_COIN, Long.toString(entry.reward()), statX, y);
-        statX = drawStat(graphics, font, AerocouriersGuiSprites.ICON_LOCK, Long.toString(entry.collateral()), statX, y);
+        SpurAmountUi.draw(graphics, font, entry.reward(), statX, y, false, TabletGui.TEXT_MUTED);
+        statX += SpurAmountUi.width(font, entry.reward(), false) + BoardRowMetrics.PAIR_GAP;
+        SpurAmountUi.draw(graphics, font, entry.collateral(), statX, y, true, TabletGui.TEXT_MUTED);
+        statX += SpurAmountUi.width(font, entry.collateral(), true) + BoardRowMetrics.PAIR_GAP;
         String time = Component.translatable("ui.aerocouriers.row.time_compact", entry.minutesLeft()).getString();
         statX = drawStat(graphics, font, AerocouriersGuiSprites.ICON_CLOCK, time, statX, y);
         CargoSize cargoSize = CargoSize.valueOf(entry.size().toUpperCase(Locale.ROOT));
@@ -170,6 +173,30 @@ public final class BoardRowRenderer {
         int rareX = x + Math.max(0, width - icon);
         if (mouseOver(mouseX, mouseY, rareX, y, icon)) {
             return Component.translatable("ui.aerocouriers.row.rare_cargo");
+        }
+        return null;
+    }
+
+    public static @Nullable Long hitLine2SpurAmount(
+            Font font,
+            BoardSnapshotPayload.BoardEntry entry,
+            int x,
+            int y,
+            int mouseX,
+            int mouseY
+    ) {
+        if (mouseY < y || mouseY >= y + BoardRowMetrics.LINE2_ICON) {
+            return null;
+        }
+        int statX = x;
+        int rewardW = SpurAmountUi.width(font, entry.reward(), false);
+        if (mouseX >= statX && mouseX < statX + rewardW) {
+            return entry.reward();
+        }
+        statX += rewardW + BoardRowMetrics.PAIR_GAP;
+        int collW = SpurAmountUi.width(font, entry.collateral(), true);
+        if (mouseX >= statX && mouseX < statX + collW) {
+            return entry.collateral();
         }
         return null;
     }

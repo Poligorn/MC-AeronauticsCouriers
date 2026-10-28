@@ -17,6 +17,7 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.FormattedCharSequence;
 import net.neoforged.neoforge.network.PacketDistributor;
+import org.jetbrains.annotations.Nullable;
 
 /** Tablet-style confirmation before accepting a contract (GDD §7.2 risk transparency). */
 public final class BoardAcceptConfirmScreen extends Screen {
@@ -34,6 +35,8 @@ public final class BoardAcceptConfirmScreen extends Screen {
     private int boxX;
     private int boxY;
     private int btnY;
+    private @Nullable SpurBreakdownTooltip hoverSpurBreakdown;
+    private @Nullable Component hoverSpurHeader;
 
     public BoardAcceptConfirmScreen(Screen parent, BoardSnapshotPayload.BoardEntry entry,
                                     BoardSnapshotPayload.BoardProfile profile, int activeHauls) {
@@ -66,7 +69,12 @@ public final class BoardAcceptConfirmScreen extends Screen {
         boxW = Math.min(360, width - 48);
         int textW = boxW - PAD * 2;
         int contentH = PAD + font.lineHeight + 6;
-        for (Component line : bodyLines()) {
+        for (Component line : bodyLinesBeforeMoney()) {
+            contentH += wrappedHeight(line, textW) + LINE_GAP;
+        }
+        contentH += font.lineHeight + LINE_GAP;
+        contentH += font.lineHeight + LINE_GAP;
+        for (Component line : bodyLinesAfterMoney()) {
             contentH += wrappedHeight(line, textW) + LINE_GAP;
         }
         contentH += LINE_GAP;
@@ -120,6 +128,8 @@ public final class BoardAcceptConfirmScreen extends Screen {
 
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        hoverSpurBreakdown = null;
+        hoverSpurHeader = null;
         relayout();
         for (Renderable widget : renderables) {
             if (widget instanceof TabletButton button) {
@@ -132,12 +142,61 @@ public final class BoardAcceptConfirmScreen extends Screen {
         int textX = boxX + PAD;
         int textW = boxW - PAD * 2;
         int y = boxY + PAD + font.lineHeight + 6;
-        for (Component line : bodyLines()) {
+        for (Component line : bodyLinesBeforeMoney()) {
+            y = drawWrapped(graphics, line, textX, y, textW, TabletGui.TEXT) + LINE_GAP;
+        }
+        SpurAmountUi.Bounds rewardBounds = SpurAmountUi.drawLabeled(
+                graphics, font,
+                Component.translatable("ui.aerocouriers.accept.confirm.reward.label").getString(),
+                entry.reward(), textX, y, textW, TabletGui.TEXT, TabletGui.TEXT);
+        offerSpurTooltip(entry.reward(), rewardBounds, mouseX, mouseY);
+        y += font.lineHeight + LINE_GAP;
+        long collateral = collateralDue();
+        SpurAmountUi.Bounds collateralBounds = SpurAmountUi.drawLabeled(
+                graphics, font,
+                Component.translatable("ui.aerocouriers.accept.confirm.collateral.label").getString(),
+                collateral, textX, y, textW, TabletGui.TEXT, TabletGui.TEXT);
+        offerSpurTooltip(collateral, collateralBounds, mouseX, mouseY);
+        y += font.lineHeight + LINE_GAP;
+        for (Component line : bodyLinesAfterMoney()) {
             y = drawWrapped(graphics, line, textX, y, textW, TabletGui.TEXT) + LINE_GAP;
         }
         y = drawWrapped(graphics, riskLine(), textX, y + LINE_GAP, textW, TabletGui.TEXT_WARN) + LINE_GAP;
         drawWrapped(graphics, Component.translatable("ui.aerocouriers.accept.confirm.cargo_damage"),
                 textX, y, textW, TabletGui.TEXT_WARN);
+        if (hoverSpurBreakdown != null && hoverSpurHeader != null) {
+            graphics.renderTooltip(font, List.of(hoverSpurHeader), Optional.of(hoverSpurBreakdown), mouseX, mouseY);
+        }
+    }
+
+    private void offerSpurTooltip(long spurs, SpurAmountUi.Bounds bounds, int mouseX, int mouseY) {
+        if (hoverSpurBreakdown != null) {
+            return;
+        }
+        if (bounds.contains(mouseX, mouseY)) {
+            hoverSpurBreakdown = new SpurBreakdownTooltip(spurs);
+            hoverSpurHeader = Component.translatable("ui.aerocouriers.spur.tooltip.header", spurs);
+        }
+    }
+
+    private List<Component> bodyLinesBeforeMoney() {
+        List<Component> lines = new ArrayList<>();
+        lines.add(Component.translatable("ui.aerocouriers.accept.confirm.id", entry.shortId()));
+        lines.add(Component.translatable("ui.aerocouriers.accept.confirm.customer", entry.customerName()));
+        lines.add(Component.translatable("ui.aerocouriers.accept.confirm.route",
+                BoardEntryPickup.routeOriginLabel(entry), entry.destinationLabel(), entry.distance()));
+        return lines;
+    }
+
+    private List<Component> bodyLinesAfterMoney() {
+        List<Component> lines = new ArrayList<>();
+        lines.add(Component.translatable("ui.aerocouriers.accept.confirm.deadline",
+                entry.deadlineMinutes(), entry.minutesLeft()));
+        lines.add(Component.translatable("ui.aerocouriers.accept.confirm.rank", entry.requiredRank().displayName()));
+        CargoSize cargoSize = CargoSize.valueOf(entry.size().toUpperCase(Locale.ROOT));
+        lines.add(Component.translatable("ui.aerocouriers.accept.confirm.size", AcceptEligibility.sizeLabel(cargoSize)));
+        acceptBlocked().ifPresent(denial -> lines.add(denial.message().copy().withStyle(style -> style.withColor(0xFF5555))));
+        return lines;
     }
 
     private long collateralDue() {
@@ -150,23 +209,6 @@ public final class BoardAcceptConfirmScreen extends Screen {
         return entry.villageCustomer()
                 ? Component.translatable("contract.aerocouriers.risk.npc", due, entry.reward())
                 : Component.translatable("contract.aerocouriers.risk", due, entry.reward());
-    }
-
-    private List<Component> bodyLines() {
-        List<Component> lines = new ArrayList<>();
-        lines.add(Component.translatable("ui.aerocouriers.accept.confirm.id", entry.shortId()));
-        lines.add(Component.translatable("ui.aerocouriers.accept.confirm.customer", entry.customerName()));
-        lines.add(Component.translatable("ui.aerocouriers.accept.confirm.route",
-                BoardEntryPickup.routeOriginLabel(entry), entry.destinationLabel(), entry.distance()));
-        lines.add(Component.translatable("ui.aerocouriers.accept.confirm.reward", entry.reward()));
-        lines.add(Component.translatable("ui.aerocouriers.accept.confirm.collateral", collateralDue()));
-        lines.add(Component.translatable("ui.aerocouriers.accept.confirm.deadline",
-                entry.deadlineMinutes(), entry.minutesLeft()));
-        lines.add(Component.translatable("ui.aerocouriers.accept.confirm.rank", entry.requiredRank().displayName()));
-        CargoSize cargoSize = CargoSize.valueOf(entry.size().toUpperCase(Locale.ROOT));
-        lines.add(Component.translatable("ui.aerocouriers.accept.confirm.size", AcceptEligibility.sizeLabel(cargoSize)));
-        acceptBlocked().ifPresent(denial -> lines.add(denial.message().copy().withStyle(style -> style.withColor(0xFF5555))));
-        return lines;
     }
 
     private int drawWrapped(GuiGraphics graphics, Component text, int x, int y, int maxWidth, int color) {
