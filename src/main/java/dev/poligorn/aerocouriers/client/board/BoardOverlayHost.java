@@ -33,6 +33,9 @@ public interface BoardOverlayHost {
 
     void openCustomerProfile(BoardSnapshotPayload.BoardEntry entry);
 
+    /** Profiles are served only for online players; offline customers get a hint instead of a silent click. */
+    boolean customerOnline(BoardSnapshotPayload.BoardEntry entry);
+
     void openAcceptConfirm(BoardSnapshotPayload.BoardEntry entry);
 
     void closeDetails();

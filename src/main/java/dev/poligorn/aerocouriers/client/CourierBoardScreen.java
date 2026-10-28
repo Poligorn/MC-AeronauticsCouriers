@@ -102,7 +102,7 @@ public final class CourierBoardScreen extends Screen {
     static final int ADMIN_SUB_GAP = 4;
     private static final int FILTER_SUMMARY_H = 11;
     private static final int VILLAGE_REFRESH_HEADER_H = 11;
-    private static final int MINE_ACTION_W = 58;
+    private static final int MINE_ACTION_W = 72;
     private static final int STATUS_LINE_H = 11;
     private static final int LIST_HEADING_H = 11;
     private static final int COUNT_LABEL_H = 13;
@@ -566,6 +566,13 @@ public final class CourierBoardScreen extends Screen {
     private boolean cardLocked(BoardSnapshotPayload.BoardEntry entry) {
         return tab == Tab.BOARD && snapshot != null && entry.state() == ContractState.OPEN
                 && BoardAcceptUi.rowRankLocked(entry, snapshot.profile().rank());
+    }
+
+    private boolean customerOnline(BoardSnapshotPayload.BoardEntry entry) {
+        if (minecraft == null || minecraft.getConnection() == null || entry.customerId().isEmpty()) {
+            return false;
+        }
+        return minecraft.getConnection().getPlayerInfo(entry.customerId().get()) != null;
     }
 
     private void onCardProfileClick(UUID orderId) {
@@ -1515,7 +1522,8 @@ public final class CourierBoardScreen extends Screen {
                     && icon.kind() == TabletCardIconButton.Kind.PROFILE) {
                 snapshot.find(icon.orderId()).ifPresent(entry -> hoverTip = entry.villageCustomer()
                         ? Component.translatable("ui.aerocouriers.card.customer_village", entry.customerName())
-                        : Component.translatable("ui.aerocouriers.card.customer_profile", entry.customerName()));
+                        : Component.translatable(customerOnline(entry) ? "ui.aerocouriers.card.customer_profile"
+                        : "ui.aerocouriers.card.customer_offline", entry.customerName()));
                 return;
             }
         }
@@ -2166,6 +2174,11 @@ public final class CourierBoardScreen extends Screen {
         @Override
         public void openCustomerProfile(BoardSnapshotPayload.BoardEntry entry) {
             onCustomerClick(entry);
+        }
+
+        @Override
+        public boolean customerOnline(BoardSnapshotPayload.BoardEntry entry) {
+            return CourierBoardScreen.this.customerOnline(entry);
         }
 
         @Override

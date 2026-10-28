@@ -88,6 +88,9 @@ final class DevSeedCommands {
         manager.publishDevPlayerOrder(server, FAKE_ISSUER, point(riverbend), home,
                 List.of(new ItemStack(Items.COOKED_BEEF, 16)),
                 CargoSize.S, 96, 120, 25, 40);
+        manager.publishDevPlayerOrder(server, player.getUUID(), point(north), point(pine),
+                List.of(new ItemStack(Items.BOOK, 10), new ItemStack(Items.MAP, 2)),
+                CargoSize.S, 300, 200, 45, 5);
 
         Economy economy = Economies.get(server);
         long current = economy.balance(player.getUUID());

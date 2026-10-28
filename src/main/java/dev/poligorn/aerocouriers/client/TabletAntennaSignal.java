@@ -27,6 +27,8 @@ public final class TabletAntennaSignal {
 
     private static long triggeredAt = Long.MIN_VALUE;
     private static Direction direction = Direction.SEND;
+    /** Accept sends the order and the server mails a notice right after; the receive pulse waits for the send. */
+    private static boolean receiveQueued;
 
     private TabletAntennaSignal() {
     }
@@ -35,12 +37,18 @@ public final class TabletAntennaSignal {
     public static void triggerSend() {
         direction = Direction.SEND;
         triggeredAt = Util.getMillis();
+        receiveQueued = false;
     }
 
     /** Incoming notification alert (inbox / order updates). Restarts animation if already playing. */
     public static void triggerReceive() {
+        long now = Util.getMillis();
+        if (direction == Direction.SEND && triggeredAt != Long.MIN_VALUE && now - triggeredAt < DURATION_MS) {
+            receiveQueued = true;
+            return;
+        }
         direction = Direction.RECEIVE;
-        triggeredAt = Util.getMillis();
+        triggeredAt = now;
     }
 
     public static void render(GuiGraphics graphics, int frameX, int frameY) {
@@ -48,6 +56,12 @@ public final class TabletAntennaSignal {
             return;
         }
         long elapsed = Util.getMillis() - triggeredAt;
+        if (elapsed > DURATION_MS && receiveQueued) {
+            receiveQueued = false;
+            direction = Direction.RECEIVE;
+            triggeredAt = Util.getMillis();
+            elapsed = 0L;
+        }
         boolean animate = CouriersClientConfig.uiAnimations();
         if (elapsed > DURATION_MS || !animate && elapsed > LAMP_FLASH_MS) {
             return;
@@ -68,7 +82,14 @@ public final class TabletAntennaSignal {
                 continue;
             }
             int argb = ((int) (alpha * 255.0F) << 24) | (send ? SEND_COLOR : RECEIVE_COLOR);
+            int shadow = (int) (alpha * 110.0F) << 24;
             int[] points = ARC_POINTS[i];
+            for (int k = 0; k < points.length; k += 2) {
+                int dx = points[k];
+                int dy = points[k + 1];
+                graphics.fill(tipX + dx + 1, tipY + dy, tipX + dx + 2, tipY + dy + 1, shadow);
+                graphics.fill(tipX - dx - 2, tipY + dy, tipX - dx - 1, tipY + dy + 1, shadow);
+            }
             for (int k = 0; k < points.length; k += 2) {
                 int dx = points[k];
                 int dy = points[k + 1];

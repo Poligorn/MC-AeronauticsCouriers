@@ -285,9 +285,12 @@ public final class BoardDetailsOverlay extends TabletOverlay {
 
         label(graphics, font, "ui.aerocouriers.details.type", ry);
         String type = Component.translatable(e.villageCustomer()
-                ? "ui.aerocouriers.details.type.village" : "ui.aerocouriers.details.type.player",
-                Component.translatable(e.originStation()
-                        ? "ui.aerocouriers.details.kind.station" : "ui.aerocouriers.details.kind.point")).getString();
+                ? "ui.aerocouriers.details.type.village" : "ui.aerocouriers.details.type.player").getString();
+        if (e.originRevealed()) {
+            type = Component.translatable(e.originStation()
+                    ? "ui.aerocouriers.details.kind.station" : "ui.aerocouriers.details.kind.point").getString()
+                    + " · " + type;
+        }
         TabletDraw.text(graphics, font, TabletDraw.trunc(font, type, RIGHT_EDGE - VALUE_X), VALUE_X, ry,
                 TabletPalette.TXT);
         ry += 13;
@@ -328,7 +331,8 @@ public final class BoardDetailsOverlay extends TabletOverlay {
         TabletDraw.text(graphics, font, name, VALUE_X + 10, ry, color);
         TabletDraw.hline(graphics, VALUE_X + 10, VALUE_X + 10 + font.width(name) - 1, ry + 8, color);
         if (hover) {
-            String tip = Component.translatable("ui.aerocouriers.details.customer_profile").getString();
+            String tip = Component.translatable(host.customerOnline(e) ? "ui.aerocouriers.details.customer_profile"
+                    : "ui.aerocouriers.details.customer_offline").getString();
             int tx = VALUE_X + 10 + font.width(name) + 8;
             int ty = ry - 2;
             TabletDraw.box(graphics, tx, ty, tx + font.width(tip) + 9, ty + 12, TabletPalette.TOOLTIP_BG,

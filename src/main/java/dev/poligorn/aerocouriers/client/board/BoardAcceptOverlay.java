@@ -101,10 +101,14 @@ public final class BoardAcceptOverlay extends TabletOverlay {
         PixelGlyphs.draw(graphics, CLOSE_X + 3, CLOSE_Y + 3, PixelGlyphs.CROSS, TabletPalette.CORAL);
         BoardDetailsOverlay.drawRoute(graphics, font, e, 10, 4, CLOSE_X - 18, TabletPalette.TXT);
 
-        String kind = Component.translatable(e.originStation()
-                ? "ui.aerocouriers.details.kind.station" : "ui.aerocouriers.details.kind.point").getString();
-        TabletDraw.text(graphics, font, Component.translatable("ui.aerocouriers.accept.subtitle", kind, e.shortId(),
-                BoardCardRenderer.roman(e.requiredRank())).getString(), 10, 19, TabletPalette.LOCKC);
+        String subtitle = Component.translatable("ui.aerocouriers.accept.subtitle", e.shortId(),
+                BoardCardRenderer.roman(e.requiredRank())).getString();
+        if (e.originRevealed()) {
+            subtitle = Component.translatable(e.originStation()
+                    ? "ui.aerocouriers.details.kind.station" : "ui.aerocouriers.details.kind.point").getString()
+                    + " · " + subtitle;
+        }
+        TabletDraw.text(graphics, font, subtitle, 10, 19, TabletPalette.LOCKC);
         TabletDraw.hline(graphics, 8, W - 9, 31, TabletPalette.DIVIDER);
 
         int ry = 37;
