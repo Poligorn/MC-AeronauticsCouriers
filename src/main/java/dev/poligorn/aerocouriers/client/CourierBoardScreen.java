@@ -190,6 +190,7 @@ public final class CourierBoardScreen extends Screen {
             tabEffects.onTabSwitch(mainTabs.get(tab), mainTabs.get(value));
             if (value == Tab.PROFILE) {
                 ClientBoard.clearViewedProfile();
+                pulseProfileXpBar();
             }
             if (value == Tab.MAIL) {
                 PacketDistributor.sendToServer(MarkNotificationsReadPayload.INSTANCE);
@@ -256,6 +257,7 @@ public final class CourierBoardScreen extends Screen {
         scroll = 0;
         listRowButtonKey = null;
         syncMainTabSelection();
+        pulseProfileXpBar();
         refreshBoardContent();
         init();
     }
@@ -372,6 +374,19 @@ public final class CourierBoardScreen extends Screen {
                     Component.translatable("ui.aerocouriers.profile.claim_trainee"),
                     b -> ClientBoard.claimTraineeLicense()));
         }
+    }
+
+    private void pulseProfileXpBar() {
+        if (snapshot == null) {
+            return;
+        }
+        BoardSnapshotPayload.BoardProfile profile = ClientBoard.activeProfile(snapshot.profile());
+        if (profile.neverHadPilotLicense()) {
+            return;
+        }
+        LicenseRank rank = profile.rank();
+        RankProgress.State progress = RankProgress.state(profile.xp(), rank, profile.rankXpThresholds());
+        profileXpEffects.onProfileTabShown(profile.xp(), progress.fraction());
     }
 
     @Override
@@ -852,40 +867,37 @@ public final class CourierBoardScreen extends Screen {
         y = drawProfileIssuerBlock(graphics, profile, statsX, y, statsW);
         y += 4;
 
-        RankProgress.State progress = RankProgress.state(profile.xp(), rank, profile.rankXpThresholds());
-        profileXpEffects.onProfile(rank, progress.fraction());
-        float xpFraction = profileXpEffects.displayedFraction(progress.fraction());
-        float rankFlash = profileXpEffects.rankFlashStrength();
-        if (progress.maxRank()) {
-            y = drawProfileStatBlock(graphics,
-                    Component.translatable("ui.aerocouriers.profile.max_rank"), statsX, y, statsW, TabletGui.TEXT);
-        } else {
-            profileRankBarLayout = ProfileRankBar.draw(
-                    graphics, font, statsX, y, statsW, xpFraction, progress.xpInRank(), progress.span(), rankFlash);
-            y += profileRankBarLayout.blockH() + 2;
-            LicenseRank next = RankProgress.nextRank(rank);
-            y = drawProfileStatBlock(graphics,
-                    Component.translatable("ui.aerocouriers.profile.xp_to_next", next.displayName(),
-                            progress.remainingToNext()),
-                    statsX, y, statsW, TabletGui.TEXT_MUTED);
-            Optional<Component> gate = RankProgress.promotionRequirement(
-                    profile.xp(), profile.delivered(), profile.failed(), rank, profile.rankXpThresholds(),
-                    profile.aceMinSuccessPercent());
-            if (gate.isPresent()) {
-                y = drawProfileStatBlock(graphics, gate.get(), statsX, y, statsW, TabletGui.TEXT_WARN);
-            }
-        }
-        y += 4;
-
         if (profile.neverHadPilotLicense()) {
             if (viewingOther) {
-                y = drawProfileStatBlock(graphics,
+                drawProfileStatBlock(graphics,
                         Component.translatable("ui.aerocouriers.profile.license.none_other"),
                         statsX, y, statsW, TabletGui.TEXT_MUTED);
-            } else {
-                y = profileTraineeButtonY(profile) + 18 + 4;
             }
         } else {
+            RankProgress.State progress = RankProgress.state(profile.xp(), rank, profile.rankXpThresholds());
+            profileXpEffects.onProfile(rank, progress.fraction(), profile.xp());
+            float xpFraction = profileXpEffects.displayedFraction(progress.fraction());
+            float rankFlash = profileXpEffects.rankFlashStrength();
+            if (progress.maxRank()) {
+                y = drawProfileStatBlock(graphics,
+                        Component.translatable("ui.aerocouriers.profile.max_rank"), statsX, y, statsW, TabletGui.TEXT);
+            } else {
+                profileRankBarLayout = ProfileRankBar.draw(
+                        graphics, font, statsX, y, statsW, xpFraction, progress.xpInRank(), progress.span(), rankFlash);
+                y += profileRankBarLayout.blockH() + 2;
+                LicenseRank next = RankProgress.nextRank(rank);
+                y = drawProfileStatBlock(graphics,
+                        Component.translatable("ui.aerocouriers.profile.xp_to_next", next.displayName(),
+                                progress.remainingToNext()),
+                        statsX, y, statsW, TabletGui.TEXT_MUTED);
+                Optional<Component> gate = RankProgress.promotionRequirement(
+                        profile.xp(), profile.delivered(), profile.failed(), rank, profile.rankXpThresholds(),
+                        profile.aceMinSuccessPercent());
+                if (gate.isPresent()) {
+                    y = drawProfileStatBlock(graphics, gate.get(), statsX, y, statsW, TabletGui.TEXT_WARN);
+                }
+            }
+            y += 4;
             y = drawProfileStatBlock(graphics,
                     Component.translatable("ui.aerocouriers.profile.delivered", profile.delivered()), statsX, y, statsW,
                     TabletGui.TEXT);
@@ -904,10 +916,9 @@ public final class CourierBoardScreen extends Screen {
             String rate = completed == 0
                     ? String.format(Locale.ROOT, "%.0f%%", 100.0)
                     : String.format(Locale.ROOT, "%.0f%%", profile.delivered() * 100.0 / completed);
-            y = drawProfileStatBlock(graphics,
+            drawProfileStatBlock(graphics,
                     Component.translatable("ui.aerocouriers.profile.success_rate", rate), statsX, y, statsW,
                     TabletGui.TEXT);
-            y += 4;
         }
     }
 
@@ -947,22 +958,30 @@ public final class CourierBoardScreen extends Screen {
     }
 
     private int profileTraineeButtonY(BoardSnapshotPayload.BoardProfile profile) {
+        int statsW = profileStatsWidth(screenLeft());
         int y = profileContentTop() + 4 + PROFILE_ICON_SIZE + 4;
-        LicenseRank rank = profile.rank();
-        RankProgress.State progress = RankProgress.state(profile.xp(), rank, profile.rankXpThresholds());
-        if (progress.maxRank()) {
-            y += PROFILE_LINE_HEIGHT + 2;
-        } else {
-            y += Math.max(ProfileRankBar.BAR_HEIGHT, font.lineHeight) + 2;
-            y += PROFILE_LINE_HEIGHT;
-            Optional<Component> gate = RankProgress.promotionRequirement(
-                    profile.xp(), profile.delivered(), profile.failed(), rank, profile.rankXpThresholds(),
-                    profile.aceMinSuccessPercent());
-            if (gate.isPresent()) {
-                y += PROFILE_LINE_HEIGHT;
-            }
+        return measureProfileIssuerBlock(profile, statsW, y) + 4;
+    }
+
+    private int measureProfileIssuerBlock(BoardSnapshotPayload.BoardProfile profile, int statsW, int y) {
+        y = measureProfileStatBlock(Component.translatable("ui.aerocouriers.profile.issuer.heading"), statsW, y);
+        if (profile.issuerOrders() <= 0) {
+            return measureProfileStatBlock(Component.translatable("ui.aerocouriers.profile.issuer.empty"), statsW, y);
         }
-        return y + 4;
+        dev.poligorn.aerocouriers.license.IssuerStats issuer = profile.issuerStats();
+        Component line1 = Component.translatable("ui.aerocouriers.profile.issuer.line1",
+                issuer.orders(), issuer.averageReward());
+        y = measureProfileStatBlock(line1, statsW, y);
+        CargoSize common = profile.issuerMostCommonSize().orElse(CargoSize.M);
+        Component sizeLabel = AcceptEligibility.sizeLabel(common);
+        Component line2 = Component.translatable("ui.aerocouriers.profile.issuer.line2",
+                issuer.averageWeight(), sizeLabel);
+        return measureProfileStatBlock(line2, statsW, y);
+    }
+
+    private int measureProfileStatBlock(Component line, int width, int y) {
+        int lines = font.split(line, width).size();
+        return y + lines * PROFILE_LINE_HEIGHT + 2;
     }
 
     private @Nullable LivingEntity resolveProfilePreviewEntity() {

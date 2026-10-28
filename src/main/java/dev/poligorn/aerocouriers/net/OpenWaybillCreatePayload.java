@@ -26,7 +26,8 @@ public record OpenWaybillCreatePayload(
     public static final StreamCodec<RegistryFriendlyByteBuf, OpenWaybillCreatePayload> STREAM_CODEC =
             StreamCodec.composite(
                     BlockPos.STREAM_CODEC, OpenWaybillCreatePayload::origin,
-                    ItemStack.STREAM_CODEC.apply(ByteBufCodecs.list(27)), OpenWaybillCreatePayload::cargo,
+                    ItemStack.STREAM_CODEC.apply(ByteBufCodecs.list(BoardSnapshotPayload.CARGO_STACK_LIMIT)),
+                    OpenWaybillCreatePayload::cargo,
                     ByteBufCodecs.DOUBLE, OpenWaybillCreatePayload::weight,
                     ByteBufCodecs.VAR_LONG, OpenWaybillCreatePayload::balance,
                     BoardSnapshotPayload.StationHint.STREAM_CODEC.apply(ByteBufCodecs.list(64)),

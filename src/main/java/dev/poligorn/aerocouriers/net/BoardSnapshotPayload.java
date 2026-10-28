@@ -303,7 +303,7 @@ public record BoardSnapshotPayload(
             LicenseRank.STREAM_CODEC.encode(buf, e.requiredRank);
             ByteBufCodecs.VAR_LONG.encode(buf, e.deadlineMinutes);
             ByteBufCodecs.VAR_LONG.encode(buf, e.minutesLeft);
-            CargoLine.STREAM_CODEC.apply(ByteBufCodecs.list(27)).encode(buf, e.manifest);
+            CargoLine.STREAM_CODEC.apply(ByteBufCodecs.list(CARGO_STACK_LIMIT)).encode(buf, e.manifest);
             ByteBufCodecs.optional(UUIDUtil.STREAM_CODEC).encode(buf, e.customerId);
             ByteBufCodecs.STRING_UTF8.encode(buf, e.customerName);
             buf.writeBoolean(e.villageCustomer);
@@ -337,7 +337,7 @@ public record BoardSnapshotPayload(
                     LicenseRank.STREAM_CODEC.decode(buf),
                     ByteBufCodecs.VAR_LONG.decode(buf),
                     ByteBufCodecs.VAR_LONG.decode(buf),
-                    CargoLine.STREAM_CODEC.apply(ByteBufCodecs.list(27)).decode(buf),
+                    CargoLine.STREAM_CODEC.apply(ByteBufCodecs.list(CARGO_STACK_LIMIT)).decode(buf),
                     ByteBufCodecs.optional(UUIDUtil.STREAM_CODEC).decode(buf),
                     ByteBufCodecs.STRING_UTF8.decode(buf),
                     buf.readBoolean(),

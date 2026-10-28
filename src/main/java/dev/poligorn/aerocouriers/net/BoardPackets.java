@@ -231,7 +231,9 @@ public final class BoardPackets {
             sendUiSound(player, CouriersUiSoundPayload.Kind.ORDER_DENY);
             return;
         }
-        List<ItemStack> cargo = access.get().items();
+        List<ItemStack> cargo = access.get().items().stream()
+                .limit(BoardSnapshotPayload.CARGO_STACK_LIMIT)
+                .toList();
         double weight = Weights.of(cargo);
         StationAtlas atlas = StationAtlas.get(player.server);
         boolean allStations = player.hasPermissions(OP);

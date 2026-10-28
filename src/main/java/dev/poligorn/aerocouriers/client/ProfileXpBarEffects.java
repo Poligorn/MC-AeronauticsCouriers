@@ -5,50 +5,76 @@ import net.minecraft.Util;
 
 /** Smooth XP fill and rank-up flash for the profile tab. */
 public final class ProfileXpBarEffects {
-    private static final long XP_MS = 600L;
+    private static final long XP_MS = 200L;
     private static final long FLASH_MS = 300L;
+    private static final float EPS = 0.0001F;
 
-    private boolean initialized;
     private float displayedFraction;
     private float animFrom;
     private float animTo;
     private long animStart = Long.MIN_VALUE;
     private LicenseRank lastRank = LicenseRank.RANK1;
     private long rankFlashStart = Long.MIN_VALUE;
+    private int lastXp = Integer.MIN_VALUE;
 
-    public void onProfile(LicenseRank rank, float targetFraction) {
-        if (!initialized) {
-            initialized = true;
+    /** Ease-out fill from empty when the profile tab is opened. */
+    public void onProfileTabShown(int xp, float targetFraction) {
+        lastXp = xp;
+        displayedFraction = 0.0F;
+        animFrom = 0.0F;
+        animTo = targetFraction;
+        animStart = TabletAnim.enabled() ? Util.getMillis() : Long.MIN_VALUE;
+        if (!TabletAnim.enabled()) {
             displayedFraction = targetFraction;
-            lastRank = rank;
-            return;
         }
+    }
+
+    public void onProfile(LicenseRank rank, float targetFraction, int xp) {
         if (rank.level() > lastRank.level()) {
             rankFlashStart = Util.getMillis();
         }
         lastRank = rank;
-        if (animStart != Long.MIN_VALUE && TabletAnim.progress(animStart, XP_MS) < 1.0F) {
-            animTo = targetFraction;
+        commitAnimationIfFinished();
+
+        if (xp == lastXp && animStart == Long.MIN_VALUE
+                && Math.abs(targetFraction - displayedFraction) < EPS) {
             return;
         }
-        if (Math.abs(targetFraction - displayedFraction) < 0.0001F) {
+        lastXp = xp;
+
+        if (animStart != Long.MIN_VALUE) {
+            if (Math.abs(targetFraction - animTo) < EPS) {
+                return;
+            }
+            displayedFraction = interpolatedValue();
+            animStart = Long.MIN_VALUE;
+        }
+
+        if (Math.abs(targetFraction - displayedFraction) < EPS) {
             displayedFraction = targetFraction;
             return;
         }
+
         animFrom = displayedFraction;
         animTo = targetFraction;
-        animStart = Util.getMillis();
+        animStart = TabletAnim.enabled() ? Util.getMillis() : Long.MIN_VALUE;
+        if (!TabletAnim.enabled()) {
+            displayedFraction = targetFraction;
+            animStart = Long.MIN_VALUE;
+        }
     }
 
     public float displayedFraction(float targetFraction) {
         if (!TabletAnim.enabled()) {
+            displayedFraction = targetFraction;
+            animStart = Long.MIN_VALUE;
             return targetFraction;
         }
         if (animStart == Long.MIN_VALUE) {
             return displayedFraction;
         }
+        float value = interpolatedValue();
         float p = TabletAnim.progress(animStart, XP_MS);
-        float value = TabletAnim.lerp(animFrom, animTo, p);
         if (p >= 1.0F) {
             displayedFraction = animTo;
             animStart = Long.MIN_VALUE;
@@ -67,5 +93,20 @@ public final class ProfileXpBarEffects {
             return 0.0F;
         }
         return 1.0F - p;
+    }
+
+    private void commitAnimationIfFinished() {
+        if (animStart == Long.MIN_VALUE) {
+            return;
+        }
+        if (TabletAnim.progress(animStart, XP_MS) >= 1.0F) {
+            displayedFraction = animTo;
+            animStart = Long.MIN_VALUE;
+        }
+    }
+
+    private float interpolatedValue() {
+        float p = TabletAnim.progress(animStart, XP_MS);
+        return TabletAnim.lerp(animFrom, animTo, p);
     }
 }
