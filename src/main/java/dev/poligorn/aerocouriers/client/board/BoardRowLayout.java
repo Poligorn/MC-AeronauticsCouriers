@@ -23,4 +23,17 @@ public record BoardRowLayout(
         int textRight = mapX - 4;
         return new BoardRowLayout(mapX, crateX, secondaryX, SECONDARY_W, hasSecondary, textRight);
     }
+
+    /** Open board rows: map + crate icons only (mockup 1_board). */
+    /** Inset from list right edge to card content (mockup x1-11). */
+    public static final int CARD_RIGHT_INSET = 11;
+
+    public static BoardRowLayout forOpenBoardRow(int sx, int sw) {
+        int cardRight = sx + sw - LIST_PAD_RIGHT - CARD_RIGHT_INSET;
+        int rewardRight = cardRight - 44;
+        int crateX = cardRight - 20;
+        int mapX = cardRight - 38;
+        int textRight = rewardRight;
+        return new BoardRowLayout(mapX, crateX, 0, 0, false, textRight);
+    }
 }

@@ -163,6 +163,7 @@ public final class PayloadCodecGameTests {
                 -1,
                 0,
                 true,
-                false);
+                false,
+                0L);
     }
 }

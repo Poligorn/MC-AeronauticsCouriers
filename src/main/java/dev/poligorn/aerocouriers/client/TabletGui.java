@@ -10,16 +10,22 @@ import net.minecraft.util.FormattedCharSequence;
 
 /** Brass handheld monitor chrome for {@link CourierBoardScreen} only. */
 public final class TabletGui {
-    public static final int TEXT = 0xFFAF55;
-    public static final int TEXT_HEADER = 0xFFAF55;
-    public static final int TEXT_BRIGHT = 0xFFD25D;
-    public static final int TEXT_MUTED = 0xC87A3A;
+    public static final int TEXT = TabletMockupPalette.TXT;
+    public static final int TEXT_HEADER = TabletMockupPalette.TXT;
+    public static final int TEXT_BRIGHT = TabletMockupPalette.GOLD;
+    public static final int TEXT_MUTED = TabletMockupPalette.SEC;
     public static final int TEXT_WARN = 0xFF9E00;
     public static final int TEXT_BAD = 0xFF7A2F;
     public static final int TEXT_OK = 0xFFAF55;
     public static final int TEXT_BUTTON = 0xFFAF55;
     public static final int TEXT_BUTTON_HOVER = 0xFF9E00;
     public static final int TEXT_BUTTON_DISABLED = 0x873B00;
+    /** Semantic palette (board mockups 2026-10-28). */
+    public static final int TEXT_REWARD = TabletMockupPalette.GOLD;
+    public static final int TEXT_RISK = TabletMockupPalette.CORAL;
+    public static final int TEXT_ACCENT = TabletMockupPalette.TEAL;
+    public static final int TEXT_INFO = TabletMockupPalette.BLUE;
+    public static final int TEXT_DISABLED = TabletMockupPalette.LOCKC;
 
     /** Dark cavity fill (#0A0200) with a calm but visible grid (#241006). */
     private static final int SCREEN_FILL = 0xFF0A0200;
@@ -55,6 +61,12 @@ public final class TabletGui {
         return frameY - antennaOverhangTop();
     }
 
+    /** Simulated bold: second pass shifted 1 px (mockup reward text). */
+    public static void drawBoldString(GuiGraphics graphics, Font font, String text, int x, int y, int color) {
+        graphics.drawString(font, text, x + 1, y, color, false);
+        graphics.drawString(font, text, x, y, color, false);
+    }
+
     private TabletGui() {
     }
 
@@ -79,6 +91,10 @@ public final class TabletGui {
         }
         graphics.blitSprite(AerocouriersGuiSprites.TABLET_DECOR_ANTENNA,
                 antennaLeft(frameX), antennaDrawY(frameY), ANTENNA_W, ANTENNA_H);
+    }
+
+    /** Signal arcs and lamp flash — draw after frame chrome so nothing covers them. */
+    public static void drawAntennaSignal(GuiGraphics graphics, int frameX, int frameY) {
         TabletAntennaSignal.render(graphics, frameX, frameY);
     }
 
@@ -171,8 +187,8 @@ public final class TabletGui {
             graphics.fill(x, y, x + w, y + h, ROW_FILL);
             graphics.renderOutline(x, y, w, h, 0xFFB36833);
             if (selected) {
-                graphics.fill(x + 1, y + 1, x + w - 1, y + h - 1, 0x30FFAF55);
-                graphics.renderOutline(x, y, w, h, 0xFFFFAF55);
+                graphics.fill(x, y + 1, x + 3, y + h - 1, TEXT_REWARD);
+                graphics.fill(x + 1, y + 1, x + w - 1, y + h - 1, 0x18FFAF55);
             } else if (hoverStrength > 0.001F) {
                 graphics.fill(x + 1, y + 1, x + w - 1, y + h - 1, TabletAnim.withAlpha(0x30FFAF55, hoverStrength));
                 if (hoverStrength > 0.35F) {

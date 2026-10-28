@@ -12,6 +12,9 @@ import dev.poligorn.aerocouriers.net.OpenBoardPayload;
 import dev.poligorn.aerocouriers.net.OpenWaybillCreatePayload;
 import dev.poligorn.aerocouriers.net.PlayerProfilePayload;
 import dev.poligorn.aerocouriers.net.RequestPlayerProfilePayload;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
@@ -30,6 +33,8 @@ public final class ClientBoard {
     private static final AdminOrdersFilterState adminOrderFilters = new AdminOrdersFilterState();
     private static final MineTabFilterState mineCurrentFilters = MineTabFilterState.defaults(MineListSection.CURRENT);
     private static final MineTabFilterState mineHistoryFilters = MineTabFilterState.defaults(MineListSection.HISTORY);
+    private static @Nullable BoardSnapshotPayload.BoardProfile lastBoardProfile;
+    private static final Set<UUID> knownBoardOrderIds = new HashSet<>();
     private static @Nullable UUID viewedProfileId;
     private static @Nullable BoardSnapshotPayload.BoardProfile viewedProfile;
 
@@ -96,6 +101,7 @@ public final class ClientBoard {
 
     public static void apply(BoardSnapshotPayload payload) {
         requireTablet = payload.requireTablet();
+        lastBoardProfile = payload.profile();
         if (VillageRefreshUi.isEnabled(payload.nextVillageRefreshGameTime())) {
             VillageRefreshUi.applySnapshot(payload.nextVillageRefreshGameTime(), payload.snapshotOverworldGameTime());
         } else {
@@ -131,6 +137,31 @@ public final class ClientBoard {
 
     public static boolean viewingOtherProfile() {
         return viewedProfileId != null && viewedProfile != null;
+    }
+
+    public static BoardSnapshotPayload.BoardProfile boardProfile() {
+        return lastBoardProfile != null ? lastBoardProfile : BoardSnapshotPayload.BoardProfile.EMPTY;
+    }
+
+    /** True when this open order id was not on the board in a previous snapshot pass. */
+    public static boolean isNewBoardOrder(UUID id, List<BoardSnapshotPayload.BoardEntry> openPage) {
+        if (knownBoardOrderIds.isEmpty() && !openPage.isEmpty()) {
+            for (BoardSnapshotPayload.BoardEntry entry : openPage) {
+                knownBoardOrderIds.add(entry.id());
+            }
+            return false;
+        }
+        return !knownBoardOrderIds.contains(id);
+    }
+
+    public static void markBoardOrderSeen(UUID id) {
+        knownBoardOrderIds.add(id);
+    }
+
+    public static void markAllBoardOrdersSeen(List<BoardSnapshotPayload.BoardEntry> openPage) {
+        for (BoardSnapshotPayload.BoardEntry entry : openPage) {
+            knownBoardOrderIds.add(entry.id());
+        }
     }
 
     public static @Nullable UUID viewedProfileId() {
