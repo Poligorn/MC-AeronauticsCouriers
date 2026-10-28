@@ -477,7 +477,17 @@ public final class BoardPackets {
                 customerNext,
                 customerBonus,
                 originRevealed,
-                crossDimension);
+                crossDimension,
+                originRevealed && isStation(atlas, contract.origin()),
+                isStation(atlas, contract.destination()),
+                contract.size().slots(),
+                contract.size().maxWeight(),
+                contract.weight(),
+                Math.max(0, (now - contract.timing().createdAt()) / Pricing.TICKS_PER_MINUTE));
+    }
+
+    private static boolean isStation(StationAtlas atlas, Destination dest) {
+        return atlas.byPos(dest.dimension(), dest.pos()).isPresent();
     }
 
     private static String label(StationAtlas atlas, Destination dest) {

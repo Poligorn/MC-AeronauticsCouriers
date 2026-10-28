@@ -288,10 +288,22 @@ public record BoardSnapshotPayload(
             int customerReputationNext,
             int customerReputationBonusPercent,
             boolean originRevealed,
-            boolean crossDimension
+            boolean crossDimension,
+            boolean originStation,
+            boolean destinationStation,
+            /** Container slot count and weight limit from the server config (client config may differ). */
+            int slots,
+            int maxWeight,
+            double weightValue,
+            /** Game minutes since the order was published. */
+            long ageMinutes
     ) {
         public static final StreamCodec<RegistryFriendlyByteBuf, BoardEntry> STREAM_CODEC =
                 StreamCodec.of(BoardEntry::write, BoardEntry::read);
+
+        public long rewardPer1000Blocks() {
+            return distance <= 0 ? 0 : reward * 1000L / distance;
+        }
 
         private static void write(RegistryFriendlyByteBuf buf, BoardEntry e) {
             UUIDUtil.STREAM_CODEC.encode(buf, e.id);
@@ -326,6 +338,12 @@ public record BoardSnapshotPayload(
             ByteBufCodecs.VAR_INT.encode(buf, e.customerReputationBonusPercent);
             buf.writeBoolean(e.originRevealed);
             buf.writeBoolean(e.crossDimension);
+            buf.writeBoolean(e.originStation);
+            buf.writeBoolean(e.destinationStation);
+            ByteBufCodecs.VAR_INT.encode(buf, e.slots);
+            ByteBufCodecs.VAR_INT.encode(buf, e.maxWeight);
+            buf.writeDouble(e.weightValue);
+            ByteBufCodecs.VAR_LONG.encode(buf, e.ageMinutes);
         }
 
         private static BoardEntry read(RegistryFriendlyByteBuf buf) {
@@ -359,7 +377,13 @@ public record BoardSnapshotPayload(
                     ByteBufCodecs.VAR_INT.decode(buf),
                     ByteBufCodecs.VAR_INT.decode(buf),
                     buf.readBoolean(),
-                    buf.readBoolean());
+                    buf.readBoolean(),
+                    buf.readBoolean(),
+                    buf.readBoolean(),
+                    ByteBufCodecs.VAR_INT.decode(buf),
+                    ByteBufCodecs.VAR_INT.decode(buf),
+                    buf.readDouble(),
+                    ByteBufCodecs.VAR_LONG.decode(buf));
         }
     }
 
