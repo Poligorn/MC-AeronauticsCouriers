@@ -20,6 +20,12 @@ public final class TabletGui {
     public static final int TEXT_BUTTON = 0xFFAF55;
     public static final int TEXT_BUTTON_HOVER = 0xFF9E00;
     public static final int TEXT_BUTTON_DISABLED = 0x873B00;
+    /** Semantic palette (board mockups 2026-10-28). */
+    public static final int TEXT_REWARD = 0xFFFBB03B;
+    public static final int TEXT_RISK = 0xFFFF7F7F;
+    public static final int TEXT_ACCENT = 0xFF55FFFF;
+    public static final int TEXT_INFO = 0xFF66CCFF;
+    public static final int TEXT_DISABLED = 0xFF806050;
 
     /** Dark cavity fill (#0A0200) with a calm but visible grid (#241006). */
     private static final int SCREEN_FILL = 0xFF0A0200;
@@ -53,6 +59,12 @@ public final class TabletGui {
     /** Sprite Y so the steel mount covers {@code [frameY, frameY + ANTENNA_MOUNT_H)}. */
     public static int antennaDrawY(int frameY) {
         return frameY - antennaOverhangTop();
+    }
+
+    /** Simulated bold: second pass shifted 1 px (mockup reward text). */
+    public static void drawBoldString(GuiGraphics graphics, Font font, String text, int x, int y, int color) {
+        graphics.drawString(font, text, x + 1, y, color, false);
+        graphics.drawString(font, text, x, y, color, false);
     }
 
     private TabletGui() {
@@ -171,8 +183,8 @@ public final class TabletGui {
             graphics.fill(x, y, x + w, y + h, ROW_FILL);
             graphics.renderOutline(x, y, w, h, 0xFFB36833);
             if (selected) {
-                graphics.fill(x + 1, y + 1, x + w - 1, y + h - 1, 0x30FFAF55);
-                graphics.renderOutline(x, y, w, h, 0xFFFFAF55);
+                graphics.fill(x, y + 1, x + 3, y + h - 1, TEXT_REWARD);
+                graphics.fill(x + 1, y + 1, x + w - 1, y + h - 1, 0x18FFAF55);
             } else if (hoverStrength > 0.001F) {
                 graphics.fill(x + 1, y + 1, x + w - 1, y + h - 1, TabletAnim.withAlpha(0x30FFAF55, hoverStrength));
                 if (hoverStrength > 0.35F) {

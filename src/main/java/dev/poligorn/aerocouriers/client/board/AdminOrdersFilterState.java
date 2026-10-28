@@ -149,6 +149,7 @@ public final class AdminOrdersFilterState {
             case DISTANCE -> Comparator.comparingInt(BoardSnapshotPayload.AdminActiveEntry::distance);
             case DEADLINE -> Comparator.comparingLong(BoardSnapshotPayload.AdminActiveEntry::minutesLeft);
             case COLLATERAL -> Comparator.comparingLong(BoardSnapshotPayload.AdminActiveEntry::collateral);
+            case EFFICIENCY -> Comparator.comparingLong(e -> e.reward() * 1000L / Math.max(1, e.distance()));
         };
     }
 }

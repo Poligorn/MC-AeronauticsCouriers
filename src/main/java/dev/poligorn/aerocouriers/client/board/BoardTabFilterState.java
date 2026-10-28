@@ -62,7 +62,7 @@ public final class BoardTabFilterState {
 
     public void cycleSortKey() {
         BoardSortKey[] values = {BoardSortKey.REWARD, BoardSortKey.DISTANCE, BoardSortKey.DEADLINE,
-                BoardSortKey.COLLATERAL};
+                BoardSortKey.COLLATERAL, BoardSortKey.EFFICIENCY};
         int idx = 0;
         for (int i = 0; i < values.length; i++) {
             if (values[i] == sortKey) {

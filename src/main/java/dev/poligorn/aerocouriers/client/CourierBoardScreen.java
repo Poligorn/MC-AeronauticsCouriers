@@ -5,6 +5,10 @@ import dev.poligorn.aerocouriers.client.board.BoardCargoTooltip;
 import dev.poligorn.aerocouriers.client.board.BoardRowDebug;
 import dev.poligorn.aerocouriers.client.board.BoardRowLayout;
 import dev.poligorn.aerocouriers.client.board.BoardRowMetrics;
+import dev.poligorn.aerocouriers.client.board.BoardAcceptOverlay;
+import dev.poligorn.aerocouriers.client.board.BoardOpenRowRenderer;
+import dev.poligorn.aerocouriers.client.board.BoardOrderDetailsOverlay;
+import dev.poligorn.aerocouriers.client.board.BoardRankLabels;
 import dev.poligorn.aerocouriers.client.board.BoardAcceptUi;
 import dev.poligorn.aerocouriers.client.board.BoardEntryPickup;
 import dev.poligorn.aerocouriers.client.board.BoardRowRenderer;
@@ -24,6 +28,7 @@ import dev.poligorn.aerocouriers.client.board.TabletRowIconButton;
 import dev.poligorn.aerocouriers.client.board.VillageRefreshUi;
 import dev.poligorn.aerocouriers.contract.ContractState;
 import dev.poligorn.aerocouriers.license.LicenseRank;
+import dev.poligorn.aerocouriers.contract.RankRules;
 import dev.poligorn.aerocouriers.contract.TraineeRules;
 import dev.poligorn.aerocouriers.net.BoardSnapshotPayload;
 import dev.poligorn.aerocouriers.registry.ModComponents;
@@ -56,6 +61,7 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
 import net.minecraft.client.gui.components.Renderable;
 import com.mojang.blaze3d.systems.RenderSystem;
+import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
@@ -131,6 +137,16 @@ public final class CourierBoardScreen extends Screen {
     private int mailScroll;
     private @Nullable String mailRowButtonKey;
 
+    private enum TabletOverlay {
+        NONE, DETAILS, ACCEPT
+    }
+
+    private TabletOverlay tabletOverlay = TabletOverlay.NONE;
+    private @Nullable BoardSnapshotPayload.BoardEntry overlayEntry;
+    private @Nullable BoardOrderDetailsOverlay detailsOverlay;
+    private @Nullable BoardAcceptOverlay acceptOverlay;
+    private final List<AbstractWidget> overlayWidgets = new ArrayList<>();
+
     public CourierBoardScreen(@Nullable BoardSnapshotPayload snapshot) {
         super(Component.translatable("ui.aerocouriers.board.title"));
         applySnapshot(snapshot);
@@ -201,6 +217,7 @@ public final class CourierBoardScreen extends Screen {
             }
         }
         tab = value;
+        closeTabletOverlay();
         scroll = 0;
         mailScroll = 0;
         listRowButtonKey = null;
@@ -581,15 +598,156 @@ public final class CourierBoardScreen extends Screen {
         });
     }
 
-    private void onAccept(BoardSnapshotPayload.BoardEntry entry) {
-        selected = entry.id();
-        if (minecraft != null) {
-            BoardSnapshotPayload.BoardProfile profile = snapshot != null
-                    ? snapshot.profile()
-                    : BoardSnapshotPayload.BoardProfile.EMPTY;
-            int activeHauls = BoardAcceptUi.countActiveHauls(snapshot.mine());
-            minecraft.setScreen(new BoardAcceptConfirmScreen(this, entry, profile, activeHauls));
+    private void openOrderDetails(BoardSnapshotPayload.BoardEntry entry) {
+        if (snapshot == null || tab != Tab.BOARD) {
+            return;
         }
+        selected = entry.id();
+        ClientBoard.markBoardOrderSeen(entry.id());
+        overlayEntry = entry;
+        tabletOverlay = TabletOverlay.DETAILS;
+        rebuildTabletOverlay();
+    }
+
+    private void openAcceptOverlay(BoardSnapshotPayload.BoardEntry entry) {
+        if (snapshot == null) {
+            return;
+        }
+        selected = entry.id();
+        ClientBoard.markBoardOrderSeen(entry.id());
+        overlayEntry = entry;
+        tabletOverlay = TabletOverlay.ACCEPT;
+        rebuildTabletOverlay();
+    }
+
+    void closeTabletOverlay() {
+        if (tabletOverlay == TabletOverlay.NONE) {
+            return;
+        }
+        disposeTabletOverlay();
+        tabletOverlay = TabletOverlay.NONE;
+        overlayEntry = null;
+    }
+
+    private void disposeTabletOverlay() {
+        if (detailsOverlay != null) {
+            detailsOverlay.dispose();
+            detailsOverlay = null;
+        }
+        if (acceptOverlay != null) {
+            acceptOverlay.dispose();
+            acceptOverlay = null;
+        }
+        for (AbstractWidget widget : overlayWidgets) {
+            removeWidget(widget);
+        }
+        overlayWidgets.clear();
+    }
+
+    private void rebuildTabletOverlay() {
+        disposeTabletOverlay();
+        if (snapshot == null || overlayEntry == null) {
+            return;
+        }
+        int cx = cavityLeft();
+        int cy = cavityTop();
+        int cw = cavityW();
+        int ch = cavityH();
+        if (tabletOverlay == TabletOverlay.DETAILS) {
+            detailsOverlay = new BoardOrderDetailsOverlay(overlayHost(), overlayEntry, snapshot.profile(),
+                    snapshot.balance());
+            detailsOverlay.init(cx, cy, cw, ch);
+        } else if (tabletOverlay == TabletOverlay.ACCEPT) {
+            int activeHauls = BoardAcceptUi.countActiveHauls(snapshot.mine());
+            acceptOverlay = new BoardAcceptOverlay(acceptOverlayHost(), overlayEntry, snapshot.profile(), activeHauls,
+                    snapshot.balance());
+            acceptOverlay.init(cx, cy, cw, ch);
+        }
+    }
+
+    private BoardOrderDetailsOverlay.Host overlayHost() {
+        return new BoardOrderDetailsOverlay.Host() {
+            @Override
+            public Font font() {
+                return CourierBoardScreen.this.font;
+            }
+
+            @Override
+            public void addOverlayWidget(AbstractWidget widget) {
+                overlayWidgets.add(widget);
+                addRenderableWidget(widget);
+            }
+
+            @Override
+            public void removeOverlayWidgets(List<AbstractWidget> widgets) {
+                for (AbstractWidget widget : widgets) {
+                    removeWidget(widget);
+                    overlayWidgets.remove(widget);
+                }
+            }
+
+            @Override
+            public void closeOverlay() {
+                closeTabletOverlay();
+            }
+
+            @Override
+            public void openAccept(BoardSnapshotPayload.BoardEntry entry) {
+                openAcceptOverlay(entry);
+            }
+        };
+    }
+
+    private BoardAcceptOverlay.Host acceptOverlayHost() {
+        return new BoardAcceptOverlay.Host() {
+            @Override
+            public Font font() {
+                return CourierBoardScreen.this.font;
+            }
+
+            @Override
+            public void addOverlayWidget(AbstractWidget widget) {
+                overlayWidgets.add(widget);
+                addRenderableWidget(widget);
+            }
+
+            @Override
+            public void removeOverlayWidgets(List<AbstractWidget> widgets) {
+                for (AbstractWidget widget : widgets) {
+                    removeWidget(widget);
+                    overlayWidgets.remove(widget);
+                }
+            }
+
+            @Override
+            public void closeOverlay() {
+                closeTabletOverlay();
+            }
+
+            @Override
+            public void onAccepted() {
+                // snapshot arrives from server
+            }
+        };
+    }
+
+    private void renderTabletOverlay(GuiGraphics graphics, int mouseX, int mouseY) {
+        if (tabletOverlay == TabletOverlay.NONE || overlayEntry == null) {
+            return;
+        }
+        int cx = cavityLeft();
+        int cy = cavityTop();
+        int cw = cavityW();
+        int ch = cavityH();
+        if (tabletOverlay == TabletOverlay.DETAILS && detailsOverlay != null) {
+            detailsOverlay.render(graphics, cx, cy, cw, ch, mouseX, mouseY);
+        } else if (tabletOverlay == TabletOverlay.ACCEPT && acceptOverlay != null) {
+            acceptOverlay.render(graphics, cx, cy, cw, ch, mouseX, mouseY);
+        }
+    }
+
+    private void onAccept(BoardSnapshotPayload.BoardEntry entry) {
+        openAcceptOverlay(entry);
     }
 
     private long collateralDue(BoardSnapshotPayload.BoardEntry entry) {
@@ -704,6 +862,7 @@ public final class CourierBoardScreen extends Screen {
                     renderChromeWidgets(graphics, contentMouseX, contentMouseY, partialTick);
                     renderContentWidgets(graphics, contentMouseX, contentMouseY, partialTick);
                     drawTabPanelContent(graphics, contentMouseX, contentMouseY, partialTick);
+                    renderTabletOverlay(graphics, contentMouseX, contentMouseY);
                     if (tab == Tab.PROFILE) {
                         renderProfileWidgetsOnTop(graphics, contentMouseX, contentMouseY, partialTick);
                     }
@@ -715,7 +874,7 @@ public final class CourierBoardScreen extends Screen {
                     snapshot == null, tabLoading, partialTick);
         });
         RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
-        if (!tabEffects.isTabLoadingActive()) {
+        if (!tabEffects.isTabLoadingActive() && tabletOverlay == TabletOverlay.NONE) {
             updateRowIconHover(contentMouseX, contentMouseY);
             captureRowLine1HoverTips(contentMouseX, contentMouseY);
             captureRowLine2SpurHover(contentMouseX, contentMouseY);
@@ -758,7 +917,11 @@ public final class CourierBoardScreen extends Screen {
         int sy = screenTop();
         int headingY = headingY();
         if (tab != Tab.PROFILE) {
-            graphics.drawString(font, tabHeading(), sx, headingY, TabletGui.TEXT, false);
+            if (tab == Tab.BOARD && snapshot != null) {
+                renderBoardStatusHeading(graphics, sx, headingY);
+            } else {
+                graphics.drawString(font, tabHeading(), sx, headingY, TabletGui.TEXT, false);
+            }
         }
         if (snapshot != null && tab == Tab.BOARD && showsTraineeHint(snapshot.profile())) {
             Component hint = Component.translatable("ui.aerocouriers.trainee.hint",
@@ -806,6 +969,10 @@ public final class CourierBoardScreen extends Screen {
 
     @Override
     public void onClose() {
+        if (snapshot != null) {
+            ClientBoard.markAllBoardOrdersSeen(snapshot.board());
+        }
+        closeTabletOverlay();
         if (tabletChrome.openClose().isClosing()) {
             return;
         }
@@ -832,6 +999,10 @@ public final class CourierBoardScreen extends Screen {
             return true;
         }
         if (blocksTabPanelInput()) {
+            return true;
+        }
+        if (keyCode == 256 && tabletOverlay != TabletOverlay.NONE) {
+            closeTabletOverlay();
             return true;
         }
         return super.keyPressed(keyCode, scanCode, modifiers);
@@ -1209,10 +1380,17 @@ public final class CourierBoardScreen extends Screen {
             graphics.disableScissor();
         }
 
+        if (tab == Tab.BOARD && !all.isEmpty()) {
+            graphics.drawString(font, Component.translatable("ui.aerocouriers.board.order_count", all.size()),
+                    sx, scrollCounterY(), TabletGui.TEXT_MUTED, false);
+        }
         if (all.size() > visible) {
+            int scrollX = sx + screenW() - font.width(
+                    Component.translatable("ui.aerocouriers.scroll", scroll + 1,
+                            Math.min(scroll + visible, all.size()), all.size()).getString());
             graphics.drawString(font, Component.translatable("ui.aerocouriers.scroll",
                             scroll + 1, Math.min(scroll + visible, all.size()), all.size()),
-                    sx, scrollCounterY(), TabletGui.TEXT_MUTED, false);
+                    scrollX, scrollCounterY(), TabletGui.TEXT_MUTED, false);
             float thumb = visible / (float) all.size();
             float progress = scroll / (float) Math.max(1, all.size() - visible);
             TabletGui.drawScrollbar(graphics, sx + screenW() - 6, listTop(), visible * rowH(), progress, thumb);
@@ -1275,7 +1453,39 @@ public final class CourierBoardScreen extends Screen {
         }
     }
 
+    private void renderBoardStatusHeading(GuiGraphics graphics, int sx, int headingY) {
+        BoardSnapshotPayload.BoardProfile profile = snapshot.profile();
+        Component rankLine = BoardRankLabels.rankLine(profile.rank());
+        graphics.drawString(font, rankLine, sx, headingY, TabletGui.TEXT_REWARD, false);
+        int active = BoardAcceptUi.countActiveHauls(snapshot.mine());
+        int maxActive = RankRules.limits(profile.rank()).maxActive();
+        long deposit = activeCollateralInWork(profile);
+        Component prefix = Component.translatable("ui.aerocouriers.board.active_status_prefix", active, maxActive);
+        String prefixStr = prefix.getString();
+        String depStr = Long.toString(deposit);
+        int totalW = font.width(prefixStr) + font.width(depStr);
+        int x = sx + screenW() - totalW;
+        graphics.drawString(font, prefixStr, x, headingY, TabletGui.TEXT, false);
+        graphics.drawString(font, depStr, x + font.width(prefixStr), headingY, TabletGui.TEXT_RISK, false);
+    }
+
+    private long activeCollateralInWork(BoardSnapshotPayload.BoardProfile profile) {
+        long sum = 0;
+        for (BoardSnapshotPayload.BoardEntry entry : snapshot.mine()) {
+            if ("courier".equals(entry.role()) && entry.state().isActive()) {
+                sum += TraineeRules.collateralDueAtAccept(entry.collateral(), entry.villageCustomer(),
+                        profile.villageDelivered(), profile.traineeFreeContracts());
+            }
+        }
+        return sum;
+    }
+
     private void renderVillageRefreshHeader(GuiGraphics graphics, int sx) {
+        if (tab == Tab.BOARD) {
+            int y = villageRefreshHeaderY();
+            graphics.drawString(font, Component.translatable("ui.aerocouriers.board.heading.board"), sx, y,
+                    TabletGui.TEXT, false);
+        }
         if (!showsVillageRefreshHeader()) {
             return;
         }
@@ -1378,11 +1588,18 @@ public final class CourierBoardScreen extends Screen {
 
     private void renderOrderRow(GuiGraphics graphics, BoardSnapshotPayload.BoardEntry entry, int rowTop, int x, int width,
                                 int mouseX, int mouseY) {
-        if (tab == Tab.BOARD && snapshot != null && entry.state() == ContractState.OPEN
-                && BoardAcceptUi.rowRankLocked(entry, snapshot.profile().rank())) {
-            int h = rowH();
-            graphics.fill(x - 2, rowTop, x + width + 2, rowTop + h, 0x66000000);
-            graphics.blitSprite(AerocouriersGuiSprites.ICON_LOCK, x + width - 18, rowTop + 4, 16, 16);
+        if (tab == Tab.BOARD && snapshot != null && entry.state() == ContractState.OPEN) {
+            boolean rankLocked = BoardAcceptUi.rowRankLocked(entry, snapshot.profile().rank());
+            if (rankLocked) {
+                int h = rowH();
+                graphics.fill(x - 2, rowTop, x + width + 2, rowTop + h, 0x66000000);
+            }
+            BoardRowLayout layout = BoardRowLayout.forRow(screenLeft(), screenW(), hasSecondaryAction(entry, true));
+            BoardOpenRowRenderer.render(graphics, font, entry, snapshot.profile(), x,
+                    layout.textRight(), rowTop, rankLocked,
+                    ClientBoard.isNewBoardOrder(entry.id(), snapshot.board()),
+                    BoardOpenRowRenderer.isUrgent(entry));
+            return;
         }
         BoardRowRenderer.renderLine1(
                 graphics, font, entry, x, BoardRowMetrics.line1Y(rowTop), width, mouseX, mouseY, false, null);
@@ -1648,6 +1865,13 @@ public final class CourierBoardScreen extends Screen {
         if (button == 0 && snapshot != null && (tab == Tab.BOARD || tab == Tab.MINE)) {
             int mx = (int) mouseX;
             int my = (int) adjustedY;
+            if (tabletOverlay == TabletOverlay.DETAILS && detailsOverlay != null
+                    && detailsOverlay.clickCustomer(mx, my)) {
+                return true;
+            }
+            if (tabletOverlay != TabletOverlay.NONE) {
+                return super.mouseClicked(mouseX, adjustedY, button);
+            }
             if (!isOverRowAction(mx, my)) {
                 BoardSnapshotPayload.BoardEntry customer = hitCustomerRow(mx, my);
                 if (customer != null) {
@@ -1657,6 +1881,10 @@ public final class CourierBoardScreen extends Screen {
                 BoardSnapshotPayload.BoardEntry row = hitRowBody(mx, my);
                 if (row != null) {
                     selected = row.id();
+                    if (tab == Tab.BOARD && row.state() == ContractState.OPEN) {
+                        openOrderDetails(row);
+                        return true;
+                    }
                     if (row.state().isActive() && "courier".equals(row.role())) {
                         ClientNavigation.setFocusedOrder(row.id());
                     }
@@ -1983,7 +2211,7 @@ public final class CourierBoardScreen extends Screen {
                     ? Component.translatable("ui.aerocouriers.mine.empty.current")
                     : Component.translatable("ui.aerocouriers.mine.empty.history");
         }
-        return Component.translatable("contract.aerocouriers.list.none");
+        return Component.translatable("ui.aerocouriers.board.empty");
     }
 
     private void focusScrollToSelected() {

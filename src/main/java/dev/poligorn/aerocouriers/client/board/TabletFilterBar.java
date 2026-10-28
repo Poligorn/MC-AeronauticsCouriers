@@ -132,7 +132,8 @@ public final class TabletFilterBar {
         String rankGlyph = TabletFilterGlyphs.rank(font);
         Component rankValue = state.onlyAvailable()
                 ? Component.translatable("ui.aerocouriers.filters.rank_available.short_on")
-                : Component.translatable("ui.aerocouriers.filters.rank_available.short_off");
+                : Component.translatable("ui.aerocouriers.filters.rank_up_to",
+                        BoardRankLabels.roman(ClientBoard.boardProfile().rank()));
         Component rankLabel = TabletFilterGlyphs.label(rankGlyph, rankValue);
         int rankW = chipWidth(rankLabel);
         if (x + rankW > sx + contentW) {

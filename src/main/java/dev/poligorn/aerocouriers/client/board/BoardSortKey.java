@@ -13,7 +13,8 @@ public enum BoardSortKey {
     REWARD,
     DISTANCE,
     DEADLINE,
-    COLLATERAL;
+    COLLATERAL,
+    EFFICIENCY;
 
     public static Comparator<BoardSnapshotPayload.BoardEntry> comparator(
             BoardSortKey key, Map<UUID, Integer> sourceIndex) {
@@ -23,6 +24,7 @@ public enum BoardSortKey {
             case DISTANCE -> Comparator.comparingInt(BoardSnapshotPayload.BoardEntry::distance);
             case DEADLINE -> Comparator.comparingLong(BoardSnapshotPayload.BoardEntry::minutesLeft);
             case COLLATERAL -> Comparator.comparingLong(BoardSnapshotPayload.BoardEntry::collateral);
+            case EFFICIENCY -> Comparator.comparingLong(BoardRewardEfficiency::perThousandBlocks);
         };
     }
 
