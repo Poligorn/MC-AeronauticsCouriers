@@ -9,9 +9,10 @@ PLAYER_VISUAL_HEIGHT_BLOCKS = 2.05
 BODY_HEIGHT_FRAC = 0.85
 FEET_MARGIN_FRAC = 0.06
 HEAD_MARGIN_FRAC = 0.07
-FRAME_BORDER = 16
+FRAME_BORDER = 30
 CONTENT_INSET = 14
-ANTENNA_H = 64
+ANTENNA_W = 24
+ANTENNA_H = 84
 ANTENNA_BASE_H = FRAME_BORDER
 TAB_Y = 2
 TAB_H = 20
@@ -20,7 +21,7 @@ SCREEN_BOTTOM_PAD = 4
 
 
 def panel_w(width: int) -> int:
-    return min(max(int(width * 0.72), 400), max(400, width - 48))
+    return min(max(int(width * 0.74), 428), max(428, width - 40))
 
 
 def panel_h(height: int) -> int:

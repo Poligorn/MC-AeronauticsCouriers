@@ -2,6 +2,7 @@ package dev.poligorn.aerocouriers.net;
 
 import dev.poligorn.aerocouriers.AeronauticsCouriers;
 import dev.poligorn.aerocouriers.client.ClientCouriersSounds;
+import dev.poligorn.aerocouriers.client.TabletAntennaSignal;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
@@ -24,7 +25,10 @@ public record CouriersUiSoundPayload(Kind kind) implements CustomPacketPayload {
                               net.neoforged.neoforge.network.handling.IPayloadContext context) {
         context.enqueueWork(() -> {
             switch (payload.kind()) {
-                case ORDER_ACCEPT -> ClientCouriersSounds.playOrderAccept();
+                case ORDER_ACCEPT -> {
+                    ClientCouriersSounds.playOrderAccept();
+                    TabletAntennaSignal.trigger();
+                }
                 case ORDER_DENY -> ClientCouriersSounds.playOrderDeny();
             }
         });

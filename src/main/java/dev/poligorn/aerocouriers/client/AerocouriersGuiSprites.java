@@ -26,6 +26,9 @@ public final class AerocouriersGuiSprites {
     public static final ResourceLocation TABLET_SCROLLER = id("tablet_scroller");
     public static final ResourceLocation TABLET_SCROLLER_TRACK = id("tablet_scroller_track");
     public static final ResourceLocation TABLET_DECOR_ANTENNA = id("tablet_decor_antenna");
+    public static final ResourceLocation TABLET_ANTENNA_SIGNAL_1 = id("tablet_antenna_signal_1");
+    public static final ResourceLocation TABLET_ANTENNA_SIGNAL_2 = id("tablet_antenna_signal_2");
+    public static final ResourceLocation TABLET_ANTENNA_SIGNAL_3 = id("tablet_antenna_signal_3");
     public static final ResourceLocation TABLET_LOADING_GEAR = id("tablet_loading_gear");
     public static final ResourceLocation ENVELOPE_TABLET = id("icon/envelope_tablet");
     public static final ResourceLocation BELL = id("icon/bell");

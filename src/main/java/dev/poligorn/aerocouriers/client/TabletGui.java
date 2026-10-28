@@ -30,12 +30,14 @@ public final class TabletGui {
     private static final int GRID_STEP = 9;
 
     /** Nine-slice brass + bevel before the screen cavity (matches {@code tablet_frame}). */
-    public static final int FRAME_BORDER = 16;
+    public static final int FRAME_BORDER = 30;
     /** Inset from the inner screen cavity to tabs, headings, lists, and chrome (all tablet UIs). */
     public static final int CONTENT_INSET = 14;
-    /** Antenna sprite size (2× legacy; matches {@code gen_tablet_antenna}). */
-    public static final int ANTENNA_W = 20;
-    public static final int ANTENNA_H = 64;
+    /** Antenna sprite size (matches {@code gen_tablet_antenna}). */
+    public static final int ANTENNA_W = 24;
+    public static final int ANTENNA_H = 84;
+    /** Y center of the tip lamp in {@link #ANTENNA_H} sprite space. */
+    public static final int ANTENNA_LAMP_CY = 6;
     /** Brass foot height in the sprite; equals top {@link #FRAME_BORDER} bezel when drawn flush. */
     public static final int ANTENNA_BASE_H = FRAME_BORDER;
 
@@ -78,6 +80,7 @@ public final class TabletGui {
         }
         graphics.blitSprite(AerocouriersGuiSprites.TABLET_DECOR_ANTENNA,
                 antennaLeft(frameX), antennaDrawY(frameY), ANTENNA_W, ANTENNA_H);
+        TabletAntennaSignal.render(graphics, frameX, frameY);
     }
 
     public static void drawScreenBackground(GuiGraphics graphics, int x, int y, int w, int h, float partialTick) {

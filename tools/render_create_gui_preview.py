@@ -11,9 +11,9 @@ from PIL import Image, ImageDraw, ImageFont
 ROOT = Path(__file__).resolve().parents[1]
 SPRITES = ROOT / "src/main/resources/assets/aerocouriers/textures/gui/sprites"
 
-FRAME_BORDER = 16
-CONTENT_INSET = 9
-ANTENNA_W, ANTENNA_H = 20, 64
+FRAME_BORDER = 30
+CONTENT_INSET = 14
+ANTENNA_W, ANTENNA_H = 24, 84
 ANTENNA_BASE_H = FRAME_BORDER
 ROW_ACTION_RESERVE = 158
 GRID_STEP = 9

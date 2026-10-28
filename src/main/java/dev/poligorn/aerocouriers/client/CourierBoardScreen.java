@@ -1818,7 +1818,7 @@ public final class CourierBoardScreen extends Screen {
     }
 
     private int panelW() {
-        return Mth.clamp((int) (width * 0.72), 400, Math.max(400, width - 48));
+        return Mth.clamp((int) (width * 0.74), 428, Math.max(428, width - 40));
     }
 
     private int panelH() {
