@@ -26,6 +26,27 @@ public final class SpurAmountUi {
         return w;
     }
 
+    /** Tab-row balance: coin + {@code gapPx} + amount, right-aligned at {@code rightX}. */
+    public static Bounds drawRightAligned(
+            GuiGraphics graphics,
+            Font font,
+            long amount,
+            int rightX,
+            int y,
+            int coinSize,
+            int gapPx,
+            int textColor
+    ) {
+        String value = Long.toString(amount);
+        int textW = font.width(value);
+        int totalW = coinSize + gapPx + textW;
+        int x = rightX - totalW;
+        SpurCoinGraphics.drawGenericCoin(graphics, x, y, coinSize);
+        int textY = y + Math.max(0, coinSize - 8);
+        graphics.drawString(font, value, x + coinSize + gapPx, textY, textColor, false);
+        return new Bounds(x, y, totalW, Math.max(coinSize, 9));
+    }
+
     public static Bounds draw(
             GuiGraphics graphics,
             Font font,

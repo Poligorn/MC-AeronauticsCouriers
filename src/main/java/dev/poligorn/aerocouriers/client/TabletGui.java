@@ -10,10 +10,10 @@ import net.minecraft.util.FormattedCharSequence;
 
 /** Brass handheld monitor chrome for {@link CourierBoardScreen} only. */
 public final class TabletGui {
-    public static final int TEXT = 0xFFAF55;
-    public static final int TEXT_HEADER = 0xFFAF55;
-    public static final int TEXT_BRIGHT = 0xFFD25D;
-    public static final int TEXT_MUTED = 0xC87A3A;
+    public static final int TEXT = TabletMockupPalette.TXT;
+    public static final int TEXT_HEADER = TabletMockupPalette.TXT;
+    public static final int TEXT_BRIGHT = TabletMockupPalette.GOLD;
+    public static final int TEXT_MUTED = TabletMockupPalette.SEC;
     public static final int TEXT_WARN = 0xFF9E00;
     public static final int TEXT_BAD = 0xFF7A2F;
     public static final int TEXT_OK = 0xFFAF55;
@@ -21,11 +21,11 @@ public final class TabletGui {
     public static final int TEXT_BUTTON_HOVER = 0xFF9E00;
     public static final int TEXT_BUTTON_DISABLED = 0x873B00;
     /** Semantic palette (board mockups 2026-10-28). */
-    public static final int TEXT_REWARD = 0xFFFBB03B;
-    public static final int TEXT_RISK = 0xFFFF7F7F;
-    public static final int TEXT_ACCENT = 0xFF55FFFF;
-    public static final int TEXT_INFO = 0xFF66CCFF;
-    public static final int TEXT_DISABLED = 0xFF806050;
+    public static final int TEXT_REWARD = TabletMockupPalette.GOLD;
+    public static final int TEXT_RISK = TabletMockupPalette.CORAL;
+    public static final int TEXT_ACCENT = TabletMockupPalette.TEAL;
+    public static final int TEXT_INFO = TabletMockupPalette.BLUE;
+    public static final int TEXT_DISABLED = TabletMockupPalette.LOCKC;
 
     /** Dark cavity fill (#0A0200) with a calm but visible grid (#241006). */
     private static final int SCREEN_FILL = 0xFF0A0200;
