@@ -111,22 +111,33 @@ public final class TabletFilterBar {
         int row = 1;
         Font font = font();
         String sizeGlyph = TabletFilterGlyphs.size(font);
-        for (CargoSize size : CargoSize.values()) {
-            Component label = TabletFilterGlyphs.label(sizeGlyph,
-                    Component.translatable("cargo.aerocouriers.size." + size.getSerializedName()));
+        if (state.sizes().size() == CargoSize.values().length) {
+            Component allSizes = Component.translatable("ui.aerocouriers.filters.all_sizes");
+            Component label = TabletFilterGlyphs.label(sizeGlyph, allSizes);
             int w = chipWidth(label);
-            if (x + w > sx + contentW) {
-                rowY += ROW_H + GAP;
-                x = sx;
-                row++;
-            }
-            Component sizeValue = Component.translatable("cargo.aerocouriers.size." + size.getSerializedName());
-            Component hint = toggleHint("ui.aerocouriers.filters.size", sizeValue, state.sizes().contains(size));
-            widgets.add(chip(x, rowY, w, label, state.sizes().contains(size), () -> {
-                state.toggleSize(size);
+            widgets.add(chip(x, rowY, w, label, true, () -> {
+                state.toggleSize(CargoSize.S);
                 onChange.run();
-            }, hint));
+            }, TabletFilterGlyphs.tooltip("ui.aerocouriers.filters.size", allSizes)));
             x += w + GAP;
+        } else {
+            for (CargoSize size : CargoSize.values()) {
+                Component label = TabletFilterGlyphs.label(sizeGlyph,
+                        Component.translatable("cargo.aerocouriers.size." + size.getSerializedName()));
+                int w = chipWidth(label);
+                if (x + w > sx + contentW) {
+                    rowY += ROW_H + GAP;
+                    x = sx;
+                    row++;
+                }
+                Component sizeValue = Component.translatable("cargo.aerocouriers.size." + size.getSerializedName());
+                Component hint = toggleHint("ui.aerocouriers.filters.size", sizeValue, state.sizes().contains(size));
+                widgets.add(chip(x, rowY, w, label, state.sizes().contains(size), () -> {
+                    state.toggleSize(size);
+                    onChange.run();
+                }, hint));
+                x += w + GAP;
+            }
         }
         x += 4;
         String rankGlyph = TabletFilterGlyphs.rank(font);

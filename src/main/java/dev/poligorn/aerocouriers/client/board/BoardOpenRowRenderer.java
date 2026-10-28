@@ -3,7 +3,6 @@ package dev.poligorn.aerocouriers.client.board;
 import dev.poligorn.aerocouriers.cargo.CargoSize;
 import dev.poligorn.aerocouriers.client.AerocouriersGuiSprites;
 import dev.poligorn.aerocouriers.client.TabletGui;
-import dev.poligorn.aerocouriers.contract.AcceptEligibility;
 import dev.poligorn.aerocouriers.contract.TraineeRules;
 import dev.poligorn.aerocouriers.license.LicenseRank;
 import dev.poligorn.aerocouriers.net.BoardSnapshotPayload;
@@ -18,6 +17,7 @@ public final class BoardOpenRowRenderer {
     private static final int SOURCE_ICON = 8;
     private static final int BADGE_PAD_H = 3;
     private static final int BADGE_PAD_V = 1;
+    private static final int REWARD_EFF_GAP = 8;
 
     private BoardOpenRowRenderer() {
     }
@@ -39,8 +39,13 @@ public final class BoardOpenRowRenderer {
         int muted = rankLocked ? TabletGui.TEXT_DISABLED : TabletGui.TEXT_MUTED;
         int text = rankLocked ? TabletGui.TEXT_DISABLED : TabletGui.TEXT;
 
-        int rewardReserve = rewardColumnWidth(font, entry, rankLocked);
-        int routeRight = textRight - rewardReserve - 4;
+        int rewardColW = rewardColumnWidth(font, entry, profile, rankLocked);
+        String effText = BoardRewardEfficiency.perThousandBlocks(entry) + "/1000";
+        int effW = font.width(effText);
+        int effColRight = textRight - rewardColW - REWARD_EFF_GAP;
+        int effX = effColRight - effW;
+
+        int routeRight = textRight - rewardColW - 4;
         int x = textLeft;
 
         if (entry.villageCustomer()) {
@@ -69,25 +74,20 @@ public final class BoardOpenRowRenderer {
             renderLockedReward(graphics, font, entry, textRight, line1Y);
         } else {
             renderRewardColumn(graphics, font, entry, profile, textRight, line1Y, line2Y);
+            graphics.drawString(font, effText, effX, line2Y + 4, muted, false);
         }
 
         x = textLeft;
+        int statsMaxX = Math.max(x + 40, effX - 6);
         String distance = Component.translatable("ui.aerocouriers.row.distance_blocks", entry.distance()).getString();
-        x = drawStat(graphics, font, null, distance, x, line2Y, muted);
+        x = drawStat(graphics, font, null, distance, x, line2Y, muted, statsMaxX);
 
         CargoSize cargoSize = CargoSize.valueOf(entry.size().toUpperCase(Locale.ROOT));
         String cargo = cargoSize.name() + " " + weightShort(entry.weight());
-        x = drawStat(graphics, font, AerocouriersGuiSprites.ICON_CRATE, cargo, x, line2Y, muted);
+        x = drawStat(graphics, font, AerocouriersGuiSprites.ICON_CRATE, cargo, x, line2Y, muted, statsMaxX);
 
         String time = Component.translatable("ui.aerocouriers.row.time_compact", entry.minutesLeft()).getString();
-        x = drawStat(graphics, font, AerocouriersGuiSprites.ICON_CLOCK, time, x, line2Y, muted);
-
-        long eff = BoardRewardEfficiency.perThousandBlocks(entry);
-        String effText = eff + "/1000";
-        int effX = textRight - rewardReserve + 4;
-        if (effX > x + 8) {
-            graphics.drawString(font, effText, effX, line2Y + 4, muted, false);
-        }
+        drawStat(graphics, font, AerocouriersGuiSprites.ICON_CLOCK, time, x, line2Y, muted, statsMaxX);
     }
 
     private static void renderRewardColumn(
@@ -133,12 +133,27 @@ public final class BoardOpenRowRenderer {
         graphics.drawString(font, need, bx + icon + 2, line1Y + 2, TabletGui.TEXT_DISABLED, false);
     }
 
-    private static int rewardColumnWidth(Font font, BoardSnapshotPayload.BoardEntry entry, boolean rankLocked) {
+    private static int rewardColumnWidth(
+            Font font,
+            BoardSnapshotPayload.BoardEntry entry,
+            BoardSnapshotPayload.BoardProfile profile,
+            boolean rankLocked
+    ) {
         if (rankLocked) {
             String need = BoardRankLabels.rankRequiredShort(entry.requiredRank()).getString();
             return 14 + font.width(need);
         }
-        return Math.max(font.width("+" + entry.reward()), font.width("залог 9999"));
+        String reward = "+" + entry.reward();
+        long due = TraineeRules.collateralDueAtAccept(entry.collateral(), entry.villageCustomer(),
+                profile.villageDelivered(), profile.traineeFreeContracts());
+        String deposit;
+        if (due <= 0 && entry.villageCustomer()
+                && TraineeRules.onTraineeVillageContracts(profile.villageDelivered(), profile.traineeFreeContracts())) {
+            deposit = Component.translatable("ui.aerocouriers.row.deposit_trainee").getString();
+        } else {
+            deposit = Component.translatable("ui.aerocouriers.row.deposit", due).getString();
+        }
+        return Math.max(font.width(reward), font.width(deposit));
     }
 
     private static String routeText(BoardSnapshotPayload.BoardEntry entry) {
@@ -162,15 +177,24 @@ public final class BoardOpenRowRenderer {
             String value,
             int x,
             int y,
-            int color
+            int color,
+            int maxX
     ) {
+        if (x >= maxX) {
+            return x;
+        }
         if (icon != null) {
             int iconW = BoardRowMetrics.LINE2_ICON;
             graphics.blitSprite(icon, x, y, iconW, iconW);
             x += iconW + BoardRowMetrics.ICON_TEXT_GAP;
         }
+        int valueW = font.width(value);
+        if (x + valueW > maxX) {
+            value = font.plainSubstrByWidth(value, Math.max(4, maxX - x - font.width("…"))) + "…";
+            valueW = font.width(value);
+        }
         graphics.drawString(font, value, x, y + Math.max(0, BoardRowMetrics.LINE2_ICON - 8), color, false);
-        return x + font.width(value) + BoardRowMetrics.PAIR_GAP;
+        return x + valueW + BoardRowMetrics.PAIR_GAP;
     }
 
     private static int drawBadge(GuiGraphics graphics, Font font, Component text, int x, int y, int color) {

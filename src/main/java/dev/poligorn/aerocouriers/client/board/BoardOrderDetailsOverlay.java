@@ -7,6 +7,7 @@ import dev.poligorn.aerocouriers.client.TabletButton;
 import dev.poligorn.aerocouriers.client.TabletGui;
 import dev.poligorn.aerocouriers.client.XaeroOrderBridge;
 import net.neoforged.fml.ModList;
+import dev.poligorn.aerocouriers.contract.Pricing;
 import dev.poligorn.aerocouriers.contract.RankRules;
 import dev.poligorn.aerocouriers.contract.TraineeRules;
 import dev.poligorn.aerocouriers.net.BoardSnapshotPayload;
@@ -54,16 +55,20 @@ public final class BoardOrderDetailsOverlay {
         void openAccept(BoardSnapshotPayload.BoardEntry entry);
     }
 
+    private final long snapshotContractTick;
+
     public BoardOrderDetailsOverlay(
             Host host,
             BoardSnapshotPayload.BoardEntry entry,
             BoardSnapshotPayload.BoardProfile profile,
-            long balance
+            long balance,
+            long snapshotContractTick
     ) {
         this.host = host;
         this.entry = entry;
         this.profile = profile;
         this.balance = balance;
+        this.snapshotContractTick = snapshotContractTick;
     }
 
     public List<AbstractWidget> widgets() {
@@ -144,8 +149,9 @@ public final class BoardOrderDetailsOverlay {
         CargoSize size = CargoSize.valueOf(entry.size().toUpperCase(Locale.ROOT));
         drawSizeStrip(graphics, font, x + leftW - 52, y, size);
         y += font.lineHeight + 2;
+        graphics.blitSprite(AerocouriersGuiSprites.ICON_CRATE, x, y, 16, 16);
         Component container = Component.translatable("ui.aerocouriers.details.container", size.name(), size.slots());
-        graphics.drawString(font, container, x, y, TabletGui.TEXT_MUTED, false);
+        graphics.drawString(font, container, x + 20, y + 4, TabletGui.TEXT_MUTED, false);
         y += font.lineHeight + 2;
 
         List<ItemStack> stacks = entry.cargoStacks();
@@ -198,7 +204,8 @@ public final class BoardOrderDetailsOverlay {
                 Component.literal(Long.toString(due)), TabletGui.TEXT_RISK);
         ry += font.lineHeight + 2;
         drawLine(graphics, font, rx, ry, rw, Component.translatable("ui.aerocouriers.details.deadline"),
-                Component.translatable("ui.aerocouriers.row.time_compact", entry.deadlineMinutes()));
+                Component.translatable("ui.aerocouriers.details.deadline_remaining",
+                        entry.deadlineMinutes(), entry.minutesLeft()));
         ry += font.lineHeight + 2;
         Component rankNeed = Component.translatable("ui.aerocouriers.details.rank_need", entry.requiredRank().displayName());
         Component rankYou = RankRules.satisfies(profile.rank(), entry.requiredRank())
@@ -225,6 +232,13 @@ public final class BoardOrderDetailsOverlay {
                 ? Component.translatable("ui.aerocouriers.details.type.village")
                 : Component.translatable("ui.aerocouriers.details.type.player");
         drawLine(graphics, font, rx, ry, rw, Component.translatable("ui.aerocouriers.details.type"), type);
+        ry += font.lineHeight + 2;
+        long createdAt = entry.createdAt();
+        if (createdAt > 0 && snapshotContractTick > createdAt) {
+            long minutesAgo = Math.max(1, (snapshotContractTick - createdAt) / Pricing.TICKS_PER_MINUTE);
+            drawLine(graphics, font, rx, ry, rw, Component.translatable("ui.aerocouriers.details.created"),
+                    Component.translatable("ui.aerocouriers.details.created_ago", minutesAgo));
+        }
     }
 
     private void showOnMap() {

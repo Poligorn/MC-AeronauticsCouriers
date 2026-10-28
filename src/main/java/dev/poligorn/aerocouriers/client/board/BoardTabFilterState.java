@@ -14,7 +14,7 @@ public final class BoardTabFilterState {
     private EnumSet<CargoSize> sizes = EnumSet.allOf(CargoSize.class);
     private boolean onlyAvailable;
     private BoardContractKind contractKind = BoardContractKind.ALL;
-    private BoardSortKey sortKey = BoardSortKey.REWARD;
+    private BoardSortKey sortKey = BoardSortKey.EFFICIENCY;
     private boolean sortDescending = true;
 
     public EnumSet<CargoSize> sizes() {
@@ -82,7 +82,7 @@ public final class BoardTabFilterState {
         return sizes.size() == CargoSize.values().length
                 && !onlyAvailable
                 && contractKind == BoardContractKind.ALL
-                && sortKey == BoardSortKey.REWARD
+                && sortKey == BoardSortKey.EFFICIENCY
                 && sortDescending;
     }
 
@@ -90,7 +90,7 @@ public final class BoardTabFilterState {
         sizes = EnumSet.allOf(CargoSize.class);
         onlyAvailable = false;
         contractKind = BoardContractKind.ALL;
-        sortKey = BoardSortKey.REWARD;
+        sortKey = BoardSortKey.EFFICIENCY;
         sortDescending = true;
     }
 

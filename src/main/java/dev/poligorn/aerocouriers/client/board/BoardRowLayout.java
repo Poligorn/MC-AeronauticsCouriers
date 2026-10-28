@@ -23,4 +23,9 @@ public record BoardRowLayout(
         int textRight = mapX - 4;
         return new BoardRowLayout(mapX, crateX, secondaryX, SECONDARY_W, hasSecondary, textRight);
     }
+
+    /** Open board rows: map + crate icons only (mockup 1_board). */
+    public static BoardRowLayout forOpenBoardRow(int sx, int sw) {
+        return forRow(sx, sw, false);
+    }
 }

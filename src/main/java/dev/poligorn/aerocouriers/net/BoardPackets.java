@@ -158,7 +158,8 @@ public final class BoardPackets {
                 online,
                 configLines,
                 nextVillageRefresh,
-                overworldGameTime);
+                overworldGameTime,
+                now);
     }
 
     private static BoardSnapshotPayload.AdminActiveEntry adminEntry(Contract contract, StationAtlas atlas,
@@ -477,7 +478,8 @@ public final class BoardPackets {
                 customerNext,
                 customerBonus,
                 originRevealed,
-                crossDimension);
+                crossDimension,
+                contract.timing().createdAt());
     }
 
     private static String label(StationAtlas atlas, Destination dest) {

@@ -535,32 +535,14 @@ public final class CourierBoardScreen extends Screen {
             int rowY = rowTop + i * rowH();
             int btnY = BoardRowMetrics.buttonY(rowY);
             boolean hasSecondary = hasSecondaryAction(entry, boardTab);
-            BoardRowLayout layout = BoardRowLayout.forRow(sx, sw, hasSecondary);
+            BoardRowLayout layout = boardTab && entry.state() == ContractState.OPEN
+                    ? BoardRowLayout.forOpenBoardRow(sx, sw)
+                    : BoardRowLayout.forRow(sx, sw, hasSecondary);
             addRenderableWidget(new TabletRowIconButton(
                     layout.mapX(), btnY, entry.id(), TabletRowIconButton.Kind.MAP, this::onMapIconClick));
             addRenderableWidget(new TabletRowIconButton(
                     layout.crateX(), btnY, entry.id(), TabletRowIconButton.Kind.CRATE, null));
-            if (boardTab && entry.state() == ContractState.OPEN
-                    && (!"issuer".equals(entry.role()) || snapshot.allowSelfAccept())) {
-                TabletButton accept = TabletButton.create(
-                        layout.secondaryX(), btnY, layout.secondaryW(), BoardRowMetrics.BUTTON_HEIGHT,
-                        Component.translatable("ui.aerocouriers.accept", collateralDue(entry)),
-                        b -> onAccept(entry));
-                BoardSnapshotPayload.BoardProfile profile = snapshot != null
-                        ? snapshot.profile()
-                        : BoardSnapshotPayload.BoardProfile.EMPTY;
-                int activeHauls = snapshot != null ? BoardAcceptUi.countActiveHauls(snapshot.mine()) : 0;
-                Optional<AcceptEligibility.Denial> denial = BoardAcceptUi.denial(entry, profile, activeHauls);
-                accept.active = snapshot != null && snapshot.licensed() && denial.isEmpty();
-                if (!accept.active) {
-                    if (snapshot == null || !snapshot.licensed()) {
-                        accept.hint(Component.translatable("contract.aerocouriers.error.no_license"));
-                    } else if (denial.isPresent()) {
-                        accept.hint(denial.get().message());
-                    }
-                }
-                addRenderableWidget(accept);
-            } else if (!boardTab && "issuer".equals(entry.role()) && entry.state() == ContractState.OPEN) {
+            if (!boardTab && "issuer".equals(entry.role()) && entry.state() == ContractState.OPEN) {
                 addRenderableWidget(TabletButton.create(
                         layout.secondaryX(), btnY, layout.secondaryW(), BoardRowMetrics.BUTTON_HEIGHT,
                         Component.translatable("ui.aerocouriers.cancel"), b ->
@@ -577,14 +559,20 @@ public final class CourierBoardScreen extends Screen {
     }
 
     private boolean hasSecondaryAction(BoardSnapshotPayload.BoardEntry entry, boolean boardTab) {
-        if (boardTab && entry.state() == ContractState.OPEN
-                && (!"issuer".equals(entry.role()) || snapshot != null && snapshot.allowSelfAccept())) {
-            return true;
+        if (boardTab) {
+            return false;
         }
         if (!boardTab && "issuer".equals(entry.role()) && entry.state() == ContractState.OPEN) {
             return true;
         }
-        return !boardTab && "courier".equals(entry.role()) && entry.state().isActive();
+        return "courier".equals(entry.role()) && entry.state().isActive();
+    }
+
+    private BoardRowLayout rowLayout(int sx, int sw, BoardSnapshotPayload.BoardEntry entry) {
+        if (tab == Tab.BOARD && entry.state() == ContractState.OPEN) {
+            return BoardRowLayout.forOpenBoardRow(sx, sw);
+        }
+        return BoardRowLayout.forRow(sx, sw, hasSecondaryAction(entry, tab == Tab.BOARD));
     }
 
     private void onMapIconClick(UUID orderId) {
@@ -655,7 +643,7 @@ public final class CourierBoardScreen extends Screen {
         int ch = cavityH();
         if (tabletOverlay == TabletOverlay.DETAILS) {
             detailsOverlay = new BoardOrderDetailsOverlay(overlayHost(), overlayEntry, snapshot.profile(),
-                    snapshot.balance());
+                    snapshot.balance(), snapshot.snapshotContractTick());
             detailsOverlay.init(cx, cy, cw, ch);
         } else if (tabletOverlay == TabletOverlay.ACCEPT) {
             int activeHauls = BoardAcceptUi.countActiveHauls(snapshot.mine());
@@ -863,6 +851,7 @@ public final class CourierBoardScreen extends Screen {
                     renderContentWidgets(graphics, contentMouseX, contentMouseY, partialTick);
                     drawTabPanelContent(graphics, contentMouseX, contentMouseY, partialTick);
                     renderTabletOverlay(graphics, contentMouseX, contentMouseY);
+                    renderOverlayWidgetsOnTop(graphics, contentMouseX, contentMouseY, partialTick);
                     if (tab == Tab.PROFILE) {
                         renderProfileWidgetsOnTop(graphics, contentMouseX, contentMouseY, partialTick);
                     }
@@ -870,6 +859,7 @@ public final class CourierBoardScreen extends Screen {
             }
             RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
             TabletGui.drawFrameChrome(graphics, left(), top(), panelW(), panelH());
+            TabletGui.drawAntennaSignal(graphics, left(), top());
             tabletChrome.drawLoadingGear(graphics, cavityLeft(), cavityTop(), cavityW(), cavityH(),
                     snapshot == null, tabLoading, partialTick);
         });
@@ -899,10 +889,26 @@ public final class CourierBoardScreen extends Screen {
 
     private void renderContentWidgets(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         for (Renderable widget : renderables) {
-            if (!isMainChromeWidget(widget)) {
+            if (!isMainChromeWidget(widget) && !isOverlayWidget(widget)) {
                 widget.render(graphics, mouseX, mouseY, partialTick);
             }
         }
+    }
+
+    private void renderOverlayWidgetsOnTop(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        if (overlayWidgets.isEmpty()) {
+            return;
+        }
+        graphics.pose().pushPose();
+        graphics.pose().translate(0.0F, 0.0F, 400.0F);
+        for (AbstractWidget widget : overlayWidgets) {
+            widget.render(graphics, mouseX, mouseY, partialTick);
+        }
+        graphics.pose().popPose();
+    }
+
+    private boolean isOverlayWidget(Renderable widget) {
+        return widget instanceof AbstractWidget abstractWidget && overlayWidgets.contains(abstractWidget);
     }
 
     private boolean isMainChromeWidget(Renderable widget) {
@@ -932,10 +938,9 @@ public final class CourierBoardScreen extends Screen {
         if (snapshot != null) {
             long balance = snapshot.balance();
             int balanceRight = sx + screenW() - BALANCE_RIGHT_PAD;
-            int maxW = Math.max(8, balanceRight - balanceStripLeft);
-            SpurAmountUi.Bounds balanceBounds = SpurAmountUi.drawLabeled(
-                    graphics, font, BalanceDisplay.balanceLabel(), balance, balanceStripLeft, mainTabRowY() + 8, maxW,
-                    TabletGui.TEXT, TabletGui.TEXT);
+            int bw = SpurAmountUi.width(font, balance, false);
+            SpurAmountUi.Bounds balanceBounds = SpurAmountUi.draw(
+                    graphics, font, balance, balanceRight - bw, mainTabRowY() + 8, false, TabletGui.TEXT);
             offerSpurTooltip(balance, balanceBounds, mouseX, mouseY);
         }
 
@@ -984,6 +989,10 @@ public final class CourierBoardScreen extends Screen {
         return tabletChrome.blocksTabContentInput(snapshot == null, tabEffects.isTabLoadingActive(), 0.0F);
     }
 
+    private boolean overlayBlocksBoard() {
+        return tabletOverlay != TabletOverlay.NONE;
+    }
+
     private boolean isOverMainTab(double mouseX, double mouseY) {
         for (TabletTabButton button : mainTabs.values()) {
             if (button.isMouseOver(mouseX, mouseY)) {
@@ -998,11 +1007,11 @@ public final class CourierBoardScreen extends Screen {
         if (tabletChrome.blocksInput(snapshot == null, 0.0F)) {
             return true;
         }
-        if (blocksTabPanelInput()) {
-            return true;
-        }
         if (keyCode == 256 && tabletOverlay != TabletOverlay.NONE) {
             closeTabletOverlay();
+            return true;
+        }
+        if (blocksTabPanelInput()) {
             return true;
         }
         return super.keyPressed(keyCode, scanCode, modifiers);
@@ -1334,7 +1343,9 @@ public final class CourierBoardScreen extends Screen {
         int sw = screenW();
         int frameLeft = sx + BoardRowMetrics.ROW_FRAME_SIDE;
         int textLeft = frameLeft + BoardRowMetrics.ROW_INSET_LEFT;
-        BoardRowLayout reserve = BoardRowLayout.forRow(sx, sw, true);
+        BoardRowLayout reserve = tab == Tab.BOARD
+                ? BoardRowLayout.forOpenBoardRow(sx, sw)
+                : BoardRowLayout.forRow(sx, sw, true);
         int textRight = reserve.textRight();
         int textW = Math.max(8, textRight - textLeft);
         int listY = listTop();
@@ -1347,8 +1358,7 @@ public final class CourierBoardScreen extends Screen {
             for (int i = 0; i < visible && scroll + i < all.size(); i++) {
                 BoardSnapshotPayload.BoardEntry entry = all.get(scroll + i);
                 int rowY = listY + i * rowH();
-                boolean hasSecondary = hasSecondaryAction(entry, tab == Tab.BOARD);
-                BoardRowLayout layout = BoardRowLayout.forRow(sx, sw, hasSecondary);
+                BoardRowLayout layout = rowLayout(sx, sw, entry);
                 int frameRight = layout.hasSecondary()
                         ? layout.secondaryX() + BoardRowLayout.SECONDARY_W
                         : layout.crateX() + BoardRowLayout.ICON;
@@ -1594,7 +1604,7 @@ public final class CourierBoardScreen extends Screen {
                 int h = rowH();
                 graphics.fill(x - 2, rowTop, x + width + 2, rowTop + h, 0x66000000);
             }
-            BoardRowLayout layout = BoardRowLayout.forRow(screenLeft(), screenW(), hasSecondaryAction(entry, true));
+            BoardRowLayout layout = rowLayout(screenLeft(), screenW(), entry);
             BoardOpenRowRenderer.render(graphics, font, entry, snapshot.profile(), x,
                     layout.textRight(), rowTop, rankLocked,
                     ClientBoard.isNewBoardOrder(entry.id(), snapshot.board()),
@@ -1642,6 +1652,9 @@ public final class CourierBoardScreen extends Screen {
     }
 
     private void captureRowHoverTips(int mouseX, int mouseY) {
+        if (tab == Tab.BOARD) {
+            return;
+        }
         if (snapshot == null || tab != Tab.BOARD && tab != Tab.MINE) {
             return;
         }
@@ -1706,8 +1719,7 @@ public final class CourierBoardScreen extends Screen {
             if (mouseY < rowY || mouseY >= rowY + rowH()) {
                 continue;
             }
-            boolean hasSecondary = hasSecondaryAction(entry, tab == Tab.BOARD);
-            BoardRowLayout layout = BoardRowLayout.forRow(sx, sw, hasSecondary);
+            BoardRowLayout layout = rowLayout(sx, sw, entry);
             if (mouseX < textLeft || mouseX >= layout.textRight()) {
                 return;
             }
@@ -1837,6 +1849,15 @@ public final class CourierBoardScreen extends Screen {
             return true;
         }
         double adjustedY = tabletChrome.adjustMouseY(mouseY, 0.0F);
+        if (overlayBlocksBoard()) {
+            if (super.mouseClicked(mouseX, adjustedY, button)) {
+                return true;
+            }
+            if (!tabEffects.isTabLoadingActive() && isOverMainTab(mouseX, adjustedY)) {
+                return super.mouseClicked(mouseX, adjustedY, button);
+            }
+            return true;
+        }
         if (blocksTabPanelInput()) {
             if (!tabEffects.isTabLoadingActive() && isOverMainTab(mouseX, adjustedY)) {
                 return super.mouseClicked(mouseX, adjustedY, button);
@@ -1907,7 +1928,9 @@ public final class CourierBoardScreen extends Screen {
         int visible = visibleRows();
         int listY = listTop();
         int sx = screenLeft();
-        BoardRowLayout layout = BoardRowLayout.forRow(sx, screenW(), true);
+        BoardRowLayout layout = tab == Tab.BOARD
+                ? BoardRowLayout.forOpenBoardRow(sx, screenW())
+                : BoardRowLayout.forRow(sx, screenW(), true);
         int textRight = layout.textRight();
         for (int i = 0; i < visible && scroll + i < all.size(); i++) {
             BoardSnapshotPayload.BoardEntry entry = all.get(scroll + i);
@@ -1954,7 +1977,7 @@ public final class CourierBoardScreen extends Screen {
                 continue;
             }
             boolean hasSecondary = hasSecondaryAction(entry, tab == Tab.BOARD);
-            BoardRowLayout layout = BoardRowLayout.forRow(sx, sw, hasSecondary);
+            BoardRowLayout layout = rowLayout(sx, sw, entry);
             if (mouseX >= layout.mapX()) {
                 continue;
             }
@@ -1974,6 +1997,9 @@ public final class CourierBoardScreen extends Screen {
             return true;
         }
         if (blocksTabPanelInput()) {
+            return true;
+        }
+        if (overlayBlocksBoard()) {
             return true;
         }
         double adjustedY = tabletChrome.adjustMouseY(mouseY, 0.0F);

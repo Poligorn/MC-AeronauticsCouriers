@@ -91,6 +91,10 @@ public final class TabletGui {
         }
         graphics.blitSprite(AerocouriersGuiSprites.TABLET_DECOR_ANTENNA,
                 antennaLeft(frameX), antennaDrawY(frameY), ANTENNA_W, ANTENNA_H);
+    }
+
+    /** Signal arcs and lamp flash — draw after frame chrome so nothing covers them. */
+    public static void drawAntennaSignal(GuiGraphics graphics, int frameX, int frameY) {
         TabletAntennaSignal.render(graphics, frameX, frameY);
     }
 

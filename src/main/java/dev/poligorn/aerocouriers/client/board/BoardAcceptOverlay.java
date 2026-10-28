@@ -1,35 +1,29 @@
 package dev.poligorn.aerocouriers.client.board;
 
-import dev.poligorn.aerocouriers.cargo.CargoSize;
-import dev.poligorn.aerocouriers.client.AerocouriersGuiSprites;
+import dev.poligorn.aerocouriers.client.TabletAntennaSignal;
 import dev.poligorn.aerocouriers.client.TabletButton;
 import dev.poligorn.aerocouriers.client.TabletGui;
-import dev.poligorn.aerocouriers.client.XaeroOrderBridge;
 import dev.poligorn.aerocouriers.contract.AcceptEligibility;
-import dev.poligorn.aerocouriers.contract.RankRules;
 import dev.poligorn.aerocouriers.contract.TraineeRules;
 import dev.poligorn.aerocouriers.net.BoardSnapshotPayload;
 import dev.poligorn.aerocouriers.net.ContractIntentPayload;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.Optional;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.FormattedCharSequence;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
 import net.neoforged.neoforge.network.PacketDistributor;
-import org.jetbrains.annotations.Nullable;
 
 /** In-tablet accept confirmation overlay (mockup 2_accept). */
 public final class BoardAcceptOverlay {
     private static final int PAD = 10;
     private static final int RISK_PAD = 6;
+    private static final int BTN_H = 20;
+    private static final int BTN_GAP = 6;
+    private static final int CANCEL_W = 72;
 
     private final Host host;
     private final BoardSnapshotPayload.BoardEntry entry;
@@ -41,6 +35,8 @@ public final class BoardAcceptOverlay {
     private int boxY;
     private int boxW;
     private int boxH;
+    private int btnRowY;
+    private int acceptBtnW;
     private final List<AbstractWidget> widgets = new ArrayList<>();
 
     public interface Host {
@@ -78,23 +74,6 @@ public final class BoardAcceptOverlay {
         relayout(cavityW, cavityH);
         boxX = cavityX + (cavityW - boxW) / 2;
         boxY = cavityY + (cavityH - boxH) / 2;
-
-        int btnW = Math.min(200, boxW - PAD * 2);
-        int btnX = boxX + (boxW - btnW) / 2;
-        int btnY = boxY + boxH - PAD - 20;
-        TabletButton accept = TabletButton.create(btnX, btnY, btnW, 20, acceptLabel(), b -> confirm());
-        Optional<AcceptEligibility.Denial> blocked = acceptBlocked();
-        long due = collateralDue();
-        boolean broke = balance < due;
-        accept.active = blocked.isEmpty() && !broke && host.font() != null;
-        widgets.add(accept);
-        host.addOverlayWidget(accept);
-
-        int cancelW = 72;
-        TabletButton cancel = TabletButton.create(boxX + boxW - PAD - cancelW, boxY + PAD, cancelW, 14,
-                Component.translatable("gui.cancel"), b -> host.closeOverlay());
-        widgets.add(cancel);
-        host.addOverlayWidget(cancel);
     }
 
     public void dispose() {
@@ -106,6 +85,8 @@ public final class BoardAcceptOverlay {
         relayout(cavityW, cavityH);
         boxX = cavityX + (cavityW - boxW) / 2;
         boxY = cavityY + (cavityH - boxH) / 2;
+        placeButtons();
+
         graphics.fill(cavityX, cavityY, cavityX + cavityW, cavityY + cavityH, 0xB0000000);
         TabletGui.drawListPanel(graphics, boxX, boxY, boxW, boxH);
 
@@ -131,7 +112,7 @@ public final class BoardAcceptOverlay {
         long due = collateralDue();
         y = drawPair(graphics, font,
                 Component.translatable("ui.aerocouriers.accept.overlay.collateral_now").getString(),
-                "-" + due, x, y, innerW, TabletGui.TEXT, TabletGui.TEXT_RISK);
+                Long.toString(due), x, y, innerW, TabletGui.TEXT, TabletGui.TEXT_RISK);
         y = drawPair(graphics, font, Component.translatable("ui.aerocouriers.details.deadline").getString(),
                 Component.translatable("ui.aerocouriers.row.time_compact", entry.deadlineMinutes()).getString(),
                 x, y, innerW, TabletGui.TEXT_MUTED, TabletGui.TEXT);
@@ -146,24 +127,55 @@ public final class BoardAcceptOverlay {
         graphics.renderOutline(x, riskTop, innerW, riskH, TabletGui.TEXT_RISK);
         drawWrapped(graphics, font, risk, x + RISK_PAD, riskTop + RISK_PAD, innerW - RISK_PAD * 2,
                 TabletGui.TEXT_RISK);
-        y = riskTop + riskH + 6;
+        y = riskTop + riskH + 8;
 
+        btnRowY = y;
+        placeButtons();
+
+        int footerY = btnRowY + BTN_H + 6;
         long due2 = collateralDue();
         if (balance < due2) {
             long missing = due2 - balance;
             Component err = Component.translatable("ui.aerocouriers.accept.overlay.shortfall", missing, balance, due2);
-            drawWrapped(graphics, font, err, x, boxY + boxH - PAD - 28, innerW, TabletGui.TEXT_RISK);
+            drawWrapped(graphics, font, err, x, footerY, innerW, TabletGui.TEXT_RISK);
         } else {
             Component footer = Component.translatable("ui.aerocouriers.accept.overlay.balance_remain",
                     balance, Math.max(0, balance - due2));
-            drawWrapped(graphics, font, footer, x, boxY + boxH - PAD - 28, innerW, TabletGui.TEXT_REWARD);
+            drawWrapped(graphics, font, footer, x, footerY, innerW, TabletGui.TEXT_REWARD);
         }
+    }
 
-        for (AbstractWidget widget : widgets) {
-            if (widget instanceof TabletButton button && button.getMessage().equals(acceptLabel())) {
-                button.setY(boxY + boxH - PAD - 20);
-                button.setX(boxX + (boxW - button.getWidth()) / 2);
-            }
+    private void placeButtons() {
+        int innerW = boxW - PAD * 2;
+        int acceptX = boxX + PAD;
+        acceptBtnW = Math.max(120, innerW - CANCEL_W - BTN_GAP);
+        int cancelX = acceptX + acceptBtnW + BTN_GAP;
+        int btnY = btnRowY > 0 ? btnRowY : boxY + boxH - PAD - BTN_H;
+
+        syncButton(0, acceptX, btnY, acceptBtnW, BTN_H, acceptLabel(), b -> confirm());
+        syncButton(1, cancelX, btnY, CANCEL_W, BTN_H, Component.translatable("gui.cancel"), b -> host.closeOverlay());
+
+        Optional<AcceptEligibility.Denial> blocked = acceptBlocked();
+        long due = collateralDue();
+        boolean broke = balance < due;
+        if (widgets.get(0) instanceof TabletButton accept) {
+            accept.active = blocked.isEmpty() && !broke && host.font() != null;
+        }
+    }
+
+    private void syncButton(int index, int x, int y, int w, int h, Component label, TabletButton.OnPress onPress) {
+        while (widgets.size() <= index) {
+            TabletButton created = TabletButton.create(0, 0, w, h, label, onPress);
+            widgets.add(created);
+            host.addOverlayWidget(created);
+        }
+        AbstractWidget widget = widgets.get(index);
+        widget.setX(x);
+        widget.setY(y);
+        widget.setWidth(w);
+        widget.setHeight(h);
+        if (widget instanceof TabletButton button) {
+            button.setMessage(label);
         }
     }
 
@@ -175,6 +187,7 @@ public final class BoardAcceptOverlay {
         if (acceptBlocked().isPresent() || balance < collateralDue()) {
             return;
         }
+        TabletAntennaSignal.triggerSend();
         PacketDistributor.sendToServer(new ContractIntentPayload(ContractIntentPayload.Kind.ACCEPT, entry.id()));
         host.onAccepted();
         host.closeOverlay();
@@ -191,14 +204,26 @@ public final class BoardAcceptOverlay {
 
     private Component riskLine() {
         long due = collateralDue();
-        return entry.villageCustomer()
-                ? Component.translatable("contract.aerocouriers.risk.npc", due, entry.reward())
-                : Component.translatable("contract.aerocouriers.risk", due, entry.reward());
+        if (entry.villageCustomer()) {
+            if (due <= 0 && TraineeRules.onTraineeVillageContracts(profile.villageDelivered(),
+                    profile.traineeFreeContracts())) {
+                return Component.translatable("contract.aerocouriers.risk.npc.trainee", entry.reward());
+            }
+            return Component.translatable("contract.aerocouriers.risk.npc", due, entry.reward());
+        }
+        return Component.translatable("contract.aerocouriers.risk", due, entry.reward());
     }
 
     private void relayout(int cavityW, int cavityH) {
         boxW = Math.min(320, cavityW - 16);
-        boxH = Math.min(220, cavityH - 16);
+        Font font = host.font();
+        int innerW = boxW - PAD * 2;
+        int h = PAD + (font != null ? font.lineHeight * 8 + 48 : 120);
+        if (font != null) {
+            h += wrappedHeight(font, riskLine(), innerW - RISK_PAD * 2) + RISK_PAD * 2;
+        }
+        h += BTN_H + 28;
+        boxH = Math.min(Math.max(h, 180), cavityH - 16);
     }
 
     private static int drawPair(GuiGraphics g, Font font, String label, String value, int x, int y, int w,

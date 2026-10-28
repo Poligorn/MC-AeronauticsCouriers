@@ -40,7 +40,7 @@ public final class TabletAntennaSignal {
             return;
         }
         long elapsed = Util.getMillis() - triggeredAt;
-        if (elapsed > DURATION_MS && CouriersClientConfig.uiAnimations()) {
+        if (elapsed > DURATION_MS) {
             return;
         }
         if (!CouriersClientConfig.uiAnimations() && elapsed > LAMP_FLASH_MS) {
