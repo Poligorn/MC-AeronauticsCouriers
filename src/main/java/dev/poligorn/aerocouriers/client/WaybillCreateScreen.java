@@ -351,33 +351,62 @@ public final class WaybillCreateScreen extends Screen {
     public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         InGamePauseBackground.render(this, graphics, mouseX, mouseY, partialTick);
         RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
-        int shake = paperShake();
-        WaybillCreateGui.drawBoard(graphics, layout);
-        WaybillCreateGui.drawPaper(graphics, layout, shake);
-        drawSheet(graphics, mouseX, mouseY, shake);
-        WaybillCreateGui.drawClip(graphics, layout);
     }
 
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         hoverLines = null;
         hoveredStack = null;
-        RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
-        super.render(graphics, mouseX, mouseY, partialTick);
-        picker.render(graphics, font, mouseX, mouseY);
-        ItemStack overlayStack = cargoOverlay.render(graphics, font, mouseX, mouseY, preview.cargo(), cargoSize(),
-                preview.weight());
-        if (cargoOverlay.isOpen() && cargoOverlay.contains(mouseX, mouseY)) {
-            hoveredStack = overlayStack;
+        renderBackground(graphics, mouseX, mouseY, partialTick);
+        int lx = layout.localXi(mouseX);
+        int ly = layout.localYi(mouseY);
+        graphics.pose().pushPose();
+        if (layout.fitScale < 1.0) {
+            float fit = (float) layout.fitScale;
+            graphics.pose().translate(layout.fitX, layout.fitY, 0.0);
+            graphics.pose().scale(fit, fit, fit);
+        }
+        try {
+            int shake = paperShake();
+            WaybillCreateGui.drawBoard(graphics, layout);
+            WaybillCreateGui.drawPaper(graphics, layout, shake);
+            drawSheet(graphics, lx, ly, shake);
+            WaybillCreateGui.drawClip(graphics, layout);
+            for (net.minecraft.client.gui.components.Renderable widget : this.renderables) {
+                widget.render(graphics, lx, ly, partialTick);
+            }
+            picker.render(graphics, font, lx, ly);
+            ItemStack overlayStack = cargoOverlay.render(graphics, font, lx, ly, preview.cargo(), cargoSize(),
+                    preview.weight());
+            if (cargoOverlay.isOpen() && cargoOverlay.contains(lx, ly)) {
+                hoveredStack = overlayStack;
+            }
+            drawStamp(graphics);
+        } finally {
+            graphics.pose().popPose();
         }
         if (!picker.isOpen() && !sealing) {
-            if (hoveredStack != null) {
-                graphics.renderTooltip(font, hoveredStack, mouseX, mouseY);
-            } else if (hoverLines != null && !cargoOverlay.isOpen()) {
-                WaybillCreateGui.tooltip(graphics, font, hoverTipX, hoverTipY, hoverLines);
+            graphics.pose().pushPose();
+            graphics.pose().translate(0.0, 0.0, 800.0);
+            try {
+                if (hoveredStack != null) {
+                    graphics.renderTooltip(font, hoveredStack, mouseX, mouseY);
+                } else if (hoverLines != null && !cargoOverlay.isOpen()) {
+                    WaybillCreateGui.tooltip(graphics, font, toScreenX(hoverTipX), toScreenY(hoverTipY), hoverLines);
+                }
+            } finally {
+                graphics.pose().popPose();
             }
         }
-        drawStamp(graphics);
+    }
+
+    /** Layout pixel → screen pixel. Identity when the clipboard is not pose-scaled. */
+    private int toScreenX(int localX) {
+        return (int) Math.round(layout.fitX + localX * layout.fitScale);
+    }
+
+    private int toScreenY(int localY) {
+        return (int) Math.round(layout.fitY + localY * layout.fitScale);
     }
 
     private void drawSheet(GuiGraphics g, int mouseX, int mouseY, int shake) {
@@ -705,6 +734,8 @@ public final class WaybillCreateScreen extends Screen {
         if (sealing) {
             return true;
         }
+        mouseX = layout.localX(mouseX);
+        mouseY = layout.localY(mouseY);
         if (cargoOverlay.isOpen()) {
             if (cargoOverlay.handleClick(mouseX, mouseY, button)) {
                 return true;
@@ -771,7 +802,20 @@ public final class WaybillCreateScreen extends Screen {
     }
 
     @Override
+    public boolean mouseReleased(double mouseX, double mouseY, int button) {
+        return super.mouseReleased(layout.localX(mouseX), layout.localY(mouseY), button);
+    }
+
+    @Override
+    public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
+        double fit = layout.fitScale;
+        return super.mouseDragged(layout.localX(mouseX), layout.localY(mouseY), button, dragX / fit, dragY / fit);
+    }
+
+    @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+        mouseX = layout.localX(mouseX);
+        mouseY = layout.localY(mouseY);
         if (picker.isOpen() && picker.contains(mouseX, mouseY) && picker.handleScroll(scrollY)) {
             return true;
         }

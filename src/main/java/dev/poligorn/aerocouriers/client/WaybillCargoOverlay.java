@@ -80,6 +80,10 @@ final class WaybillCargoOverlay {
         if (!open) {
             return null;
         }
+        // Above the sheet's item row (items sit near z=150, the +N badge at z=300).
+        g.pose().pushPose();
+        g.pose().translate(0.0F, 0.0F, 400.0F);
+        try {
         WaybillCreateGui.fill(g, x0 + 3, y0 + 3, x0 + w + 1, y0 + h + 1, 0xFF1E160C);
         WaybillCreateGui.box(g, x0, y0, x0 + w - 1, y0 + h - 1, WaybillPalette.PAPER, WaybillPalette.BLUE);
         WaybillCreateGui.outline(g, x0 + 1, y0 + 1, x0 + w - 2, y0 + h - 2, WaybillPalette.PAPER3);
@@ -126,5 +130,8 @@ final class WaybillCargoOverlay {
         WaybillCreateGui.text(g, font, Component.translatable("ui.aerocouriers.create.cargo_overlay.close").getString(),
                 x0 + PAD + WaybillCreateGui.keycapWidth(font, "Esc") + 4, fy + 2, WaybillPalette.INK2);
         return hovered;
+        } finally {
+            g.pose().popPose();
+        }
     }
 }

@@ -167,6 +167,10 @@ final class WaybillDestinationPicker {
         }
         hoverRow = -1;
         hoverMap = false;
+        // Same plane as the cargo overlay so a later overlay still paints above this popup.
+        g.pose().pushPose();
+        g.pose().translate(0.0F, 0.0F, 400.0F);
+        try {
         WaybillCreateGui.fill(g, x0 + 3, y0 + 3, x0 + WIDTH + 1, y0 + h + 1, 0xFF1E160C);
         WaybillCreateGui.box(g, x0, y0, x0 + WIDTH - 1, y0 + h - 1, WaybillPalette.PAPER, WaybillPalette.BLUE);
         WaybillCreateGui.outline(g, x0 + 1, y0 + 1, x0 + WIDTH - 2, y0 + h - 2, WaybillPalette.PAPER3);
@@ -229,6 +233,9 @@ final class WaybillDestinationPicker {
         }
         WaybillCreateGui.text(g, font, Component.translatable("ui.aerocouriers.create.picker.hint").getString(),
                 x0 + 6, y0 + h - 12, WaybillPalette.INK2);
+        } finally {
+            g.pose().popPose();
+        }
     }
 
     private int listTop() {

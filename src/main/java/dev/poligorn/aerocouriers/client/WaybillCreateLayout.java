@@ -5,7 +5,8 @@ import java.util.List;
 
 /**
  * Pixel layout for the paper clipboard, mapped from the 640×360 mockup (GUI scale 3).
- * Board is ~88% of screen height; the steel clip brings the silhouette to ~95%.
+ * Screens large enough for that mockup keep the existing coordinate scale.
+ * Smaller screens keep the same unscaled layout and shrink the whole clipboard with {@link #fitScale}.
  */
 public final class WaybillCreateLayout {
     public static final int DESIGN_W = 640;
@@ -22,6 +23,10 @@ public final class WaybillCreateLayout {
     public final int oy;
     public final int screenW;
     public final int screenH;
+    /** Pose scale applied on top of this layout. 1 when the screen already fits the mockup. */
+    public final double fitScale;
+    public final double fitX;
+    public final double fitY;
 
     public final int boardX0;
     public final int boardY0;
@@ -73,6 +78,7 @@ public final class WaybillCreateLayout {
 
     private WaybillCreateLayout(
             double scale, int ox, int oy, int screenW, int screenH,
+            double fitScale, double fitX, double fitY,
             int boardX0, int boardY0, int boardX1, int boardY1,
             int paperX0, int paperY0, int paperX1, int paperY1,
             int clipCx, int contentX0, int contentX1, int leftColX1, int rightColX0, int fieldX0,
@@ -87,6 +93,9 @@ public final class WaybillCreateLayout {
         this.oy = oy;
         this.screenW = screenW;
         this.screenH = screenH;
+        this.fitScale = fitScale;
+        this.fitX = fitX;
+        this.fitY = fitY;
         this.boardX0 = boardX0;
         this.boardY0 = boardY0;
         this.boardX1 = boardX1;
@@ -147,15 +156,37 @@ public final class WaybillCreateLayout {
         return Math.max(1, (int) Math.round(designW * scale));
     }
 
-    public static WaybillCreateLayout compute(int screenW, int screenH) {
-        double scale = Math.min(screenW / (double) DESIGN_W, screenH / (double) DESIGN_H);
-        int ox = (int) Math.round((screenW - DESIGN_W * scale) / 2.0);
-        int oy = (int) Math.round((screenH - DESIGN_H * scale) / 2.0);
-        WaybillCreateLayout probe = fromScale(scale, ox, oy, screenW, screenH);
-        return probe;
+    /** Screen pixel → layout pixel. Identity when {@link #fitScale} is 1. */
+    public double localX(double screenX) {
+        return (screenX - fitX) / fitScale;
     }
 
-    private static WaybillCreateLayout fromScale(double s, int ox, int oy, int screenW, int screenH) {
+    public double localY(double screenY) {
+        return (screenY - fitY) / fitScale;
+    }
+
+    public int localXi(int screenX) {
+        return (int) Math.floor(localX(screenX));
+    }
+
+    public int localYi(int screenY) {
+        return (int) Math.floor(localY(screenY));
+    }
+
+    public static WaybillCreateLayout compute(int screenW, int screenH) {
+        double fit = Math.min(screenW / (double) DESIGN_W, screenH / (double) DESIGN_H);
+        if (fit < 1.0) {
+            double fitX = (screenW - DESIGN_W * fit) / 2.0;
+            double fitY = (screenH - DESIGN_H * fit) / 2.0;
+            return fromScale(1.0, 0, 0, screenW, screenH, fit, fitX, fitY);
+        }
+        int ox = (int) Math.round((screenW - DESIGN_W * fit) / 2.0);
+        int oy = (int) Math.round((screenH - DESIGN_H * fit) / 2.0);
+        return fromScale(fit, ox, oy, screenW, screenH, 1.0, 0.0, 0.0);
+    }
+
+    private static WaybillCreateLayout fromScale(double s, int ox, int oy, int screenW, int screenH,
+                                                 double fitScale, double fitX, double fitY) {
         int bx0 = map(ox, s, 40);
         int by0 = map(oy, s, 36);
         int bx1 = map(ox, s, 599);
@@ -203,7 +234,7 @@ public final class WaybillCreateLayout {
         int zoneChipX = cx1 - 3 * (zoneChipW + 2) + 2;
         int durationChipX = cx1 - 5 * (22 + 2) + 2;
         return new WaybillCreateLayout(
-                s, ox, oy, screenW, screenH,
+                s, ox, oy, screenW, screenH, fitScale, fitX, fitY,
                 bx0, by0, bx1, by1, px0, py0, px1, py1,
                 (bx0 + bx1) / 2, cx0, cx1, leftColX1, rightColX0, fieldX0,
                 headerY, headerSubY, headerRuleY, section1Y, slotY, occupiedY,
@@ -273,6 +304,23 @@ public final class WaybillCreateLayout {
     }
 
     List<String> validate(String id, int screenW, int screenH) {
+        if (fitScale < 1.0) {
+            List<String> failures = validatePlaced(id, DESIGN_W, DESIGN_H);
+            double clipTop = boardY0 - 27.0;
+            double left = fitX + boardX0 * fitScale;
+            double top = fitY + clipTop * fitScale;
+            double right = fitX + (boardX1 + 4) * fitScale;
+            double bottom = fitY + (boardY1 + 5) * fitScale;
+            if (left < -1.5 || top < -1.5 || right > screenW + 1.5 || bottom > screenH + 1.5) {
+                failures.add(id + ": fitted clipboard " + (int) left + "," + (int) top + "-"
+                        + (int) right + "," + (int) bottom + " off " + screenW + "x" + screenH);
+            }
+            return failures;
+        }
+        return validatePlaced(id, screenW, screenH);
+    }
+
+    private List<String> validatePlaced(String id, int screenW, int screenH) {
         List<String> failures = new ArrayList<>();
         if (boardX0 < 0 || boardY0 < 0 || boardX1 >= screenW + 4 || boardY1 >= screenH + 8) {
             failures.add(id + ": board " + boardX0 + "," + boardY0 + "-" + boardX1 + "," + boardY1
