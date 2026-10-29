@@ -103,11 +103,22 @@ public final class ClientBoard {
         }
         XaeroOrderBridge.onBoardSnapshot(payload);
         Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft.screen instanceof WaybillCreateScreen waybill && payload.openScreen()) {
+            waybill.beginSeal(payload);
+            return;
+        }
         if (minecraft.screen instanceof CourierBoardScreen screen) {
             screen.apply(payload);
         } else if (payload.openScreen()) {
             minecraft.setScreen(new CourierBoardScreen(payload));
             ClientCouriersSounds.playTabletOpen();
+        }
+    }
+
+    public static void onOrderDenied() {
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft.screen instanceof WaybillCreateScreen waybill) {
+            waybill.onPublishDenied();
         }
     }
 

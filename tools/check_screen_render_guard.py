@@ -18,6 +18,8 @@ RENDER_METHOD = re.compile(
 CHROME_BEFORE_SUPER = (
     "WaybillCreateGui.drawWoodenFrame",
     "WaybillCreateGui.drawPaperSheet",
+    "WaybillCreateGui.drawBoard",
+    "WaybillCreateGui.drawPaper",
     "TabletGui.drawScreenBackground",
     "TabletGui.drawFrameChrome",
     "TabletGui.drawListPanel",

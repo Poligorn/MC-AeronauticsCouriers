@@ -1,166 +1,226 @@
 package dev.poligorn.aerocouriers.client;
 
+import com.mojang.blaze3d.systems.RenderSystem;
 import dev.poligorn.aerocouriers.cargo.CargoSize;
+import dev.poligorn.aerocouriers.client.board.BoardCardRenderer;
+import dev.poligorn.aerocouriers.client.board.PixelGlyphs;
+import dev.poligorn.aerocouriers.client.board.TabletDraw;
+import dev.poligorn.aerocouriers.contract.ContractDistances;
+import dev.poligorn.aerocouriers.contract.Destination;
+import dev.poligorn.aerocouriers.contract.ItemValues;
 import dev.poligorn.aerocouriers.contract.Pricing;
+import dev.poligorn.aerocouriers.contract.RankRules;
+import dev.poligorn.aerocouriers.license.LicenseRank;
 import dev.poligorn.aerocouriers.net.BoardSnapshotPayload;
 import dev.poligorn.aerocouriers.net.CreateContractPayload;
 import dev.poligorn.aerocouriers.net.OpenWaybillCreatePayload;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import com.mojang.blaze3d.systems.RenderSystem;
+import net.minecraft.Util;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.world.level.Level;
-import net.minecraft.util.FormattedCharSequence;
+import net.minecraft.util.Mth;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.jetbrains.annotations.Nullable;
+import org.lwjgl.glfw.GLFW;
 
 /**
- * Player-facing order creation: destination, money, deadline. Cargo and pickup come from the stamped container.
- * Layout is computed from the current scaled window and font (see {@link WaybillCreateLayout}).
- * Clipboard layout: wooden CSI frame + paper sheet (see {@link WaybillCreateGui}).
+ * Player-facing order creation as a pressed-cardboard clipboard (approved 640×360 mockup).
  */
 public final class WaybillCreateScreen extends Screen {
+    private static final int[] DEADLINES = {30, 60, 180, 1440};
+    private static final int[] ZONES = {4, 8, 16};
+    private static final long SEAL_IMPACT_MS = 120L;
+    private static final long SEAL_SETTLE_MS = 300L;
+    private static final long SEAL_CLOSE_MS = 720L;
+    private static final double AIRSHIP_BLOCKS_PER_SEC = 8.0;
+
     private final OpenWaybillCreatePayload preview;
+    private String reward = Long.toString(CreateContractPayload.DEFAULT_REWARD);
+    private String collateral = Long.toString(CreateContractPayload.DEFAULT_COLLATERAL);
+    private String minutes = "60";
+    private String radius = Integer.toString(CreateContractPayload.DEFAULT_RADIUS);
     private String toX = "";
     private String toY = "";
     private String toZ = "";
-    private String reward = Long.toString(CreateContractPayload.DEFAULT_REWARD);
-    private String collateral = Long.toString(CreateContractPayload.DEFAULT_COLLATERAL);
-    private String minutes = Integer.toString(Pricing.MIN_DEADLINE_MINUTES);
-    private String radius = Integer.toString(CreateContractPayload.DEFAULT_RADIUS);
     private ResourceKey<Level> destinationDimension = Level.OVERWORLD;
-    private @Nullable Component notice;
-    private @Nullable Component hoverTip;
-    private @Nullable SpurBreakdownTooltip hoverSpurBreakdown;
-    private @Nullable Component hoverSpurHeader;
-    private WaybillCreateLayout layout = WaybillCreateLayout.compute(400, 300, 9, 0, false, false, 0, 0);
-    private boolean xaeroMap;
-    private boolean xaeroList;
-    private final XaeroWaypointPickerOverlay xaeroPicker = new XaeroWaypointPickerOverlay(this);
-    private @Nullable CourierButton xaeroPickerButton;
-    private @Nullable CourierButton submitButton;
+    private DestKind destKind = DestKind.NONE;
+    private String destName = "";
+    private int rankFloorLevel;
+    private boolean rewardTouched;
+    private boolean collateralTouched;
+    private boolean submitting;
+    private boolean sealing;
+    private boolean stampSoundPlayed;
+    private long sealStartMs;
+    private @Nullable BoardSnapshotPayload pendingBoard;
+    private WaybillCreateLayout layout = WaybillCreateLayout.compute(640, 360);
+    private final WaybillDestinationPicker picker;
+    private @Nullable PaperEditBox rewardBox;
+    private @Nullable PaperEditBox collateralBox;
+    private @Nullable PaperEditBox minutesBox;
+    private final PaperEditBox[] coordBoxes = new PaperEditBox[3];
+    private @Nullable String[] hoverLines;
+    private int hoverTipX;
+    private int hoverTipY;
+    private @Nullable ItemStack hoveredStack;
+    private int raiseX;
+    private int raiseY;
+    private int raiseW;
+    private boolean raiseVisible;
+    private boolean syncing;
+
+    private enum DestKind {
+        NONE, STATION, XAERO, COORDS
+    }
 
     public WaybillCreateScreen(OpenWaybillCreatePayload preview) {
-        super(Component.translatable("ui.aerocouriers.stamp.title"));
+        super(Component.translatable("ui.aerocouriers.create.title"));
         this.preview = preview;
+        this.picker = new WaybillDestinationPicker(this);
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.level != null) {
             destinationDimension = minecraft.level.dimension();
         }
     }
 
+    public boolean isSealing() {
+        return sealing;
+    }
+
+    public void beginSeal(BoardSnapshotPayload board) {
+        pendingBoard = board;
+        submitting = false;
+        sealing = true;
+        stampSoundPlayed = false;
+        sealStartMs = Util.getMillis();
+        picker.close();
+        setBoxesActive(false);
+    }
+
+    public void onPublishDenied() {
+        submitting = false;
+        sealing = false;
+        setBoxesActive(true);
+    }
+
     void applyPicked(XaeroPickedWaypoint picked) {
         toX = Integer.toString(picked.x());
         toY = Integer.toString(picked.y());
         toZ = Integer.toString(picked.z());
-        notice = picked.yEstimated()
-                ? Component.translatable("ui.aerocouriers.create.picked_y_estimated", picked.name(), picked.y())
-                : Component.translatable("ui.aerocouriers.create.picked", picked.name());
+        destKind = DestKind.XAERO;
+        destName = picked.name();
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft.level != null) {
+            destinationDimension = minecraft.level.dimension();
+        }
+        onDestinationSet();
+    }
+
+    void applyStation(BoardSnapshotPayload.StationHint station) {
+        toX = Integer.toString(station.pos().getX());
+        toY = Integer.toString(station.pos().getY());
+        toZ = Integer.toString(station.pos().getZ());
+        destinationDimension = station.dimension();
+        destKind = DestKind.STATION;
+        destName = station.name();
+        onDestinationSet();
+    }
+
+    void applyCoords(BlockPos pos) {
+        toX = Integer.toString(pos.getX());
+        toY = Integer.toString(pos.getY());
+        toZ = Integer.toString(pos.getZ());
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft.level != null) {
+            destinationDimension = minecraft.level.dimension();
+        }
+        destKind = DestKind.COORDS;
+        destName = "";
+        onDestinationSet();
     }
 
     void refreshAfterPick() {
-        rebuildWidgets();
+        refreshForm();
+    }
+
+    void refreshForm() {
+        syncBoxes();
     }
 
     Font waybillFont() {
         return font;
     }
 
-    void refreshForm() {
-        rebuildWidgets();
+    BlockPos previewOrigin() {
+        return preview.origin();
+    }
+
+    List<BoardSnapshotPayload.StationHint> stations() {
+        return preview.stations();
     }
 
     @Override
     protected void init() {
         super.init();
-        xaeroMap = XaeroMapPicker.canOpenMap();
-        xaeroList = XaeroMapPicker.available();
-        int mapLabelW = font.width(Component.translatable("ui.aerocouriers.create.pick_on_map"));
-        int xaeroLabelW = font.width(Component.translatable("ui.aerocouriers.create.xaero_picker"));
-        layout = WaybillCreateLayout.compute(
-                width, height, font.lineHeight, preview.cargo().size(), xaeroMap, xaeroList, mapLabelW, xaeroLabelW);
-
-        addRenderableWidget(coordBox(0, toX, v -> toX = v));
-        addRenderableWidget(coordBox(1, toY, v -> toY = v));
-        addRenderableWidget(coordBox(2, toZ, v -> toZ = v));
-        if (xaeroMap) {
-            addRenderableWidget(CourierButton.create(
-                            layout.mapBtnX, layout.mapBtnY, layout.mapBtnW, WaybillCreateLayout.FIELD_H,
-                            Component.translatable("ui.aerocouriers.create.pick_on_map"),
-                            b -> XaeroMapPicker.openMapForPick(this))
-                    .hint(Component.translatable(
-                            XaeroMapPicker.worldMapPresent()
-                                    ? "ui.aerocouriers.create.pick_on_map.hint_world"
-                                    : "ui.aerocouriers.create.pick_on_map.hint_minimap")));
+        layout = WaybillCreateLayout.compute(width, height);
+        picker.close();
+        rewardBox = moneyBox(layout.fieldX0, layout.rewardY, layout.fieldRight(), reward, v -> {
+            reward = v;
+            if (!syncing) {
+                rewardTouched = true;
+            }
+        }, Component.translatable("ui.aerocouriers.create.reward"));
+        addRenderableWidget(rewardBox);
+        collateralBox = moneyBox(layout.fieldX0, layout.collateralY, layout.fieldRight(), collateral, v -> {
+            collateral = v;
+            if (!syncing) {
+                collateralTouched = true;
+            }
+        }, Component.translatable("ui.aerocouriers.create.courier_collateral"));
+        addRenderableWidget(collateralBox);
+        minutesBox = moneyBox(layout.customMinutesX(), layout.deadlineY, layout.customMinutesX() + layout.customMinutesW(),
+                minutes, v -> minutes = v, Component.translatable("ui.aerocouriers.create.minutes"));
+        addRenderableWidget(minutesBox);
+        for (int i = 0; i < 3; i++) {
+            int column = i;
+            String value = switch (i) {
+                case 0 -> toX;
+                case 1 -> toY;
+                default -> toZ;
+            };
+            PaperEditBox box = coordBox(i, value, v -> {
+                if (syncing) {
+                    return;
+                }
+                switch (column) {
+                    case 0 -> toX = v;
+                    case 1 -> toY = v;
+                    default -> toZ = v;
+                }
+                parsePos(toX, toY, toZ).ifPresent(pos -> {
+                    destKind = DestKind.COORDS;
+                    destName = "";
+                    onDestinationSet();
+                });
+            });
+            coordBoxes[i] = box;
+            addRenderableWidget(box);
         }
-        addStationCycle();
-        if (xaeroList && layout.xaeroBtnW > 0) {
-            xaeroPickerButton = CourierButton.create(
-                            layout.xaeroBtnX, layout.xaeroBtnY, layout.xaeroBtnW, WaybillCreateLayout.FIELD_H,
-                            Component.translatable("ui.aerocouriers.create.xaero_picker"),
-                            b -> xaeroPicker.toggle(
-                                    layout.xaeroBtnX, layout.xaeroBtnY, layout.xaeroBtnW,
-                                    XaeroMapPicker.listWaypoints()))
-                    .hint(Component.translatable("ui.aerocouriers.create.xaero_picker.hint"));
-            addRenderableWidget(xaeroPickerButton);
-        } else {
-            xaeroPickerButton = null;
-            xaeroPicker.close();
-        }
-
-        addRenderableWidget(numberBox(0, reward, v -> reward = v));
-        addRenderableWidget(numberBox(1, collateral, v -> collateral = v));
-        addRenderableWidget(numberBox(2, minutes, v -> minutes = v));
-        addRenderableWidget(numberBox(3, radius, v -> radius = v));
-
-        submitButton = CourierButton.create(
-                layout.submitX, layout.buttonY, layout.submitW, WaybillCreateLayout.FIELD_H,
-                Component.translatable("ui.aerocouriers.create.submit"), b -> submit());
-        addRenderableWidget(submitButton);
-        addRenderableWidget(CourierButton.create(
-                layout.cancelX, layout.buttonY, layout.cancelW, WaybillCreateLayout.FIELD_H,
-                Component.translatable("gui.cancel"), b -> onClose()));
+        syncBoxes();
     }
 
-    private void addStationCycle() {
-        List<BoardSnapshotPayload.StationHint> stations = preview.stations();
-        List<Component> labels = new ArrayList<>();
-        labels.add(Component.translatable("ui.aerocouriers.create.no_station"));
-        stations.forEach(s -> labels.add(Component.literal(s.name())));
-        addRenderableWidget(CourierButton.cycle(
-                layout.stationX, layout.stationY, Math.max(64, layout.stationW), WaybillCreateLayout.FIELD_H,
-                Component.translatable("ui.aerocouriers.create.station"), labels, index -> {
-                    if (index <= 0 || index > stations.size()) {
-                        return;
-                    }
-                    BoardSnapshotPayload.StationHint station = stations.get(index - 1);
-                    toX = Integer.toString(station.pos().getX());
-                    toY = Integer.toString(station.pos().getY());
-                    toZ = Integer.toString(station.pos().getZ());
-                    destinationDimension = station.dimension();
-                    rebuildWidgets();
-                }));
-    }
-
-    private PaperEditBox coordBox(int column, String value, java.util.function.Consumer<String> sink) {
-        PaperEditBox box = styledBox(layout.coordX[column], layout.coordFieldY, layout.coordW[column], coordLabel(column));
-        box.setMaxLength(9);
-        box.setFilter(s -> s.isEmpty() || s.equals("-") || s.matches("-?\\d{1,8}"));
-        box.setValue(value);
-        box.setResponder(sink);
-        return box;
-    }
-
-    private PaperEditBox numberBox(int column, String value, java.util.function.Consumer<String> sink) {
-        PaperEditBox box = styledBox(layout.moneyX[column], layout.moneyFieldY, layout.moneyW[column], moneyLabel(column));
+    private PaperEditBox moneyBox(int x0, int y, int x1, String value, java.util.function.Consumer<String> sink,
+                                  Component label) {
+        int unitW = font.width(spUnit()) + 6;
+        PaperEditBox box = new PaperEditBox(font, x0 + 5, y + 3, Math.max(12, x1 - x0 - 8 - unitW), 9, label);
         box.setMaxLength(12);
         box.setFilter(s -> s.isEmpty() || s.matches("\\d{1,12}"));
         box.setValue(value);
@@ -168,66 +228,718 @@ public final class WaybillCreateScreen extends Screen {
         return box;
     }
 
-    private PaperEditBox styledBox(int x, int y, int w, Component label) {
-        int h = WaybillCreateLayout.FIELD_H;
-        PaperEditBox box = new PaperEditBox(font, x + 4, y + 2, Math.max(8, w - 8), h - 3, label) {
-            @Override
-            public void renderWidget(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-                WaybillCreateGui.drawPaperField(graphics, x, y, w, h, isFocused());
-                super.renderWidget(graphics, mouseX, mouseY, partialTick);
-            }
-
-            @Override
-            protected boolean clicked(double mouseX, double mouseY) {
-                return visible && active && mouseX >= x && mouseY >= y && mouseX < x + w && mouseY < y + h;
-            }
-
-            @Override
-            public boolean isMouseOver(double mouseX, double mouseY) {
-                return visible && mouseX >= x && mouseY >= y && mouseX < x + w && mouseY < y + h;
-            }
-        };
-        return box;
-    }
-
-    private static Component coordLabel(int column) {
-        return switch (column) {
+    private PaperEditBox coordBox(int column, String value, java.util.function.Consumer<String> sink) {
+        Component label = switch (column) {
             case 0 -> Component.translatable("ui.aerocouriers.create.coord.x");
             case 1 -> Component.translatable("ui.aerocouriers.create.coord.y");
             default -> Component.translatable("ui.aerocouriers.create.coord.z");
         };
+        PaperEditBox box = new PaperEditBox(font, 0, 0, 40, 9, label);
+        box.setMaxLength(9);
+        box.setFilter(s -> s.isEmpty() || s.equals("-") || s.matches("-?\\d{1,8}"));
+        box.setValue(value);
+        box.setResponder(sink);
+        box.visible = false;
+        box.active = false;
+        return box;
     }
 
-    private static Component moneyLabel(int column) {
-        return switch (column) {
-            case 0 -> Component.translatable("ui.aerocouriers.create.reward");
-            case 1 -> Component.translatable("ui.aerocouriers.create.collateral");
-            case 2 -> Component.translatable("ui.aerocouriers.create.minutes");
-            default -> Component.translatable("ui.aerocouriers.create.radius");
+    private void syncBoxes() {
+        syncing = true;
+        boolean live = !sealing && !submitting;
+        if (rewardBox != null) {
+            rewardBox.setValue(reward);
+            rewardBox.active = live;
+            rewardBox.visible = true;
+            rewardBox.setX(layout.fieldX0 + 5);
+            rewardBox.setY(layout.rewardY + 3);
+        }
+        if (collateralBox != null) {
+            collateralBox.setValue(collateral);
+            collateralBox.active = live;
+            collateralBox.setX(layout.fieldX0 + 5);
+            collateralBox.setY(layout.collateralY + 3);
+        }
+        boolean customMinutes = deadlineIndex() == 4;
+        if (minutesBox != null) {
+            minutesBox.setValue(minutes);
+            minutesBox.visible = customMinutes;
+            minutesBox.active = customMinutes && live;
+            minutesBox.setX(layout.customMinutesX() + 5);
+            minutesBox.setY(layout.deadlineY + 3);
+            minutesBox.setWidth(Math.max(12, layout.customMinutesW() - 16));
+        }
+        boolean coords = picker.isOpen() && picker.tab() == WaybillDestinationPicker.Tab.COORDS;
+        for (int i = 0; i < 3; i++) {
+            PaperEditBox box = coordBoxes[i];
+            if (box == null) {
+                continue;
+            }
+            box.visible = coords;
+            box.active = coords && live;
+            if (coords) {
+                box.setX(picker.coordFieldX(i) + 4);
+                box.setY(picker.coordFieldY() + 3);
+                box.setWidth(Math.max(12, picker.coordFieldW() - 8));
+            }
+            String value = switch (i) {
+                case 0 -> toX;
+                case 1 -> toY;
+                default -> toZ;
+            };
+            if (!box.getValue().equals(value)) {
+                box.setValue(value);
+            }
+        }
+        setBoxesActive(live);
+        syncing = false;
+    }
+
+    private void setBoxesActive(boolean live) {
+        if (rewardBox != null) {
+            rewardBox.active = live;
+        }
+        if (collateralBox != null) {
+            collateralBox.active = live;
+        }
+        if (minutesBox != null) {
+            minutesBox.active = live && minutesBox.visible;
+        }
+        for (PaperEditBox box : coordBoxes) {
+            if (box != null) {
+                box.active = live && box.visible;
+            }
+        }
+    }
+
+    private void onDestinationSet() {
+        Optional<BlockPos> to = parsePos(toX, toY, toZ);
+        if (to.isEmpty()) {
+            return;
+        }
+        long minReward = minRewardFor(to.get());
+        long minCollateral = Pricing.minP2pCollateral(parseLong(reward, minReward), preview.cargo());
+        if (!rewardTouched || reward.isEmpty() || parseLong(reward, 0) == CreateContractPayload.DEFAULT_REWARD) {
+            reward = Long.toString(minReward);
+            rewardTouched = false;
+        }
+        minCollateral = Pricing.minP2pCollateral(parseLong(reward, minReward), preview.cargo());
+        if (!collateralTouched || collateral.isEmpty()
+                || parseLong(collateral, 0) == CreateContractPayload.DEFAULT_COLLATERAL) {
+            collateral = Long.toString(minCollateral);
+            collateralTouched = false;
+        }
+        syncBoxes();
+    }
+
+    @Override
+    public void tick() {
+        super.tick();
+        if (sealing && pendingBoard != null && Util.getMillis() - sealStartMs >= SEAL_CLOSE_MS) {
+            Minecraft.getInstance().setScreen(new CourierBoardScreen(pendingBoard));
+        }
+    }
+
+    @Override
+    public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        InGamePauseBackground.render(this, graphics, mouseX, mouseY, partialTick);
+        RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+        int shake = paperShake();
+        WaybillCreateGui.drawBoard(graphics, layout);
+        WaybillCreateGui.drawPaper(graphics, layout, shake);
+        drawSheet(graphics, mouseX, mouseY, shake);
+        WaybillCreateGui.drawClip(graphics, layout);
+    }
+
+    @Override
+    public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        hoverLines = null;
+        hoveredStack = null;
+        RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+        super.render(graphics, mouseX, mouseY, partialTick);
+        picker.render(graphics, font, mouseX, mouseY);
+        if (!picker.isOpen() && !sealing) {
+            if (hoveredStack != null) {
+                graphics.renderTooltip(font, hoveredStack, mouseX, mouseY);
+            } else if (hoverLines != null) {
+                WaybillCreateGui.tooltip(graphics, font, hoverTipX, hoverTipY, hoverLines);
+            }
+        }
+        drawStamp(graphics);
+    }
+
+    private void drawSheet(GuiGraphics g, int mouseX, int mouseY, int shake) {
+        int x0 = layout.contentX0;
+        int x1 = layout.contentX1;
+        int yOff = shake;
+        WaybillCreateGui.bold(g, font, tr("ui.aerocouriers.create.title"), x0, layout.headerY + yOff, WaybillPalette.INK);
+        String customer = minecraft != null && minecraft.player != null
+                ? minecraft.player.getGameProfile().getName() : "";
+        WaybillCreateGui.text(g, font, tr("ui.aerocouriers.create.customer", customer),
+                x0, layout.headerSubY + yOff, WaybillPalette.INK2);
+        long pay = chargeNow();
+        String bal = TabletDraw.num(preview.balance()) + " " + spUnit();
+        int bx = x1 - font.width(bal);
+        WaybillCreateGui.spur(g, bx - 11, layout.headerY + yOff);
+        WaybillCreateGui.bold(g, font, bal, bx, layout.headerY + yOff, WaybillPalette.GOLD);
+        String after = tr("ui.aerocouriers.create.after_post",
+                TabletDraw.num(preview.balance() - pay) + " " + spUnit());
+        WaybillCreateGui.textRight(g, font, after, x1, layout.headerSubY + yOff, WaybillPalette.INK2, false);
+        WaybillCreateGui.hline(g, x0, x1, layout.headerRuleY + yOff, WaybillPalette.RULE);
+
+        WaybillCreateGui.section(g, font, x0, layout.leftColX1, layout.section1Y + yOff, 1,
+                tr("ui.aerocouriers.create.section.cargo"));
+        WaybillCreateGui.section(g, font, layout.rightColX0, x1, layout.section1Y + yOff, 2,
+                tr("ui.aerocouriers.create.section.terms"));
+        drawCargo(g, mouseX, mouseY, yOff);
+        drawTerms(g, mouseX, mouseY, yOff);
+        drawRoute(g, mouseX, mouseY, yOff);
+        drawTotal(g, mouseX, mouseY, yOff);
+        drawFooter(g, mouseX, mouseY, yOff);
+    }
+
+    private void drawCargo(GuiGraphics g, int mouseX, int mouseY, int yOff) {
+        int x0 = layout.contentX0;
+        List<ItemStack> cargo = preview.cargo();
+        CargoSize size = cargoSize();
+        int slots = size.slots();
+        int shown = Math.min(9, slots);
+        for (int i = 0; i < shown; i++) {
+            int sx = x0 + i * WaybillCreateLayout.SLOT;
+            int sy = layout.slotY + yOff;
+            WaybillCreateGui.slot(g, sx, sy);
+            if (i < cargo.size() && !cargo.get(i).isEmpty()) {
+                ItemStack stack = cargo.get(i);
+                g.renderItem(stack, sx + 1, sy + 1);
+                g.renderItemDecorations(font, stack, sx + 1, sy + 1, "");
+                WaybillCreateGui.stackCount(g, font, stack, sx, sy);
+                if (TabletDraw.inside(mouseX, mouseY, sx, sy, WaybillCreateLayout.SLOT, WaybillCreateLayout.SLOT)) {
+                    hoveredStack = stack;
+                }
+            }
+        }
+        WaybillCreateGui.text(g, font, tr("ui.aerocouriers.create.occupied", cargo.size(), slots),
+                x0, layout.occupiedY + yOff, WaybillPalette.INK2);
+        WaybillCreateGui.text(g, font, tr("ui.aerocouriers.create.weight"), x0, layout.weightY + yOff, WaybillPalette.INK);
+        String weight = tr("ui.aerocouriers.create.weight_value",
+                TabletDraw.weight(preview.weight()), TabletDraw.num(size.maxWeight()));
+        WaybillCreateGui.textRight(g, font, weight, layout.leftColX1, layout.weightY + yOff, WaybillPalette.INK, false);
+        double frac = size.maxWeight() <= 0 ? 0 : preview.weight() / size.maxWeight();
+        WaybillCreateGui.weightBar(g, x0, layout.weightBarY + yOff, layout.leftColX1, frac);
+        String sizeReason = tr(sizeBySlots(size) ? "ui.aerocouriers.create.container.by_slots"
+                : "ui.aerocouriers.create.container.by_weight", size.name());
+        WaybillCreateGui.metaRow(g, font, x0, layout.leftColX1, layout.cargoMetaY + yOff,
+                tr("ui.aerocouriers.create.container"), sizeReason, null, 0);
+        long value = ItemValues.of(cargo);
+        String valueText = tr("ui.aerocouriers.create.cargo_value_amount", TabletDraw.num(value));
+        WaybillCreateGui.metaRow(g, font, x0, layout.leftColX1, layout.cargoMetaY + 12 + yOff,
+                tr("ui.aerocouriers.create.cargo_value"), valueText, null, 0);
+        WaybillCreateGui.spur(g, layout.leftColX1 - font.width(valueText) - 9, layout.cargoMetaY + 12 + yOff);
+        BlockPos origin = preview.origin();
+        String from = origin.getX() + ", " + origin.getY() + ", " + origin.getZ();
+        WaybillCreateGui.metaRow(g, font, x0, layout.leftColX1, layout.cargoMetaY + 24 + yOff,
+                tr("ui.aerocouriers.create.from_chest"), from, PixelGlyphs.CHEST, WaybillPalette.BROWN);
+    }
+
+    private void drawTerms(GuiGraphics g, int mouseX, int mouseY, int yOff) {
+        int rx = layout.rightColX0;
+        int x1 = layout.contentX1;
+        WaybillCreateGui.text(g, font, tr("ui.aerocouriers.create.reward"), rx, layout.rewardY + 3 + yOff,
+                WaybillPalette.INK2);
+        WaybillCreateGui.field(g, layout.fieldX0, layout.rewardY + yOff, x1, false);
+        drawUnit(g, x1, layout.rewardY + 3 + yOff, spUnit());
+
+        String collLabel = tr("ui.aerocouriers.create.courier_collateral");
+        WaybillCreateGui.text(g, font, collLabel, rx, layout.collateralY + 3 + yOff, WaybillPalette.INK2);
+        int helpX = rx + font.width(collLabel) + 5;
+        int helpY = layout.collateralY + 2 + yOff;
+        WaybillCreateGui.helpIcon(g, font, helpX, helpY);
+        long minColl = minCollateralNow();
+        boolean bad = dest().isPresent() && parseLong(collateral, 0) < minColl;
+        WaybillCreateGui.field(g, layout.fieldX0, layout.collateralY + yOff, x1, bad);
+        drawUnit(g, x1, layout.collateralY + 3 + yOff, spUnit());
+        if (bad) {
+            WaybillCreateGui.textRight(g, font, tr("ui.aerocouriers.create.collateral_low"), x1,
+                    layout.collateralErrY + yOff, WaybillPalette.RED, false);
+        }
+        if (!picker.isOpen() && TabletDraw.inside(mouseX, mouseY, helpX, helpY, 9, 9)) {
+            hoverLines = new String[] {
+                    tr("ui.aerocouriers.create.collateral_hint.1", TabletDraw.num(minColl)),
+                    tr("ui.aerocouriers.create.collateral_hint.2", TabletDraw.num(ItemValues.of(preview.cargo()))),
+                    tr("ui.aerocouriers.create.collateral_hint.3")
+            };
+            hoverTipX = helpX + 12;
+            hoverTipY = helpY + 12;
+        }
+
+        WaybillCreateGui.text(g, font, tr("ui.aerocouriers.create.deadline"), rx, layout.deadlineY + 2 + yOff,
+                WaybillPalette.INK2);
+        int selectedDeadline = deadlineIndex();
+        String[] labs = {
+                tr("ui.aerocouriers.create.deadline.30m"),
+                tr("ui.aerocouriers.create.deadline.1h"),
+                tr("ui.aerocouriers.create.deadline.3h"),
+                tr("ui.aerocouriers.create.deadline.1d"),
+                tr("ui.aerocouriers.create.deadline.custom")
         };
+        for (int i = 0; i < 5; i++) {
+            int cx = layout.durationChipX(i);
+            int cy = layout.deadlineY + yOff;
+            boolean hover = TabletDraw.inside(mouseX, mouseY, cx, cy, 22, WaybillCreateLayout.CHIP_H);
+            WaybillCreateGui.chip(g, font, cx, cy, 22, labs[i], i == selectedDeadline, hover);
+        }
+        if (selectedDeadline == 4) {
+            WaybillCreateGui.field(g, layout.customMinutesX(), layout.deadlineY + yOff,
+                    layout.customMinutesX() + layout.customMinutesW(), false);
+            drawUnit(g, layout.customMinutesX() + layout.customMinutesW(), layout.deadlineY + 3 + yOff,
+                    tr("ui.aerocouriers.create.minutes_unit"));
+        }
+
+        WaybillCreateGui.text(g, font, tr("ui.aerocouriers.create.rank"), rx, layout.rankY + yOff, WaybillPalette.INK2);
+        LicenseRank required = requiredRank();
+        String rankText = rankLabel(required);
+        WaybillCreateGui.textRight(g, font, rankText, x1, layout.rankY + yOff, WaybillPalette.INK, false);
+        raiseVisible = required.level() < 5 && dest().isPresent();
+        if (raiseVisible) {
+            String raise = tr("ui.aerocouriers.create.rank.raise");
+            raiseW = font.width(raise);
+            raiseX = x1 - raiseW;
+            raiseY = layout.rankRaiseY + yOff;
+            boolean hover = TabletDraw.inside(mouseX, mouseY, raiseX - 10, raiseY, raiseW + 10, 10);
+            int col = hover ? WaybillPalette.BLUE : WaybillPalette.BLUE;
+            PixelGlyphs.draw(g, raiseX - 9, raiseY + 1, PixelGlyphs.UP, col);
+            WaybillCreateGui.text(g, font, raise, raiseX, raiseY, col);
+            WaybillCreateGui.hline(g, raiseX, x1 - 1, raiseY + 8, col);
+        }
+    }
+
+    private void drawRoute(GuiGraphics g, int mouseX, int mouseY, int yOff) {
+        int x0 = layout.contentX0;
+        int x1 = layout.contentX1;
+        WaybillCreateGui.section(g, font, x0, x1, layout.section3Y + yOff, 3, tr("ui.aerocouriers.create.section.route"));
+        int ry = layout.routeY + yOff;
+        WaybillCreateGui.fill(g, x0, ry + 1, x0 + 6, ry + 7, WaybillPalette.ORIGIN_DOT);
+        WaybillCreateGui.outline(g, x0, ry + 1, x0 + 6, ry + 7, WaybillPalette.INK);
+        WaybillCreateGui.bold(g, font, "A", x0 + 10, ry, WaybillPalette.INK);
+        BlockPos origin = preview.origin();
+        WaybillCreateGui.text(g, font, origin.getX() + ", " + origin.getY() + ", " + origin.getZ(),
+                x0 + 20, ry, WaybillPalette.INK);
+        WaybillCreateGui.text(g, font, tr("ui.aerocouriers.create.here_at_chest"), x0 + 10, ry + 11, WaybillPalette.INK2);
+        int ax = x0 + 104;
+        WaybillCreateGui.dashArrow(g, ax, ax + 30, ry + 4);
+        int bx0 = x0 + 148;
+        WaybillCreateGui.fill(g, bx0, ry + 1, bx0 + 6, ry + 7, WaybillPalette.DEST_DOT);
+        WaybillCreateGui.outline(g, bx0, ry + 1, bx0 + 6, ry + 7, WaybillPalette.INK);
+        WaybillCreateGui.bold(g, font, "B", bx0 + 10, ry, WaybillPalette.INK);
+        WaybillCreateGui.text(g, font, destMain(), bx0 + 20, ry, WaybillPalette.INK);
+        WaybillCreateGui.text(g, font, destSub(), bx0 + 10, ry + 11, WaybillPalette.INK2);
+
+        int px = layout.pickX;
+        int py = layout.pickY + yOff;
+        boolean pickHover = !picker.isOpen() && TabletDraw.inside(mouseX, mouseY, px, py, WaybillCreateLayout.PICK_W,
+                WaybillCreateLayout.PICK_H);
+        WaybillCreateGui.button(g, font, px, py, WaybillCreateLayout.PICK_W, WaybillCreateLayout.PICK_H,
+                tr("ui.aerocouriers.create.pick"), WaybillCreateGui.ButtonKind.PICK, PixelGlyphs.PIN, pickHover);
+        if (pickHover) {
+            hoverLines = new String[] {
+                    tr("ui.aerocouriers.create.pick.hint.1"),
+                    tr("ui.aerocouriers.create.pick.hint.2")
+            };
+            hoverTipX = px - 30;
+            hoverTipY = py + 22;
+        }
+
+        WaybillCreateGui.textRight(g, font, tr("ui.aerocouriers.create.zone"), x1, ry - 1, WaybillPalette.INK2, false);
+        int zoneSel = zoneIndex();
+        for (int i = 0; i < 3; i++) {
+            int cx = layout.zoneChipX(i);
+            int cy = layout.zoneChipY + yOff;
+            boolean hover = TabletDraw.inside(mouseX, mouseY, cx, cy, 26, WaybillCreateLayout.CHIP_H);
+            WaybillCreateGui.chip(g, font, cx, cy, 26, Integer.toString(ZONES[i]), i == zoneSel, hover);
+        }
+
+        int sy = layout.summaryY + yOff;
+        WaybillCreateGui.fill(g, x0, sy, x1, sy + 12, WaybillPalette.PAPER2);
+        WaybillCreateGui.text(g, font, summaryLine(), x0 + 5, sy + 2, WaybillPalette.INK);
+    }
+
+    private void drawTotal(GuiGraphics g, int mouseX, int mouseY, int yOff) {
+        int x0 = layout.contentX0;
+        int x1 = layout.contentX1;
+        WaybillCreateGui.section(g, font, x0, x1, layout.section4Y + yOff, 4, tr("ui.aerocouriers.create.section.total"));
+        WaybillCreateGui.text(g, font, tr("ui.aerocouriers.create.pay_now"), x0, layout.payY + yOff, WaybillPalette.INK);
+        long rewardValue = parseLong(reward, 0);
+        long fee = Pricing.fee(rewardValue, cargoSize());
+        String tot = TabletDraw.num(rewardValue + fee) + " " + spUnit();
+        int totX = WaybillCreateGui.textRight(g, font, tot, x1, layout.payY + yOff, WaybillPalette.GOLD, true);
+        String br = tr("ui.aerocouriers.create.pay_breakdown", TabletDraw.num(rewardValue), TabletDraw.num(fee));
+        WaybillCreateGui.textRight(g, font, br, totX - 4, layout.payY + yOff, WaybillPalette.INK, false);
+        String risk = tr("ui.aerocouriers.create.risk_issuer",
+                TabletDraw.num(parseLong(collateral, 0)), TabletDraw.num(rewardValue));
+        String shown = TabletDraw.trunc(font, risk, Math.max(16, x1 - x0 - 22));
+        WaybillCreateGui.riskBanner(g, font, x0, layout.riskY + yOff, x1, shown);
+        if (!shown.equals(risk) && TabletDraw.inside(mouseX, mouseY, x0, layout.riskY + yOff, x1 - x0, 14)) {
+            hoverLines = new String[] {risk};
+            hoverTipX = mouseX + 8;
+            hoverTipY = mouseY + 12;
+        }
+    }
+
+    private void drawFooter(GuiGraphics g, int mouseX, int mouseY, int yOff) {
+        int x0 = layout.contentX0;
+        int x1 = layout.contentX1;
+        int by = layout.buttonY + yOff;
+        WaybillCreateGui.hline(g, x0, x1, layout.footerRuleY + yOff, WaybillPalette.RULE);
+        boolean cancelHover = TabletDraw.inside(mouseX, mouseY, layout.cancelX, by, layout.cancelW, WaybillCreateLayout.BTN_H)
+                && !sealing;
+        WaybillCreateGui.button(g, font, layout.cancelX, by, layout.cancelW, WaybillCreateLayout.BTN_H,
+                tr("gui.cancel"), WaybillCreateGui.ButtonKind.CANCEL, null, cancelHover);
+        String deny = denyReason();
+        boolean can = deny == null && !submitting && !sealing;
+        String submitLabel = sealing
+                ? tr("ui.aerocouriers.create.posted")
+                : tr("ui.aerocouriers.create.submit_amount", TabletDraw.num(chargeNow()));
+        boolean submitHover = can && TabletDraw.inside(mouseX, mouseY, layout.submitX, by, layout.submitW,
+                WaybillCreateLayout.BTN_H);
+        WaybillCreateGui.button(g, font, layout.submitX, by, layout.submitW, WaybillCreateLayout.BTN_H, submitLabel,
+                can ? WaybillCreateGui.ButtonKind.PRIMARY : WaybillCreateGui.ButtonKind.DISABLED, null, submitHover);
+        if (can) {
+            int kw = WaybillCreateGui.keycapWidth(font, "Enter");
+            WaybillCreateGui.keycap(g, font, layout.submitX - 8 - kw, by + 4, "Enter");
+        } else if (deny != null && !sealing) {
+            WaybillCreateGui.textRight(g, font, deny, layout.submitX - 10, by + 6, WaybillPalette.RED, false);
+        }
+    }
+
+    private void drawStamp(GuiGraphics g) {
+        if (!sealing) {
+            return;
+        }
+        long t = Util.getMillis() - sealStartMs;
+        float scale;
+        float rot;
+        float alpha;
+        int ox;
+        int oy;
+        boolean burst = false;
+        if (t < SEAL_IMPACT_MS) {
+            float p = t / (float) SEAL_IMPACT_MS;
+            scale = Mth.lerp(p, 3.0F, 2.0F);
+            rot = Mth.lerp(p, -12.0F, -7.0F);
+            alpha = Mth.lerp(p, 0.4F, 1.0F);
+            ox = Math.round(Mth.lerp(p, -8.0F, 0.0F));
+            oy = Math.round(Mth.lerp(p, -40.0F, 0.0F));
+        } else {
+            float p = Mth.clamp((t - SEAL_IMPACT_MS) / (float) (SEAL_SETTLE_MS - SEAL_IMPACT_MS), 0.0F, 1.0F);
+            scale = 2.0F;
+            rot = -7.0F;
+            alpha = Mth.lerp(p, 1.0F, 0.82F);
+            ox = 0;
+            oy = 0;
+            burst = t < SEAL_IMPACT_MS + 100;
+            if (!stampSoundPlayed) {
+                stampSoundPlayed = true;
+                ClientCouriersSounds.playWaybillStamp();
+            }
+        }
+        int cx = layout.sx(430) + ox;
+        int cy = layout.sy(266) + oy;
+        if (burst) {
+            WaybillCreateGui.stampBurst(g, cx, cy, scale);
+        }
+        WaybillCreateGui.stamp(g, font, cx, cy, scale, rot, alpha);
+    }
+
+    private int paperShake() {
+        if (!sealing) {
+            return 0;
+        }
+        long t = Util.getMillis() - sealStartMs;
+        return t >= SEAL_IMPACT_MS && t < SEAL_IMPACT_MS + 80 ? 1 : 0;
+    }
+
+    private void drawUnit(GuiGraphics g, int fieldRight, int y, String unit) {
+        WaybillCreateGui.textRight(g, font, unit, fieldRight - 4, y, WaybillPalette.INK2, false);
+    }
+
+    @Override
+    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (sealing) {
+            return true;
+        }
+        if (picker.isOpen()) {
+            if (picker.handleClick(mouseX, mouseY, button)) {
+                syncBoxes();
+                return true;
+            }
+        }
+        if (button != 0) {
+            return super.mouseClicked(mouseX, mouseY, button);
+        }
+        int selectedDeadline = deadlineIndex();
+        for (int i = 0; i < 5; i++) {
+            if (TabletDraw.inside(mouseX, mouseY, layout.durationChipX(i), layout.deadlineY, 22,
+                    WaybillCreateLayout.CHIP_H)) {
+                if (i < 4) {
+                    minutes = Integer.toString(DEADLINES[i]);
+                } else if (selectedDeadline != 4) {
+                    minutes = "";
+                }
+                syncBoxes();
+                return true;
+            }
+        }
+        for (int i = 0; i < 3; i++) {
+            if (TabletDraw.inside(mouseX, mouseY, layout.zoneChipX(i), layout.zoneChipY, 26,
+                    WaybillCreateLayout.CHIP_H)) {
+                radius = Integer.toString(ZONES[i]);
+                return true;
+            }
+        }
+        if (TabletDraw.inside(mouseX, mouseY, layout.pickX, layout.pickY, WaybillCreateLayout.PICK_W,
+                WaybillCreateLayout.PICK_H)) {
+            picker.open(layout.pickX, layout.pickY, WaybillCreateLayout.PICK_W);
+            syncBoxes();
+            return true;
+        }
+        if (raiseVisible && TabletDraw.inside(mouseX, mouseY, raiseX - 10, raiseY, raiseW + 10, 10)) {
+            LicenseRank required = requiredRank();
+            if (required.level() < 5) {
+                rankFloorLevel = required.level() + 1;
+            }
+            return true;
+        }
+        if (TabletDraw.inside(mouseX, mouseY, layout.cancelX, layout.buttonY, layout.cancelW, WaybillCreateLayout.BTN_H)) {
+            onClose();
+            return true;
+        }
+        if (denyReason() == null && !submitting
+                && TabletDraw.inside(mouseX, mouseY, layout.submitX, layout.buttonY, layout.submitW,
+                WaybillCreateLayout.BTN_H)) {
+            submit();
+            return true;
+        }
+        return super.mouseClicked(mouseX, mouseY, button);
+    }
+
+    @Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+        if (picker.isOpen() && picker.contains(mouseX, mouseY) && picker.handleScroll(scrollY)) {
+            return true;
+        }
+        return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
+    }
+
+    @Override
+    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (sealing) {
+            return true;
+        }
+        if (picker.isOpen() && keyCode == GLFW.GLFW_KEY_ESCAPE) {
+            picker.close();
+            syncBoxes();
+            return true;
+        }
+        if ((keyCode == GLFW.GLFW_KEY_ENTER || keyCode == GLFW.GLFW_KEY_KP_ENTER) && denyReason() == null) {
+            submit();
+            return true;
+        }
+        return super.keyPressed(keyCode, scanCode, modifiers);
     }
 
     private void submit() {
-        Optional<BlockPos> to = parsePos(toX, toY, toZ);
+        String deny = denyReason();
+        if (deny != null || submitting || sealing) {
+            ClientCouriersSounds.playOrderDeny();
+            return;
+        }
+        Optional<BlockPos> to = dest();
         if (to.isEmpty()) {
-            notice = Component.translatable("ui.aerocouriers.create.bad_coords");
             ClientCouriersSounds.playOrderDeny();
             return;
         }
-        long rewardValue = parseLong(reward, CreateContractPayload.DEFAULT_REWARD);
-        long collateralValue = parseLong(collateral, CreateContractPayload.DEFAULT_COLLATERAL);
-        long minCollateral = Pricing.minP2pCollateral(rewardValue, preview.cargo());
-        if (collateralValue < minCollateral) {
-            notice = Component.translatable("contract.aerocouriers.error.collateral_below_minimum", minCollateral);
-            ClientCouriersSounds.playOrderDeny();
-            return;
-        }
+        submitting = true;
+        setBoxesActive(false);
         PacketDistributor.sendToServer(new CreateContractPayload(
                 preview.origin(), to.get(), destinationDimension,
                 parseLong(reward, CreateContractPayload.DEFAULT_REWARD),
                 parseLong(collateral, CreateContractPayload.DEFAULT_COLLATERAL),
-                (int) parseLong(minutes, Pricing.MIN_DEADLINE_MINUTES),
-                (int) parseLong(radius, CreateContractPayload.DEFAULT_RADIUS)));
+                (int) parseLong(minutes, 60),
+                (int) parseLong(radius, CreateContractPayload.DEFAULT_RADIUS),
+                rankFloorLevel));
+    }
+
+    private @Nullable String denyReason() {
+        Optional<BlockPos> to = dest();
+        if (to.isEmpty()) {
+            return tr("ui.aerocouriers.create.need_dest");
+        }
+        int mins = (int) parseLong(minutes, 0);
+        if (mins < Pricing.MIN_DEADLINE_MINUTES || mins > Pricing.MAX_DEADLINE_MINUTES) {
+            return tr("ui.aerocouriers.create.need_deadline");
+        }
+        long rewardValue = parseLong(reward, 0);
+        long minReward = minRewardFor(to.get());
+        if (rewardValue < minReward) {
+            return tr("ui.aerocouriers.create.reward_need", TabletDraw.num(minReward));
+        }
+        long coll = parseLong(collateral, 0);
+        long minColl = Pricing.minP2pCollateral(rewardValue, preview.cargo());
+        if (coll < minColl) {
+            return tr("ui.aerocouriers.create.collateral_need", TabletDraw.num(minColl));
+        }
+        long fee = Pricing.fee(rewardValue, cargoSize());
+        if (preview.balance() < rewardValue + fee) {
+            return tr("ui.aerocouriers.create.need_money", TabletDraw.num(rewardValue + fee));
+        }
+        if (preview.cargo().isEmpty()) {
+            return tr("contract.aerocouriers.error.empty_cargo");
+        }
+        return null;
+    }
+
+    private String destMain() {
+        return switch (destKind) {
+            case NONE -> tr("ui.aerocouriers.create.dest.unset");
+            case STATION -> destName;
+            case XAERO -> {
+                Optional<BlockPos> to = dest();
+                yield to.map(p -> tr("ui.aerocouriers.create.dest.coords",
+                        TabletDraw.num(p.getX()), TabletDraw.num(p.getY()), TabletDraw.num(p.getZ()))).orElse(destName);
+            }
+            case COORDS -> dest().map(p -> tr("ui.aerocouriers.create.dest.coords",
+                    TabletDraw.num(p.getX()), TabletDraw.num(p.getY()), TabletDraw.num(p.getZ())))
+                    .orElse(tr("ui.aerocouriers.create.dest.unset"));
+        };
+    }
+
+    private String destSub() {
+        return switch (destKind) {
+            case NONE -> tr("ui.aerocouriers.create.pick.sub");
+            case STATION -> tr("ui.aerocouriers.create.dest.station");
+            case XAERO -> tr("ui.aerocouriers.create.dest.xaero");
+            case COORDS -> tr("ui.aerocouriers.create.dest.custom");
+        };
+    }
+
+    private String summaryLine() {
+        Optional<BlockPos> to = dest();
+        if (to.isEmpty()) {
+            return tr("ui.aerocouriers.create.summary.need_dest");
+        }
+        double distance = distanceTo(to.get());
+        long airMin = Math.max(1, Math.round(distance / AIRSHIP_BLOCKS_PER_SEC / 60.0));
+        long minReward = minRewardFor(to.get());
+        return tr("ui.aerocouriers.create.summary",
+                TabletDraw.num(Math.round(distance)), TabletDraw.num(airMin), TabletDraw.num(minReward));
+    }
+
+    private LicenseRank requiredRank() {
+        LicenseRank auto = autoRank();
+        if (rankFloorLevel > auto.level()) {
+            return LicenseRank.byLevel(Math.min(5, rankFloorLevel));
+        }
+        return auto;
+    }
+
+    private LicenseRank autoRank() {
+        Optional<BlockPos> to = dest();
+        Destination origin = originDest();
+        Destination destination = to.map(p -> new Destination(destinationDimension, p, zoneRadius())).orElse(origin);
+        return ContractDistances.routeRequiredRank(parseLong(collateral, 0), cargoSize(), origin, destination);
+    }
+
+    private String rankLabel(LicenseRank rank) {
+        String roman = BoardCardRenderer.roman(rank);
+        if (rankFloorLevel > autoRank().level()) {
+            return tr("ui.aerocouriers.create.rank.raised", roman);
+        }
+        Optional<BlockPos> to = dest();
+        if (to.isEmpty()) {
+            return tr("ui.aerocouriers.create.rank.pending", roman);
+        }
+        Destination origin = originDest();
+        Destination destination = new Destination(destinationDimension, to.get(), zoneRadius());
+        double distance = ContractDistances.pricingBlocks(origin, destination);
+        LicenseRank byC = RankRules.requiredRank(parseLong(collateral, 0), CargoSize.S, 0);
+        LicenseRank byS = RankRules.requiredRank(0, cargoSize(), 0);
+        LicenseRank byD = RankRules.requiredRank(0, CargoSize.S, distance);
+        if (ContractDistances.isCrossDimension(origin, destination)
+                && rank.level() >= 4 && byC.level() < 4 && byS.level() < 4 && byD.level() < 4) {
+            return tr("ui.aerocouriers.create.rank.by_dimension", roman);
+        }
+        if (byD.level() >= byC.level() && byD.level() >= byS.level()) {
+            return tr("ui.aerocouriers.create.rank.by_distance", roman);
+        }
+        if (byC.level() >= byS.level()) {
+            return tr("ui.aerocouriers.create.rank.by_collateral", roman);
+        }
+        return tr("ui.aerocouriers.create.rank.by_size", roman);
+    }
+
+    private Destination originDest() {
+        ResourceKey<Level> dim = minecraft != null && minecraft.level != null
+                ? minecraft.level.dimension() : Level.OVERWORLD;
+        return new Destination(dim, preview.origin(), zoneRadius());
+    }
+
+    private CargoSize cargoSize() {
+        return CargoSize.smallestFor(preview.cargo().size(), preview.weight()).orElse(CargoSize.S);
+    }
+
+    private boolean sizeBySlots(CargoSize actual) {
+        Optional<CargoSize> byWeight = CargoSize.smallestFor(1, preview.weight());
+        Optional<CargoSize> bySlots = CargoSize.smallestFor(preview.cargo().size(), 0);
+        if (bySlots.isPresent() && byWeight.isPresent()) {
+            return bySlots.get().ordinal() > byWeight.get().ordinal() && actual == bySlots.get();
+        }
+        return false;
+    }
+
+    private long minRewardFor(BlockPos to) {
+        return Math.max(1, Pricing.minReward(distanceTo(to), preview.weight()));
+    }
+
+    private long minCollateralNow() {
+        long rewardValue = parseLong(reward, dest().map(this::minRewardFor).orElse(1L));
+        return Pricing.minP2pCollateral(rewardValue, preview.cargo());
+    }
+
+    private double distanceTo(BlockPos to) {
+        return ContractDistances.pricingBlocks(originDest(), new Destination(destinationDimension, to, zoneRadius()));
+    }
+
+    private long chargeNow() {
+        long rewardValue = parseLong(reward, 0);
+        return rewardValue + Pricing.fee(rewardValue, cargoSize());
+    }
+
+    private int deadlineIndex() {
+        int value = (int) parseLong(minutes, -1);
+        for (int i = 0; i < DEADLINES.length; i++) {
+            if (value == DEADLINES[i]) {
+                return i;
+            }
+        }
+        return 4;
+    }
+
+    private int zoneIndex() {
+        int value = (int) parseLong(radius, CreateContractPayload.DEFAULT_RADIUS);
+        for (int i = 0; i < ZONES.length; i++) {
+            if (value == ZONES[i]) {
+                return i;
+            }
+        }
+        return 1;
+    }
+
+    private int zoneRadius() {
+        return (int) parseLong(radius, CreateContractPayload.DEFAULT_RADIUS);
+    }
+
+    private Optional<BlockPos> dest() {
+        return parsePos(toX, toY, toZ);
     }
 
     private static Optional<BlockPos> parsePos(String x, String y, String z) {
@@ -252,195 +964,12 @@ public final class WaybillCreateScreen extends Screen {
         }
     }
 
-    @Override
-    public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        InGamePauseBackground.render(this, graphics, mouseX, mouseY, partialTick);
-        RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
-        WaybillCreateGui.drawWoodenFrame(graphics, layout.left, layout.top, layout.panelW, layout.panelH);
-        WaybillCreateGui.drawPaperSheet(graphics, layout.paperLeft, layout.paperTop, layout.paperW, layout.paperH);
+    private static String tr(String key, Object... args) {
+        return Component.translatable(key, args).getString();
     }
 
-    @Override
-    public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        hoverTip = null;
-        hoverSpurBreakdown = null;
-        hoverSpurHeader = null;
-        RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
-        super.render(graphics, mouseX, mouseY, partialTick);
-        RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
-        WaybillCreateGui.drawClip(graphics, layout.clipX, layout.clipY);
-        int textX = layout.paperLeft + WaybillCreateLayout.PAD;
-        int titleW = Math.max(32, layout.balanceX - textX - 8);
-        drawClipped(graphics, title, textX, layout.headerY, titleW, WaybillCreateGui.TEXT, mouseX, mouseY);
-        int balanceMaxW = layout.paperLeft + layout.paperW - WaybillCreateLayout.PAD - layout.balanceX;
-        SpurAmountUi.Bounds balanceBounds = SpurAmountUi.drawLabeled(
-                graphics, font, BalanceDisplay.balanceLabel(), preview.balance(), layout.balanceX, layout.headerY,
-                balanceMaxW, WaybillCreateGui.TEXT_MUTED, WaybillCreateGui.TEXT_MUTED);
-        if (balanceBounds.contains(mouseX, mouseY)) {
-            hoverSpurBreakdown = new SpurBreakdownTooltip(preview.balance());
-            hoverSpurHeader = Component.translatable("ui.aerocouriers.spur.tooltip.header", preview.balance());
-        }
-        Component originText = Component.translatable("ui.aerocouriers.stamp.origin", preview.origin().toShortString());
-        Component weightText = Component.translatable("ui.aerocouriers.stamp.weight",
-                String.format(java.util.Locale.ROOT, "%.1f", preview.weight()));
-        if (layout.originY == layout.weightY) {
-            int originW = layout.innerW * 62 / 100;
-            drawClipped(graphics, originText, textX, layout.originY,
-                    originW, WaybillCreateGui.TEXT, mouseX, mouseY);
-            drawClipped(graphics, weightText, textX + originW + WaybillCreateLayout.GAP,
-                    layout.weightY, layout.innerW - originW - WaybillCreateLayout.GAP, WaybillCreateGui.TEXT_MUTED, mouseX, mouseY);
-        } else {
-            drawClipped(graphics, originText, textX, layout.originY,
-                    layout.innerW, WaybillCreateGui.TEXT, mouseX, mouseY);
-            drawClipped(graphics, weightText, textX, layout.weightY,
-                    layout.innerW, WaybillCreateGui.TEXT_MUTED, mouseX, mouseY);
-        }
-
-        if (layout.cargoRows > 0) {
-            int cargoH = layout.cargoRows * WaybillCreateLayout.SLOT + 4;
-            WaybillCreateGui.drawPaperField(graphics, layout.cargoX - 2, layout.cargoY - 2,
-                    Math.min(layout.innerW, 9 * WaybillCreateLayout.SLOT + 4), cargoH, false);
-        }
-        renderCargo(graphics, mouseX, mouseY);
-
-        if (layout.destTitleY + layout.lineH <= layout.coordLabelY) {
-            drawClipped(graphics, Component.translatable("ui.aerocouriers.create.to"),
-                    textX, layout.destTitleY, layout.innerW, WaybillCreateGui.TEXT, mouseX, mouseY);
-        }
-        for (int i = 0; i < 3; i++) {
-            drawClipped(graphics, coordLabel(i), layout.coordX[i], layout.coordLabelY, layout.coordW[i], WaybillCreateGui.TEXT_MUTED,
-                    mouseX, mouseY);
-        }
-        for (int i = 0; i < 4; i++) {
-            drawClipped(graphics, moneyLabel(i), layout.moneyX[i], layout.moneyLabelY, layout.moneyW[i], WaybillCreateGui.TEXT_MUTED,
-                    mouseX, mouseY);
-        }
-
-        List<ItemStack> cargo = preview.cargo();
-        Optional<BlockPos> to = parsePos(toX, toY, toZ);
-        long rewardValue = parseLong(reward, CreateContractPayload.DEFAULT_REWARD);
-        long collateralValue = parseLong(collateral, CreateContractPayload.DEFAULT_COLLATERAL);
-        CargoSize feeSize = CargoSize.smallestFor(cargo.size(), preview.weight()).orElse(CargoSize.S);
-        long fee = Pricing.fee(rewardValue, feeSize);
-        int infoY = layout.infoY;
-        int infoBottom = layout.infoY + layout.infoH;
-        long minCollateral = Pricing.minP2pCollateral(rewardValue, preview.cargo());
-        if (submitButton != null) {
-            submitButton.active = to.isPresent() && collateralValue >= minCollateral;
-        }
-        if (to.isPresent()) {
-            long min = Pricing.minReward(Math.sqrt(preview.origin().distSqr(to.get())), preview.weight());
-            infoY = drawWrappedLimited(graphics, Component.translatable("ui.aerocouriers.create.min_reward", min),
-                    textX, infoY, layout.infoW, infoBottom, WaybillCreateGui.TEXT_OK, mouseX, mouseY);
-        }
-        infoY = drawWrappedLimited(graphics, Component.translatable("ui.aerocouriers.create.min_collateral", minCollateral),
-                textX, infoY, layout.infoW, infoBottom,
-                collateralValue >= minCollateral ? WaybillCreateGui.TEXT_OK : WaybillCreateGui.TEXT_BAD, mouseX, mouseY);
-        infoY = drawWrappedLimited(graphics, Component.translatable("ui.aerocouriers.stamp.cost",
-                        rewardValue, fee, collateralValue),
-                textX, infoY, layout.infoW, infoBottom, WaybillCreateGui.TEXT_ACCENT, mouseX, mouseY);
-        drawWrappedLimited(graphics, Component.translatable("contract.aerocouriers.risk", collateralValue, rewardValue),
-                textX, infoY, layout.infoW, infoBottom, WaybillCreateGui.TEXT_WARN, mouseX, mouseY);
-        if (notice != null) {
-            drawWrappedLimited(graphics, notice, layout.noticeX, layout.buttonY + 2, layout.noticeW,
-                    layout.buttonY + WaybillCreateLayout.FIELD_H, WaybillCreateGui.TEXT_WARN, mouseX, mouseY);
-        }
-        if (hoverTip == null) {
-            getChildAt(mouseX, mouseY).ifPresent(widget -> {
-                if (widget instanceof CourierButton button && button.hint() != null) {
-                    hoverTip = button.hint();
-                }
-            });
-        }
-        xaeroPicker.render(graphics, mouseX, mouseY);
-        if (hoverSpurBreakdown != null && hoverSpurHeader != null) {
-            graphics.renderTooltip(font, List.of(hoverSpurHeader), Optional.of(hoverSpurBreakdown), mouseX, mouseY);
-        } else if (hoverTip != null) {
-            CreateGui.drawSpeechTooltip(graphics, font, hoverTip, mouseX, mouseY, 240);
-        }
-    }
-
-    @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (xaeroPicker.isOpen()) {
-            if (xaeroPicker.handleMouseClicked(mouseX, mouseY, button)) {
-                return true;
-            }
-            if (!xaeroPicker.contains(mouseX, mouseY) && !isOverXaeroButton(mouseX, mouseY)) {
-                xaeroPicker.close();
-                return true;
-            }
-        }
-        return super.mouseClicked(mouseX, mouseY, button);
-    }
-
-    @Override
-    public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
-        if (xaeroPicker.isOpen() && xaeroPicker.handleScroll(scrollY)) {
-            return true;
-        }
-        return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
-    }
-
-    private boolean isOverXaeroButton(double mouseX, double mouseY) {
-        return xaeroPickerButton != null && xaeroPickerButton.isMouseOver(mouseX, mouseY);
-    }
-
-    private void renderCargo(GuiGraphics graphics, int mouseX, int mouseY) {
-        List<ItemStack> cargo = preview.cargo();
-        if (cargo.isEmpty()) {
-            drawClipped(graphics, Component.translatable("contract.aerocouriers.error.empty_cargo"),
-                    layout.cargoX, layout.cargoY, layout.innerW, WaybillCreateGui.TEXT_BAD, mouseX, mouseY);
-            return;
-        }
-        int shown = Math.min(cargo.size(), layout.cargoRows * 9);
-        for (int i = 0; i < shown; i++) {
-            int col = i % 9;
-            int row = i / 9;
-            int x = layout.cargoX + col * WaybillCreateLayout.SLOT;
-            int y = layout.cargoY + row * WaybillCreateLayout.SLOT;
-            WaybillCreateGui.drawPaperSlot(graphics, x - 1, y - 1);
-            graphics.renderItem(cargo.get(i), x, y);
-            graphics.renderItemDecorations(font, cargo.get(i), x, y);
-            if (mouseX >= x && mouseX < x + 16 && mouseY >= y && mouseY < y + 16) {
-                graphics.renderTooltip(font, cargo.get(i), mouseX, mouseY);
-            }
-        }
-    }
-
-    private void drawClipped(GuiGraphics graphics, Component text, int x, int y, int width, int color,
-                             int mouseX, int mouseY) {
-        if (width <= 0) {
-            return;
-        }
-        String raw = text.getString();
-        String shown = font.plainSubstrByWidth(raw, width);
-        if (!shown.equals(raw)) {
-            shown = font.plainSubstrByWidth(raw, Math.max(8, width - font.width("…"))) + "…";
-        }
-        graphics.drawString(font, shown, x, y, color, false);
-        if (mouseX >= x && mouseX < x + width && mouseY >= y && mouseY < y + layout.lineH && !shown.equals(raw)) {
-            hoverTip = text;
-        }
-    }
-
-    private int drawWrappedLimited(GuiGraphics graphics, Component text, int x, int y, int width, int bottom,
-                                   int color, int mouseX, int mouseY) {
-        List<FormattedCharSequence> lines = font.split(text, width);
-        int drawY = y;
-        int shown = 0;
-        for (FormattedCharSequence line : lines) {
-            if (drawY + layout.lineH > bottom) {
-                break;
-            }
-            graphics.drawString(font, line, x, drawY, color, false);
-            drawY += layout.lineH;
-            shown++;
-        }
-        if (shown < lines.size() && mouseX >= x && mouseX < x + width && mouseY >= y && mouseY < bottom) {
-            hoverTip = text;
-        }
-        return drawY + 2;
+    private static String spUnit() {
+        return Component.translatable("ui.aerocouriers.create.sp").getString();
     }
 
     @Override

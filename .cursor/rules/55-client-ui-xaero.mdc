@@ -15,7 +15,7 @@ alwaysApply: false
 - Код Marketplace **не использовать и не копировать** (решение владельца; наш мод — MIT) — только идею UI и логики открытия окна.
 
 ## Окно
-- **Тестовый UI (итерация 4 + CSI GUI):** `CourierBoardScreen` — латунный «планшет-монитор» (`TabletGui`, тонкая рамка 14 px, `CONTENT_INSET=14`, антенна send/receive). `StampCreateScreen` — клипборд (`StampCreateGui`, `CourierButton`). Опция `[gui] useVanillaSprites` → `minecraft:widget/*`. Вкладки: Заказы / Мои / Админ-панель (оператор). Создания на доске нет — накладная. Почта — конверт. Открытие: инвентарь, J, `/couriers ui`, ПКМ по станции.
+- **Тестовый UI (итерация 4 + CSI GUI):** `CourierBoardScreen` — латунный «планшет-монитор» (`TabletGui`, тонкая рамка 14 px, `CONTENT_INSET=14`, антенна send/receive). `WaybillCreateScreen` — планшет-клипборд (прессованный картон, стальной зажим, лист бумаги; без латунной рамки; `WaybillCreateGui` / `aerocouriers:paper`). Опция `[gui] useVanillaSprites` → `minecraft:widget/*`. Вкладки: Заказы / Мои / Админ-панель (оператор). Создания на доске нет — накладная. Почта — конверт. Открытие: инвентарь, J, `/couriers ui`, ПКМ по станции.
 - **Целевой вид (§10.2):** Доска (фильтры, манифест, «Принять — залог N») · Мои перевозки (таймер, дистанция, «Показать на карте», «Отказаться») · Мои заказы (27 слотов + поля) · Почта («Забрать всё»). Стиль Create: латунь, бумага, шестерёнки. Не путать термины с модом Envelope (у него свои «курьеры»).
 
 ## Навигация
@@ -26,6 +26,6 @@ alwaysApply: false
   - ≥ 26.2.0: сторонние точки `xaero.hud.minimap.waypoint.thirdparty.ThirdPartyWaypoints`, origin `aerocouriers:orders`, id `order-<uuid>`, цвет GOLD, `temp = true`; `remove(id)` при завершении заказа, `clearOrigin` при выходе. Видны только при наборе «по умолчанию» или «все наборы» — писать в подсказке.
   - < 26.2: `Waypoint(..., WaypointPurpose.DESTINATION, temp=true)` в текущем наборе.
   - `client/XaeroBridge` грузится только при `ModList.get().isLoaded("xaerominimap")`; все вызовы в `try/catch (Throwable)`; при ошибке — откат на луч + HUD.
-  - Штамп, «Выбрать на карте»: фасад `XaeroMapPicker` без типов Xaero; вызовы в `XaeroMinimapAccess` / `XaeroWorldMapAccess`. World Map если есть (`GuiMap`), иначе `GuiWaypoints`. Нет события создания точки — снимок списка вейпоинтов текущего мира до/после + выпадающий список существующих. Нет Y (`yIncluded=false` или 32767) → Y игрока, иначе 64. `NoSuchMethodError`/`ClassNotFound` → кнопки нет.
+  - Накладная, «Выбрать…»: `WaybillDestinationPicker` (вкладки Станции / Карта Xaero / Точка XYZ). Карта Xaero — фасад `XaeroMapPicker` без типов Xaero; вызовы в `XaeroMinimapAccess` / `XaeroWorldMapAccess`. World Map если есть (`GuiMap`), иначе `GuiWaypoints`. Нет события создания точки — снимок списка вейпоинтов текущего мира до/после + список существующих во вкладке. Нет Y (`yIncluded=false` или 32767) → Y игрока, иначе 64. `NoSuchMethodError`/`ClassNotFound` → вкладка скрыта.
   - Зависимость `compileOnly` из `https://chocolateminecraft.com/maven`: minimap 26.6.0, worldmap 1.47.0, xaerolib 1.7.3; jar **не** коммитить (ARR).
   - ⚠️ mod ID fair-play версии (`xaerominimapfair`?) не проверен.

@@ -311,6 +311,11 @@ public final class ContractManager extends SavedData {
      */
     public Outcome createFromWaybill(ServerPlayer issuer, BlockPos sourcePos, Destination destination,
                                    long reward, long collateral, int deadlineMinutes) {
+        return createFromWaybill(issuer, sourcePos, destination, reward, collateral, deadlineMinutes, 0);
+    }
+
+    public Outcome createFromWaybill(ServerPlayer issuer, BlockPos sourcePos, Destination destination,
+                                   long reward, long collateral, int deadlineMinutes, int minRankLevel) {
         if (!Licenses.isLicensedCourier(issuer)) {
             return Outcome.error("no_license");
         }
@@ -404,9 +409,12 @@ public final class ContractManager extends SavedData {
         }
 
         long deadline = deadlineMinutes * Pricing.TICKS_PER_MINUTE;
+        LicenseRank required = ContractDistances.routeRequiredRank(collateral, size.get(), origin, destination);
+        if (minRankLevel >= 1 && minRankLevel <= 5 && minRankLevel > required.level()) {
+            required = LicenseRank.byLevel(minRankLevel);
+        }
         Contract contract = new Contract(id, ContractType.PLAYER, issuer.getUUID(), issuer.getUUID(), Optional.empty(),
-                origin, destination, size.get(), weight, reward, collateral,
-                ContractDistances.routeRequiredRank(collateral, size.get(), origin, destination),
+                origin, destination, size.get(), weight, reward, collateral, required,
                 new Contract.Timing(now, now + deadline, deadline, -1, 0), ContractState.OPEN, true,
                 originSnapshot);
         Escrow.get(server).open(id, manifest, reward);

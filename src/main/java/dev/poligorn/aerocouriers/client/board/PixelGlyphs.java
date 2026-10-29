@@ -21,6 +21,9 @@ public final class PixelGlyphs {
     public static final String[] PIN = {"..###..", ".#####.", ".##.##.", ".#####.", "..###..", "...#...", "...#..."};
     public static final String[] CHECK = {"......#", ".....#.", "#...#..", ".#.#...", "..#...."};
     public static final String[] CROSS = {"#...#", ".#.#.", "..#..", ".#.#.", "#...#"};
+    public static final String[] UP = {"...#...", "..###..", ".#####.", "...#...", "...#..."};
+    public static final String[] CHEST = {"#########", "#.......#", "#########", "#...#...#", "#...#...#", "#########"};
+    public static final String[] DASH_ARROW_TIP = ARROW;
     public static final String[] UP_DOWN = {"..#.....", ".###..#.", "..#...#.", "..#...#.", "..#...#.", "..#..###",
             "..#...#."};
 

@@ -81,6 +81,16 @@ public final class BoardPackets {
         }
     }
 
+    /** After a successful waybill publish: send the board snapshot so the create screen can stamp. */
+    public static void openAfterPublish(ServerPlayer player) {
+        if (!canSendBoard(player)) {
+            return;
+        }
+        CouriersNetwork.sendRegistryPayload(player, snapshot(player, 0, true, Optional.empty()),
+                BoardSnapshotPayload.STREAM_CODEC);
+        CouriersNotifications.sync(player);
+    }
+
     public static BoardSnapshotPayload snapshot(ServerPlayer player, int page, boolean openScreen,
                                                Optional<Component> notice) {
         MinecraftServer server = player.server;
@@ -271,11 +281,13 @@ public final class BoardPackets {
         Destination destination = new Destination(payload.destinationDimension(), payload.to(), payload.radius());
         ContractManager.Outcome outcome = ContractManager.get(player.server)
                 .createFromWaybill(player, payload.from(), destination,
-                        payload.reward(), payload.collateral(), payload.minutes());
+                        payload.reward(), payload.collateral(), payload.minutes(), payload.minRankLevel());
         if (outcome.success()) {
             CouriersNotifications.notifyOrder(player.server, player.getUUID(), outcome.message(),
                     outcome.contract().map(Contract::id));
-            open(player, 0, true, Optional.empty());
+            // Snapshot even without a tablet in hand: the waybill screen needs it to play the
+            // seal stamp, then opens the board from this payload.
+            openAfterPublish(player);
         } else {
             Component message = outcome.message();
             player.sendSystemMessage(message);
