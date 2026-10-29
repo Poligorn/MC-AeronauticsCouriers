@@ -1,5 +1,6 @@
 package dev.poligorn.aerocouriers.client.board;
 
+import dev.poligorn.aerocouriers.client.MoneyText;
 import java.util.Locale;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
@@ -21,22 +22,22 @@ public final class TabletDraw {
     }
 
     public static void text(GuiGraphics graphics, Font font, String s, int x, int y, int color) {
-        graphics.drawString(font, s, x, y, color, false);
+        MoneyText.draw(graphics, font, s, x, y, color, MoneyText.Face.DEFAULT);
     }
 
     /** Mockup bold: the same string drawn twice, one pixel apart. */
     public static void bold(GuiGraphics graphics, Font font, String s, int x, int y, int color) {
-        graphics.drawString(font, s, x, y, color, false);
-        graphics.drawString(font, s, x + 1, y, color, false);
+        text(graphics, font, s, x, y, color);
+        text(graphics, font, s, x + 1, y, color);
     }
 
     public static int boldWidth(Font font, String s) {
-        return font.width(s) + 1;
+        return MoneyText.width(font, s) + 1;
     }
 
     /** Right-aligned text ending at {@code right}; returns its left x. */
     public static int textRight(GuiGraphics graphics, Font font, String s, int right, int y, int color, boolean bold) {
-        int x = right - (bold ? boldWidth(font, s) : font.width(s));
+        int x = right - (bold ? boldWidth(font, s) : MoneyText.width(font, s));
         if (bold) {
             bold(graphics, font, s, x, y, color);
         } else {
@@ -46,15 +47,7 @@ public final class TabletDraw {
     }
 
     public static String trunc(Font font, String s, int width) {
-        if (font.width(s) <= width) {
-            return s;
-        }
-        String ellipsis = "…";
-        String cut = s;
-        while (!cut.isEmpty() && font.width(cut + ellipsis) > width) {
-            cut = cut.substring(0, cut.length() - 1);
-        }
-        return cut.stripTrailing() + ellipsis;
+        return MoneyText.trunc(font, s, width);
     }
 
     public static void outline(GuiGraphics graphics, int x0, int y0, int x1, int y1, int color) {
@@ -127,7 +120,7 @@ public final class TabletDraw {
         }
         int iconW = icon != null ? PixelGlyphs.width(icon) + 4 : 0;
         String shown = trunc(font, label, w - 8 - iconW);
-        int labelW = kind == ButtonKind.PRIMARY ? boldWidth(font, shown) : font.width(shown);
+        int labelW = kind == ButtonKind.PRIMARY ? boldWidth(font, shown) : MoneyText.width(font, shown);
         int tx = x + (w - labelW - iconW) / 2;
         if (icon != null) {
             PixelGlyphs.draw(graphics, tx, y + 6, icon, textColor);

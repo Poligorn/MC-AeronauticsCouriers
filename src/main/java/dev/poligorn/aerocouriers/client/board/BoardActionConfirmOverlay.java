@@ -1,6 +1,7 @@
 package dev.poligorn.aerocouriers.client.board;
 
 import dev.poligorn.aerocouriers.contract.ContractState;
+import dev.poligorn.aerocouriers.client.MoneyText;
 import dev.poligorn.aerocouriers.net.BoardSnapshotPayload;
 import dev.poligorn.aerocouriers.net.ContractIntentPayload;
 import java.util.List;
@@ -9,7 +10,6 @@ import java.util.UUID;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
-import net.minecraft.util.FormattedCharSequence;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -72,8 +72,8 @@ public final class BoardActionConfirmOverlay extends BoardConfirmOverlay {
         host.entry(orderId).ifPresent(e -> {
             Font font = host.font();
             riskY = 37 + termRows() * 12 + 3;
-            int riskLines = font.split(riskText(e), RISK_TEXT_W).size();
-            int noteLines = font.split(note(e), W - 20).size();
+            int riskLines = MoneyText.lineCount(font, riskText(e), RISK_TEXT_W);
+            int noteLines = MoneyText.lineCount(font, note(e), W - 20);
             buttonsY = riskY + riskLines * 10 + 15 + 4 + noteLines * 10 + 6;
             height = buttonsY + 28;
         });
@@ -162,17 +162,12 @@ public final class BoardActionConfirmOverlay extends BoardConfirmOverlay {
                     VALUE_X, ry, TabletPalette.TXT);
         }
 
-        List<FormattedCharSequence> risk = font.split(riskText(e), RISK_TEXT_W);
-        int riskBottom = riskY + risk.size() * 10 + 14;
+        int riskLines = MoneyText.lineCount(font, riskText(e), RISK_TEXT_W);
+        int riskBottom = riskY + riskLines * 10 + 14;
         TabletDraw.box(graphics, 8, riskY, W - 9, riskBottom, TabletPalette.RISK_BG, TabletPalette.CORAL);
         PixelGlyphs.draw(graphics, 14, riskY + 7, PixelGlyphs.WARN, TabletPalette.CORAL);
-        for (int i = 0; i < risk.size(); i++) {
-            graphics.drawString(font, risk.get(i), 26, riskY + 7 + i * 10, TabletPalette.TXT, false);
-        }
-        List<FormattedCharSequence> note = font.split(note(e), W - 20);
-        for (int i = 0; i < note.size(); i++) {
-            graphics.drawString(font, note.get(i), 10, riskBottom + 5 + i * 10, TabletPalette.LOCKC, false);
-        }
+        MoneyText.drawWrapped(graphics, font, riskText(e), 26, riskY + 7, RISK_TEXT_W, TabletPalette.TXT, 10);
+        MoneyText.drawWrapped(graphics, font, note(e), 10, riskBottom + 5, W - 20, TabletPalette.LOCKC, 10);
 
         String confirm = Component.translatable(abandon() ? "ui.aerocouriers.abandon"
                 : "ui.aerocouriers.cancel_confirm.button").getString();

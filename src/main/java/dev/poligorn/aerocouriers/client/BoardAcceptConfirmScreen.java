@@ -15,7 +15,6 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Renderable;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
-import net.minecraft.util.FormattedCharSequence;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.jetbrains.annotations.Nullable;
 
@@ -92,7 +91,7 @@ public final class BoardAcceptConfirmScreen extends Screen {
     }
 
     private int wrappedHeight(Component text, int maxWidth) {
-        return font.split(text, maxWidth).size() * font.lineHeight;
+        return MoneyText.lineCount(font, text, maxWidth) * font.lineHeight;
     }
 
     private void confirm() {
@@ -202,7 +201,7 @@ public final class BoardAcceptConfirmScreen extends Screen {
 
     private void drawSpurTooltip(GuiGraphics graphics, int mouseX, int mouseY) {
         if (hoverSpurBreakdown != null && hoverSpurHeader != null) {
-            graphics.renderTooltip(font, List.of(hoverSpurHeader), Optional.of(hoverSpurBreakdown), mouseX, mouseY);
+            graphics.renderTooltip(font, List.of(), Optional.of(hoverSpurBreakdown), mouseX, mouseY);
         }
     }
 
@@ -277,12 +276,6 @@ public final class BoardAcceptConfirmScreen extends Screen {
     }
 
     private int drawWrapped(GuiGraphics graphics, Component text, int x, int y, int maxWidth, int color) {
-        List<FormattedCharSequence> lines = font.split(text, maxWidth);
-        int drawY = y;
-        for (FormattedCharSequence line : lines) {
-            graphics.drawString(font, line, x, drawY, color, false);
-            drawY += font.lineHeight;
-        }
-        return drawY;
+        return MoneyText.drawWrapped(graphics, font, text, x, y, maxWidth, color, font.lineHeight);
     }
 }

@@ -1,5 +1,6 @@
 package dev.poligorn.aerocouriers.client.board;
 
+import dev.poligorn.aerocouriers.client.MoneyText;
 import dev.poligorn.aerocouriers.cargo.CargoSize;
 import dev.poligorn.aerocouriers.contract.ContractState;
 import dev.poligorn.aerocouriers.net.BoardSnapshotPayload;
@@ -263,10 +264,11 @@ public final class BoardDetailsOverlay extends TabletOverlay {
         label(graphics, font, "ui.aerocouriers.details.distance", ry);
         String dist = Component.translatable("ui.aerocouriers.card.blocks", TabletDraw.num(e.distance())).getString();
         TabletDraw.text(graphics, font, dist, VALUE_X, ry, TabletPalette.TXT);
-        TabletDraw.text(graphics, font,
-                "· " + Component.translatable("ui.aerocouriers.details.per_1000",
-                        dev.poligorn.aerocouriers.economy.MoneyFormat.text(e.rewardPer1000Blocks())).getString(),
-                VALUE_X + font.width(dist) + 4, ry, TabletPalette.SEC);
+        int perX = VALUE_X + MoneyText.width(font, dist) + 4;
+        String per = "· " + Component.translatable("ui.aerocouriers.details.per_1000",
+                dev.poligorn.aerocouriers.economy.MoneyFormat.text(e.rewardPer1000Blocks())).getString();
+        TabletDraw.text(graphics, font, MoneyText.trunc(font, per, Math.max(8, RIGHT_EDGE - perX)), perX, ry,
+                TabletPalette.SEC);
         ry += 13;
         ry = separator(graphics, ry);
 

@@ -1,5 +1,6 @@
 package dev.poligorn.aerocouriers.client.board;
 
+import dev.poligorn.aerocouriers.client.MoneyText;
 import dev.poligorn.aerocouriers.net.BoardSnapshotPayload;
 import java.util.List;
 import java.util.Optional;
@@ -7,7 +8,6 @@ import java.util.UUID;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
-import net.minecraft.util.FormattedCharSequence;
 import org.jetbrains.annotations.Nullable;
 
 /** «Принять заказ?» with the risk block over the dimmed board (mockup 2_accept). */
@@ -60,8 +60,8 @@ public final class BoardAcceptOverlay extends BoardConfirmOverlay {
     public void measure() {
         host.entry(orderId).ifPresent(e -> {
             Font font = host.font();
-            int riskLines = font.split(riskText(e), RISK_TEXT_W).size();
-            int noteLines = font.split(damageNote(), W - 20).size();
+            int riskLines = MoneyText.lineCount(font, riskText(e), RISK_TEXT_W);
+            int noteLines = MoneyText.lineCount(font, damageNote(), W - 20);
             int riskH = riskLines * 10 + 15;
             buttonsY = RISK_Y + riskH + 4 + noteLines * 10 + 6;
             height = buttonsY + 38;
@@ -144,17 +144,12 @@ public final class BoardAcceptOverlay extends BoardConfirmOverlay {
                 Component.translatable("ui.aerocouriers.card.blocks", TabletDraw.num(e.distance())).getString(),
                 VALUE_X, ry, TabletPalette.TXT);
 
-        List<FormattedCharSequence> risk = font.split(riskText(e), RISK_TEXT_W);
-        int riskBottom = RISK_Y + risk.size() * 10 + 14;
+        int riskLines = MoneyText.lineCount(font, riskText(e), RISK_TEXT_W);
+        int riskBottom = RISK_Y + riskLines * 10 + 14;
         TabletDraw.box(graphics, 8, RISK_Y, W - 9, riskBottom, TabletPalette.RISK_BG, TabletPalette.CORAL);
         PixelGlyphs.draw(graphics, 14, RISK_Y + 7, PixelGlyphs.WARN, TabletPalette.CORAL);
-        for (int i = 0; i < risk.size(); i++) {
-            graphics.drawString(font, risk.get(i), 26, RISK_Y + 7 + i * 10, TabletPalette.TXT, false);
-        }
-        List<FormattedCharSequence> damage = font.split(damageNote(), W - 20);
-        for (int i = 0; i < damage.size(); i++) {
-            graphics.drawString(font, damage.get(i), 10, riskBottom + 5 + i * 10, TabletPalette.LOCKC, false);
-        }
+        MoneyText.drawWrapped(graphics, font, riskText(e), 26, RISK_Y + 7, RISK_TEXT_W, TabletPalette.TXT, 10);
+        MoneyText.drawWrapped(graphics, font, damageNote(), 10, riskBottom + 5, W - 20, TabletPalette.LOCKC, 10);
 
         int yb = buttonsY;
         boolean ok = canConfirm(e);
@@ -187,7 +182,7 @@ public final class BoardAcceptOverlay extends BoardConfirmOverlay {
             String rest = " · " + Component.translatable("ui.aerocouriers.accept.short_detail",
                     dev.poligorn.aerocouriers.economy.MoneyFormat.text(balance),
                     dev.poligorn.aerocouriers.economy.MoneyFormat.text(due)).getString();
-            int rx = 10 + font.width(lack);
+            int rx = 10 + MoneyText.width(font, lack);
             TabletDraw.text(graphics, font, TabletDraw.trunc(font, rest, W - 10 - rx), rx, hy, TabletPalette.SEC);
         } else {
             TabletDraw.text(graphics, font, Component.translatable("ui.aerocouriers.accept.balance_left",

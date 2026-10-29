@@ -104,13 +104,17 @@ public class CargoContainerBlockEntity extends BlockEntity {
     }
 
     public static void serverTick(Level level, BlockPos pos, BlockState state, CargoContainerBlockEntity be) {
-        if (CargoContainerBlock.isPhysicsLocked(state) || ++be.ticks % CHECK_INTERVAL_TICKS != 0 || be.contractId == null) {
+        if (++be.ticks % CHECK_INTERVAL_TICKS != 0 || be.contractId == null) {
             return;
         }
         ServerLevel serverLevel = (ServerLevel) level;
         Vector3d world = SableBridge.worldCenter(serverLevel, pos);
         Vector3d velocity = SableBridge.velocity(serverLevel, pos);
         CargoTracker.report(be.contractId, serverLevel, pos, world, velocity, be.debug);
+        // Locked crates still report so a moved seal can be found and unlocked after accept.
+        if (CargoContainerBlock.isPhysicsLocked(state)) {
+            return;
+        }
 
         if (be.debug) {
             int logInterval = CouriersServerConfig.SPEC.isLoaded() ? CouriersServerConfig.CARGO_DEBUG_LOG_INTERVAL.get() : 0;
@@ -129,7 +133,11 @@ public class CargoContainerBlockEntity extends BlockEntity {
         if (verdict == ContractManager.Verdict.REMOVE) {
             be.selfRemoving = true;
             CargoTracker.forget(be.contractId);
-            level.removeBlock(pos, false);
+            // Delivery may already have replaced this block with the restored chest. Do not delete that.
+            if (level.getBlockEntity(pos) instanceof CargoContainerBlockEntity still
+                    && be.contractId.equals(still.contractId())) {
+                level.removeBlock(pos, false);
+            }
         }
     }
 

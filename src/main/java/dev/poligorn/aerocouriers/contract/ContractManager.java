@@ -3,10 +3,13 @@ package dev.poligorn.aerocouriers.contract;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import dev.poligorn.aerocouriers.AeronauticsCouriers;
+import dev.poligorn.aerocouriers.cargo.CargoBlock;
+import dev.poligorn.aerocouriers.cargo.CargoContainerBlock;
 import dev.poligorn.aerocouriers.cargo.CargoContainerBlockEntity;
 import dev.poligorn.aerocouriers.cargo.CargoSize;
 import dev.poligorn.aerocouriers.cargo.CargoSpawner;
 import dev.poligorn.aerocouriers.cargo.CargoTracker;
+import dev.poligorn.aerocouriers.cargo.SableBridge;
 import dev.poligorn.aerocouriers.config.CouriersServerConfig;
 import dev.poligorn.aerocouriers.item.Waybills;
 import dev.poligorn.aerocouriers.economy.Economies;
@@ -50,6 +53,7 @@ import net.minecraft.world.Container;
 import net.minecraft.world.Containers;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.saveddata.SavedData;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
@@ -560,8 +564,14 @@ public final class ContractManager extends SavedData {
             if (pickup != null && pickup.isLoaded(accepted.origin().pos())) {
                 CargoSpawner.unlockAndAssemble(pickup, accepted.origin().pos());
             }
-            accepted = accepted.withState(ContractState.IN_TRANSIT);
-            put(accepted);
+            // A removal during unlock must not be overwritten back into an active haul.
+            Contract current = contracts.get(id);
+            if (current != null && current.state() == ContractState.ACCEPTED) {
+                accepted = accepted.withState(ContractState.IN_TRANSIT);
+                put(accepted);
+            } else if (current != null) {
+                accepted = current;
+            }
         }
         if (!self) {
             notify(server, contract.issuer(), Component.translatable("contract.aerocouriers.notify.accepted",
@@ -790,9 +800,15 @@ public final class ContractManager extends SavedData {
 
         Contract delivered = contract.withState(ContractState.DELIVERED);
         put(delivered);
+        boolean selfHaul = contract.issuer().equals(courier.getUUID());
         Component message = Component.translatable(
                 late ? "contract.aerocouriers.delivered_late" : "contract.aerocouriers.delivered",
                 contract.shortId(), dev.poligorn.aerocouriers.economy.MoneyFormat.component(paid), xp);
+        if (!contract.type().isNpc() && selfHaul) {
+            String where = placedAt.map(BlockPos::toShortString).orElse("?");
+            message = message.copy().append("\n").append(Component.translatable(
+                    "contract.aerocouriers.notify.delivered", contract.shortId(), courier.getDisplayName(), where));
+        }
         CouriersNotifications.notifyOrder(server, courier.getUUID(), message, Optional.of(id));
         if (rankAfter.level() > rankBefore.level() && !rankAfter.isAdmin()) {
             CouriersNotifications.notifyOrder(server, courier.getUUID(),
@@ -807,7 +823,7 @@ public final class ContractManager extends SavedData {
                     Component.translatable("contract.aerocouriers.notify.delivered_village",
                             contract.shortId(), stationName),
                     Optional.of(id));
-        } else {
+        } else if (!selfHaul) {
             String where = placedAt.map(BlockPos::toShortString).orElse("?");
             notify(server, contract.recipient(), Component.translatable("contract.aerocouriers.notify.delivered",
                     contract.shortId(), courier.getDisplayName(), where), id);
@@ -955,15 +971,11 @@ public final class ContractManager extends SavedData {
         if (contract == null) {
             return;
         }
-        if (contract.preplaced() && contract.state() == ContractState.OPEN && server != null) {
-            expire(server, contract);
-            return;
-        }
-        if (contract.preplaced() && contract.state() == ContractState.ACCEPTED && server != null) {
-            fail(server, contract, FailReason.DESTROYED, null);
-            return;
-        }
-        if (contract.state() == ContractState.IN_TRANSIT) {
+        // Sable moves the block entity when a ship is assembled. Wait to see if the same id reports again
+        // before expiring or destroying — an immediate fail deleted the crate and emptied escrow.
+        boolean preplacedOpenOrAccepted = contract.preplaced()
+                && (contract.state() == ContractState.OPEN || contract.state() == ContractState.ACCEPTED);
+        if (preplacedOpenOrAccepted || contract.state() == ContractState.IN_TRANSIT) {
             missingSince.putIfAbsent(id, now);
         }
     }
@@ -974,6 +986,9 @@ public final class ContractManager extends SavedData {
      * the world if damaged. The state changes and escrow empties before anything reaches the world.
      */
     Outcome fail(MinecraftServer server, Contract contract, FailReason reason, @Nullable DropSite site) {
+        if (contract.state().isFinal()) {
+            return Outcome.error("wrong_state", contract.state().displayName());
+        }
         UUID id = contract.id();
         UUID courier = contract.courier().orElseThrow();
         removePreplacedContainer(server, contract);
@@ -997,12 +1012,16 @@ public final class ContractManager extends SavedData {
         blockedNoticeAt.remove(id);
         CargoTracker.forget(id);
 
+        boolean selfHaul = contract.issuer().equals(courier);
         boolean courierBroke = site != null && site.breaker() != null && site.breaker().getUUID().equals(courier);
         int dropped = 0;
         if (!contract.type().isNpc()) {
             switch (reason) {
                 case DAMAGED -> {
-                    if (site != null && !courierBroke) {
+                    // Same player is customer and courier: discarding "because the courier broke it" loses their cargo.
+                    if (selfHaul) {
+                        Mailbox.get(server).post(contract.issuer(), items);
+                    } else if (site != null && !courierBroke) {
                         dropped = drop(site, items);
                     }
                 }
@@ -1029,7 +1048,7 @@ public final class ContractManager extends SavedData {
                 : Component.translatable("contract.aerocouriers.fail." + reason.key());
         notify(server, contract.issuer(), Component.translatable("contract.aerocouriers.notify.failed.issuer",
                 contract.shortId(), cause), id);
-        if (online != null && reason != FailReason.ABANDONED) {
+        if (online != null && reason != FailReason.ABANDONED && !selfHaul) {
             CouriersNotifications.notifyOrder(server, courier,
                     Component.translatable("contract.aerocouriers.notify.failed.courier",
                             contract.shortId(), cause,
@@ -1077,6 +1096,44 @@ public final class ContractManager extends SavedData {
         return Outcome.ok(expired, "expired", contract.shortId());
     }
 
+    /**
+     * A preplaced crate stays sealed until accept. If accept ran while the chunk was unloaded, or Sable had already
+     * moved the still-locked block, retry until it is an unlocked physics object.
+     */
+    private void ensurePreplacedUnlocked(MinecraftServer server, Contract contract) {
+        CargoTracker.Snapshot tracked = CargoTracker.get(contract.id()).orElse(null);
+        if (tracked != null && unlockIfPresent(server.getLevel(tracked.dimension()), tracked.plotPos(), contract.id())) {
+            return;
+        }
+        ServerLevel origin = server.getLevel(contract.origin().dimension());
+        if (origin != null) {
+            unlockIfPresent(origin, contract.origin().pos(), contract.id());
+        }
+    }
+
+    /** @return {@code true} when a cargo block for {@code id} is at {@code pos} (already physics, or just unlocked) */
+    private static boolean unlockIfPresent(ServerLevel level, BlockPos pos, UUID id) {
+        if (level == null || !level.isLoaded(pos)) {
+            return false;
+        }
+        BlockState state = level.getBlockState(pos);
+        if (!(state.getBlock() instanceof CargoBlock cargo)) {
+            return false;
+        }
+        BlockPos controller = cargo.controllerPos(pos, state);
+        if (!(level.getBlockEntity(controller) instanceof CargoContainerBlockEntity be) || !id.equals(be.contractId())) {
+            return false;
+        }
+        BlockState controllerState = level.getBlockState(controller);
+        boolean locked = CargoContainerBlock.isPhysicsLocked(controllerState);
+        boolean assembled = SableBridge.containingSubLevel(level, controller) != null;
+        if (!locked && assembled) {
+            return true;
+        }
+        CargoSpawner.unlockAndAssemble(level, controller);
+        return true;
+    }
+
     /** Drops the physical Sable crate of a stamp order without treating it as a destroyed in-transit container. */
     void removePreplacedContainer(MinecraftServer server, Contract contract) {
         if (!contract.preplaced()) {
@@ -1114,6 +1171,9 @@ public final class ContractManager extends SavedData {
         int spawnRadius = CouriersServerConfig.SPAWN_TRIGGER_RADIUS.get();
         for (Contract contract : List.copyOf(contracts.values())) {
             UUID id = contract.id();
+            if (contract.preplaced() && contract.state().isActive()) {
+                ensurePreplacedUnlocked(server, contract);
+            }
             if (contract.state() == ContractState.OPEN && now >= contract.timing().expiresAt()) {
                 expire(server, contract);
             } else if (contract.state().isActive() && now > contract.timing().lateUntil(lateWindow)) {
@@ -1124,13 +1184,19 @@ public final class ContractManager extends SavedData {
                         && contract.origin().within(courier.level().dimension(), courier.position(), spawnRadius)) {
                     spawnContainer(server, id);
                 }
-            } else if (contract.state() == ContractState.IN_TRANSIT && missingSince.containsKey(id)) {
+            } else if (missingSince.containsKey(id)) {
                 long since = missingSince.get(id);
                 boolean reportedSince = CargoTracker.get(id).filter(s -> s.gameTime() > since).isPresent();
                 if (reportedSince) {
                     missingSince.remove(id);
                 } else if (now - since >= MISSING_GRACE_TICKS) {
-                    fail(server, contract, FailReason.DESTROYED, null);
+                    if (contract.state() == ContractState.OPEN) {
+                        expire(server, contract);
+                    } else if (contract.state().isActive()) {
+                        fail(server, contract, FailReason.DESTROYED, null);
+                    } else {
+                        missingSince.remove(id);
+                    }
                 }
             } else if (contract.state().isFinal() && now - contract.timing().createdAt() > HISTORY_TICKS
                     && Escrow.get(server).holding(id).isEmpty()) {

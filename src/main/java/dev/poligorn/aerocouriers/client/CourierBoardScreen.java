@@ -74,7 +74,6 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
-import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.util.Mth;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.jetbrains.annotations.Nullable;
@@ -751,11 +750,12 @@ public final class CourierBoardScreen extends Screen {
             head += " · " + Component.translatable("ui.aerocouriers.status.collateral").getString() + " ";
         }
         int right = sx + screenW();
-        int x = right - font.width(head) - (atStake > 0 ? font.width(amount) : 0);
+        int amountW = atStake > 0 ? MoneyText.width(font, amount) : 0;
+        int x = right - font.width(head) - amountW;
         x = Math.max(x, sx + font.width(left) + 12);
         graphics.drawString(font, head, x, y, TabletPalette.SEC, false);
         if (atStake > 0) {
-            graphics.drawString(font, amount, x + font.width(head), y, TabletPalette.CORAL, false);
+            MoneyText.draw(graphics, font, amount, x + font.width(head), y, TabletPalette.CORAL, MoneyText.Face.DEFAULT);
         }
     }
 
@@ -832,10 +832,16 @@ public final class CourierBoardScreen extends Screen {
 
     private void renderContentWidgets(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         for (Renderable widget : renderables) {
-            if (!isMainChromeWidget(widget)) {
-                widget.render(graphics, mouseX, mouseY, partialTick);
+            if (isMainChromeWidget(widget) || isMailRowButton(widget)) {
+                continue;
             }
+            widget.render(graphics, mouseX, mouseY, partialTick);
         }
+    }
+
+    /** Mail × / «Забрать» are drawn with the list scissor, not in the unclipped content pass. */
+    private boolean isMailRowButton(Renderable widget) {
+        return tab == Tab.MAIL && widget instanceof TabletButton button && button.getY() >= mailListTop();
     }
 
     private boolean isMainChromeWidget(Renderable widget) {
@@ -1115,7 +1121,7 @@ public final class CourierBoardScreen extends Screen {
     }
 
     private int measureProfileStatBlock(Component line, int width, int y) {
-        int lines = font.split(line, width).size();
+        int lines = MoneyText.lineCount(font, line, width);
         return y + lines * PROFILE_LINE_HEIGHT + 2;
     }
 
@@ -1209,12 +1215,8 @@ public final class CourierBoardScreen extends Screen {
     }
 
     private int drawProfileStatBlock(GuiGraphics graphics, Component line, int x, int y, int width, int color) {
-        List<FormattedCharSequence> lines = font.split(line, width);
-        for (FormattedCharSequence row : lines) {
-            graphics.drawString(font, row, x, y, color, false);
-            y += PROFILE_LINE_HEIGHT;
-        }
-        return y + 2;
+        MoneyText.drawWrapped(graphics, font, line, x, y, width, color, PROFILE_LINE_HEIGHT);
+        return y + MoneyText.lineCount(font, line, width) * PROFILE_LINE_HEIGHT + 2;
     }
 
     private static Component formatAverage(long sum, int count) {
@@ -1315,12 +1317,7 @@ public final class CourierBoardScreen extends Screen {
     }
 
     private void drawWrapped(GuiGraphics graphics, Component text, int x, int y, int width, int color) {
-        List<FormattedCharSequence> lines = font.split(text, width);
-        int drawY = y;
-        for (FormattedCharSequence line : lines) {
-            graphics.drawString(font, line, x, drawY, color, false);
-            drawY += 9;
-        }
+        MoneyText.drawWrapped(graphics, font, text, x, y, width, color, 9);
     }
 
     private void captureButtonHint(int mouseX, int mouseY) {
@@ -1417,7 +1414,7 @@ public final class CourierBoardScreen extends Screen {
             return;
         }
         if (hoverSpurBreakdown != null && hoverSpurHeader != null) {
-            graphics.renderTooltip(font, List.of(hoverSpurHeader), Optional.of(hoverSpurBreakdown), mouseX, mouseY);
+            graphics.renderTooltip(font, List.of(), Optional.of(hoverSpurBreakdown), mouseX, mouseY);
             return;
         }
         if (hoverCargoComponent != null) {
@@ -1435,7 +1432,7 @@ public final class CourierBoardScreen extends Screen {
     }
 
     private void offerSpurTooltip(long spurs, SpurAmountUi.Bounds bounds, int mouseX, int mouseY) {
-        if (hoverSpurBreakdown != null || bounds == null) {
+        if (hoverSpurBreakdown != null || bounds == null || snapshot == null || !snapshot.numismaticsEconomy()) {
             return;
         }
         if (bounds.contains(mouseX, mouseY)) {
@@ -1499,6 +1496,10 @@ public final class CourierBoardScreen extends Screen {
         if (button == 0 && tab == Tab.MAIL) {
             int mx = (int) mouseX;
             int my = (int) adjustedY;
+            if (isOverRowAction(mx, my) && isMailRowButtonUnder(mx, my)
+                    && (my < mailListTop() || my >= mailListBottom())) {
+                return true;
+            }
             if (!isOverRowAction(mx, my)) {
                 int index = mailRowAt(mouseX, adjustedY);
                 if (index >= 0) {
@@ -1792,7 +1793,7 @@ public final class CourierBoardScreen extends Screen {
         Component hint = Component.translatable("ui.aerocouriers.trainee.hint",
                 snapshot.profile().traineeFreeContracts() - snapshot.profile().villageDelivered(),
                 snapshot.profile().traineeMaxDistance());
-        int lines = font.split(hint, screenW()).size();
+        int lines = MoneyText.lineCount(font, hint, screenW());
         return lines * font.lineHeight + 4;
     }
 
@@ -1868,6 +1869,7 @@ public final class CourierBoardScreen extends Screen {
     }
 
     private void initMailTab() {
+        removeTabletButtons();
         if (snapshot == null) {
             return;
         }
@@ -1935,13 +1937,10 @@ public final class CourierBoardScreen extends Screen {
                 int textX = sx + 4 + INBOX_ICON + 4;
                 int claimReserve = line.hasItems() ? 62 : 18;
                 int textW = listW - (textX - sx) - claimReserve - 4;
-                List<FormattedCharSequence> wrapped = font.split(line.text(), textW);
-                int textBlockH = wrapped.size() * font.lineHeight;
+                int wrapped = MoneyText.lineCount(font, line.text(), textW);
+                int textBlockH = wrapped * font.lineHeight;
                 int ty = rowY + (rowH - textBlockH) / 2;
-                for (FormattedCharSequence row : wrapped) {
-                    graphics.drawString(font, row, textX, ty, TabletGui.TEXT, false);
-                    ty += font.lineHeight;
-                }
+                MoneyText.drawWrapped(graphics, font, line.text(), textX, ty, textW, TabletGui.TEXT, font.lineHeight);
             });
             graphics.pose().popPose();
         }
@@ -1950,14 +1949,38 @@ public final class CourierBoardScreen extends Screen {
     private void renderMailActionWidgetsOnTop(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         int listY = mailListTop();
         int listBottom = mailListBottom();
+        int sx = screenLeft();
+        int x0 = layoutToScreenX(sx);
+        int y0 = layoutToScreenY(listY);
+        int x1 = layoutToScreenX(sx + screenW());
+        int y1 = layoutToScreenY(listBottom);
+        if (x1 <= x0 || y1 <= y0) {
+            return;
+        }
+        graphics.enableScissor(x0, y0, x1, y1);
         for (Renderable widget : renderables) {
-            if (widget instanceof TabletButton button) {
-                int y = button.getY();
-                if (y >= headingY() && y < listBottom) {
-                    widget.render(graphics, mouseX, mouseY, partialTick);
-                }
+            if (widget instanceof TabletButton button && button.getY() >= listY && button.getY() < listBottom) {
+                widget.render(graphics, mouseX, mouseY, partialTick);
             }
         }
+        graphics.disableScissor();
+    }
+
+    private int layoutToScreenX(int layoutX) {
+        return (int) Math.floor(fit.fitX + layoutX * fit.scale);
+    }
+
+    private int layoutToScreenY(int layoutY) {
+        return (int) Math.floor(fit.fitY + layoutY * fit.scale);
+    }
+
+    private boolean isMailRowButtonUnder(int mouseX, int mouseY) {
+        for (Renderable widget : renderables) {
+            if (isMailRowButton(widget) && widget instanceof AbstractWidget button && button.isMouseOver(mouseX, mouseY)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private int mailRowAt(double mouseX, double mouseY) {
@@ -2007,7 +2030,7 @@ public final class CourierBoardScreen extends Screen {
     }
 
     private int inboxRowHeight(NotificationSyncPayload.Line line, int listW) {
-        int lines = font.split(line.text(), inboxTextWidth(listW, line.hasItems())).size();
+        int lines = MoneyText.lineCount(font, line.text(), inboxTextWidth(listW, line.hasItems()));
         int textH = Math.max(font.lineHeight, lines * font.lineHeight);
         return Math.max(INBOX_ROW_MIN_H, INBOX_ROW_PAD_V * 2 + textH);
     }

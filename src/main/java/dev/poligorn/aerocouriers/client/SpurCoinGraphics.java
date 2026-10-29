@@ -3,12 +3,14 @@ package dev.poligorn.aerocouriers.client;
 import dev.poligorn.aerocouriers.client.compat.numismatics.NumismaticsCoinRender;
 import dev.poligorn.aerocouriers.economy.SpurDenomination;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.neoforged.fml.ModList;
 
-/** Spur coin icons: Numismatics item renders when the mod is loaded, else fallback PNGs. */
+/** Currency icons: Numismatics coin items when that mod is loaded, otherwise a vanilla emerald. */
 public final class SpurCoinGraphics {
-    private static final int TEX = 9;
     private static final String NUMISMATICS_ID = "numismatics";
+    private static final ItemStack EMERALD = new ItemStack(Items.EMERALD);
 
     private SpurCoinGraphics() {
     }
@@ -22,7 +24,7 @@ public final class SpurCoinGraphics {
             NumismaticsCoinRender.drawGenericSpur(graphics, x, y, size);
             return;
         }
-        graphics.blitSprite(AerocouriersGuiSprites.ICON_COIN, x, y, size, size);
+        drawEmerald(graphics, x, y, size);
     }
 
     public static void drawDenomination(GuiGraphics graphics, SpurDenomination denomination, int x, int y, int size) {
@@ -30,6 +32,16 @@ public final class SpurCoinGraphics {
             NumismaticsCoinRender.drawDenomination(graphics, denomination, x, y, size);
             return;
         }
-        graphics.blit(denomination.texture(), x, y, 0, 0, size, size, TEX, TEX);
+        drawEmerald(graphics, x, y, size);
+    }
+
+    /** Vanilla emerald item, scaled to {@code size} pixels. No custom currency texture. */
+    private static void drawEmerald(GuiGraphics graphics, int x, int y, int size) {
+        float scale = size / 16.0F;
+        graphics.pose().pushPose();
+        graphics.pose().translate(x, y, 0.0F);
+        graphics.pose().scale(scale, scale, 1.0F);
+        graphics.renderItem(EMERALD, 0, 0);
+        graphics.pose().popPose();
     }
 }

@@ -46,11 +46,11 @@ public final class WaybillCreateGui {
     }
 
     public static void text(GuiGraphics g, Font font, String s, int x, int y, int color) {
-        g.drawString(font, WaybillFonts.ink(s), x, y, color, false);
+        MoneyText.draw(g, font, s, x, y, color, MoneyText.Face.PAPER);
     }
 
     public static void text(GuiGraphics g, Font font, Component s, int x, int y, int color) {
-        g.drawString(font, WaybillFonts.ink(s), x, y, color, false);
+        text(g, font, s.getString(), x, y, color);
     }
 
     public static void bold(GuiGraphics g, Font font, String s, int x, int y, int color) {
@@ -83,7 +83,7 @@ public final class WaybillCreateGui {
     }
 
     public static int textRight(GuiGraphics g, Font font, String s, int right, int y, int color, boolean bold) {
-        int w = font.width(s) + (bold ? 1 : 0);
+        int w = MoneyText.width(font, s) + (bold ? 1 : 0);
         int x = right - w;
         if (bold) {
             bold(g, font, s, x, y, color);
@@ -296,7 +296,8 @@ public final class WaybillCreateGui {
         box(g, x, y, x + w - 1, y + h - 1, bg, bd);
         hline(g, x + 1, x + w - 2, y + 1, hi);
         int iconW = icon == null ? 0 : PixelGlyphs.width(icon) + 4;
-        int lw = font.width(label) + (bold ? 1 : 0);
+        String shown = MoneyText.trunc(font, label, Math.max(8, w - 8 - iconW));
+        int lw = MoneyText.width(font, shown) + (bold ? 1 : 0);
         int textX = x + (w - lw - iconW) / 2;
         int textY = y + (h - 8) / 2;
         if (icon != null) {
@@ -304,9 +305,9 @@ public final class WaybillCreateGui {
             textX += iconW;
         }
         if (bold) {
-            bold(g, font, label, textX, textY, tx);
+            bold(g, font, shown, textX, textY, tx);
         } else {
-            text(g, font, label, textX, textY, tx);
+            text(g, font, shown, textX, textY, tx);
         }
     }
 
@@ -358,6 +359,10 @@ public final class WaybillCreateGui {
     }
 
     public static void spur(GuiGraphics g, int x, int y) {
+        if (!SpurCoinGraphics.useNumismaticsItems()) {
+            SpurCoinGraphics.drawGenericCoin(g, x, y, 8);
+            return;
+        }
         if (GuiOverride.blit(g, GuiOverride.WAYBILL_SPUR, x, y, 8, 7)) {
             return;
         }
@@ -401,7 +406,7 @@ public final class WaybillCreateGui {
     public static void tooltip(GuiGraphics g, Font font, int x, int y, String[] lines) {
         int w = 10;
         for (String line : lines) {
-            w = Math.max(w, font.width(line) + 10);
+            w = Math.max(w, MoneyText.width(font, line) + 10);
         }
         int h = lines.length * 10 + 6;
         box(g, x, y, x + w - 1, y + h - 1, WaybillPalette.TOOLTIP_BG, WaybillPalette.TOOLTIP_BD);
@@ -424,12 +429,15 @@ public final class WaybillCreateGui {
     public static void metaRow(GuiGraphics g, Font font, int x0, int x1, int y, String label, String value,
                                String[] icon, int iconColor) {
         text(g, font, label, x0, y, WaybillPalette.INK2);
-        int vw = font.width(value);
+        int iconW = icon == null ? 0 : PixelGlyphs.width(icon) + 4;
+        int valueRoom = Math.max(8, x1 - x0 - font.width(label) - 6 - iconW);
+        String shown = MoneyText.trunc(font, value, valueRoom);
+        int vw = MoneyText.width(font, shown);
         int vx = x1 - vw;
         if (icon != null) {
             PixelGlyphs.draw(g, vx - PixelGlyphs.width(icon) - 4, y, icon, iconColor);
         }
-        text(g, font, value, vx, y, WaybillPalette.INK);
+        text(g, font, shown, vx, y, WaybillPalette.INK);
     }
 
     public static void riskBanner(GuiGraphics g, Font font, int x0, int y, int x1, String line) {

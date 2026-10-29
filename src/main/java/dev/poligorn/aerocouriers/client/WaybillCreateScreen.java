@@ -238,7 +238,7 @@ public final class WaybillCreateScreen extends Screen {
 
     private PaperEditBox moneyBox(int x0, int y, int x1, String value, java.util.function.Consumer<String> sink,
                                   Component label) {
-        int unitW = font.width(moneyUnit()) + 6;
+        int unitW = MoneyText.width(font, moneyUnit()) + 6;
         PaperEditBox box = new PaperEditBox(font, x0 + 5, y + 3, Math.max(12, x1 - x0 - 8 - unitW), 9, label);
         box.setMaxLength(12);
         box.setFilter(s -> s.isEmpty() || s.matches("\\d{1,12}"));
@@ -416,7 +416,7 @@ public final class WaybillCreateScreen extends Screen {
                 if (hoveredStack != null) {
                     graphics.renderTooltip(font, hoveredStack, mouseX, mouseY);
                 } else if (hoverSpur != null && hoverSpurHeader != null) {
-                    graphics.renderTooltip(font, List.of(hoverSpurHeader), Optional.of(hoverSpur), mouseX, mouseY);
+                    graphics.renderTooltip(font, List.of(), Optional.of(hoverSpur), mouseX, mouseY);
                 } else if (hoverLines != null && !cargoOverlay.isOpen()) {
                     WaybillCreateGui.tooltip(graphics, font, toScreenX(hoverTipX), toScreenY(hoverTipY), hoverLines);
                 }
@@ -443,16 +443,19 @@ public final class WaybillCreateScreen extends Screen {
                 WaybillPalette.INK, 1);
         String customer = minecraft != null && minecraft.player != null
                 ? minecraft.player.getGameProfile().getName() : "";
-        WaybillCreateGui.text(g, font, tr("ui.aerocouriers.create.customer", customer),
-                x0, layout.headerSubY + yOff, WaybillPalette.INK2);
+        String customerLine = tr("ui.aerocouriers.create.customer", customer);
+        WaybillCreateGui.text(g, font, customerLine, x0, layout.headerSubY + yOff, WaybillPalette.INK2);
         long pay = chargeNow();
         String bal = MoneyFormat.text(preview.balance());
-        int bx = x1 - font.width(bal);
+        int balW = MoneyText.width(font, bal) + 1;
+        int bx = x1 - balW;
         WaybillCreateGui.spur(g, bx - 11, layout.headerY + yOff);
         WaybillCreateGui.bold(g, font, bal, bx, layout.headerY + yOff, WaybillPalette.GOLD);
-        offerMoneyTooltip(preview.balance(), bx - 11, layout.headerY + yOff, 11 + font.width(bal), 10, mouseX, mouseY);
-        String after = tr("ui.aerocouriers.create.after_post",
+        offerMoneyTooltip(preview.balance(), bx - 11, layout.headerY + yOff, 11 + balW, 10, mouseX, mouseY);
+        String afterFull = tr("ui.aerocouriers.create.after_post",
                 MoneyFormat.text(preview.balance() - pay));
+        int afterRoom = x1 - (x0 + font.width(customerLine) + 8);
+        String after = MoneyText.trunc(font, afterFull, Math.max(8, afterRoom));
         WaybillCreateGui.textRight(g, font, after, x1, layout.headerSubY + yOff, WaybillPalette.INK2, false);
         WaybillCreateGui.hline(g, x0, x1, layout.headerRuleY + yOff, WaybillPalette.RULE);
 
@@ -529,7 +532,10 @@ public final class WaybillCreateScreen extends Screen {
         String valueText = tr("ui.aerocouriers.create.cargo_value_amount", MoneyFormat.text(value));
         WaybillCreateGui.metaRow(g, font, x0, layout.leftColX1, layout.cargoMetaY + 12 + yOff,
                 tr("ui.aerocouriers.create.cargo_value"), valueText, null, 0);
-        WaybillCreateGui.spur(g, layout.leftColX1 - font.width(valueText) - 9, layout.cargoMetaY + 12 + yOff);
+        int valueRoom = Math.max(8, layout.leftColX1 - x0 - font.width(tr("ui.aerocouriers.create.cargo_value")) - 6);
+        String valueShown = MoneyText.trunc(font, valueText, valueRoom);
+        WaybillCreateGui.spur(g, layout.leftColX1 - MoneyText.width(font, valueShown) - 9,
+                layout.cargoMetaY + 12 + yOff);
         BlockPos origin = preview.origin();
         String from = origin.getX() + ", " + origin.getY() + ", " + origin.getZ();
         WaybillCreateGui.metaRow(g, font, x0, layout.leftColX1, layout.cargoMetaY + 24 + yOff,
@@ -668,7 +674,8 @@ public final class WaybillCreateScreen extends Screen {
 
         int sy = layout.summaryY + yOff;
         WaybillCreateGui.fill(g, x0, sy, x1, sy + 12, WaybillPalette.PAPER2);
-        WaybillCreateGui.text(g, font, summaryLine(), x0 + 5, sy + 2, WaybillPalette.INK);
+        WaybillCreateGui.text(g, font, MoneyText.trunc(font, summaryLine(), Math.max(8, x1 - x0 - 10)),
+                x0 + 5, sy + 2, WaybillPalette.INK);
     }
 
     private void drawTotal(GuiGraphics g, int mouseX, int mouseY, int yOff) {
@@ -681,8 +688,11 @@ public final class WaybillCreateScreen extends Screen {
         String tot = MoneyFormat.text(rewardValue + fee);
         int totX = WaybillCreateGui.textRight(g, font, tot, x1, layout.payY + yOff, WaybillPalette.GOLD, true);
         offerMoneyTooltip(rewardValue + fee, totX, layout.payY + yOff, x1 - totX, 10, mouseX, mouseY);
+        String payLabel = tr("ui.aerocouriers.create.pay_now");
         String br = tr("ui.aerocouriers.create.pay_breakdown", MoneyFormat.text(rewardValue), MoneyFormat.text(fee));
-        WaybillCreateGui.textRight(g, font, br, totX - 4, layout.payY + yOff, WaybillPalette.INK, false);
+        int brRoom = Math.max(8, totX - 4 - (x0 + font.width(payLabel) + 6));
+        WaybillCreateGui.textRight(g, font, MoneyText.trunc(font, br, brRoom), totX - 4, layout.payY + yOff,
+                WaybillPalette.INK, false);
         String risk = tr("ui.aerocouriers.create.risk_issuer",
                 MoneyFormat.text(parseLong(collateral, 0)), MoneyFormat.text(rewardValue));
         String shown = TabletDraw.trunc(font, risk, Math.max(16, x1 - x0 - 22));
@@ -716,7 +726,9 @@ public final class WaybillCreateScreen extends Screen {
             int kw = WaybillCreateGui.keycapWidth(font, "Enter");
             WaybillCreateGui.keycap(g, font, layout.submitX - 8 - kw, by + 4, "Enter");
         } else if (deny != null && !sealing) {
-            WaybillCreateGui.textRight(g, font, deny, layout.submitX - 10, by + 6, WaybillPalette.RED, false);
+            int denyRoom = Math.max(8, layout.submitX - 10 - (layout.cancelX + layout.cancelW + 6));
+            WaybillCreateGui.textRight(g, font, MoneyText.trunc(font, deny, denyRoom), layout.submitX - 10, by + 6,
+                    WaybillPalette.RED, false);
         }
     }
 

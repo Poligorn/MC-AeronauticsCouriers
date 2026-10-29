@@ -1,5 +1,6 @@
 package dev.poligorn.aerocouriers.client.board;
 
+import dev.poligorn.aerocouriers.client.MoneyText;
 import dev.poligorn.aerocouriers.contract.ContractState;
 import dev.poligorn.aerocouriers.license.LicenseRank;
 import dev.poligorn.aerocouriers.net.BoardSnapshotPayload;
@@ -16,6 +17,10 @@ public final class BoardCardRenderer {
     public static final int LEFT_INSET = 3;
     /** Gap between the card's right edge and the reward/collateral column. */
     public static final int RIGHT_PAD = 8;
+    /** Minimum space between the rate, the collateral, and the left-hand meta. */
+    private static final int COL_GAP = 4;
+    /** Distance column keeps at least this much before the rate is shortened. */
+    private static final int MIN_LEFT = 28;
     private static final int DEST_MAX_W = 110;
     private static final int NEW_AGE_MINUTES = 10;
 
@@ -122,37 +127,87 @@ public final class BoardCardRenderer {
                     dev.poligorn.aerocouriers.economy.MoneyFormat.text(style.collateralDue()))
                     .getString();
         }
-        TabletDraw.textRight(graphics, font, depos, rx, y2, deposColor, false);
+        int deposW = MoneyText.width(font, depos);
+        int deposX = Math.max(x0 + 8, rx - deposW);
+        TabletDraw.text(graphics, font, depos, deposX, y2, deposColor);
+
+        int leftStart = x0 + 18;
+        int clusterRight = deposX - COL_GAP;
+        int middleBudget = Math.max(0, clusterRight - leftStart - MIN_LEFT - COL_GAP);
         String middle = style.boardTab() || !"issuer".equals(entry.role())
                 ? dev.poligorn.aerocouriers.economy.MoneyFormat.text(entry.rewardPer1000Blocks()) + "/1000"
                 : Component.translatable("ui.aerocouriers.card.role_issuer").getString();
-        TabletDraw.textRight(graphics, font, TabletDraw.trunc(font, middle, 80), rx - 90, y2, sc, false);
+        String middleShown = middleBudget > 0 ? MoneyText.trunc(font, middle, middleBudget) : "";
+        int middleW = MoneyText.width(font, middleShown);
+        int middleX = clusterRight - middleW;
+        boolean drawMiddle = !middleShown.isEmpty() && middleW > 0 && middleX >= leftStart;
+        if (drawMiddle) {
+            TabletDraw.text(graphics, font, middleShown, middleX, y2, sc);
+        }
+        int leftLimit = (drawMiddle ? middleX : deposX) - COL_GAP;
 
-        x = x0 + 18;
-        int line2Max = rx - 90 - 84;
+        x = leftStart;
         String dist = Component.translatable("ui.aerocouriers.card.blocks", TabletDraw.num(entry.distance()))
                 .getString();
-        TabletDraw.text(graphics, font, dist, x, y2, sc);
-        x += font.width(dist) + 4;
-        TabletDraw.text(graphics, font, "·", x, y2, sc);
-        x += 6;
-        if (x + 40 < line2Max) {
-            PixelGlyphs.draw(graphics, x, y2, PixelGlyphs.BOX, sc);
-            x += 11;
-            String cargo = Component.translatable("ui.aerocouriers.card.cargo", entry.size(),
-                    TabletDraw.weight(entry.weightValue())).getString();
-            TabletDraw.text(graphics, font, cargo, x, y2, sc);
-            x += font.width(cargo) + 4;
+        int afterDist = drawFit(graphics, font, dist, x, y2, leftLimit, sc, true);
+        if (afterDist >= 0) {
+            int dotX = afterDist + 4;
+            int afterDot = drawFit(graphics, font, "·", dotX, y2, leftLimit, sc, false);
+            if (afterDot >= 0) {
+                x = afterDot + 6;
+                String cargo = Component.translatable("ui.aerocouriers.card.cargo", entry.size(),
+                        TabletDraw.weight(entry.weightValue())).getString();
+                int cargoTextX = x + 11;
+                if (cargoTextX < leftLimit) {
+                    String cargoShown = MoneyText.trunc(font, cargo, leftLimit - cargoTextX);
+                    if (!cargoShown.isEmpty()) {
+                        PixelGlyphs.draw(graphics, x, y2, PixelGlyphs.BOX, sc);
+                        TabletDraw.text(graphics, font, cargoShown, cargoTextX, y2, sc);
+                        if (cargoShown.equals(cargo) && !entry.state().isFinal()) {
+                            x = cargoTextX + MoneyText.width(font, cargo) + 4;
+                            afterDot = drawFit(graphics, font, "·", x, y2, leftLimit, sc, false);
+                            if (afterDot >= 0) {
+                                int clockX = afterDot + 6;
+                                long minutes = entry.state() == ContractState.OPEN
+                                        ? entry.deadlineMinutes() : entry.minutesLeft();
+                                String mins = Component.translatable("ui.aerocouriers.card.minutes", minutes)
+                                        .getString();
+                                int minsX = clockX + 11;
+                                if (minsX < leftLimit) {
+                                    String minsShown = MoneyText.trunc(font, mins, leftLimit - minsX);
+                                    if (!minsShown.isEmpty()) {
+                                        PixelGlyphs.draw(graphics, clockX, y2, PixelGlyphs.CLOCK, sc);
+                                        TabletDraw.text(graphics, font, minsShown, minsX, y2, sc);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
-        if (x + 30 < line2Max && !entry.state().isFinal()) {
-            TabletDraw.text(graphics, font, "·", x, y2, sc);
-            x += 6;
-            PixelGlyphs.draw(graphics, x, y2, PixelGlyphs.CLOCK, sc);
-            x += 11;
-            long minutes = entry.state() == ContractState.OPEN ? entry.deadlineMinutes() : entry.minutesLeft();
-            TabletDraw.text(graphics, font,
-                    Component.translatable("ui.aerocouriers.card.minutes", minutes).getString(), x, y2, sc);
+    }
+
+    /** @return x after the text, or -1 when the piece was shortened or did not fit */
+    private static int drawFit(GuiGraphics graphics, Font font, String s, int x, int y, int limit, int color,
+                               boolean ellipsis) {
+        if (x >= limit) {
+            return -1;
         }
+        int w = MoneyText.width(font, s);
+        if (x + w <= limit) {
+            TabletDraw.text(graphics, font, s, x, y, color);
+            return x + w;
+        }
+        if (!ellipsis) {
+            return -1;
+        }
+        int room = limit - x;
+        if (room < 8) {
+            return -1;
+        }
+        TabletDraw.text(graphics, font, MoneyText.trunc(font, s, room), x, y, color);
+        return -1;
     }
 
     private static int badgeWidth(Font font, BoardSnapshotPayload.BoardEntry entry, Style style) {
