@@ -87,7 +87,8 @@ public final class CouriersClientConfig {
         b.push("waypoints");
         WAYPOINT_SYMBOL_MODE = b.comment(
                         "How order waypoints look on Xaero's minimap when this mod places them.",
-                        "ICON — crate (📦) Unicode glyph for every order waypoint;",
+                        "ICON — crate (📦) on the pre-accept preview pin only.",
+                        "Accepted pickup and delivery pins always use the letters A and B.",
                         "FIRST_LETTER — first character of the order label;",
                         "CUSTOM — customWaypointSymbol")
                 .defineEnum("waypointSymbolMode", WaypointSymbolMode.ICON);
@@ -108,12 +109,14 @@ public final class CouriersClientConfig {
         NAV_BEAM_FADE_START = b.comment("Full opacity until this distance; fades when closer (blocks)")
                 .translation("aerocouriers.configuration.beam_fade_start")
                 .defineInRange("beam_fade_start", 12.0, 2.0, 64.0);
-        NAV_BEAM_PICKUP_COLOR = b.comment("Pickup beam RGB as \"r,g,b\" (0–1), default yellow")
+        NAV_BEAM_PICKUP_COLOR = b.comment(
+                        "Pickup beam RGB as \"r,g,b\" (0–1). Default is Xaero waypoint yellow #FFFF55")
                 .translation("aerocouriers.configuration.beam_pickup_color")
-                .define("beam_pickup_color", "1.0,0.82,0.15");
-        NAV_BEAM_DELIVERY_COLOR = b.comment("Delivery beam RGB as \"r,g,b\" (0–1), default blue")
+                .define("beam_pickup_color", "1.0,1.0,0.33333334");
+        NAV_BEAM_DELIVERY_COLOR = b.comment(
+                        "Delivery beam RGB as \"r,g,b\" (0–1). Default is Xaero waypoint aqua #55FFFF")
                 .translation("aerocouriers.configuration.beam_delivery_color")
-                .define("beam_delivery_color", "0.2,0.72,1.0");
+                .define("beam_delivery_color", "0.33333334,1.0,1.0");
         NAV_HUD_ENABLED = b.comment("Compass HUD with distance and order id")
                 .translation("aerocouriers.configuration.hud_enabled")
                 .define("hud_enabled", true);
@@ -230,11 +233,16 @@ public final class CouriersClientConfig {
         }
     }
 
+    /** Xaero {@code WaypointColor.YELLOW} #FFFF55, xaerominimap 26.6.0. */
+    private static final float[] XAERO_YELLOW = {1.0f, 1.0f, 85f / 255f};
+    /** Xaero {@code WaypointColor.AQUA} #55FFFF, xaerominimap 26.6.0. */
+    private static final float[] XAERO_AQUA = {85f / 255f, 1.0f, 1.0f};
+
     public static float[] navBeamColorRgb(boolean delivery) {
-        float[] fallback = delivery ? new float[] {0.2f, 0.72f, 1.0f} : new float[] {1.0f, 0.82f, 0.15f};
+        float[] fallback = delivery ? XAERO_AQUA : XAERO_YELLOW;
         try {
             String raw = (delivery ? NAV_BEAM_DELIVERY_COLOR : NAV_BEAM_PICKUP_COLOR).get();
-            if (raw == null) {
+            if (raw == null || isLegacyBeamDefault(raw, delivery)) {
                 return fallback;
             }
             String[] parts = raw.split(",");
@@ -249,6 +257,12 @@ public final class CouriersClientConfig {
         } catch (IllegalStateException | NumberFormatException ignored) {
             return fallback;
         }
+    }
+
+    /** Pre-0.1.12 defaults. They do not match Xaero YELLOW / AQUA, so they now resolve to those hexes. */
+    private static boolean isLegacyBeamDefault(String raw, boolean delivery) {
+        String normalized = raw.replace(" ", "");
+        return delivery ? normalized.equals("0.2,0.72,1.0") : normalized.equals("1.0,0.82,0.15");
     }
 
     /** Top-left of the HUD box in scaled GUI pixels. */

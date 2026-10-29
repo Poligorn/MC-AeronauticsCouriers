@@ -14,6 +14,7 @@ import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import net.neoforged.bus.api.IEventBus;
+import net.neoforged.neoforge.client.event.RegisterClientReloadListenersEvent;
 import net.neoforged.neoforge.client.event.RegisterClientTooltipComponentFactoriesEvent;
 import net.neoforged.neoforge.client.gui.ConfigurationScreen;
 import net.neoforged.neoforge.client.gui.IConfigScreenFactory;
@@ -27,6 +28,7 @@ public final class AeroCouriersClient {
         container.registerExtensionPoint(IConfigScreenFactory.class, ConfigurationScreen::new);
         modBus.addListener(AeroCouriersClient::onClientSetup);
         modBus.addListener(AeroCouriersClient::registerTooltips);
+        modBus.addListener(AeroCouriersClient::registerReloaders);
         modBus.addListener(BoardKeyMappings::register);
         NeoForge.EVENT_BUS.addListener(BoardKeyMappings::onClientTick);
         NeoForge.EVENT_BUS.addListener(XaeroMapPicker::onClientTick);
@@ -42,6 +44,11 @@ public final class AeroCouriersClient {
     private static void registerTooltips(RegisterClientTooltipComponentFactoriesEvent event) {
         event.register(BoardCargoTooltip.class, BoardCargoClientTooltip::new);
         event.register(SpurBreakdownTooltip.class, SpurBreakdownClientTooltip::new);
+    }
+
+    private static void registerReloaders(RegisterClientReloadListenersEvent event) {
+        event.registerReloadListener((barrier, manager, prepProfiler, applyProfiler, background, game) ->
+                barrier.wait(null).thenRunAsync(GuiOverride::clearCache, game));
     }
 
     private static void onClientSetup(FMLClientSetupEvent event) {

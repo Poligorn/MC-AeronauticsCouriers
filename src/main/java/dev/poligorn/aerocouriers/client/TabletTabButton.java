@@ -57,7 +57,8 @@ public final class TabletTabButton extends Button {
         if (badge > 0) {
             String label = badge > 99 ? "99+" : Integer.toString(badge);
             int tw = font.width(label);
-            int bx = getX() + width - Math.min(tw + 4, 10);
+            // Keep a 2-digit count inside the tab. Capping the inset at 10px pushed "21" onto the next tab.
+            int bx = getX() + width - tw - 3;
             int by = getY() - 1;
             int badgeBg = tabletChrome ? 0xFF431A0F : 0xFF4A2D31;
             int badgeText = tabletChrome ? TabletGui.TEXT_BRIGHT : 0xFFF8F8EC;

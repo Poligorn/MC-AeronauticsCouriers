@@ -75,6 +75,8 @@ public final class WaybillCreateScreen extends Screen {
     private @Nullable String[] hoverLines;
     private int hoverTipX;
     private int hoverTipY;
+    private @Nullable SpurBreakdownTooltip hoverSpur;
+    private @Nullable Component hoverSpurHeader;
     private @Nullable ItemStack hoveredStack;
     private int raiseX;
     private int raiseY;
@@ -356,6 +358,8 @@ public final class WaybillCreateScreen extends Screen {
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         hoverLines = null;
+        hoverSpur = null;
+        hoverSpurHeader = null;
         hoveredStack = null;
         renderBackground(graphics, mouseX, mouseY, partialTick);
         int lx = layout.localXi(mouseX);
@@ -391,6 +395,8 @@ public final class WaybillCreateScreen extends Screen {
             try {
                 if (hoveredStack != null) {
                     graphics.renderTooltip(font, hoveredStack, mouseX, mouseY);
+                } else if (hoverSpur != null && hoverSpurHeader != null) {
+                    graphics.renderTooltip(font, List.of(hoverSpurHeader), Optional.of(hoverSpur), mouseX, mouseY);
                 } else if (hoverLines != null && !cargoOverlay.isOpen()) {
                     WaybillCreateGui.tooltip(graphics, font, toScreenX(hoverTipX), toScreenY(hoverTipY), hoverLines);
                 }
@@ -423,6 +429,7 @@ public final class WaybillCreateScreen extends Screen {
         int bx = x1 - font.width(bal);
         WaybillCreateGui.spur(g, bx - 11, layout.headerY + yOff);
         WaybillCreateGui.bold(g, font, bal, bx, layout.headerY + yOff, WaybillPalette.GOLD);
+        offerMoneyTooltip(preview.balance(), bx - 11, layout.headerY + yOff, 11 + font.width(bal), 10, mouseX, mouseY);
         String after = tr("ui.aerocouriers.create.after_post",
                 TabletDraw.num(preview.balance() - pay) + " " + spUnit());
         WaybillCreateGui.textRight(g, font, after, x1, layout.headerSubY + yOff, WaybillPalette.INK2, false);
@@ -515,6 +522,8 @@ public final class WaybillCreateScreen extends Screen {
                 WaybillPalette.INK2);
         WaybillCreateGui.field(g, layout.fieldX0, layout.rewardY + yOff, x1, false);
         drawUnit(g, x1, layout.rewardY + 3 + yOff, spUnit());
+        offerMoneyTooltip(parseLong(reward, 0), layout.fieldX0, layout.rewardY + yOff,
+                x1 - layout.fieldX0, WaybillCreateLayout.FIELD_H, mouseX, mouseY);
 
         String collLabel = tr("ui.aerocouriers.create.courier_collateral");
         WaybillCreateGui.text(g, font, collLabel, rx, layout.collateralY + 3 + yOff, WaybillPalette.INK2);
@@ -525,6 +534,8 @@ public final class WaybillCreateScreen extends Screen {
         boolean bad = dest().isPresent() && parseLong(collateral, 0) < minColl;
         WaybillCreateGui.field(g, layout.fieldX0, layout.collateralY + yOff, x1, bad);
         drawUnit(g, x1, layout.collateralY + 3 + yOff, spUnit());
+        offerMoneyTooltip(parseLong(collateral, 0), layout.fieldX0, layout.collateralY + yOff,
+                x1 - layout.fieldX0, WaybillCreateLayout.FIELD_H, mouseX, mouseY);
         if (bad) {
             WaybillCreateGui.textRight(g, font, tr("ui.aerocouriers.create.collateral_low"), x1,
                     layout.collateralErrY + yOff, WaybillPalette.RED, false);
@@ -639,6 +650,7 @@ public final class WaybillCreateScreen extends Screen {
         long fee = Pricing.fee(rewardValue, cargoSize());
         String tot = TabletDraw.num(rewardValue + fee) + " " + spUnit();
         int totX = WaybillCreateGui.textRight(g, font, tot, x1, layout.payY + yOff, WaybillPalette.GOLD, true);
+        offerMoneyTooltip(rewardValue + fee, totX, layout.payY + yOff, x1 - totX, 10, mouseX, mouseY);
         String br = tr("ui.aerocouriers.create.pay_breakdown", TabletDraw.num(rewardValue), TabletDraw.num(fee));
         WaybillCreateGui.textRight(g, font, br, totX - 4, layout.payY + yOff, WaybillPalette.INK, false);
         String risk = tr("ui.aerocouriers.create.risk_issuer",
@@ -723,6 +735,17 @@ public final class WaybillCreateScreen extends Screen {
         }
         long t = Util.getMillis() - sealStartMs;
         return t >= SEAL_IMPACT_MS && t < SEAL_IMPACT_MS + 80 ? 1 : 0;
+    }
+
+    /** Same Numismatics breakdown the tablet uses. Without that economy the amounts stay plain text. */
+    private void offerMoneyTooltip(long spurs, int x, int y, int w, int h, int mouseX, int mouseY) {
+        if (!preview.numismaticsEconomy() || hoverSpur != null || picker.isOpen() || cargoOverlay.isOpen()) {
+            return;
+        }
+        if (TabletDraw.inside(mouseX, mouseY, x, y, w, h)) {
+            hoverSpur = new SpurBreakdownTooltip(spurs);
+            hoverSpurHeader = Component.translatable("ui.aerocouriers.spur.tooltip.header", spurs);
+        }
     }
 
     private void drawUnit(GuiGraphics g, int fieldRight, int y, String unit) {

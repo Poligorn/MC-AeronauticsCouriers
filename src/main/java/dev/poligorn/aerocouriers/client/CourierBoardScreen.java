@@ -135,6 +135,7 @@ public final class CourierBoardScreen extends Screen {
     private @Nullable String listRowButtonKey;
     private @Nullable ProfileRankBar.Layout profileRankBarLayout;
     private final TabletScreenChrome tabletChrome = new TabletScreenChrome(false);
+    private ScreenFit fit = ScreenFit.of(ScreenFit.DESIGN_W, ScreenFit.DESIGN_H);
     private final TabletTabSwitchEffects tabEffects = new TabletTabSwitchEffects();
     private final TabletListRowEffects listRowEffects = new TabletListRowEffects();
     private final TabletListRowEffects mailRowEffects = new TabletListRowEffects();
@@ -410,6 +411,7 @@ public final class CourierBoardScreen extends Screen {
 
     @Override
     protected void init() {
+        refreshFit();
         super.init();
         rebuildMainTabs();
         if (snapshot == null) {
@@ -658,7 +660,8 @@ public final class CourierBoardScreen extends Screen {
 
     @Override
     public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        tabletChrome.layout(height, top(), panelH());
+        refreshFit();
+        tabletChrome.layout(guiH(), top(), panelH());
         tabletChrome.renderBackground(this, graphics, mouseX, mouseY, partialTick);
     }
 
@@ -671,12 +674,17 @@ public final class CourierBoardScreen extends Screen {
         hoverSpurHeader = null;
         RenderSystem.disableDepthTest();
         RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+        refreshFit();
+        int mx = fit.localXi(mouseX);
+        int my = fit.localYi(mouseY);
         tabletChrome.tick();
-        tabletChrome.layout(height, top(), panelH());
-        int overlayMouseY = (int) tabletChrome.adjustMouseY(mouseY, partialTick);
+        graphics.pose().pushPose();
+        fit.apply(graphics);
+        tabletChrome.layout(guiH(), top(), panelH());
+        int overlayMouseY = (int) tabletChrome.adjustMouseY(my, partialTick);
         syncOverlays();
         boolean overlay = overlayOpen();
-        int contentMouseX = overlay ? -1 : mouseX;
+        int contentMouseX = overlay ? -1 : mx;
         int contentMouseY = overlay ? -1 : overlayMouseY;
         boolean tabLoading = tabEffects.isTabLoadingActive();
         float cavityAlpha = tabletChrome.cavityContentAlpha(snapshot == null, tabLoading, partialTick);
@@ -696,7 +704,7 @@ public final class CourierBoardScreen extends Screen {
             }
             RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
             if (overlay && cavityAlpha > 0.001F) {
-                renderOverlays(graphics, mouseX, overlayMouseY, partialTick);
+                renderOverlays(graphics, mx, overlayMouseY, partialTick);
             }
             TabletGui.drawFrameChrome(graphics, left(), top(), panelW(), panelH());
             tabletChrome.drawLoadingGear(graphics, cavityLeft(), cavityTop(), cavityW(), cavityH(),
@@ -715,6 +723,7 @@ public final class CourierBoardScreen extends Screen {
         if (overlay) {
             captureOverlayHover();
         }
+        graphics.pose().popPose();
         renderTopLayerTooltips(graphics, mouseX, mouseY);
     }
 
@@ -1030,7 +1039,8 @@ public final class CourierBoardScreen extends Screen {
                 SpurAmountUi.Bounds avgBounds = SpurAmountUi.drawLabeled(
                         graphics, font, avgLabel, avgReward, statsX, y, statsW, TabletGui.TEXT, TabletGui.TEXT);
                 offerSpurTooltip(avgReward, avgBounds, mouseX, mouseY);
-                y += PROFILE_LINE_HEIGHT;
+                // The coin is 16px; a profile line is 11px, so the amount sat on the next stat.
+                y += Math.max(PROFILE_LINE_HEIGHT, avgBounds.height()) + 2;
             }
             y = drawProfileStatBlock(graphics,
                     Component.translatable("ui.aerocouriers.profile.avg_distance",
@@ -1463,6 +1473,9 @@ public final class CourierBoardScreen extends Screen {
         if (tabletChrome.blocksInput(snapshot == null, 0.0F)) {
             return true;
         }
+        refreshFit();
+        mouseX = fit.localX(mouseX);
+        mouseY = fit.localY(mouseY);
         double adjustedY = tabletChrome.adjustMouseY(mouseY, 0.0F);
         if (confirmOverlay != null) {
             return confirmOverlay.mouseClicked(mouseX, adjustedY, button);
@@ -1545,6 +1558,9 @@ public final class CourierBoardScreen extends Screen {
         if (overlayOpen()) {
             return true;
         }
+        refreshFit();
+        mouseX = fit.localX(mouseX);
+        mouseY = fit.localY(mouseY);
         double adjustedY = tabletChrome.adjustMouseY(mouseY, 0.0F);
         if (tab == Tab.MAIL) {
             List<NotificationSyncPayload.Line> entries = ClientNotifications.entries();
@@ -1573,6 +1589,19 @@ public final class CourierBoardScreen extends Screen {
             }
         }
         return super.mouseScrolled(mouseX, adjustedY, scrollX, scrollY);
+    }
+
+    @Override
+    public boolean mouseReleased(double mouseX, double mouseY, int button) {
+        refreshFit();
+        return super.mouseReleased(fit.localX(mouseX), fit.localY(mouseY), button);
+    }
+
+    @Override
+    public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
+        refreshFit();
+        double s = fit.scale;
+        return super.mouseDragged(fit.localX(mouseX), fit.localY(mouseY), button, dragX / s, dragY / s);
     }
 
     private static final int PROFILE_CLOSE_W = 18;
@@ -1614,22 +1643,36 @@ public final class CourierBoardScreen extends Screen {
         refreshBoardContent();
     }
 
-    /** At GUI scale 3 (640×360) the frame is 620×309: six two-line cards and the details window fit. */
+    /** At GUI scale 3 (640×360) the frame is 620 wide. Smaller screens reuse that layout and pose-scale it. */
     private int panelW() {
-        return Math.max(428, Math.min(width - 20, Math.max(620, (int) (width * 0.74))));
+        int w = guiW();
+        return Math.max(428, Math.min(w - 20, Math.max(620, (int) (w * 0.74))));
     }
 
     private int panelH() {
-        int maxH = Math.max(200, height - TabletGui.antennaOverhangTop() - 8);
-        return Math.min(maxH, Math.max(309, (int) (height * 0.80)));
+        int h = guiH();
+        int maxH = Math.max(200, h - TabletGui.antennaOverhangTop() - 8);
+        return Math.min(maxH, Math.max(309, (int) (h * 0.80)));
+    }
+
+    private int guiW() {
+        return fit.shrinking() ? fit.layoutW : width;
+    }
+
+    private int guiH() {
+        return fit.shrinking() ? fit.layoutH : height;
+    }
+
+    private void refreshFit() {
+        fit = ScreenFit.of(width, height);
     }
 
     private int left() {
-        return TabletGui.frameLeft(width, panelW());
+        return TabletGui.frameLeft(guiW(), panelW());
     }
 
     private int top() {
-        return TabletGui.frameTop(height, panelH());
+        return TabletGui.frameTop(guiH(), panelH());
     }
 
     private int cavityLeft() {

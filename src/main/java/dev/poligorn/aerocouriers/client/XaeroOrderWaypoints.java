@@ -2,8 +2,10 @@ package dev.poligorn.aerocouriers.client;
 
 import dev.poligorn.aerocouriers.AeronauticsCouriers;
 import java.lang.reflect.Field;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -127,6 +129,7 @@ final class XaeroOrderWaypoints {
             PERSISTENT_IDS.remove(sid);
             removeByStringId(sid, null);
         }
+        purgeExcept(new HashSet<>(PERSISTENT_IDS));
     }
 
     static void clearAll() {
@@ -136,6 +139,7 @@ final class XaeroOrderWaypoints {
             for (String id : Set.copyOf(PLACED.keySet())) {
                 removeByStringId(id, null);
             }
+            wipeOrigin();
         }
         PLACED.clear();
     }
@@ -185,19 +189,24 @@ final class XaeroOrderWaypoints {
                 removeByStringId(id, previous);
             }
             ThirdPartyWaypoints bucket = bucket(dimension);
+            String symbol = persistent
+                    ? XaeroWaypointSymbols.persistentLetter(symbolKind)
+                    : XaeroWaypointSymbols.resolve(label, symbolKind);
             if (bucket == null) {
-                XaeroLegacyWaypoints.placeFallback(orderId, dimension, pos, label, symbolKind, persistent, color);
+                XaeroLegacyWaypoints.placeFallback(orderId, dimension, pos, label, symbol, persistent, color);
                 return;
             }
             bucket.remove(id);
-            String symbol = XaeroWaypointSymbols.resolve(label, symbolKind);
             bucket.add(id, new Waypoint(
                     pos.getX(), pos.getY(), pos.getZ(),
                     label, symbol,
                     color, WaypointPurpose.NORMAL, true));
             PLACED.put(id, dimension);
         } catch (Throwable ignored) {
-            XaeroLegacyWaypoints.placeFallback(orderId, dimension, pos, label, symbolKind, persistent, color);
+            String symbol = persistent
+                    ? XaeroWaypointSymbols.persistentLetter(symbolKind)
+                    : XaeroWaypointSymbols.resolve(label, symbolKind);
+            XaeroLegacyWaypoints.placeFallback(orderId, dimension, pos, label, symbol, persistent, color);
         }
     }
 
@@ -240,6 +249,76 @@ final class XaeroOrderWaypoints {
             return true;
         } catch (Throwable ignored) {
             return false;
+        }
+    }
+
+    /**
+     * Drops our waypoints that are no longer an active haul, including copies left in another dimension container
+     * after a rejoin (the in-memory {@link #PLACED} map does not survive a new session).
+     */
+    private static void purgeExcept(Set<String> keep) {
+        visitOrigins((container, bucket) -> {
+            List<String> drop = new ArrayList<>();
+            for (String id : bucket.getIds()) {
+                if (!keep.contains(id)) {
+                    drop.add(id);
+                    continue;
+                }
+                ResourceKey<Level> placed = PLACED.get(id);
+                ResourceKey<Level> here = container.getEquivalentDimKey();
+                if (placed != null && here != null && !placed.equals(here)) {
+                    drop.add(id);
+                }
+            }
+            for (String id : drop) {
+                bucket.remove(id);
+                if (!keep.contains(id)) {
+                    PLACED.remove(id);
+                }
+            }
+        });
+    }
+
+    /** Third-party waypoints are session memory; wipe every container so a rejoin cannot stack a second copy. */
+    private static void wipeOrigin() {
+        visitOrigins((container, bucket) -> {
+            List<String> ids = new ArrayList<>();
+            bucket.getIds().forEach(ids::add);
+            for (String id : ids) {
+                bucket.remove(id);
+            }
+        });
+    }
+
+    private interface OriginVisitor {
+        void accept(MinimapWorldContainer container, ThirdPartyWaypoints bucket);
+    }
+
+    private static void visitOrigins(OriginVisitor visitor) {
+        if (!minimapLoaded()) {
+            return;
+        }
+        try {
+            MinimapSession session = BuiltInHudModules.MINIMAP.getCurrentSession();
+            if (session == null) {
+                return;
+            }
+            MinimapWorldRootContainer root = session.getWorldManager().getAutoRootContainer();
+            visitOne(root, visitor);
+            for (MinimapWorldContainer sub : root.getSubContainers()) {
+                visitOne(sub, visitor);
+            }
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private static void visitOne(MinimapWorldContainer container, OriginVisitor visitor) {
+        try {
+            ThirdPartyWaypoints bucket = container.getThirdPartyWaypointManager().get(ORIGIN);
+            if (bucket != null && !bucket.isEmpty()) {
+                visitor.accept(container, bucket);
+            }
+        } catch (Throwable ignored) {
         }
     }
 

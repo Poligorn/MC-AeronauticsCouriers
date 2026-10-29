@@ -74,6 +74,9 @@ public final class WaybillCreateGui {
         int y0 = l.boardY0;
         int x1 = l.boardX1;
         int y1 = l.boardY1;
+        if (GuiOverride.blit(g, GuiOverride.WAYBILL_BOARD, x0, y0, x1 - x0 + 1, y1 - y0 + 1)) {
+            return;
+        }
         fill(g, x0 + 4, y0 + 5, x1 + 4, y1 + 5, WaybillPalette.SHADOW);
         fill(g, x0, y0, x1, y1, WaybillPalette.BOARD_EDGE);
         fill(g, x0 + 3, y0 + 3, x1 - 3, y1 - 3, WaybillPalette.BOARD_FACE);
@@ -128,6 +131,9 @@ public final class WaybillCreateGui {
         int y0 = l.paperY0 + shakeY;
         int x1 = l.paperX1;
         int y1 = l.paperY1 + shakeY;
+        if (GuiOverride.blit(g, GuiOverride.WAYBILL_PAPER, x0, y0 - 2, x1 - x0 + 1, y1 - y0 + 3)) {
+            return;
+        }
         fill(g, x0 + 2, y0 + 3, x1 + 3, y1 + 3, 0x78301006);
         fill(g, x0, y0, x1, y1, WaybillPalette.PAPER);
         Random rnd = new Random(5);
@@ -154,6 +160,13 @@ public final class WaybillCreateGui {
         int cx = l.clipCx;
         int by0 = l.boardY0;
         int py0 = l.paperY0;
+        int clipX = cx - 75;
+        int clipY = by0 - 27;
+        int clipW = 157;
+        int clipH = (py0 + 17) - clipY;
+        if (GuiOverride.blit(g, GuiOverride.WAYBILL_CLIP, clipX, clipY, clipW, clipH)) {
+            return;
+        }
         fill(g, cx - 62, py0 + 14, cx + 66, py0 + 17, 0x5F281406);
         fill(g, cx - 70, by0 + 9, cx + 82, by0 + 15, 0x3C000000);
         fill(g, cx - 62, by0 + 6, cx + 62, py0 + 12, WaybillPalette.STEEL_OUT);
@@ -299,7 +312,9 @@ public final class WaybillCreateGui {
         int by = slotY - 3;
         g.pose().pushPose();
         g.pose().translate(0.0F, 0.0F, 300.0F);
-        box(g, bx, by, bx + bw - 1, by + 9, WaybillPalette.BLUE, 0xFF0E2456);
+        if (!GuiOverride.blit(g, GuiOverride.HIDDEN_STACKS_BADGE, bx, by, bw, 10)) {
+            box(g, bx, by, bx + bw - 1, by + 9, WaybillPalette.BLUE, 0xFF0E2456);
+        }
         g.drawString(font, ink, bx + 3, by + 1, 0xFFF4F8FF, false);
         g.pose().popPose();
     }
@@ -319,6 +334,9 @@ public final class WaybillCreateGui {
     }
 
     public static void spur(GuiGraphics g, int x, int y) {
+        if (GuiOverride.blit(g, GuiOverride.WAYBILL_SPUR, x, y, 8, 7)) {
+            return;
+        }
         int o = 0xFF784018;
         int m = 0xFFC47434;
         int h = 0xFFECB05A;
@@ -418,6 +436,10 @@ public final class WaybillCreateGui {
         g.pose().mulPose(Axis.ZP.rotationDegrees(rotDeg));
         g.pose().scale(scale, scale, 1.0F);
         g.pose().translate(-w / 2.0F, -h / 2.0F, 0.0F);
+        if (GuiOverride.blit(g, GuiOverride.WAYBILL_STAMP, 0, 0, w, h)) {
+            g.pose().popPose();
+            return;
+        }
         int a = Mth.clamp((int) (alpha * 255.0F), 0, 255) << 24;
         int ink = a | (WaybillPalette.STAMP & 0x00FFFFFF);
         outline(g, 0, 0, w - 1, h - 1, ink);

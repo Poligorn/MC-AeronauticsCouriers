@@ -3,6 +3,7 @@ package dev.poligorn.aerocouriers.client;
 import dev.poligorn.aerocouriers.config.CouriersClientConfig;
 import net.minecraft.Util;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.resources.ResourceLocation;
 
 /**
  * Antenna tip pulse: three pixel arcs per side (radii 6/11/16 GUI px, ±52°). Send — yellow arcs run outward from
@@ -78,6 +79,10 @@ public final class TabletAntennaSignal {
         if (!animate) {
             return;
         }
+        ResourceLocation arcTexture = send ? GuiOverride.ANTENNA_ARC_SEND : GuiOverride.ANTENNA_ARC_RECEIVE;
+        if (GuiOverride.blit(graphics, arcTexture, tipX - 36, tipY - 18, 72, 36)) {
+            return;
+        }
         for (int i = 0; i < RADII.length; i++) {
             int order = send ? i : RADII.length - 1 - i;
             float alpha = arcAlpha(elapsed - order * ARC_STEP_MS);
@@ -135,6 +140,9 @@ public final class TabletAntennaSignal {
     }
 
     private static void drawLampFlash(GuiGraphics graphics, int tipX, int tipY, boolean send) {
+        if (GuiOverride.blit(graphics, GuiOverride.ANTENNA_LAMP_FLASH, tipX - 6, tipY - 6, 12, 12)) {
+            return;
+        }
         int r = 5;
         if (send) {
             graphics.fill(tipX - r, tipY - r, tipX + r, tipY + r, 0x88FFFFAA);
