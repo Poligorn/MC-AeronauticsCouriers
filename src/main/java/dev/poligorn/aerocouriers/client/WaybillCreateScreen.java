@@ -63,6 +63,11 @@ public final class WaybillCreateScreen extends Screen {
     private @Nullable BoardSnapshotPayload pendingBoard;
     private WaybillCreateLayout layout = WaybillCreateLayout.compute(640, 360);
     private final WaybillDestinationPicker picker;
+    private final WaybillCargoOverlay cargoOverlay = new WaybillCargoOverlay();
+    private int cargoLinkX;
+    private int cargoLinkY;
+    private int cargoLinkW;
+    private boolean cargoLinkVisible;
     private @Nullable PaperEditBox rewardBox;
     private @Nullable PaperEditBox collateralBox;
     private @Nullable PaperEditBox minutesBox;
@@ -102,6 +107,7 @@ public final class WaybillCreateScreen extends Screen {
         stampSoundPlayed = false;
         sealStartMs = Util.getMillis();
         picker.close();
+        cargoOverlay.close();
         setBoxesActive(false);
     }
 
@@ -172,6 +178,7 @@ public final class WaybillCreateScreen extends Screen {
         super.init();
         layout = WaybillCreateLayout.compute(width, height);
         picker.close();
+        cargoOverlay.close();
         rewardBox = moneyBox(layout.fieldX0, layout.rewardY, layout.fieldRight(), reward, v -> {
             reward = v;
             if (!syncing) {
@@ -358,10 +365,15 @@ public final class WaybillCreateScreen extends Screen {
         RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
         super.render(graphics, mouseX, mouseY, partialTick);
         picker.render(graphics, font, mouseX, mouseY);
+        ItemStack overlayStack = cargoOverlay.render(graphics, font, mouseX, mouseY, preview.cargo(), cargoSize(),
+                preview.weight());
+        if (cargoOverlay.isOpen() && cargoOverlay.contains(mouseX, mouseY)) {
+            hoveredStack = overlayStack;
+        }
         if (!picker.isOpen() && !sealing) {
             if (hoveredStack != null) {
                 graphics.renderTooltip(font, hoveredStack, mouseX, mouseY);
-            } else if (hoverLines != null) {
+            } else if (hoverLines != null && !cargoOverlay.isOpen()) {
                 WaybillCreateGui.tooltip(graphics, font, hoverTipX, hoverTipY, hoverLines);
             }
         }
@@ -404,22 +416,48 @@ public final class WaybillCreateScreen extends Screen {
         CargoSize size = cargoSize();
         int slots = size.slots();
         int shown = Math.min(9, slots);
+        int ninthX = x0;
+        int ninthY = layout.slotY + yOff;
         for (int i = 0; i < shown; i++) {
             int sx = x0 + i * WaybillCreateLayout.SLOT;
             int sy = layout.slotY + yOff;
+            if (i == 8) {
+                ninthX = sx;
+                ninthY = sy;
+            }
             WaybillCreateGui.slot(g, sx, sy);
             if (i < cargo.size() && !cargo.get(i).isEmpty()) {
                 ItemStack stack = cargo.get(i);
                 g.renderItem(stack, sx + 1, sy + 1);
                 g.renderItemDecorations(font, stack, sx + 1, sy + 1, "");
                 WaybillCreateGui.stackCount(g, font, stack, sx, sy);
-                if (TabletDraw.inside(mouseX, mouseY, sx, sy, WaybillCreateLayout.SLOT, WaybillCreateLayout.SLOT)) {
+                if (!cargoOverlay.isOpen()
+                        && TabletDraw.inside(mouseX, mouseY, sx, sy, WaybillCreateLayout.SLOT, WaybillCreateLayout.SLOT)) {
                     hoveredStack = stack;
                 }
             }
         }
-        WaybillCreateGui.text(g, font, tr("ui.aerocouriers.create.occupied", cargo.size(), slots),
-                x0, layout.occupiedY + yOff, WaybillPalette.INK2);
+        int hidden = Math.max(0, cargo.size() - 9);
+        if (hidden > 0 && shown == 9) {
+            WaybillCreateGui.hiddenStacksBadge(g, font, ninthX, ninthY, hidden);
+        }
+        cargoLinkVisible = slots > 9;
+        if (cargoLinkVisible) {
+            String link = tr("ui.aerocouriers.create.shown_link", slots);
+            cargoLinkX = x0;
+            cargoLinkY = layout.occupiedY + yOff;
+            int textX = x0 + 12;
+            cargoLinkW = 12 + font.width(WaybillFonts.ink(link));
+            boolean hover = !cargoOverlay.isOpen() && !picker.isOpen()
+                    && TabletDraw.inside(mouseX, mouseY, cargoLinkX, cargoLinkY, cargoLinkW, 10);
+            int col = hover ? WaybillPalette.BLUE : WaybillPalette.BLUE;
+            PixelGlyphs.draw(g, x0, cargoLinkY + 1, PixelGlyphs.SHEET_GRID, col);
+            WaybillCreateGui.text(g, font, link, textX, cargoLinkY, col);
+            WaybillCreateGui.hline(g, textX, textX + font.width(WaybillFonts.ink(link)) - 1, cargoLinkY + 8, col);
+        } else {
+            WaybillCreateGui.text(g, font, tr("ui.aerocouriers.create.occupied", cargo.size(), slots),
+                    x0, layout.occupiedY + yOff, WaybillPalette.INK2);
+        }
         WaybillCreateGui.text(g, font, tr("ui.aerocouriers.create.weight"), x0, layout.weightY + yOff, WaybillPalette.INK);
         String weight = tr("ui.aerocouriers.create.weight_value",
                 TabletDraw.weight(preview.weight()), TabletDraw.num(size.maxWeight()));
@@ -667,6 +705,11 @@ public final class WaybillCreateScreen extends Screen {
         if (sealing) {
             return true;
         }
+        if (cargoOverlay.isOpen()) {
+            if (cargoOverlay.handleClick(mouseX, mouseY, button)) {
+                return true;
+            }
+        }
         if (picker.isOpen()) {
             if (picker.handleClick(mouseX, mouseY, button)) {
                 syncBoxes();
@@ -696,8 +739,13 @@ public final class WaybillCreateScreen extends Screen {
                 return true;
             }
         }
+        if (cargoLinkVisible && TabletDraw.inside(mouseX, mouseY, cargoLinkX, cargoLinkY, cargoLinkW, 10)) {
+            openCargoOverlay();
+            return true;
+        }
         if (TabletDraw.inside(mouseX, mouseY, layout.pickX, layout.pickY, WaybillCreateLayout.PICK_W,
                 WaybillCreateLayout.PICK_H)) {
+            cargoOverlay.close();
             picker.open(layout.pickX, layout.pickY, WaybillCreateLayout.PICK_W);
             syncBoxes();
             return true;
@@ -735,9 +783,19 @@ public final class WaybillCreateScreen extends Screen {
         if (sealing) {
             return true;
         }
+        if (cargoOverlay.isOpen()) {
+            if (keyCode == GLFW.GLFW_KEY_ESCAPE) {
+                cargoOverlay.close();
+            }
+            return true;
+        }
         if (picker.isOpen() && keyCode == GLFW.GLFW_KEY_ESCAPE) {
             picker.close();
             syncBoxes();
+            return true;
+        }
+        if (cargoLinkVisible && keyCode == GLFW.GLFW_KEY_G && !hasShiftDown() && !hasControlDown() && !hasAltDown()) {
+            openCargoOverlay();
             return true;
         }
         if ((keyCode == GLFW.GLFW_KEY_ENTER || keyCode == GLFW.GLFW_KEY_KP_ENTER) && denyReason() == null) {
@@ -745,6 +803,19 @@ public final class WaybillCreateScreen extends Screen {
             return true;
         }
         return super.keyPressed(keyCode, scanCode, modifiers);
+    }
+
+    private void openCargoOverlay() {
+        if (!cargoLinkVisible || sealing) {
+            return;
+        }
+        if (cargoOverlay.isOpen()) {
+            cargoOverlay.close();
+            return;
+        }
+        picker.close();
+        cargoOverlay.open(layout, cargoSize().slots(), cargoLinkX + 12);
+        setFocused(null);
     }
 
     private void submit() {

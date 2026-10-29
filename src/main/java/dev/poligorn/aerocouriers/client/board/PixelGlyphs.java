@@ -18,6 +18,14 @@ public final class PixelGlyphs {
             "...#.#...", "..##.##.."};
     public static final String[] LOCK = {"..###..", ".#...#.", ".#...#.", "#######", "###.###", "###.###", "#######"};
     public static final String[] GRID = BOX;
+    /** 9×5 cell icon on the waybill «all cells» link. */
+    public static final String[] SHEET_GRID = {
+            "#########",
+            "#.#.#.#.#",
+            "#########",
+            "#.#.#.#.#",
+            "#########"
+    };
     public static final String[] PIN = {"..###..", ".#####.", ".##.##.", ".#####.", "..###..", "...#...", "...#..."};
     public static final String[] CHECK = {"......#", ".....#.", "#...#..", ".#.#...", "..#...."};
     public static final String[] CROSS = {"#...#", ".#.#.", "..#..", ".#.#.", "#...#"};

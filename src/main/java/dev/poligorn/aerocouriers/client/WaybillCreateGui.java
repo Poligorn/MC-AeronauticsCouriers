@@ -290,6 +290,20 @@ public final class WaybillCreateGui {
         vline(g, x + 1, y + 1, y + 16, WaybillPalette.SLOT_SH);
     }
 
+    /** Blue "+N" on the 9th cell. Sits on the top of the slot; the stack count stays at the bottom. */
+    public static void hiddenStacksBadge(GuiGraphics g, Font font, int slotX, int slotY, int hidden) {
+        String label = "+" + hidden;
+        Component ink = WaybillFonts.ink(label);
+        int bw = font.width(ink) + 5;
+        int bx = slotX + WaybillCreateLayout.SLOT - bw + 1;
+        int by = slotY - 3;
+        g.pose().pushPose();
+        g.pose().translate(0.0F, 0.0F, 300.0F);
+        box(g, bx, by, bx + bw - 1, by + 9, WaybillPalette.BLUE, 0xFF0E2456);
+        g.drawString(font, ink, bx + 3, by + 1, 0xFFF4F8FF, false);
+        g.pose().popPose();
+    }
+
     public static void stackCount(GuiGraphics g, Font font, ItemStack stack, int sx, int sy) {
         if (stack.getCount() <= 1) {
             return;
