@@ -2,12 +2,13 @@ package dev.poligorn.aerocouriers.contract;
 
 import dev.poligorn.aerocouriers.cargo.CargoSize;
 import dev.poligorn.aerocouriers.config.CouriersServerConfig;
+import dev.poligorn.aerocouriers.economy.MoneyScale;
 import dev.poligorn.aerocouriers.license.LicenseRank;
 import java.util.List;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.item.ItemStack;
 
-/** P2P money rules (GDD §7.1, §9.6) and NPC station formulas (GDD §6.3). Amounts are spurs. */
+/** P2P money rules (GDD §7.1, §9.6) and NPC station formulas (GDD §6.3). Results are in the active currency. */
 public final class Pricing {
     public static final int MIN_DEADLINE_MINUTES = 30;
     public static final int MAX_DEADLINE_MINUTES = 7 * 24 * 60;
@@ -18,7 +19,7 @@ public final class Pricing {
 
     /** Minimum reward {@code ceil(D / divisor + W × per_weight)} (anti-spam, GDD §7.1; XP floor §13). */
     public static long minReward(double distance, double weight) {
-        return (long) Math.ceil(distance / rewardDistanceDivisor() + weight * rewardPerWeight());
+        return MoneyScale.fromSpurs(Math.ceil(distance / rewardDistanceDivisor() + weight * rewardPerWeight()));
     }
 
     private static double rewardDistanceDivisor() {
@@ -96,7 +97,7 @@ public final class Pricing {
     public static long npcReward(double distance, double weight, RandomSource random) {
         double base = 16.0 + (distance / 60.0) * (1.0 + weight / 400.0) + weight * rewardPerWeight();
         double factor = 0.8 + random.nextDouble() * 0.4;
-        return Math.max(1, Math.round(base * factor));
+        return MoneyScale.fromSpurs(Math.max(1, Math.round(base * factor)));
     }
 
     /** NPC collateral from cargo value (GDD §8.3) or {@code ≈2×} weight when value is zero. */
@@ -105,6 +106,6 @@ public final class Pricing {
         if (value > 0) {
             return Math.max(1, Math.round(value * ItemValues.collateralFactor()));
         }
-        return Math.max(1, Math.round(weight * 2.0));
+        return MoneyScale.fromSpurs(Math.max(1, Math.round(weight * 2.0)));
     }
 }

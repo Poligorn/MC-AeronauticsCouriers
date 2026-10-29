@@ -19,7 +19,7 @@ public final class SpurAmountUi {
     }
 
     public static int width(Font font, long amount, boolean lockPrefix) {
-        int w = ICON + ICON_TEXT_GAP + font.width(Long.toString(amount));
+        int w = ICON + ICON_TEXT_GAP + font.width(dev.poligorn.aerocouriers.economy.MoneyFormat.text(amount));
         if (lockPrefix) {
             w += ICON + ICON_TEXT_GAP;
         }
@@ -43,7 +43,7 @@ public final class SpurAmountUi {
         SpurCoinGraphics.drawGenericCoin(graphics, cx, y, ICON);
         int textX = cx + ICON + ICON_TEXT_GAP;
         int textY = y + Math.max(0, ICON - 8);
-        String value = Long.toString(amount);
+        String value = dev.poligorn.aerocouriers.economy.MoneyFormat.text(amount);
         graphics.drawString(font, value, textX, textY, textColor, false);
         int w = textX + font.width(value) - x;
         return new Bounds(x, y, w, Math.max(ICON, 9));
@@ -64,7 +64,7 @@ public final class SpurAmountUi {
         int amountX = x + font.width(label);
         int amountMaxW = Math.max(8, maxWidth - font.width(label));
         if (width(font, amount, false) > amountMaxW) {
-            String raw = Long.toString(amount);
+            String raw = dev.poligorn.aerocouriers.economy.MoneyFormat.text(amount);
             String shown = font.plainSubstrByWidth(raw, Math.max(4, amountMaxW - ICON - ICON_TEXT_GAP));
             if (!shown.equals(raw)) {
                 shown = font.plainSubstrByWidth(raw, Math.max(4, amountMaxW - ICON - ICON_TEXT_GAP - font.width("…"))) + "…";

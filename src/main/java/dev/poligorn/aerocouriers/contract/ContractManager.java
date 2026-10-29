@@ -212,7 +212,9 @@ public final class ContractManager extends SavedData {
     /** What the courier loses on failure — shown before and on acceptance (owner's decision, GDD §7.2 / §6.3). */
     public static Component riskLine(Contract contract) {
         String key = contract.type().isNpc() ? "contract.aerocouriers.risk.npc" : "contract.aerocouriers.risk";
-        return Component.translatable(key, contract.collateral(), contract.reward());
+        return Component.translatable(key,
+                dev.poligorn.aerocouriers.economy.MoneyFormat.component(contract.collateral()),
+                dev.poligorn.aerocouriers.economy.MoneyFormat.component(contract.reward()));
     }
 
     // ---- transitions ----
@@ -263,21 +265,24 @@ public final class ContractManager extends SavedData {
         double distance = ContractDistances.pricingBlocks(origin, destination);
         long minReward = Math.max(1, Pricing.minReward(distance, weight));
         if (reward < minReward) {
-            return Outcome.error("reward_too_low", minReward);
+            return Outcome.error("reward_too_low", dev.poligorn.aerocouriers.economy.MoneyFormat.component(minReward));
         }
         if (collateral < 0) {
             return Outcome.error("negative_collateral");
         }
         long minCollateral = Pricing.minP2pCollateral(reward, manifest);
         if (collateral < minCollateral) {
-            return Outcome.error("collateral_below_minimum", minCollateral);
+            return Outcome.error("collateral_below_minimum",
+                    dev.poligorn.aerocouriers.economy.MoneyFormat.component(minCollateral));
         }
 
         UUID id = UUID.randomUUID();
         long fee = Pricing.fee(reward, size.get());
         Economy economy = Economies.get(server);
         if (!economy.withdraw(issuer.getUUID(), reward + fee, "create:" + id)) {
-            return Outcome.error("not_enough_money", reward + fee, economy.balance(issuer.getUUID()));
+            return Outcome.error("not_enough_money",
+                    dev.poligorn.aerocouriers.economy.MoneyFormat.component(reward + fee),
+                    dev.poligorn.aerocouriers.economy.MoneyFormat.component(economy.balance(issuer.getUUID())));
         }
         Optional<OriginContainerSnapshot> originSnapshot = Optional.empty();
         if (issuer.level() instanceof ServerLevel originLevel) {
@@ -299,7 +304,9 @@ public final class ContractManager extends SavedData {
         recordIssuerOrder(issuer, size.get(), reward, weight);
         AeronauticsCouriers.LOGGER.info("[contract] {} created by {}: {} stacks, W={}, D={}, reward={}, fee={}, collateral={}",
                 id, issuer.getGameProfile().getName(), manifest.size(), weight, (long) distance, reward, fee, collateral);
-        return Outcome.ok(contract, "created", contract.shortId(), reward, fee,
+        return Outcome.ok(contract, "created", contract.shortId(),
+                dev.poligorn.aerocouriers.economy.MoneyFormat.component(reward),
+                dev.poligorn.aerocouriers.economy.MoneyFormat.component(fee),
                 contract.requiredRank().displayName());
     }
 
@@ -369,21 +376,24 @@ public final class ContractManager extends SavedData {
         double distance = ContractDistances.pricingBlocks(origin, destination);
         long minReward = Math.max(1, Pricing.minReward(distance, weight));
         if (reward < minReward) {
-            return Outcome.error("reward_too_low", minReward);
+            return Outcome.error("reward_too_low", dev.poligorn.aerocouriers.economy.MoneyFormat.component(minReward));
         }
         if (collateral < 0) {
             return Outcome.error("negative_collateral");
         }
         long minCollateral = Pricing.minP2pCollateral(reward, manifest);
         if (collateral < minCollateral) {
-            return Outcome.error("collateral_below_minimum", minCollateral);
+            return Outcome.error("collateral_below_minimum",
+                    dev.poligorn.aerocouriers.economy.MoneyFormat.component(minCollateral));
         }
 
         UUID id = UUID.randomUUID();
         long fee = Pricing.fee(reward, size.get());
         Economy economy = Economies.get(server);
         if (!economy.withdraw(issuer.getUUID(), reward + fee, "create:" + id)) {
-            return Outcome.error("not_enough_money", reward + fee, economy.balance(issuer.getUUID()));
+            return Outcome.error("not_enough_money",
+                    dev.poligorn.aerocouriers.economy.MoneyFormat.component(reward + fee),
+                    dev.poligorn.aerocouriers.economy.MoneyFormat.component(economy.balance(issuer.getUUID())));
         }
 
         Optional<OriginContainerSnapshot> originSnapshot = OriginContainerSnapshot.capture(level, access);
@@ -428,7 +438,9 @@ public final class ContractManager extends SavedData {
                 "[contract] {} waybill by {}: {} stacks, W={}, D={}, reward={}, fee={}, collateral={}",
                 id, issuer.getGameProfile().getName(), manifest.size(), weight, (long) distance, reward, fee,
                 collateral);
-        return Outcome.ok(contract, "created_waybill", contract.shortId(), reward, fee,
+        return Outcome.ok(contract, "created_waybill", contract.shortId(),
+                dev.poligorn.aerocouriers.economy.MoneyFormat.component(reward),
+                dev.poligorn.aerocouriers.economy.MoneyFormat.component(fee),
                 contract.requiredRank().displayName(), sourcePos.toShortString());
     }
 
@@ -502,7 +514,7 @@ public final class ContractManager extends SavedData {
         if (!Licenses.isLicensedCourier(courier)) {
             return Outcome.error("no_license");
         }
-        LicenseRank rank = Licenses.rankOf(courier);
+        LicenseRank rank = Licenses.effectiveRank(courier);
         CourierProfile profile = Licenses.profile(courier);
         int traineeFree = CouriersServerConfig.TRAINEE_FREE_CONTRACTS.get();
         int traineeMax = CouriersServerConfig.TRAINEE_MAX_DISTANCE.get();
@@ -526,13 +538,13 @@ public final class ContractManager extends SavedData {
             String ids = active.stream().map(Contract::shortId).collect(Collectors.joining(", "));
             return Outcome.error("too_many_active", maxActive, ids);
         }
-        long collateralDue = contract.collateral();
-        if (contract.type().isNpc() && profile.villageDelivered() < traineeFree) {
-            collateralDue = 0;
-        }
+        long collateralDue = TraineeRules.collateralDueAtAccept(rank, contract.collateral(), contract.type().isNpc(),
+                profile.villageDelivered(), traineeFree);
         Economy economy = Economies.get(server);
         if (collateralDue > 0 && !economy.withdraw(courier.getUUID(), collateralDue, "collateral:" + id)) {
-            return Outcome.error("not_enough_money", collateralDue, economy.balance(courier.getUUID()));
+            return Outcome.error("not_enough_money",
+                    dev.poligorn.aerocouriers.economy.MoneyFormat.component(collateralDue),
+                    dev.poligorn.aerocouriers.economy.MoneyFormat.component(economy.balance(courier.getUUID())));
         }
         if (collateralDue > 0) {
             Escrow.get(server).addCollateral(id, collateralDue);
@@ -557,7 +569,8 @@ public final class ContractManager extends SavedData {
         }
         String acceptKey = contract.preplaced() ? "accepted_preplaced" : "accepted";
         Component message = Component.translatable("contract.aerocouriers." + acceptKey, contract.shortId(),
-                        contract.collateral(), accepted.timing().deadline() / Pricing.TICKS_PER_MINUTE,
+                        dev.poligorn.aerocouriers.economy.MoneyFormat.component(collateralDue),
+                        accepted.timing().deadline() / Pricing.TICKS_PER_MINUTE,
                         contract.origin().pos().toShortString())
                 .append("\n").append(riskLine(contract));
         if (self) {
@@ -762,11 +775,13 @@ public final class ContractManager extends SavedData {
                 : profile.withDelivery(xp, Math.round(contract.distance()), late, paid);
         if (contract.type().isNpc() && !profile.traineeAdvancePaid()
                 && profile.villageDelivered() >= CouriersServerConfig.TRAINEE_FREE_CONTRACTS.get()) {
-            long bonus = CouriersServerConfig.TRAINEE_BONUS.get();
-            if (bonus > 0) {
+            long bonus = dev.poligorn.aerocouriers.economy.MoneyScale.fromSpurs(CouriersServerConfig.TRAINEE_BONUS.get());
+            if (bonus > 0 && TraineeRules.applies(rankBefore, profile.villageDelivered() - 1,
+                    CouriersServerConfig.TRAINEE_FREE_CONTRACTS.get())) {
                 economy.deposit(courier.getUUID(), bonus, "trainee_advance:" + id);
                 CouriersNotifications.notifyOrder(server, courier.getUUID(),
-                        Component.translatable("contract.aerocouriers.trainee.advance", bonus), Optional.of(id));
+                        Component.translatable("contract.aerocouriers.trainee.advance",
+                                dev.poligorn.aerocouriers.economy.MoneyFormat.component(bonus)), Optional.of(id));
             }
             profile = profile.withTraineeAdvancePaid();
         }
@@ -777,7 +792,7 @@ public final class ContractManager extends SavedData {
         put(delivered);
         Component message = Component.translatable(
                 late ? "contract.aerocouriers.delivered_late" : "contract.aerocouriers.delivered",
-                contract.shortId(), paid, xp);
+                contract.shortId(), dev.poligorn.aerocouriers.economy.MoneyFormat.component(paid), xp);
         CouriersNotifications.notifyOrder(server, courier.getUUID(), message, Optional.of(id));
         if (rankAfter.level() > rankBefore.level() && !rankAfter.isAdmin()) {
             CouriersNotifications.notifyOrder(server, courier.getUUID(),
@@ -1017,7 +1032,8 @@ public final class ContractManager extends SavedData {
         if (online != null && reason != FailReason.ABANDONED) {
             CouriersNotifications.notifyOrder(server, courier,
                     Component.translatable("contract.aerocouriers.notify.failed.courier",
-                            contract.shortId(), cause, contract.collateral()),
+                            contract.shortId(), cause,
+                            dev.poligorn.aerocouriers.economy.MoneyFormat.component(contract.collateral())),
                     Optional.of(id));
         }
         AeronauticsCouriers.LOGGER.info("[contract] {} failed: {} (dropped {} items{})", id, reason, dropped,

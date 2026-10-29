@@ -114,6 +114,6 @@ public final class ProfileRankBar {
         if (spurs >= Long.MAX_VALUE / 2) {
             return "∞";
         }
-        return String.format(Locale.ROOT, "%d", spurs);
+        return dev.poligorn.aerocouriers.economy.MoneyFormat.text(spurs);
     }
 }

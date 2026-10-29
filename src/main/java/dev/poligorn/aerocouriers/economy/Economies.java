@@ -47,7 +47,7 @@ public final class Economies {
         boolean numismaticsLoaded = ModList.get().isLoaded(NUMISMATICS_MOD_ID);
         if (EconomyBackendResolver.forcedNumismaticsMissing(backendConfig, numismaticsLoaded)) {
             AeronauticsCouriers.LOGGER.warn(
-                    "economy.backend=numismatics but mod '{}' is not loaded; using internal balance",
+                    "economy.backend=numismatics but mod '{}' is not loaded; using emeralds in the player inventory",
                     NUMISMATICS_MOD_ID);
         }
 
@@ -55,10 +55,10 @@ public final class Economies {
         Economy core;
         if (choice == Choice.NUMISMATICS) {
             Economy numismatics = loadNumismaticsEconomy(server, internal);
-            core = numismatics == internal ? internal : new MigratingEconomy(numismatics, internal, log);
+            core = numismatics == internal ? new EmeraldEconomy(server) : new MigratingEconomy(numismatics, internal, log);
             cachedNumismatics = numismatics != internal;
         } else {
-            core = internal;
+            core = new EmeraldEconomy(server);
             cachedNumismatics = false;
         }
         cached = new LoggedEconomy(core, log);

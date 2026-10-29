@@ -194,7 +194,8 @@ final class BoardAdminUi {
         screen.adminAddWidget(playerBtn(sx, by, half, Component.translatable("ui.aerocouriers.admin.player.waybill"),
                 OperatorBoardPayload.Action.PLAYER_WAYBILL, target, "", 0));
         screen.adminAddWidget(playerBtn(sx + half + 4, by, half,
-                Component.translatable("ui.aerocouriers.admin.player.money", OperatorBoardPayload.TEST_MONEY),
+                Component.translatable("ui.aerocouriers.admin.player.money",
+                        dev.poligorn.aerocouriers.economy.MoneyFormat.component(OperatorBoardPayload.TEST_MONEY)),
                 OperatorBoardPayload.Action.PLAYER_MONEY, target, "", OperatorBoardPayload.TEST_MONEY));
         by += 22;
         if (!snapshot.stations().isEmpty()) {
@@ -227,7 +228,8 @@ final class BoardAdminUi {
                 Component.translatable("ui.aerocouriers.admin.economy.show_weight"), b ->
                         send(OperatorBoardPayload.Action.ECONOMY_SHOW_WEIGHT, Optional.empty(), Optional.empty(), "", "", 0, false)));
         screen.adminAddWidget(TabletButton.create(sx, y + 72, 200, 20,
-                Component.translatable("ui.aerocouriers.admin.economy.set_value", 100), b ->
+                Component.translatable("ui.aerocouriers.admin.economy.set_value",
+                        dev.poligorn.aerocouriers.economy.MoneyFormat.component(100)), b ->
                         send(OperatorBoardPayload.Action.ECONOMY_SET_VALUE, Optional.empty(), Optional.empty(), "", "", 100, false)));
         screen.adminAddWidget(TabletButton.create(sx, y + 96, 200, 20,
                 Component.translatable("ui.aerocouriers.admin.economy.set_weight", 1.0), b ->

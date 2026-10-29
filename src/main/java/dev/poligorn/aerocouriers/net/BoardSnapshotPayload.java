@@ -172,12 +172,13 @@ public record BoardSnapshotPayload(
             int issuerCountS,
             int issuerCountM,
             int issuerCountL,
-            int issuerCountXl
+            int issuerCountXl,
+            boolean pilotLicenseHeld
     ) {
         public static final BoardProfile EMPTY = new BoardProfile(
                 "", LicenseRank.RANK1, 0, 0, 0L, 0L, 0, 3, 800,
                 0, 0, 300, 1500, 5000, 15000, 90,
-                false, 0, 0, 0L, 0L, 0, 0, 0, 0);
+                false, 0, 0, 0L, 0L, 0, 0, 0, 0, false);
 
         public List<Integer> rankXpThresholds() {
             return List.of(rankXp0, rankXp1, rankXp2, rankXp3, rankXp4);
@@ -190,7 +191,7 @@ public record BoardSnapshotPayload(
 
         /** True when the player never received a pilot license (first issue is free from the profile tab). */
         public boolean neverHadPilotLicense() {
-            return licensesIssued <= 0 && !licensedCourier;
+            return licensesIssued <= 0 && !licensedCourier && !pilotLicenseHeld;
         }
 
         public Optional<CargoSize> issuerMostCommonSize() {
@@ -226,6 +227,7 @@ public record BoardSnapshotPayload(
             ByteBufCodecs.VAR_INT.encode(buf, p.issuerCountM);
             ByteBufCodecs.VAR_INT.encode(buf, p.issuerCountL);
             ByteBufCodecs.VAR_INT.encode(buf, p.issuerCountXl);
+            buf.writeBoolean(p.pilotLicenseHeld);
         }
 
         private static BoardProfile read(RegistryFriendlyByteBuf buf) {
@@ -254,7 +256,8 @@ public record BoardSnapshotPayload(
                     ByteBufCodecs.VAR_INT.decode(buf),
                     ByteBufCodecs.VAR_INT.decode(buf),
                     ByteBufCodecs.VAR_INT.decode(buf),
-                    ByteBufCodecs.VAR_INT.decode(buf));
+                    ByteBufCodecs.VAR_INT.decode(buf),
+                    buf.readBoolean());
         }
     }
 

@@ -373,8 +373,10 @@ public final class PostStationScreen extends Screen {
             return;
         }
         hoverTipLines = List.of(
-                Component.translatable("ui.aerocouriers.row.summary.reward", entry.reward()),
-                Component.translatable("ui.aerocouriers.row.summary.collateral", entry.collateral()),
+                Component.translatable("ui.aerocouriers.row.summary.reward",
+                        dev.poligorn.aerocouriers.economy.MoneyFormat.component(entry.reward())),
+                Component.translatable("ui.aerocouriers.row.summary.collateral",
+                        dev.poligorn.aerocouriers.economy.MoneyFormat.component(entry.collateral())),
                 Component.translatable("ui.aerocouriers.row.summary.rank", entry.requiredRank().displayName()),
                 Component.translatable("ui.aerocouriers.row.summary.deadline", entry.deadlineMinutes()),
                 Component.translatable("ui.aerocouriers.row.summary.time", entry.minutesLeft()),

@@ -1,11 +1,15 @@
 package dev.poligorn.aerocouriers.license;
 
 import dev.poligorn.aerocouriers.AeronauticsCouriers;
+import dev.poligorn.aerocouriers.contract.Mailbox;
 import dev.poligorn.aerocouriers.contract.RankRules;
 import dev.poligorn.aerocouriers.registry.ModAttachments;
 import dev.poligorn.aerocouriers.registry.ModComponents;
 import dev.poligorn.aerocouriers.registry.ModItems;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -64,6 +68,92 @@ public final class Licenses {
 
     public static LicenseRank rankOf(Player player) {
         return RankRules.rankFor(profile(player));
+    }
+
+    /**
+     * Profile rank, raised to a higher rank written on a pilot license in Curios or the inventory. An admin license
+     * wins. {@link #tickWorn} still copies the profile rank onto a worn non-admin license, so an admin grant that
+     * also sets XP stays in agreement once the license is equipped.
+     */
+    public static LicenseRank effectiveRank(Player player) {
+        LicenseRank rank = rankOf(player);
+        for (ItemStack stack : licenseStacks(player)) {
+            LicenseRank onItem = stack.get(ModComponents.LICENSE_RANK.get());
+            if (onItem == null) {
+                continue;
+            }
+            if (onItem.isAdmin()) {
+                return onItem;
+            }
+            if (!rank.isAdmin() && onItem.level() > rank.level()) {
+                rank = onItem;
+            }
+        }
+        return rank;
+    }
+
+    public static boolean holdsPilotLicense(Player player) {
+        if (!licenseStacks(player).isEmpty()) {
+            return true;
+        }
+        if (player instanceof ServerPlayer serverPlayer) {
+            for (ItemStack stack : Mailbox.get(serverPlayer.server).contents(serverPlayer.getUUID())) {
+                if (stack.is(ModItems.PILOT_LICENSE.get())) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Empty Curios {@code license} slot, then the inventory, then the mailbox (claim row, not a ground drop).
+     */
+    public static void deliver(ServerPlayer player, ItemStack stack) {
+        if (tryEquipLicense(player, stack)) {
+            return;
+        }
+        if (player.getInventory().add(stack)) {
+            return;
+        }
+        if (!stack.isEmpty()) {
+            Mailbox.get(player.server).post(player.getUUID(), List.of(stack),
+                    Component.translatable("ui.aerocouriers.inbox.license"));
+        }
+    }
+
+    private static boolean tryEquipLicense(ServerPlayer player, ItemStack stack) {
+        return CuriosApi.getCuriosInventory(player).map(handler -> {
+            var found = handler.getStacksHandler(CURIOS_SLOT);
+            if (found.isEmpty()) {
+                return false;
+            }
+            var stacks = found.get().getStacks();
+            for (int i = 0; i < stacks.getSlots(); i++) {
+                if (stacks.getStackInSlot(i).isEmpty()) {
+                    handler.setEquippedCurio(CURIOS_SLOT, i, stack);
+                    return true;
+                }
+            }
+            return false;
+        }).orElse(false);
+    }
+
+    private static List<ItemStack> licenseStacks(Player player) {
+        List<ItemStack> stacks = new ArrayList<>();
+        CuriosApi.getCuriosInventory(player).ifPresent(handler -> {
+            for (SlotResult slot : handler.findCurios(stack -> stack.is(ModItems.PILOT_LICENSE.get()))) {
+                stacks.add(slot.stack());
+            }
+        });
+        var inventory = player.getInventory();
+        for (int i = 0; i < inventory.getContainerSize(); i++) {
+            ItemStack stack = inventory.getItem(i);
+            if (stack.is(ModItems.PILOT_LICENSE.get())) {
+                stacks.add(stack);
+            }
+        }
+        return stacks;
     }
 
     /**

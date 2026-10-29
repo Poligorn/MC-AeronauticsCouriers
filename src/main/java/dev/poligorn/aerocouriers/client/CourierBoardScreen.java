@@ -579,8 +579,9 @@ public final class CourierBoardScreen extends Screen {
         if (snapshot == null) {
             return entry.collateral();
         }
-        return TraineeRules.collateralDueAtAccept(entry.collateral(), entry.villageCustomer(),
-                snapshot.profile().villageDelivered(), snapshot.profile().traineeFreeContracts());
+        return TraineeRules.collateralDueAtAccept(snapshot.profile().rank(), entry.collateral(),
+                entry.villageCustomer(), snapshot.profile().villageDelivered(),
+                snapshot.profile().traineeFreeContracts());
     }
 
     void refreshAdminContent() {
@@ -745,7 +746,7 @@ public final class CourierBoardScreen extends Screen {
             }
         }
         String head = Component.translatable("ui.aerocouriers.status.active", active, maxActive).getString();
-        String amount = TabletDraw.num(atStake);
+        String amount = dev.poligorn.aerocouriers.economy.MoneyFormat.text(atStake);
         if (atStake > 0) {
             head += " · " + Component.translatable("ui.aerocouriers.status.collateral").getString() + " ";
         }
@@ -781,6 +782,7 @@ public final class CourierBoardScreen extends Screen {
         graphics.fill(cx, cy, cx + cw, cy + ch, TabletPalette.SCRIM);
         graphics.pose().popPose();
         if (detailsOverlay != null) {
+            detailsOverlay.setSuppressCargoItems(confirmOverlay != null);
             detailsOverlay.layout(cx + 4, cy + 4, cw - 8, ch - 8);
             detailsOverlay.render(graphics, confirmOverlay == null ? mouseX : -1, confirmOverlay == null ? mouseY : -1,
                     partialTick);
@@ -792,7 +794,7 @@ public final class CourierBoardScreen extends Screen {
                 graphics.fill(cx, cy, cx + cw, cy + ch, TabletPalette.SCRIM);
                 graphics.pose().popPose();
                 graphics.pose().pushPose();
-                graphics.pose().translate(0.0F, 0.0F, 200.0F);
+                graphics.pose().translate(0.0F, 0.0F, 450.0F);
             }
             confirmOverlay.measure();
             confirmOverlay.layout(cx + 4, cy + 4, cw - 8, ch - 8);
@@ -1065,7 +1067,7 @@ public final class CourierBoardScreen extends Screen {
         }
         dev.poligorn.aerocouriers.license.IssuerStats issuer = profile.issuerStats();
         Component line1 = Component.translatable("ui.aerocouriers.profile.issuer.line1",
-                issuer.orders(), issuer.averageReward());
+                issuer.orders(), dev.poligorn.aerocouriers.economy.MoneyFormat.component(issuer.averageReward()));
         y = drawProfileStatBlock(graphics, line1, statsX, y, statsW, TabletGui.TEXT);
         CargoSize common = profile.issuerMostCommonSize().orElse(CargoSize.M);
         Component sizeLabel = AcceptEligibility.sizeLabel(common);
@@ -1103,7 +1105,7 @@ public final class CourierBoardScreen extends Screen {
         }
         dev.poligorn.aerocouriers.license.IssuerStats issuer = profile.issuerStats();
         Component line1 = Component.translatable("ui.aerocouriers.profile.issuer.line1",
-                issuer.orders(), issuer.averageReward());
+                issuer.orders(), dev.poligorn.aerocouriers.economy.MoneyFormat.component(issuer.averageReward()));
         y = measureProfileStatBlock(line1, statsW, y);
         CargoSize common = profile.issuerMostCommonSize().orElse(CargoSize.M);
         Component sizeLabel = AcceptEligibility.sizeLabel(common);
@@ -1438,7 +1440,8 @@ public final class CourierBoardScreen extends Screen {
         }
         if (bounds.contains(mouseX, mouseY)) {
             hoverSpurBreakdown = new SpurBreakdownTooltip(spurs);
-            hoverSpurHeader = Component.translatable("ui.aerocouriers.spur.tooltip.header", spurs);
+            hoverSpurHeader = Component.translatable("ui.aerocouriers.spur.tooltip.header",
+                    dev.poligorn.aerocouriers.economy.MoneyFormat.component(spurs));
         }
     }
 
@@ -1719,8 +1722,7 @@ public final class CourierBoardScreen extends Screen {
     }
 
     private static boolean showsTraineeHint(BoardSnapshotPayload.BoardProfile profile) {
-        return profile.rank().level() == 1
-                && TraineeRules.onTraineeVillageContracts(profile.villageDelivered(), profile.traineeFreeContracts());
+        return TraineeRules.applies(profile.rank(), profile.villageDelivered(), profile.traineeFreeContracts());
     }
 
     private boolean listTab() {

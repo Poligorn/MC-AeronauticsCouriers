@@ -37,6 +37,11 @@ public final class BoardDetailsOverlay extends TabletOverlay {
     private static final int ACCEPT_X = BACK_X - 8 - ACCEPT_W;
     private static final int CLOSE_X = W - 17;
     private static final int CLOSE_Y = 2;
+    private boolean suppressCargoItems;
+
+    public void setSuppressCargoItems(boolean suppress) {
+        suppressCargoItems = suppress;
+    }
 
     private enum Action {
         ACCEPT,
@@ -193,7 +198,7 @@ public final class BoardDetailsOverlay extends TabletOverlay {
                     TabletPalette.SLOT_BORDER);
             TabletDraw.hline(graphics, sx + 1, sx + SLOT - 2, sy + 1, TabletPalette.SLOT_SHADOW);
             TabletDraw.vline(graphics, sx + 1, sy + 1, sy + SLOT - 2, TabletPalette.SLOT_SHADOW);
-            if (k < stacks.size() && !stacks.get(k).isEmpty()) {
+            if (!suppressCargoItems && k < stacks.size() && !stacks.get(k).isEmpty()) {
                 ItemStack stack = stacks.get(k);
                 graphics.renderItem(stack, sx + 1, sy + 1);
                 graphics.renderItemDecorations(font, stack, sx + 1, sy + 1, "");
@@ -259,20 +264,22 @@ public final class BoardDetailsOverlay extends TabletOverlay {
         String dist = Component.translatable("ui.aerocouriers.card.blocks", TabletDraw.num(e.distance())).getString();
         TabletDraw.text(graphics, font, dist, VALUE_X, ry, TabletPalette.TXT);
         TabletDraw.text(graphics, font,
-                "· " + Component.translatable("ui.aerocouriers.details.per_1000", e.rewardPer1000Blocks()).getString(),
+                "· " + Component.translatable("ui.aerocouriers.details.per_1000",
+                        dev.poligorn.aerocouriers.economy.MoneyFormat.text(e.rewardPer1000Blocks())).getString(),
                 VALUE_X + font.width(dist) + 4, ry, TabletPalette.SEC);
         ry += 13;
         ry = separator(graphics, ry);
 
         label(graphics, font, "ui.aerocouriers.details.reward", ry);
-        TabletDraw.bold(graphics, font, "+" + TabletDraw.num(e.reward()), VALUE_X, ry, TabletPalette.GOLD);
+        TabletDraw.bold(graphics, font, "+" + dev.poligorn.aerocouriers.economy.MoneyFormat.text(e.reward()),
+                VALUE_X, ry, TabletPalette.GOLD);
         ry += 13;
 
         label(graphics, font, "ui.aerocouriers.details.collateral", ry);
         long due = host.collateralDue(e);
         boolean trainee = host.traineeFree(e);
         int color = due > 0 ? TabletPalette.CORAL : TabletPalette.TEAL;
-        String amount = TabletDraw.num(due);
+        String amount = dev.poligorn.aerocouriers.economy.MoneyFormat.text(due);
         TabletDraw.bold(graphics, font, amount, VALUE_X, ry, color);
         String note = !e.state().equals(ContractState.OPEN)
                 ? Component.translatable("ui.aerocouriers.details.collateral_held").getString()
@@ -476,7 +483,8 @@ public final class BoardDetailsOverlay extends TabletOverlay {
     private String acceptLabel(BoardSnapshotPayload.BoardEntry e) {
         long due = host.collateralDue(e);
         return due > 0
-                ? Component.translatable("ui.aerocouriers.details.accept", TabletDraw.num(due)).getString()
+                ? Component.translatable("ui.aerocouriers.details.accept",
+                        dev.poligorn.aerocouriers.economy.MoneyFormat.text(due)).getString()
                 : Component.translatable("ui.aerocouriers.details.accept_free").getString();
     }
 

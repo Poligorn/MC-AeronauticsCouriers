@@ -174,7 +174,8 @@ final class ContractCommands {
         String role = c.roleFor(viewer);
         return Component.translatable("contract.aerocouriers.list.line", c.shortId(), c.state().displayName(),
                 c.origin().pos().toShortString(), c.destination().pos().toShortString(), (long) c.distance(),
-                c.size().name(), c.reward(), c.collateral(), c.requiredRank().displayName(),
+                c.size().name(), dev.poligorn.aerocouriers.economy.MoneyFormat.component(c.reward()),
+                dev.poligorn.aerocouriers.economy.MoneyFormat.component(c.collateral()), c.requiredRank().displayName(),
                 Component.translatable("contract.aerocouriers.role." + role));
     }
 
@@ -245,7 +246,8 @@ final class ContractCommands {
 
     private static int showBalance(CommandSourceStack source, ServerPlayer player) {
         long balance = Economies.get(source.getServer()).balance(player.getUUID());
-        source.sendSuccess(() -> Component.translatable("contract.aerocouriers.balance", player.getDisplayName(), balance), false);
+        source.sendSuccess(() -> Component.translatable("contract.aerocouriers.balance", player.getDisplayName(),
+                dev.poligorn.aerocouriers.economy.MoneyFormat.component(balance)), false);
         return (int) Math.min(Integer.MAX_VALUE, balance);
     }
 
@@ -268,8 +270,9 @@ final class ContractCommands {
             } else if (wanted < current) {
                 economy.withdraw(target.getUUID(), current - wanted, "admin");
             }
+            long shown = economy.balance(target.getUUID());
             ctx.getSource().sendSuccess(() -> Component.translatable("contract.aerocouriers.balance",
-                    target.getDisplayName(), economy.balance(target.getUUID())), true);
+                    target.getDisplayName(), dev.poligorn.aerocouriers.economy.MoneyFormat.component(shown)), true);
         }
         return targets.size();
     }

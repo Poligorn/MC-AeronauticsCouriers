@@ -36,6 +36,8 @@ final class WaybillDestinationPicker {
     private int scroll;
     private int hoverRow = -1;
     private boolean hoverMap;
+    private boolean hoverChoose;
+    private boolean coordsInvalid;
 
     WaybillDestinationPicker(WaybillCreateScreen screen) {
         this.screen = screen;
@@ -80,7 +82,7 @@ final class WaybillDestinationPicker {
             h += ROW_H;
         }
         if (tab == Tab.COORDS) {
-            h = 16 + 38 + 14;
+            h = 18 + 10 + WaybillCreateLayout.FIELD_H + 4 + WaybillCreateLayout.BTN_H + 16;
         }
     }
 
@@ -93,7 +95,27 @@ final class WaybillDestinationPicker {
     }
 
     int coordFieldY() {
-        return y0 + 20;
+        return y0 + 28;
+    }
+
+    int chooseY() {
+        return coordFieldY() + WaybillCreateLayout.FIELD_H + 4;
+    }
+
+    int chooseX() {
+        return x0 + 8;
+    }
+
+    int chooseW() {
+        return WIDTH - 16;
+    }
+
+    void setCoordsInvalid(boolean invalid) {
+        coordsInvalid = invalid;
+    }
+
+    boolean chooseHovered() {
+        return hoverChoose;
     }
 
     int coordFieldX(int column) {
@@ -135,6 +157,7 @@ final class WaybillDestinationPicker {
             if (TabletDraw.inside(mouseX, mouseY, tx, tabY, TAB_W, WaybillCreateLayout.CHIP_H)) {
                 tab = tabs().get(i);
                 scroll = 0;
+                coordsInvalid = false;
                 relayout();
                 screen.refreshForm();
                 return true;
@@ -149,6 +172,16 @@ final class WaybillDestinationPicker {
             }
         }
         if (tab == Tab.COORDS) {
+            if (TabletDraw.inside(mouseX, mouseY, chooseX(), chooseY(), chooseW(), WaybillCreateLayout.BTN_H)) {
+                screen.commitCoords();
+                return true;
+            }
+            for (int i = 0; i < 3; i++) {
+                if (TabletDraw.inside(mouseX, mouseY, coordFieldX(i), coordFieldY(), coordFieldW(),
+                        WaybillCreateLayout.FIELD_H)) {
+                    return false;
+                }
+            }
             return true;
         }
         int index = rowAt(mouseY);
@@ -167,6 +200,7 @@ final class WaybillDestinationPicker {
         }
         hoverRow = -1;
         hoverMap = false;
+        hoverChoose = false;
         // Same plane as the cargo overlay so a later overlay still paints above this popup.
         g.pose().pushPose();
         g.pose().translate(0.0F, 0.0F, 400.0F);
@@ -183,8 +217,25 @@ final class WaybillDestinationPicker {
                     TabletDraw.inside(mouseX, mouseY, tx, tabY, TAB_W, WaybillCreateLayout.CHIP_H));
         }
         if (tab == Tab.COORDS) {
-            WaybillCreateGui.text(g, font, Component.translatable("ui.aerocouriers.create.picker.coords_hint").getString(),
-                    x0 + 8, y0 + h - 12, WaybillPalette.INK2);
+            for (int i = 0; i < 3; i++) {
+                int fx = coordFieldX(i);
+                String axis = Component.translatable(switch (i) {
+                    case 0 -> "ui.aerocouriers.create.coord.x";
+                    case 1 -> "ui.aerocouriers.create.coord.y";
+                    default -> "ui.aerocouriers.create.coord.z";
+                }).getString();
+                WaybillCreateGui.text(g, font, axis, fx + 2, coordFieldY() - 10, WaybillPalette.INK2);
+                WaybillCreateGui.field(g, fx, coordFieldY(), fx + coordFieldW() - 1, coordsInvalid);
+            }
+            String choose = Component.translatable("ui.aerocouriers.create.picker.choose").getString();
+            hoverChoose = TabletDraw.inside(mouseX, mouseY, chooseX(), chooseY(), chooseW(), WaybillCreateLayout.BTN_H);
+            WaybillCreateGui.button(g, font, chooseX(), chooseY(), chooseW(), WaybillCreateLayout.BTN_H, choose,
+                    WaybillCreateGui.ButtonKind.PRIMARY, null, hoverChoose);
+            String hint = Component.translatable(coordsInvalid
+                    ? "ui.aerocouriers.create.picker.coords_invalid"
+                    : "ui.aerocouriers.create.picker.coords_hint").getString();
+            WaybillCreateGui.text(g, font, hint, x0 + 8, y0 + h - 12,
+                    coordsInvalid ? WaybillPalette.RED : WaybillPalette.INK2);
             return;
         }
         int listY = listTop();

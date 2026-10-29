@@ -58,7 +58,8 @@ public final class BoardCardRenderer {
             TabletDraw.text(graphics, font, need, xx, y + 4, TabletPalette.LOCKC);
             line1RightLeft = xx - 10;
         } else {
-            line1RightLeft = TabletDraw.textRight(graphics, font, "+" + TabletDraw.num(entry.reward()), rx, y + 4,
+            line1RightLeft = TabletDraw.textRight(graphics, font,
+                    "+" + dev.poligorn.aerocouriers.economy.MoneyFormat.text(entry.reward()), rx, y + 4,
                     TabletPalette.GOLD, true);
         }
 
@@ -106,7 +107,8 @@ public final class BoardCardRenderer {
         String depos;
         if (style.locked()) {
             deposColor = TabletPalette.LOCKC;
-            depos = Component.translatable("ui.aerocouriers.card.collateral", TabletDraw.num(entry.collateral()))
+            depos = Component.translatable("ui.aerocouriers.card.collateral",
+                    dev.poligorn.aerocouriers.economy.MoneyFormat.text(entry.collateral()))
                     .getString();
         } else if (style.traineeFree()) {
             deposColor = TabletPalette.TEAL;
@@ -116,12 +118,13 @@ public final class BoardCardRenderer {
             depos = Component.translatable("ui.aerocouriers.card.collateral_none").getString();
         } else {
             deposColor = TabletPalette.CORAL;
-            depos = Component.translatable("ui.aerocouriers.card.collateral", TabletDraw.num(style.collateralDue()))
+            depos = Component.translatable("ui.aerocouriers.card.collateral",
+                    dev.poligorn.aerocouriers.economy.MoneyFormat.text(style.collateralDue()))
                     .getString();
         }
         TabletDraw.textRight(graphics, font, depos, rx, y2, deposColor, false);
         String middle = style.boardTab() || !"issuer".equals(entry.role())
-                ? entry.rewardPer1000Blocks() + "/1000"
+                ? dev.poligorn.aerocouriers.economy.MoneyFormat.text(entry.rewardPer1000Blocks()) + "/1000"
                 : Component.translatable("ui.aerocouriers.card.role_issuer").getString();
         TabletDraw.textRight(graphics, font, TabletDraw.trunc(font, middle, 80), rx - 90, y2, sc, false);
 

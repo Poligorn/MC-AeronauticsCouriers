@@ -174,9 +174,9 @@ public final class TabletGui {
                 graphics.fill(x + 1, y + 1, x + w - 1, y + h - 1, 0x30FFAF55);
                 graphics.renderOutline(x, y, w, h, 0xFFFFAF55);
             } else if (hoverStrength > 0.001F) {
-                graphics.fill(x + 1, y + 1, x + w - 1, y + h - 1, TabletAnim.withAlpha(0x30FFAF55, hoverStrength));
-                if (hoverStrength > 0.35F) {
-                    graphics.renderOutline(x, y, w, h, TabletAnim.withAlpha(0xFFFFAF55, hoverStrength));
+                graphics.fill(x + 1, y + 1, x + w - 1, y + h - 1, TabletAnim.withAlpha(0xFF3A2414, hoverStrength * 0.72F));
+                if (hoverStrength > 0.45F) {
+                    graphics.renderOutline(x, y, w, h, TabletAnim.withAlpha(0xFF8A5A32, hoverStrength * 0.65F));
                 }
             }
         });

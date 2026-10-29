@@ -18,17 +18,7 @@ public final class ProfileSnapshots {
 
     public static BoardSnapshotPayload.BoardProfile forPlayer(ServerPlayer player) {
         CourierProfile stats = Licenses.profile(player);
-        LicenseRank rank = RankRules.rankFor(stats);
-        for (ItemStack stack : Licenses.findLicense(player).stream().toList()) {
-            LicenseOwner owner = stack.get(ModComponents.LICENSE_OWNER.get());
-            if (owner != null && owner.isOwnedBy(player.getUUID())) {
-                LicenseRank onLicense = stack.get(ModComponents.LICENSE_RANK.get());
-                if (onLicense != null && onLicense.isAdmin()) {
-                    rank = onLicense;
-                }
-                break;
-            }
-        }
+        LicenseRank rank = Licenses.effectiveRank(player);
         List<Integer> rankDefaults = List.of(0, 300, 1500, 5000, 15000);
         List<? extends Integer> configured = CouriersServerConfig.RANK_XP.get();
         int[] thresholds = new int[5];
@@ -61,6 +51,7 @@ public final class ProfileSnapshots {
                 stats.issuerCountS(),
                 stats.issuerCountM(),
                 stats.issuerCountL(),
-                stats.issuerCountXl());
+                stats.issuerCountXl(),
+                Licenses.holdsPilotLicense(player));
     }
 }

@@ -19,7 +19,8 @@ public final class SpurBreakdownClientTooltip implements ClientTooltipComponent 
 
     public SpurBreakdownClientTooltip(SpurBreakdownTooltip payload) {
         this.breakdown = SpurBreakdown.greedy(payload.spurs());
-        this.footer = Component.translatable("ui.aerocouriers.spur.tooltip.rate");
+        this.footer = Component.translatable("ui.aerocouriers.spur.tooltip.rate",
+                Component.translatable("item.numismatics.spur"));
     }
 
     @Override

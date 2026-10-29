@@ -221,13 +221,7 @@ public final class AdminCommands {
     private static int playerLicense(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
         ServerPlayer target = EntityArgument.getPlayer(ctx, "player");
         LicenseRank rank = LicenseRank.bySerializedName(StringArgumentType.getString(ctx, "rank"));
-        ItemStack license = Licenses.issueLicense(target, rank, false);
-        if (!target.getInventory().add(license)) {
-            target.drop(license, false);
-        }
-        return report(ctx.getSource(), new ContractManager.Outcome(true,
-                Component.translatable("commands.aerocouriers.license.given", target.getDisplayName(), rank.displayName()),
-                Optional.empty()));
+        return report(ctx.getSource(), AdminActions.grantLicense(target, rank));
     }
 
     private static int playerWaybill(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
@@ -247,7 +241,8 @@ public final class AdminCommands {
         Economies.get(ctx.getSource().getServer()).deposit(target.getUUID(), amount, "admin");
         long balance = Economies.get(ctx.getSource().getServer()).balance(target.getUUID());
         return report(ctx.getSource(), new ContractManager.Outcome(true,
-                Component.translatable("contract.aerocouriers.balance", target.getDisplayName(), balance),
+                Component.translatable("contract.aerocouriers.balance", target.getDisplayName(),
+                        dev.poligorn.aerocouriers.economy.MoneyFormat.component(balance)),
                 Optional.empty()));
     }
 
@@ -270,8 +265,9 @@ public final class AdminCommands {
         }
         ResourceLocation id = BuiltInRegistries.ITEM.getKey(hand.getItem());
         if (value) {
-            long v = ItemValues.perItem(hand);
-            ctx.getSource().sendSuccess(() -> Component.translatable("admin.aerocouriers.economy.value_show", id, v), false);
+            long v = dev.poligorn.aerocouriers.economy.MoneyScale.fromSpurs(ItemValues.perItem(hand));
+            ctx.getSource().sendSuccess(() -> Component.translatable("admin.aerocouriers.economy.value_show", id,
+                    dev.poligorn.aerocouriers.economy.MoneyFormat.component(v)), false);
         } else {
             double w = Weights.perItem(hand);
             ctx.getSource().sendSuccess(() -> Component.translatable("admin.aerocouriers.economy.weight_show", id, w), false);

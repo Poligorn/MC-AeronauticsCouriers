@@ -78,7 +78,9 @@ public final class BoardAcceptOverlay extends BoardConfirmOverlay {
 
     private Component riskText(BoardSnapshotPayload.BoardEntry e) {
         return Component.translatable(e.villageCustomer() ? "contract.aerocouriers.risk.npc"
-                : "contract.aerocouriers.risk", TabletDraw.num(host.collateralDue(e)), TabletDraw.num(e.reward()));
+                : "contract.aerocouriers.risk",
+                dev.poligorn.aerocouriers.economy.MoneyFormat.text(host.collateralDue(e)),
+                dev.poligorn.aerocouriers.economy.MoneyFormat.text(e.reward()));
     }
 
     private static Component damageNote() {
@@ -115,12 +117,13 @@ public final class BoardAcceptOverlay extends BoardConfirmOverlay {
 
         int ry = 37;
         label(graphics, font, "ui.aerocouriers.details.reward", ry);
-        TabletDraw.bold(graphics, font, "+" + TabletDraw.num(e.reward()), VALUE_X, ry, TabletPalette.GOLD);
+        TabletDraw.bold(graphics, font, "+" + dev.poligorn.aerocouriers.economy.MoneyFormat.text(e.reward()),
+                VALUE_X, ry, TabletPalette.GOLD);
         ry += 12;
 
         label(graphics, font, "ui.aerocouriers.details.collateral", ry);
         long due = host.collateralDue(e);
-        String amount = due > 0 ? "-" + TabletDraw.num(due) : "0";
+        String amount = due > 0 ? "-" + dev.poligorn.aerocouriers.economy.MoneyFormat.text(due) : "0";
         int color = due > 0 ? TabletPalette.CORAL : TabletPalette.TEAL;
         TabletDraw.bold(graphics, font, amount, VALUE_X, ry, color);
         String note = " · " + Component.translatable(due > 0 ? "ui.aerocouriers.accept.collateral_now"
@@ -156,7 +159,8 @@ public final class BoardAcceptOverlay extends BoardConfirmOverlay {
         int yb = buttonsY;
         boolean ok = canConfirm(e);
         String confirm = due > 0
-                ? Component.translatable("ui.aerocouriers.details.accept", TabletDraw.num(due)).getString()
+                ? Component.translatable("ui.aerocouriers.details.accept",
+                        dev.poligorn.aerocouriers.economy.MoneyFormat.text(due)).getString()
                 : Component.translatable("ui.aerocouriers.details.accept_free").getString();
         TabletDraw.button(graphics, font, CONFIRM_X, yb, CONFIRM_W, confirm,
                 ok ? TabletDraw.ButtonKind.PRIMARY : TabletDraw.ButtonKind.DISABLED, null,
@@ -176,16 +180,20 @@ public final class BoardAcceptOverlay extends BoardConfirmOverlay {
                 hoverLines = List.of(denial.get());
             }
         } else if (shortfall(e) > 0) {
-            String lack = Component.translatable("ui.aerocouriers.accept.short", TabletDraw.num(shortfall(e)))
+            String lack = Component.translatable("ui.aerocouriers.accept.short",
+                    dev.poligorn.aerocouriers.economy.MoneyFormat.text(shortfall(e)))
                     .getString();
             TabletDraw.text(graphics, font, lack, 10, hy, TabletPalette.CORAL);
             String rest = " · " + Component.translatable("ui.aerocouriers.accept.short_detail",
-                    TabletDraw.num(balance), TabletDraw.num(due)).getString();
+                    dev.poligorn.aerocouriers.economy.MoneyFormat.text(balance),
+                    dev.poligorn.aerocouriers.economy.MoneyFormat.text(due)).getString();
             int rx = 10 + font.width(lack);
             TabletDraw.text(graphics, font, TabletDraw.trunc(font, rest, W - 10 - rx), rx, hy, TabletPalette.SEC);
         } else {
             TabletDraw.text(graphics, font, Component.translatable("ui.aerocouriers.accept.balance_left",
-                    TabletDraw.num(balance), TabletDraw.num(balance - due)).getString(), 10, hy, TabletPalette.SEC);
+                    dev.poligorn.aerocouriers.economy.MoneyFormat.text(balance),
+                    dev.poligorn.aerocouriers.economy.MoneyFormat.text(balance - due)).getString(), 10, hy,
+                    TabletPalette.SEC);
         }
     }
 

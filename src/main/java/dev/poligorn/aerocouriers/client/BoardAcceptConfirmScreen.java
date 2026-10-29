@@ -235,7 +235,8 @@ public final class BoardAcceptConfirmScreen extends Screen {
         }
         if (bounds.contains(mouseX, mouseY)) {
             hoverSpurBreakdown = new SpurBreakdownTooltip(spurs);
-            hoverSpurHeader = Component.translatable("ui.aerocouriers.spur.tooltip.header", spurs);
+            hoverSpurHeader = Component.translatable("ui.aerocouriers.spur.tooltip.header",
+                    dev.poligorn.aerocouriers.economy.MoneyFormat.component(spurs));
         }
     }
 
@@ -260,15 +261,19 @@ public final class BoardAcceptConfirmScreen extends Screen {
     }
 
     private long collateralDue() {
-        return TraineeRules.collateralDueAtAccept(entry.collateral(), entry.villageCustomer(),
+        return TraineeRules.collateralDueAtAccept(profile.rank(), entry.collateral(), entry.villageCustomer(),
                 profile.villageDelivered(), profile.traineeFreeContracts());
     }
 
     private Component riskLine() {
         long due = collateralDue();
         return entry.villageCustomer()
-                ? Component.translatable("contract.aerocouriers.risk.npc", due, entry.reward())
-                : Component.translatable("contract.aerocouriers.risk", due, entry.reward());
+                ? Component.translatable("contract.aerocouriers.risk.npc",
+                        dev.poligorn.aerocouriers.economy.MoneyFormat.component(due),
+                        dev.poligorn.aerocouriers.economy.MoneyFormat.component(entry.reward()))
+                : Component.translatable("contract.aerocouriers.risk",
+                        dev.poligorn.aerocouriers.economy.MoneyFormat.component(due),
+                        dev.poligorn.aerocouriers.economy.MoneyFormat.component(entry.reward()));
     }
 
     private int drawWrapped(GuiGraphics graphics, Component text, int x, int y, int maxWidth, int color) {

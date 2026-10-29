@@ -88,7 +88,9 @@ public final class BoardActionConfirmOverlay extends BoardConfirmOverlay {
             return Component.translatable("ui.aerocouriers.cancel_confirm.risk");
         }
         return Component.translatable(e.villageCustomer() ? "ui.aerocouriers.abandon.risk.npc"
-                : "ui.aerocouriers.abandon.risk", TabletDraw.num(e.collateral()), TabletDraw.num(e.reward()));
+                : "ui.aerocouriers.abandon.risk",
+                dev.poligorn.aerocouriers.economy.MoneyFormat.text(e.collateral()),
+                dev.poligorn.aerocouriers.economy.MoneyFormat.text(e.reward()));
     }
 
     private Component note(BoardSnapshotPayload.BoardEntry e) {
@@ -129,7 +131,7 @@ public final class BoardActionConfirmOverlay extends BoardConfirmOverlay {
 
         int ry = 37;
         label(graphics, font, "ui.aerocouriers.details.reward", ry);
-        String reward = "+" + TabletDraw.num(e.reward());
+        String reward = "+" + dev.poligorn.aerocouriers.economy.MoneyFormat.text(e.reward());
         TabletDraw.bold(graphics, font, reward, VALUE_X, ry, abandon() ? TabletPalette.LOCKC : TabletPalette.GOLD);
         String rewardNote = " · " + Component.translatable(abandon() ? "ui.aerocouriers.abandon.reward_lost"
                 : "ui.aerocouriers.cancel_confirm.reward_back").getString();
@@ -140,7 +142,8 @@ public final class BoardActionConfirmOverlay extends BoardConfirmOverlay {
 
         if (abandon()) {
             label(graphics, font, "ui.aerocouriers.details.collateral", ry);
-            String amount = e.collateral() > 0 ? "-" + TabletDraw.num(e.collateral()) : "0";
+            String amount = e.collateral() > 0
+                    ? "-" + dev.poligorn.aerocouriers.economy.MoneyFormat.text(e.collateral()) : "0";
             TabletDraw.bold(graphics, font, amount, VALUE_X, ry, TabletPalette.CORAL);
             String note = " · " + Component.translatable(e.villageCustomer() ? "ui.aerocouriers.abandon.collateral_burns"
                     : "ui.aerocouriers.abandon.collateral_to_customer").getString();

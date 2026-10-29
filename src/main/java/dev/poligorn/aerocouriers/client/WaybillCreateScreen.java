@@ -5,6 +5,7 @@ import dev.poligorn.aerocouriers.cargo.CargoSize;
 import dev.poligorn.aerocouriers.client.board.BoardCardRenderer;
 import dev.poligorn.aerocouriers.client.board.PixelGlyphs;
 import dev.poligorn.aerocouriers.client.board.TabletDraw;
+import dev.poligorn.aerocouriers.economy.MoneyFormat;
 import dev.poligorn.aerocouriers.contract.ContractDistances;
 import dev.poligorn.aerocouriers.contract.Destination;
 import dev.poligorn.aerocouriers.contract.ItemValues;
@@ -142,6 +143,19 @@ public final class WaybillCreateScreen extends Screen {
         onDestinationSet();
     }
 
+    void commitCoords() {
+        Optional<BlockPos> pos = parsePos(toX, toY, toZ);
+        if (pos.isEmpty()) {
+            picker.setCoordsInvalid(true);
+            ClientCouriersSounds.playOrderDeny();
+            return;
+        }
+        applyCoords(pos.get());
+        picker.close();
+        syncBoxes();
+        setFocused(null);
+    }
+
     void applyCoords(BlockPos pos) {
         toX = Integer.toString(pos.getX());
         toY = Integer.toString(pos.getY());
@@ -214,11 +228,7 @@ public final class WaybillCreateScreen extends Screen {
                     case 1 -> toY = v;
                     default -> toZ = v;
                 }
-                parsePos(toX, toY, toZ).ifPresent(pos -> {
-                    destKind = DestKind.COORDS;
-                    destName = "";
-                    onDestinationSet();
-                });
+                picker.setCoordsInvalid(false);
             });
             coordBoxes[i] = box;
             addRenderableWidget(box);
@@ -228,7 +238,7 @@ public final class WaybillCreateScreen extends Screen {
 
     private PaperEditBox moneyBox(int x0, int y, int x1, String value, java.util.function.Consumer<String> sink,
                                   Component label) {
-        int unitW = font.width(spUnit()) + 6;
+        int unitW = font.width(moneyUnit()) + 6;
         PaperEditBox box = new PaperEditBox(font, x0 + 5, y + 3, Math.max(12, x1 - x0 - 8 - unitW), 9, label);
         box.setMaxLength(12);
         box.setFilter(s -> s.isEmpty() || s.matches("\\d{1,12}"));
@@ -380,6 +390,16 @@ public final class WaybillCreateScreen extends Screen {
                 widget.render(graphics, lx, ly, partialTick);
             }
             picker.render(graphics, font, lx, ly);
+            if (picker.isOpen() && picker.tab() == WaybillDestinationPicker.Tab.COORDS) {
+                graphics.pose().pushPose();
+                graphics.pose().translate(0.0F, 0.0F, 420.0F);
+                for (PaperEditBox box : coordBoxes) {
+                    if (box != null) {
+                        box.render(graphics, lx, ly, partialTick);
+                    }
+                }
+                graphics.pose().popPose();
+            }
             ItemStack overlayStack = cargoOverlay.render(graphics, font, lx, ly, preview.cargo(), cargoSize(),
                     preview.weight());
             if (cargoOverlay.isOpen() && cargoOverlay.contains(lx, ly)) {
@@ -419,19 +439,20 @@ public final class WaybillCreateScreen extends Screen {
         int x0 = layout.contentX0;
         int x1 = layout.contentX1;
         int yOff = shake;
-        WaybillCreateGui.bold(g, font, tr("ui.aerocouriers.create.title"), x0, layout.headerY + yOff, WaybillPalette.INK);
+        WaybillCreateGui.tracked(g, font, tr("ui.aerocouriers.create.title"), x0, layout.headerY + yOff,
+                WaybillPalette.INK, 1);
         String customer = minecraft != null && minecraft.player != null
                 ? minecraft.player.getGameProfile().getName() : "";
         WaybillCreateGui.text(g, font, tr("ui.aerocouriers.create.customer", customer),
                 x0, layout.headerSubY + yOff, WaybillPalette.INK2);
         long pay = chargeNow();
-        String bal = TabletDraw.num(preview.balance()) + " " + spUnit();
+        String bal = MoneyFormat.text(preview.balance());
         int bx = x1 - font.width(bal);
         WaybillCreateGui.spur(g, bx - 11, layout.headerY + yOff);
         WaybillCreateGui.bold(g, font, bal, bx, layout.headerY + yOff, WaybillPalette.GOLD);
         offerMoneyTooltip(preview.balance(), bx - 11, layout.headerY + yOff, 11 + font.width(bal), 10, mouseX, mouseY);
         String after = tr("ui.aerocouriers.create.after_post",
-                TabletDraw.num(preview.balance() - pay) + " " + spUnit());
+                MoneyFormat.text(preview.balance() - pay));
         WaybillCreateGui.textRight(g, font, after, x1, layout.headerSubY + yOff, WaybillPalette.INK2, false);
         WaybillCreateGui.hline(g, x0, x1, layout.headerRuleY + yOff, WaybillPalette.RULE);
 
@@ -505,7 +526,7 @@ public final class WaybillCreateScreen extends Screen {
         WaybillCreateGui.metaRow(g, font, x0, layout.leftColX1, layout.cargoMetaY + yOff,
                 tr("ui.aerocouriers.create.container"), sizeReason, null, 0);
         long value = ItemValues.of(cargo);
-        String valueText = tr("ui.aerocouriers.create.cargo_value_amount", TabletDraw.num(value));
+        String valueText = tr("ui.aerocouriers.create.cargo_value_amount", MoneyFormat.text(value));
         WaybillCreateGui.metaRow(g, font, x0, layout.leftColX1, layout.cargoMetaY + 12 + yOff,
                 tr("ui.aerocouriers.create.cargo_value"), valueText, null, 0);
         WaybillCreateGui.spur(g, layout.leftColX1 - font.width(valueText) - 9, layout.cargoMetaY + 12 + yOff);
@@ -521,7 +542,7 @@ public final class WaybillCreateScreen extends Screen {
         WaybillCreateGui.text(g, font, tr("ui.aerocouriers.create.reward"), rx, layout.rewardY + 3 + yOff,
                 WaybillPalette.INK2);
         WaybillCreateGui.field(g, layout.fieldX0, layout.rewardY + yOff, x1, false);
-        drawUnit(g, x1, layout.rewardY + 3 + yOff, spUnit());
+        drawUnit(g, x1, layout.rewardY + 3 + yOff, moneyUnit());
         offerMoneyTooltip(parseLong(reward, 0), layout.fieldX0, layout.rewardY + yOff,
                 x1 - layout.fieldX0, WaybillCreateLayout.FIELD_H, mouseX, mouseY);
 
@@ -533,7 +554,7 @@ public final class WaybillCreateScreen extends Screen {
         long minColl = minCollateralNow();
         boolean bad = dest().isPresent() && parseLong(collateral, 0) < minColl;
         WaybillCreateGui.field(g, layout.fieldX0, layout.collateralY + yOff, x1, bad);
-        drawUnit(g, x1, layout.collateralY + 3 + yOff, spUnit());
+        drawUnit(g, x1, layout.collateralY + 3 + yOff, moneyUnit());
         offerMoneyTooltip(parseLong(collateral, 0), layout.fieldX0, layout.collateralY + yOff,
                 x1 - layout.fieldX0, WaybillCreateLayout.FIELD_H, mouseX, mouseY);
         if (bad) {
@@ -542,8 +563,8 @@ public final class WaybillCreateScreen extends Screen {
         }
         if (!picker.isOpen() && TabletDraw.inside(mouseX, mouseY, helpX, helpY, 9, 9)) {
             hoverLines = new String[] {
-                    tr("ui.aerocouriers.create.collateral_hint.1", TabletDraw.num(minColl)),
-                    tr("ui.aerocouriers.create.collateral_hint.2", TabletDraw.num(ItemValues.of(preview.cargo()))),
+                    tr("ui.aerocouriers.create.collateral_hint.1", MoneyFormat.text(minColl)),
+                    tr("ui.aerocouriers.create.collateral_hint.2", MoneyFormat.text(ItemValues.of(preview.cargo()))),
                     tr("ui.aerocouriers.create.collateral_hint.3")
             };
             hoverTipX = helpX + 12;
@@ -577,17 +598,26 @@ public final class WaybillCreateScreen extends Screen {
         LicenseRank required = requiredRank();
         String rankText = rankLabel(required);
         WaybillCreateGui.textRight(g, font, rankText, x1, layout.rankY + yOff, WaybillPalette.INK, false);
-        raiseVisible = required.level() < 5 && dest().isPresent();
+        boolean canRaise = required.level() < 5 && dest().isPresent();
+        boolean canReset = rankFloorLevel > autoRank().level();
+        raiseVisible = canRaise || canReset;
         if (raiseVisible) {
-            String raise = tr("ui.aerocouriers.create.rank.raise");
+            String raise = tr(canRaise ? "ui.aerocouriers.create.rank.raise" : "ui.aerocouriers.create.rank.reset");
             raiseW = font.width(raise);
             raiseX = x1 - raiseW;
             raiseY = layout.rankRaiseY + yOff;
             boolean hover = TabletDraw.inside(mouseX, mouseY, raiseX - 10, raiseY, raiseW + 10, 10);
-            int col = hover ? WaybillPalette.BLUE : WaybillPalette.BLUE;
-            PixelGlyphs.draw(g, raiseX - 9, raiseY + 1, PixelGlyphs.UP, col);
+            int col = WaybillPalette.BLUE;
+            if (canRaise) {
+                PixelGlyphs.draw(g, raiseX - 9, raiseY + 1, PixelGlyphs.UP, col);
+            }
             WaybillCreateGui.text(g, font, raise, raiseX, raiseY, col);
             WaybillCreateGui.hline(g, raiseX, x1 - 1, raiseY + 8, col);
+            if (hover) {
+                hoverLines = new String[]{tr("ui.aerocouriers.create.rank.reset_hint")};
+                hoverTipX = raiseX;
+                hoverTipY = raiseY + 12;
+            }
         }
     }
 
@@ -648,13 +678,13 @@ public final class WaybillCreateScreen extends Screen {
         WaybillCreateGui.text(g, font, tr("ui.aerocouriers.create.pay_now"), x0, layout.payY + yOff, WaybillPalette.INK);
         long rewardValue = parseLong(reward, 0);
         long fee = Pricing.fee(rewardValue, cargoSize());
-        String tot = TabletDraw.num(rewardValue + fee) + " " + spUnit();
+        String tot = MoneyFormat.text(rewardValue + fee);
         int totX = WaybillCreateGui.textRight(g, font, tot, x1, layout.payY + yOff, WaybillPalette.GOLD, true);
         offerMoneyTooltip(rewardValue + fee, totX, layout.payY + yOff, x1 - totX, 10, mouseX, mouseY);
-        String br = tr("ui.aerocouriers.create.pay_breakdown", TabletDraw.num(rewardValue), TabletDraw.num(fee));
+        String br = tr("ui.aerocouriers.create.pay_breakdown", MoneyFormat.text(rewardValue), MoneyFormat.text(fee));
         WaybillCreateGui.textRight(g, font, br, totX - 4, layout.payY + yOff, WaybillPalette.INK, false);
         String risk = tr("ui.aerocouriers.create.risk_issuer",
-                TabletDraw.num(parseLong(collateral, 0)), TabletDraw.num(rewardValue));
+                MoneyFormat.text(parseLong(collateral, 0)), MoneyFormat.text(rewardValue));
         String shown = TabletDraw.trunc(font, risk, Math.max(16, x1 - x0 - 22));
         WaybillCreateGui.riskBanner(g, font, x0, layout.riskY + yOff, x1, shown);
         if (!shown.equals(risk) && TabletDraw.inside(mouseX, mouseY, x0, layout.riskY + yOff, x1 - x0, 14)) {
@@ -677,7 +707,7 @@ public final class WaybillCreateScreen extends Screen {
         boolean can = deny == null && !submitting && !sealing;
         String submitLabel = sealing
                 ? tr("ui.aerocouriers.create.posted")
-                : tr("ui.aerocouriers.create.submit_amount", TabletDraw.num(chargeNow()));
+                : tr("ui.aerocouriers.create.submit_amount", MoneyFormat.text(chargeNow()));
         boolean submitHover = can && TabletDraw.inside(mouseX, mouseY, layout.submitX, by, layout.submitW,
                 WaybillCreateLayout.BTN_H);
         WaybillCreateGui.button(g, font, layout.submitX, by, layout.submitW, WaybillCreateLayout.BTN_H, submitLabel,
@@ -744,7 +774,7 @@ public final class WaybillCreateScreen extends Screen {
         }
         if (TabletDraw.inside(mouseX, mouseY, x, y, w, h)) {
             hoverSpur = new SpurBreakdownTooltip(spurs);
-            hoverSpurHeader = Component.translatable("ui.aerocouriers.spur.tooltip.header", spurs);
+            hoverSpurHeader = Component.translatable("ui.aerocouriers.spur.tooltip.header", MoneyFormat.component(spurs));
         }
     }
 
@@ -764,9 +794,31 @@ public final class WaybillCreateScreen extends Screen {
                 return true;
             }
         }
-        if (picker.isOpen()) {
+        if (picker.isOpen() && !picker.contains(mouseX, mouseY)) {
+            picker.close();
+            syncBoxes();
+            return true;
+        }
+        if (picker.isOpen() && picker.contains(mouseX, mouseY)) {
             if (picker.handleClick(mouseX, mouseY, button)) {
                 syncBoxes();
+            } else {
+                super.mouseClicked(mouseX, mouseY, button);
+            }
+            return true;
+        }
+        if (raiseVisible && TabletDraw.inside(mouseX, mouseY, raiseX - 10, raiseY, raiseW + 10, 10)) {
+            if (button == 1) {
+                rankFloorLevel = 0;
+                return true;
+            }
+            if (button == 0) {
+                LicenseRank required = requiredRank();
+                if (required.level() >= 5) {
+                    rankFloorLevel = 0;
+                } else {
+                    rankFloorLevel = required.level() + 1;
+                }
                 return true;
             }
         }
@@ -802,13 +854,6 @@ public final class WaybillCreateScreen extends Screen {
             cargoOverlay.close();
             picker.open(layout.pickX, layout.pickY, WaybillCreateLayout.PICK_W);
             syncBoxes();
-            return true;
-        }
-        if (raiseVisible && TabletDraw.inside(mouseX, mouseY, raiseX - 10, raiseY, raiseW + 10, 10)) {
-            LicenseRank required = requiredRank();
-            if (required.level() < 5) {
-                rankFloorLevel = required.level() + 1;
-            }
             return true;
         }
         if (TabletDraw.inside(mouseX, mouseY, layout.cancelX, layout.buttonY, layout.cancelW, WaybillCreateLayout.BTN_H)) {
@@ -860,6 +905,13 @@ public final class WaybillCreateScreen extends Screen {
             picker.close();
             syncBoxes();
             return true;
+        }
+        if (picker.isOpen() && picker.tab() == WaybillDestinationPicker.Tab.COORDS) {
+            if (keyCode == GLFW.GLFW_KEY_ENTER || keyCode == GLFW.GLFW_KEY_KP_ENTER) {
+                commitCoords();
+                return true;
+            }
+            return super.keyPressed(keyCode, scanCode, modifiers);
         }
         if (cargoLinkVisible && keyCode == GLFW.GLFW_KEY_G && !hasShiftDown() && !hasControlDown() && !hasAltDown()) {
             openCargoOverlay();
@@ -919,16 +971,16 @@ public final class WaybillCreateScreen extends Screen {
         long rewardValue = parseLong(reward, 0);
         long minReward = minRewardFor(to.get());
         if (rewardValue < minReward) {
-            return tr("ui.aerocouriers.create.reward_need", TabletDraw.num(minReward));
+            return tr("ui.aerocouriers.create.reward_need", MoneyFormat.text(minReward));
         }
         long coll = parseLong(collateral, 0);
         long minColl = Pricing.minP2pCollateral(rewardValue, preview.cargo());
         if (coll < minColl) {
-            return tr("ui.aerocouriers.create.collateral_need", TabletDraw.num(minColl));
+            return tr("ui.aerocouriers.create.collateral_need", MoneyFormat.text(minColl));
         }
         long fee = Pricing.fee(rewardValue, cargoSize());
         if (preview.balance() < rewardValue + fee) {
-            return tr("ui.aerocouriers.create.need_money", TabletDraw.num(rewardValue + fee));
+            return tr("ui.aerocouriers.create.need_money", MoneyFormat.text(rewardValue + fee));
         }
         if (preview.cargo().isEmpty()) {
             return tr("contract.aerocouriers.error.empty_cargo");
@@ -969,7 +1021,7 @@ public final class WaybillCreateScreen extends Screen {
         long airMin = Math.max(1, Math.round(distance / AIRSHIP_BLOCKS_PER_SEC / 60.0));
         long minReward = minRewardFor(to.get());
         return tr("ui.aerocouriers.create.summary",
-                TabletDraw.num(Math.round(distance)), TabletDraw.num(airMin), TabletDraw.num(minReward));
+                TabletDraw.num(Math.round(distance)), TabletDraw.num(airMin), MoneyFormat.text(minReward));
     }
 
     private LicenseRank requiredRank() {
@@ -1106,8 +1158,8 @@ public final class WaybillCreateScreen extends Screen {
         return Component.translatable(key, args).getString();
     }
 
-    private static String spUnit() {
-        return Component.translatable("ui.aerocouriers.create.sp").getString();
+    private static String moneyUnit() {
+        return MoneyFormat.unit(2).getString();
     }
 
     @Override

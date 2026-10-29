@@ -58,6 +58,30 @@ public final class WaybillCreateGui {
         text(g, font, s, x + 1, y, color);
     }
 
+    /** Extra gap between letters. Used only for the waybill title and the published stamp. */
+    public static void tracked(GuiGraphics g, Font font, String s, int x, int y, int color, int gap) {
+        int cursor = x;
+        for (int i = 0; i < s.length(); i++) {
+            String ch = s.substring(i, i + 1);
+            text(g, font, ch, cursor, y, color);
+            cursor += font.width(ch) + gap;
+        }
+    }
+
+    public static int trackedWidth(Font font, String s, int gap) {
+        if (s.isEmpty()) {
+            return 0;
+        }
+        int width = 0;
+        for (int i = 0; i < s.length(); i++) {
+            width += font.width(s.substring(i, i + 1));
+            if (i + 1 < s.length()) {
+                width += gap;
+            }
+        }
+        return width;
+    }
+
     public static int textRight(GuiGraphics g, Font font, String s, int right, int y, int color, boolean bold) {
         int w = font.width(s) + (bold ? 1 : 0);
         int x = right - w;
@@ -444,9 +468,8 @@ public final class WaybillCreateGui {
         int ink = a | (WaybillPalette.STAMP & 0x00FFFFFF);
         outline(g, 0, 0, w - 1, h - 1, ink);
         outline(g, 2, 2, w - 3, h - 3, ink);
-        int tx = (w - font.width(label)) / 2;
-        g.drawString(font, WaybillFonts.ink(label), tx, 6, ink, false);
-        g.drawString(font, WaybillFonts.ink(label), tx + 1, 6, ink, false);
+        int tx = (w - trackedWidth(font, label, 1)) / 2;
+        tracked(g, font, label, tx, 6, ink, 1);
         g.pose().popPose();
     }
 }
