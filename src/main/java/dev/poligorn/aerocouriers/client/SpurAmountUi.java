@@ -8,6 +8,8 @@ import net.minecraft.client.gui.GuiGraphics;
 public final class SpurAmountUi {
     public static final int ICON = BoardRowMetrics.LINE2_ICON;
     private static final int ICON_TEXT_GAP = BoardRowMetrics.ICON_TEXT_GAP;
+    /** Bitmap height {@link TabletTabButton} uses to centre a tab label in the row. */
+    private static final int TAB_FONT_H = 8;
 
     private SpurAmountUi() {
     }
@@ -47,6 +49,31 @@ public final class SpurAmountUi {
         MoneyText.draw(graphics, font, value, textX, textY, textColor, MoneyText.Face.DEFAULT);
         int w = textX + MoneyText.width(font, value) - x;
         return new Bounds(x, y, w, Math.max(ICON, 9));
+    }
+
+    /**
+     * Header balance: the coin and the amount share the vertical centre of the tab row,
+     * the same centre as the tab labels. Width includes currency-word tracking.
+     */
+    public static Bounds drawCenteredInRow(
+            GuiGraphics graphics,
+            Font font,
+            long amount,
+            int x,
+            int rowY,
+            int rowH,
+            int textColor
+    ) {
+        int iconY = rowY + Math.max(0, (rowH - ICON) / 2);
+        int textY = rowY + Math.max(0, (rowH - TAB_FONT_H) / 2);
+        SpurCoinGraphics.drawGenericCoin(graphics, x, iconY, ICON);
+        int textX = x + ICON + ICON_TEXT_GAP;
+        String value = dev.poligorn.aerocouriers.economy.MoneyFormat.text(amount);
+        MoneyText.draw(graphics, font, value, textX, textY, textColor, MoneyText.Face.DEFAULT);
+        int w = textX + MoneyText.width(font, value) - x;
+        int top = Math.min(iconY, textY);
+        int bottom = Math.max(iconY + ICON, textY + TAB_FONT_H);
+        return new Bounds(x, top, w, bottom - top);
     }
 
     public static Bounds drawLabeled(

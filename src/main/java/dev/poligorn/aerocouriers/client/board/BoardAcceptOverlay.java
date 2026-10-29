@@ -19,9 +19,10 @@ public final class BoardAcceptOverlay extends BoardConfirmOverlay {
     private static final int RISK_Y = 88;
     private static final int RISK_TEXT_W = W - 16 - 26 - 6;
     private static final int CONFIRM_X = 10;
-    private static final int CONFIRM_W = 168;
-    private static final int CANCEL_X = 186;
-    private static final int CANCEL_W = W - 11 - CANCEL_X + 1;
+    /** "Cancel" / "Отмена" stay on the right; the rest of the row is the tracked collateral label. */
+    private static final int CANCEL_W = 78;
+    private static final int CANCEL_X = W - 10 - CANCEL_W;
+    private static final int CONFIRM_W = CANCEL_X - 8 - CONFIRM_X;
     private static final int CLOSE_X = W - 17;
     private static final int CLOSE_Y = 1;
 

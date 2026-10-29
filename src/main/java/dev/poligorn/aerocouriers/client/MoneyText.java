@@ -9,17 +9,37 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.util.FormattedCharSequence;
 
 /**
- * Draws a money string so only the currency word ({@link MoneyFormat#unit}) has extra letter spacing.
- * The number and every other word stay on the vanilla advance. Layout must use {@link #width}, not
- * {@code Font#width}, or the wider unit overlaps the next element.
+ * The only drawer for strings that contain a money amount from {@link MoneyFormat}.
+ * The currency word is painted one letter at a time with {@link #UNIT_GAP} between letters.
+ * Every other word uses the vanilla advance. Layout must use {@link #width}, not {@code Font#width}.
+ * Bold is per letter: a second copy one pixel to the right must not fill the tracking gap,
+ * which a whole-string offset does when the gap is only one pixel.
  */
 public final class MoneyText {
-    /** One extra GUI pixel between letters of the currency word. */
-    public static final int UNIT_GAP = 1;
+    /** Extra GUI pixels between letters of the currency word. Two, so a 1 px bold smear still leaves a gap. */
+    public static final int UNIT_GAP = 2;
 
     public enum Face {
-        DEFAULT,
-        PAPER
+        DEFAULT(false, false),
+        PAPER(true, false),
+        BOLD(false, true),
+        PAPER_BOLD(true, true);
+
+        private final boolean paper;
+        private final boolean bold;
+
+        Face(boolean paper, boolean bold) {
+            this.paper = paper;
+            this.bold = bold;
+        }
+
+        public boolean paper() {
+            return paper;
+        }
+
+        public boolean bold() {
+            return bold;
+        }
     }
 
     private MoneyText() {
@@ -177,8 +197,11 @@ public final class MoneyText {
     }
 
     private static void blit(GuiGraphics graphics, Font font, String text, int x, int y, int color, Face face) {
-        Component shown = face == Face.PAPER ? WaybillFonts.ink(text) : Component.literal(text);
+        Component shown = face.paper() ? WaybillFonts.ink(text) : Component.literal(text);
         graphics.drawString(font, shown, x, y, color, false);
+        if (face.bold()) {
+            graphics.drawString(font, shown, x + 1, y, color, false);
+        }
     }
 
     private record Span(String text, boolean unit) {
@@ -210,16 +233,11 @@ public final class MoneyText {
 
     /** Longest currency word first, so {@code Spurs} is not split into {@code Spur}+{@code s}. */
     private static List<String> units() {
-        String plural = MoneyFormat.unit(2).getString();
-        String singular = MoneyFormat.unit(1).getString();
-        List<String> units = new ArrayList<>(2);
-        if (plural.length() >= singular.length()) {
-            addUnit(units, plural);
-            addUnit(units, singular);
-        } else {
-            addUnit(units, singular);
-            addUnit(units, plural);
-        }
+        List<String> units = new ArrayList<>(4);
+        addUnit(units, MoneyFormat.unit(2).getString());
+        addUnit(units, MoneyFormat.unit(1).getString());
+        addUnit(units, MoneyFormat.compactUnit().getString());
+        units.sort((a, b) -> Integer.compare(b.length(), a.length()));
         return units;
     }
 
@@ -229,12 +247,27 @@ public final class MoneyText {
         }
     }
 
+    /** Whole word only: {@code em} must not match inside {@code emeralds}, {@code шп} not inside {@code шпор}. */
     private static String matchUnit(String s, int index, List<String> units) {
+        if (!boundary(s, index - 1)) {
+            return null;
+        }
         for (String unit : units) {
-            if (s.startsWith(unit, index)) {
-                return unit;
+            int end = index + unit.length();
+            if (end > s.length() || !boundary(s, end)) {
+                continue;
+            }
+            if (s.regionMatches(true, index, unit, 0, unit.length())) {
+                return s.substring(index, end);
             }
         }
         return null;
+    }
+
+    private static boolean boundary(String s, int index) {
+        if (index < 0 || index >= s.length()) {
+            return true;
+        }
+        return !Character.isLetter(s.charAt(index));
     }
 }

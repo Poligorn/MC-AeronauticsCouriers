@@ -25,10 +25,9 @@ public final class TabletDraw {
         MoneyText.draw(graphics, font, s, x, y, color, MoneyText.Face.DEFAULT);
     }
 
-    /** Mockup bold: the same string drawn twice, one pixel apart. */
+    /** Mockup bold: each glyph twice, one pixel apart, so a tracked currency word keeps its gap. */
     public static void bold(GuiGraphics graphics, Font font, String s, int x, int y, int color) {
-        text(graphics, font, s, x, y, color);
-        text(graphics, font, s, x + 1, y, color);
+        MoneyText.draw(graphics, font, s, x, y, color, MoneyText.Face.BOLD);
     }
 
     public static int boldWidth(Font font, String s) {

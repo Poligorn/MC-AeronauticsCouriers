@@ -34,7 +34,8 @@ public final class BoardDetailsOverlay extends TabletOverlay {
     private static final int MAP_W = 150;
     private static final int BACK_W = 70;
     private static final int BACK_X = W - 10 - BACK_W;
-    private static final int ACCEPT_W = 160;
+    /** Wide enough for "Accept · collateral 100 000 Spurs" with currency-word tracking. */
+    private static final int ACCEPT_W = 236;
     private static final int ACCEPT_X = BACK_X - 8 - ACCEPT_W;
     private static final int CLOSE_X = W - 17;
     private static final int CLOSE_Y = 2;

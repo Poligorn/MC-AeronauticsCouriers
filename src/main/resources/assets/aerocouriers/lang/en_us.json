@@ -706,6 +706,8 @@
   "aerocouriers.configuration.access": "Access",
   "aerocouriers.configuration.require_tablet": "Require tablet",
   "ui.aerocouriers.currency.emerald.plural": "emeralds",
+  "ui.aerocouriers.currency.compact.spur": "sp",
+  "ui.aerocouriers.currency.compact.emerald": "em",
   "ui.aerocouriers.create.picker.choose": "Choose",
   "ui.aerocouriers.create.picker.coords_invalid": "Need whole X, Y and Z",
   "ui.aerocouriers.create.rank.reset": "reset to auto",

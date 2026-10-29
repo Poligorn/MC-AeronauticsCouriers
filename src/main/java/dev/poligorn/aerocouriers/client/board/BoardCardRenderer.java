@@ -18,7 +18,7 @@ public final class BoardCardRenderer {
     /** Gap between the card's right edge and the reward/collateral column. */
     public static final int RIGHT_PAD = 8;
     /** Minimum space between the rate, the collateral, and the left-hand meta. */
-    private static final int COL_GAP = 4;
+    private static final int COL_GAP = 8;
     /** Distance column keeps at least this much before the rate is shortened. */
     private static final int MIN_LEFT = 28;
     private static final int DEST_MAX_W = 110;
@@ -127,22 +127,36 @@ public final class BoardCardRenderer {
                     dev.poligorn.aerocouriers.economy.MoneyFormat.text(style.collateralDue()))
                     .getString();
         }
+        // Right column stays on the right edge. The rate sits to its left. The left meta is what gets cut.
+        int deposRoom = Math.max(8, rx - (x0 + 8));
+        if (MoneyText.width(font, depos) > deposRoom) {
+            depos = MoneyText.trunc(font, depos, deposRoom);
+        }
         int deposW = MoneyText.width(font, depos);
-        int deposX = Math.max(x0 + 8, rx - deposW);
+        int deposX = rx - deposW;
         TabletDraw.text(graphics, font, depos, deposX, y2, deposColor);
 
         int leftStart = x0 + 18;
-        int clusterRight = deposX - COL_GAP;
-        int middleBudget = Math.max(0, clusterRight - leftStart - MIN_LEFT - COL_GAP);
-        String middle = style.boardTab() || !"issuer".equals(entry.role())
+        int rateLimit = deposX - COL_GAP;
+        boolean rateColumn = style.boardTab() || !"issuer".equals(entry.role());
+        String middleFull = rateColumn
                 ? dev.poligorn.aerocouriers.economy.MoneyFormat.text(entry.rewardPer1000Blocks()) + "/1000"
                 : Component.translatable("ui.aerocouriers.card.role_issuer").getString();
-        String middleShown = middleBudget > 0 ? MoneyText.trunc(font, middle, middleBudget) : "";
-        int middleW = MoneyText.width(font, middleShown);
-        int middleX = clusterRight - middleW;
-        boolean drawMiddle = !middleShown.isEmpty() && middleW > 0 && middleX >= leftStart;
+        String middleCompact = rateColumn
+                ? dev.poligorn.aerocouriers.economy.MoneyFormat.compactText(entry.rewardPer1000Blocks()) + "/1000"
+                : middleFull;
+        int reservedLeft = leftStart + MIN_LEFT + COL_GAP;
+        String middle = MoneyText.width(font, middleFull) <= rateLimit - reservedLeft ? middleFull : middleCompact;
+        int middleRoom = Math.max(0, rateLimit - leftStart);
+        if (MoneyText.width(font, middle) > middleRoom) {
+            middle = MoneyText.trunc(font, middle, middleRoom);
+        }
+        int middleW = MoneyText.width(font, middle);
+        int middleX = rateLimit - middleW;
+        boolean drawMiddle = !middle.isEmpty() && middleW > 0 && middleX >= leftStart
+                && middleX + middleW <= rateLimit;
         if (drawMiddle) {
-            TabletDraw.text(graphics, font, middleShown, middleX, y2, sc);
+            TabletDraw.text(graphics, font, middle, middleX, y2, sc);
         }
         int leftLimit = (drawMiddle ? middleX : deposX) - COL_GAP;
 

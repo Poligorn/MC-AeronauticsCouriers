@@ -706,6 +706,8 @@
   "aerocouriers.configuration.access": "Доступ",
   "aerocouriers.configuration.require_tablet": "Нужен планшет",
   "ui.aerocouriers.currency.emerald.plural": "изумрудов",
+  "ui.aerocouriers.currency.compact.spur": "шп",
+  "ui.aerocouriers.currency.compact.emerald": "эм",
   "ui.aerocouriers.create.picker.choose": "Выбрать",
   "ui.aerocouriers.create.picker.coords_invalid": "Нужны целые X, Y и Z",
   "ui.aerocouriers.create.rank.reset": "сбросить до авто",

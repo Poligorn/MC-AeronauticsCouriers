@@ -27,6 +27,21 @@ public final class MoneyFormat {
         return Component.literal(grouped(amount) + " ").append(unit(amount));
     }
 
+    /**
+     * Short unit for the board-card rate when the full word does not fit beside the collateral.
+     * {@code sp}/{@code шп} with Numismatics, {@code em}/{@code эм} for emeralds.
+     */
+    public static Component compactUnit() {
+        String key = MoneyScale.numismaticsBackend()
+                ? "ui.aerocouriers.currency.compact.spur"
+                : "ui.aerocouriers.currency.compact.emerald";
+        return Component.translatable(key);
+    }
+
+    public static String compactText(long amount) {
+        return grouped(amount) + " " + compactUnit().getString();
+    }
+
     /** Resolved on the side that calls it. Client UI should prefer this; server chat should send {@link #component}. */
     public static String text(long amount) {
         return component(amount).getString();

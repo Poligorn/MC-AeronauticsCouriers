@@ -54,8 +54,7 @@ public final class WaybillCreateGui {
     }
 
     public static void bold(GuiGraphics g, Font font, String s, int x, int y, int color) {
-        text(g, font, s, x, y, color);
-        text(g, font, s, x + 1, y, color);
+        MoneyText.draw(g, font, s, x, y, color, MoneyText.Face.PAPER_BOLD);
     }
 
     /** Extra gap between letters. Used only for the waybill title and the published stamp. */

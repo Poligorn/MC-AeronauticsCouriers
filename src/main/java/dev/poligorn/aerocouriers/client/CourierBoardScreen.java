@@ -873,8 +873,8 @@ public final class CourierBoardScreen extends Screen {
             int right = sx + screenW() - 1;
             int w = SpurAmountUi.width(font, balance, false);
             int x = Math.max(balanceStripLeft, right - w);
-            SpurAmountUi.Bounds balanceBounds = SpurAmountUi.draw(graphics, font, balance, x, mainTabRowY() + 6,
-                    false, TabletPalette.GOLD);
+            SpurAmountUi.Bounds balanceBounds = SpurAmountUi.drawCenteredInRow(
+                    graphics, font, balance, x, mainTabRowY(), TAB_H, TabletPalette.GOLD);
             offerSpurTooltip(balance, balanceBounds, mouseX, mouseY);
         }
 
