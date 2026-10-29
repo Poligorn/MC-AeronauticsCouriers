@@ -1,7 +1,7 @@
 package dev.poligorn.aerocouriers.client.navigation;
 
 /**
- * Pure helpers for navigation HUD (bearing and horizontal distance). Used by {@link NavRenderer} and check scripts.
+ * Horizontal distance for the nav beam. Bearing helpers stay so {@code tools/check_nav_math.py} can mirror them.
  */
 public final class NavMath {
     private NavMath() {

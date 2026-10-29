@@ -183,14 +183,6 @@ public final class TabletGui {
         graphics.pose().popPose();
     }
 
-    public static void drawScrollbar(GuiGraphics graphics, int x, int y, int h, float progress, float thumb) {
-        int barH = Math.max(12, h);
-        graphics.blitSprite(AerocouriersGuiSprites.TABLET_SCROLLER_TRACK, x, y, 6, barH);
-        int thumbH = Math.max(9, Math.round(barH * thumb));
-        int thumbY = y + Math.round((barH - thumbH) * progress);
-        graphics.blitSprite(AerocouriersGuiSprites.TABLET_SCROLLER, x, thumbY, 6, thumbH);
-    }
-
     public static void drawSpeechTooltip(GuiGraphics graphics, Font font, Component text, int mouseX, int mouseY,
                                         int maxWidth) {
         List<FormattedCharSequence> lines = font.split(text, maxWidth);

@@ -26,7 +26,6 @@ import dev.poligorn.aerocouriers.client.board.TabletFilterBar;
 import dev.poligorn.aerocouriers.client.board.TabletFilterChip;
 import dev.poligorn.aerocouriers.client.board.TabletFilterDropdown;
 import dev.poligorn.aerocouriers.contract.RankProgress;
-import dev.poligorn.aerocouriers.client.navigation.ClientNavigation;
 import dev.poligorn.aerocouriers.cargo.CargoSize;
 import dev.poligorn.aerocouriers.contract.AcceptEligibility;
 import dev.poligorn.aerocouriers.client.board.TabletRowIconButton;
@@ -1514,9 +1513,6 @@ public final class CourierBoardScreen extends Screen {
             if (!isOverRowAction(mx, my)) {
                 BoardSnapshotPayload.BoardEntry row = hitCard(mx, my);
                 if (row != null) {
-                    if (row.state().isActive() && "courier".equals(row.role())) {
-                        ClientNavigation.setFocusedOrder(row.id());
-                    }
                     playClick();
                     openDetails(row.id());
                     return true;
@@ -2123,7 +2119,6 @@ public final class CourierBoardScreen extends Screen {
         @Override
         public void showOnMap(BoardSnapshotPayload.BoardEntry entry) {
             if (activeHaul(entry)) {
-                ClientNavigation.setFocusedOrder(entry.id());
                 return;
             }
             XaeroOrderBridge.onPreviewDestination(

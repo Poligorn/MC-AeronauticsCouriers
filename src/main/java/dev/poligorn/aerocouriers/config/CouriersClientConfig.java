@@ -36,11 +36,6 @@ public final class CouriersClientConfig {
     public static final ModConfigSpec.ConfigValue<String> NAV_BEAM_PICKUP_COLOR;
     public static final ModConfigSpec.ConfigValue<String> NAV_BEAM_DELIVERY_COLOR;
 
-    public static final ModConfigSpec.BooleanValue NAV_HUD_ENABLED;
-    public static final ModConfigSpec.EnumValue<HudCorner> NAV_HUD_CORNER;
-    public static final ModConfigSpec.IntValue NAV_HUD_OFFSET_X;
-    public static final ModConfigSpec.IntValue NAV_HUD_OFFSET_Y;
-
     static {
         ModConfigSpec.Builder b = new ModConfigSpec.Builder();
         b.push("button");
@@ -117,13 +112,6 @@ public final class CouriersClientConfig {
                         "Delivery beam RGB as \"r,g,b\" (0–1). Default is Xaero waypoint aqua #55FFFF")
                 .translation("aerocouriers.configuration.beam_delivery_color")
                 .define("beam_delivery_color", "0.33333334,1.0,1.0");
-        NAV_HUD_ENABLED = b.comment("Compass HUD with distance and order id")
-                .translation("aerocouriers.configuration.hud_enabled")
-                .define("hud_enabled", true);
-        NAV_HUD_CORNER = b.comment("Screen corner for the navigation HUD (offsets apply inward from that corner)")
-                .defineEnum("hud_corner", HudCorner.TOP_LEFT);
-        NAV_HUD_OFFSET_X = b.defineInRange("hud_offset_x", 8, 0, 4000);
-        NAV_HUD_OFFSET_Y = b.defineInRange("hud_offset_y", 8, 0, 4000);
         b.pop();
 
         SPEC = b.build();
@@ -210,24 +198,9 @@ public final class CouriersClientConfig {
         HIDDEN
     }
 
-    public enum HudCorner {
-        TOP_LEFT,
-        TOP_RIGHT,
-        BOTTOM_LEFT,
-        BOTTOM_RIGHT
-    }
-
     public static boolean navBeamEnabled() {
         try {
             return NAV_BEAM_ENABLED.get();
-        } catch (IllegalStateException ignored) {
-            return true;
-        }
-    }
-
-    public static boolean navHudEnabled() {
-        try {
-            return NAV_HUD_ENABLED.get();
         } catch (IllegalStateException ignored) {
             return true;
         }
@@ -263,34 +236,6 @@ public final class CouriersClientConfig {
     private static boolean isLegacyBeamDefault(String raw, boolean delivery) {
         String normalized = raw.replace(" ", "");
         return delivery ? normalized.equals("0.2,0.72,1.0") : normalized.equals("1.0,0.82,0.15");
-    }
-
-    /** Top-left of the HUD box in scaled GUI pixels. */
-    public static int[] navHudPosition(int screenW, int screenH) {
-        int boxW = 118;
-        int boxH = 42;
-        int ox = safeInt(NAV_HUD_OFFSET_X, 8);
-        int oy = safeInt(NAV_HUD_OFFSET_Y, 8);
-        HudCorner corner;
-        try {
-            corner = NAV_HUD_CORNER.get();
-        } catch (IllegalStateException ignored) {
-            corner = HudCorner.TOP_LEFT;
-        }
-        return switch (corner) {
-            case TOP_LEFT -> new int[] {ox, oy};
-            case TOP_RIGHT -> new int[] {screenW - boxW - ox, oy};
-            case BOTTOM_LEFT -> new int[] {ox, screenH - boxH - oy};
-            case BOTTOM_RIGHT -> new int[] {screenW - boxW - ox, screenH - boxH - oy};
-        };
-    }
-
-    private static int safeInt(ModConfigSpec.IntValue value, int fallback) {
-        try {
-            return value.get();
-        } catch (IllegalStateException ignored) {
-            return fallback;
-        }
     }
 
     private CouriersClientConfig() {

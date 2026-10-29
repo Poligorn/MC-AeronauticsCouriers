@@ -1,6 +1,5 @@
 package dev.poligorn.aerocouriers.client;
 
-import dev.poligorn.aerocouriers.client.navigation.ClientNavigation;
 import dev.poligorn.aerocouriers.net.ZoneSyncPayload;
 import java.util.List;
 
@@ -22,7 +21,6 @@ public final class ClientZones {
 
     public static void clear() {
         zones = List.of();
-        ClientNavigation.clearFocus();
         XaeroOrderBridge.onLogout();
     }
 

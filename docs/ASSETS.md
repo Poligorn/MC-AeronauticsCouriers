@@ -1,4 +1,6 @@
-# Ассеты для ручной перерисовки (0.1.12)
+# Ассеты для ручной перерисовки (выгрузка 0.1.12, чистка 0.1.13)
+
+В 0.1.13 из мода и из этой выгрузки убраны спрайты, на которые код не ссылался (`*_alt` контейнера, старые `tab`/`paper_*`/`scroller`/`tablet_scroller`/`tablet_grid`/`tablet_list_row`, иконки `bell`/`envelope`/`envelope_tablet` и их нарезка). `overview.png` снят до чистки и может показывать удалённые клетки. Папки `world/` нет.
 
 Выгрузка лежит вне репозитория: `/opt/cursor/artifacts/assets_0.1.12/`.
 Рядом каталог `x4/` — те же PNG, увеличенные в 4 раза (nearest neighbor).
@@ -28,7 +30,7 @@
 
 Глифы `PixelGlyphs` (пин, сетка, сундук и остальные) по-прежнему рисуются кодом. PNG в выгрузке — для срисовки; отдельного подхвата у каждого глифа нет.
 
-Спрайт `textures/gui/sprites/clipboard_clip.png` в игре не блитится: живой зажим — код выше. Рамка планшета и антенна — спрайты `tablet_frame` (9-slice, отступ 14) и `tablet_decor_antenna`.
+Зажим накладной рисуется кодом (`WaybillCreateGui.drawClip`). Рамка планшета и антенна — спрайты `tablet_frame` (9-slice, отступ 14) и `tablet_decor_antenna`. Вкладки планшета — `tablet_tab` / `tablet_tab_highlighted` / `tablet_tab_selected`.
 
 ## Контейнеры
 
@@ -39,7 +41,7 @@
 | L | `cargo_container_l_*` | сегменты `cargo_container_l_seg*` |
 | XL | отдельных PNG нет | blockstate собирается из сегментов L |
 
-Снимки блока в мире и предмета в руке — в `world/` этой же выгрузки, если клиент их снял (см. отчёт 0.1.12).
+Контейнер — физический объект Sable. Текстуры блока перечислены выше. Папки `world/` в выгрузке нет.
 
 ## 9-slice
 
@@ -51,29 +53,13 @@
 | `button.png` | 200×20 | 3, 4, 3, 3 | 200×20 |
 | `button_disabled.png` | 200×20 | 3, 4, 3, 2 | 200×20 |
 | `button_highlighted.png` | 200×20 | 3, 4, 3, 3 | 200×20 |
-| `inset.png` | 32×32 | 3, 3, 3, 3 | 32×32 |
-| `panel.png` | 64×64 | 4, 6, 4, 4 | 64×64 |
-| `paper_field.png` | 200×20 | 2, 2, 2, 2 | 200×20 |
-| `paper_field_highlighted.png` | 200×20 | 2, 2, 2, 2 | 200×20 |
-| `paper_sheet.png` | 48×48 | 5, 5, 5, 5 | 48×48 |
-| `scroller.png` | 6×9 | 1, 2, 1, 2 | 6×9 |
-| `scroller_track.png` | 6×32 | 1, 2, 1, 2 | 6×32 |
-| `tab.png` | 130×24 | 2, 2, 2, 0 | 130×24 |
-| `tab_highlighted.png` | 130×24 | 2, 2, 2, 0 | 130×24 |
-| `tab_selected.png` | 130×24 | 2, 2, 2, 0 | 130×24 |
 | `tablet_button.png` | 200×20 | 2, 2, 2, 2 | 200×20 |
 | `tablet_button_disabled.png` | 200×20 | 2, 2, 2, 2 | 200×20 |
 | `tablet_button_highlighted.png` | 200×20 | 2, 2, 2, 2 | 200×20 |
 | `tablet_frame.png` | 84×84 | 14, 14, 14, 14 | 84×84 |
-| `tablet_list_row.png` | 32×22 | 2, 2, 2, 2 | 32×22 |
-| `tablet_scroller.png` | 6×9 | 1, 2, 1, 2 | 6×9 |
-| `tablet_scroller_track.png` | 6×32 | 1, 2, 1, 2 | 6×32 |
 | `tablet_tab.png` | 130×24 | 2, 2, 2, 0 | 130×24 |
 | `tablet_tab_highlighted.png` | 130×24 | 2, 2, 2, 0 | 130×24 |
 | `tablet_tab_selected.png` | 130×24 | 2, 2, 2, 0 | 130×24 |
-| `text_field.png` | 200×20 | 2, 2, 2, 2 | 200×20 |
-| `text_field_highlighted.png` | 200×20 | 2, 2, 2, 2 | 200×20 |
-| `title_label.png` | 128×18 | 6, 4, 6, 4 | 128×18 |
 
 ## Код
 | Файл | Размер | Откуда |
@@ -96,8 +82,6 @@
 | `code/glyph_warn.png` | 7×6 | code |
 | `code/glyph_clock.png` | 9×8 | code |
 | `code/glyph_box.png` | 9×7 | code |
-| `code/glyph_star.png` | 9×9 | code |
-| `code/glyph_person.png` | 9×8 | code |
 | `code/glyph_lock.png` | 7×7 | code |
 | `code/glyph_sheet_grid.png` | 9×5 | code |
 | `code/glyph_pin.png` | 7×7 | code |
@@ -112,55 +96,30 @@
 | `textures/gui/sprites/button.png` | 200×20 | texture:textures/gui/sprites/button.png |
 | `textures/gui/sprites/button_disabled.png` | 200×20 | texture:textures/gui/sprites/button_disabled.png |
 | `textures/gui/sprites/button_highlighted.png` | 200×20 | texture:textures/gui/sprites/button_highlighted.png |
-| `textures/gui/sprites/clipboard_clip.png` | 128×38 | texture:textures/gui/sprites/clipboard_clip.png |
-| `textures/gui/sprites/container_slot.png` | 18×18 | texture:textures/gui/sprites/container_slot.png |
-| `textures/gui/sprites/icon/bell.png` | 16×16 | texture:textures/gui/sprites/icon/bell.png |
 | `textures/gui/sprites/icon/bell_tablet.png` | 16×16 | texture:textures/gui/sprites/icon/bell_tablet.png |
 | `textures/gui/sprites/icon/clock_tablet.png` | 16×16 | texture:textures/gui/sprites/icon/clock_tablet.png |
 | `textures/gui/sprites/icon/coin_tablet.png` | 16×16 | texture:textures/gui/sprites/icon/coin_tablet.png |
 | `textures/gui/sprites/icon/crate_tablet.png` | 16×16 | texture:textures/gui/sprites/icon/crate_tablet.png |
-| `textures/gui/sprites/icon/envelope.png` | 16×16 | texture:textures/gui/sprites/icon/envelope.png |
-| `textures/gui/sprites/icon/envelope_tablet.png` | 16×16 | texture:textures/gui/sprites/icon/envelope_tablet.png |
 | `textures/gui/sprites/icon/lock_tablet.png` | 16×16 | texture:textures/gui/sprites/icon/lock_tablet.png |
 | `textures/gui/sprites/icon/map_pin_tablet.png` | 16×16 | texture:textures/gui/sprites/icon/map_pin_tablet.png |
 | `textures/gui/sprites/icon/rare_cargo_tablet.png` | 16×16 | texture:textures/gui/sprites/icon/rare_cargo_tablet.png |
 | `textures/gui/sprites/icon/star_badge_tablet.png` | 16×16 | texture:textures/gui/sprites/icon/star_badge_tablet.png |
 | `textures/gui/sprites/icon/village_tablet.png` | 16×16 | texture:textures/gui/sprites/icon/village_tablet.png |
-| `textures/gui/sprites/inset.png` | 32×32 | texture:textures/gui/sprites/inset.png |
-| `textures/gui/sprites/panel.png` | 64×64 | texture:textures/gui/sprites/panel.png |
-| `textures/gui/sprites/paper_field.png` | 200×20 | texture:textures/gui/sprites/paper_field.png |
-| `textures/gui/sprites/paper_field_highlighted.png` | 200×20 | texture:textures/gui/sprites/paper_field_highlighted.png |
-| `textures/gui/sprites/paper_sheet.png` | 48×48 | texture:textures/gui/sprites/paper_sheet.png |
-| `textures/gui/sprites/paper_slot.png` | 18×18 | texture:textures/gui/sprites/paper_slot.png |
-| `textures/gui/sprites/scroller.png` | 6×9 | texture:textures/gui/sprites/scroller.png |
-| `textures/gui/sprites/scroller_track.png` | 6×32 | texture:textures/gui/sprites/scroller_track.png |
-| `textures/gui/sprites/tab.png` | 130×24 | texture:textures/gui/sprites/tab.png |
-| `textures/gui/sprites/tab_highlighted.png` | 130×24 | texture:textures/gui/sprites/tab_highlighted.png |
-| `textures/gui/sprites/tab_selected.png` | 130×24 | texture:textures/gui/sprites/tab_selected.png |
 | `textures/gui/sprites/tablet_button.png` | 200×20 | texture:textures/gui/sprites/tablet_button.png |
 | `textures/gui/sprites/tablet_button_disabled.png` | 200×20 | texture:textures/gui/sprites/tablet_button_disabled.png |
 | `textures/gui/sprites/tablet_button_highlighted.png` | 200×20 | texture:textures/gui/sprites/tablet_button_highlighted.png |
 | `textures/gui/sprites/tablet_decor_antenna.png` | 24×78 | texture:textures/gui/sprites/tablet_decor_antenna.png |
 | `textures/gui/sprites/tablet_frame.png` | 84×84 | texture:textures/gui/sprites/tablet_frame.png |
-| `textures/gui/sprites/tablet_grid.png` | 9×9 | texture:textures/gui/sprites/tablet_grid.png |
-| `textures/gui/sprites/tablet_list_row.png` | 32×22 | texture:textures/gui/sprites/tablet_list_row.png |
 | `textures/gui/sprites/tablet_loading_gear.png` | 20×20 | texture:textures/gui/sprites/tablet_loading_gear.png |
-| `textures/gui/sprites/tablet_scroller.png` | 6×9 | texture:textures/gui/sprites/tablet_scroller.png |
-| `textures/gui/sprites/tablet_scroller_track.png` | 6×32 | texture:textures/gui/sprites/tablet_scroller_track.png |
 | `textures/gui/sprites/tablet_tab.png` | 130×24 | texture:textures/gui/sprites/tablet_tab.png |
 | `textures/gui/sprites/tablet_tab_highlighted.png` | 130×24 | texture:textures/gui/sprites/tablet_tab_highlighted.png |
 | `textures/gui/sprites/tablet_tab_selected.png` | 130×24 | texture:textures/gui/sprites/tablet_tab_selected.png |
-| `textures/gui/sprites/text_field.png` | 200×20 | texture:textures/gui/sprites/text_field.png |
-| `textures/gui/sprites/text_field_highlighted.png` | 200×20 | texture:textures/gui/sprites/text_field_highlighted.png |
-| `textures/gui/sprites/title_label.png` | 128×18 | texture:textures/gui/sprites/title_label.png |
 
 ## Текстуры блоков
 | Файл | Размер | Откуда |
 |---|---|---|
 | `textures/block/cargo_container_bottom.png` | 16×16 | texture:textures/block/cargo_container_bottom.png |
-| `textures/block/cargo_container_bottom_alt.png` | 16×16 | texture:textures/block/cargo_container_bottom_alt.png |
 | `textures/block/cargo_container_door.png` | 16×16 | texture:textures/block/cargo_container_door.png |
-| `textures/block/cargo_container_door_alt.png` | 16×16 | texture:textures/block/cargo_container_door_alt.png |
 | `textures/block/cargo_container_l_bottom.png` | 32×32 | texture:textures/block/cargo_container_l_bottom.png |
 | `textures/block/cargo_container_l_door.png` | 32×32 | texture:textures/block/cargo_container_l_door.png |
 | `textures/block/cargo_container_l_side.png` | 32×32 | texture:textures/block/cargo_container_l_side.png |
@@ -174,11 +133,8 @@
 | `textures/block/cargo_container_m_side_upper.png` | 16×16 | texture:textures/block/cargo_container_m_side_upper.png |
 | `textures/block/cargo_container_m_top.png` | 16×16 | texture:textures/block/cargo_container_m_top.png |
 | `textures/block/cargo_container_side.png` | 16×16 | texture:textures/block/cargo_container_side.png |
-| `textures/block/cargo_container_side_alt.png` | 16×16 | texture:textures/block/cargo_container_side_alt.png |
 | `textures/block/cargo_container_side_waybill.png` | 16×16 | texture:textures/block/cargo_container_side_waybill.png |
-| `textures/block/cargo_container_side_waybill_alt.png` | 16×16 | texture:textures/block/cargo_container_side_waybill_alt.png |
 | `textures/block/cargo_container_top.png` | 16×16 | texture:textures/block/cargo_container_top.png |
-| `textures/block/cargo_container_top_alt.png` | 16×16 | texture:textures/block/cargo_container_top_alt.png |
 
 ## Текстуры предметов
 | Файл | Размер | Откуда |

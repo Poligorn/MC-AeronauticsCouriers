@@ -28,7 +28,7 @@ public interface BoardOverlayHost {
     /** Licence/rank/limit reason the order cannot be taken (money is checked by the confirm window). */
     Optional<Component> acceptDenial(BoardSnapshotPayload.BoardEntry entry);
 
-    /** Xaero preview pin for board orders; active hauls also work without Xaero (beam + compass focus). */
+    /** Xaero preview pin for board orders. An active haul already has its A/B waypoint and beam. */
     boolean mapAvailable(BoardSnapshotPayload.BoardEntry entry);
 
     void showOnMap(BoardSnapshotPayload.BoardEntry entry);

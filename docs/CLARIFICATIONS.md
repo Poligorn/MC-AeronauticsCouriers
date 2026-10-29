@@ -49,7 +49,7 @@
 - Подробно: [`research/xaero.md`](research/xaero.md).
 - Основной путь: сторонние точки `xaero.hud.minimap.waypoint.thirdparty.ThirdPartyWaypoints` (Xaero ≥ 26.2.0), origin `aerocouriers:orders`, id `order-<uuid>`, `temp = true`, снимать `remove(id)` при завершении заказа, `clearOrigin` при выходе.
 - Откат для Xaero < 26.2: `Waypoint(..., WaypointPurpose.DESTINATION, temp=true)`.
-- `compileOnly` из `https://chocolateminecraft.com/maven` (`xaero.minimap:xaerominimap-neoforge-1.21.1:26.6.0`, `xaero.map:xaeroworldmap-neoforge-1.21.1:1.47.0`, `xaero.lib:xaerolib-neoforge-1.21.1:1.7.3`), jar Xaero НЕ класть в репозиторий (ARR). Мост грузится только при `ModList.isLoaded("xaerominimap")`, все вызовы в try/catch(Throwable), базовая навигация — луч + HUD.
+- `compileOnly` из `https://chocolateminecraft.com/maven` (`xaero.minimap:xaerominimap-neoforge-1.21.1:26.6.0`, `xaero.map:xaeroworldmap-neoforge-1.21.1:1.47.0`, `xaero.lib:xaerolib-neoforge-1.21.1:1.7.3`), jar Xaero НЕ класть в репозиторий (ARR). Мост грузится только при `ModList.isLoaded("xaerominimap")`, все вызовы в try/catch(Throwable), базовая навигация — луч. Компас-HUD снят 29.10.2026: направление на карте только через точки Xaero.
 - Выбор доставки на карте (штамп): колбэка нет — снимок вейпоинтов мира до открытия `GuiMap` (или `GuiWaypoints`) и сравнение после возврата; список существующих точек — запасной путь. Нет Y → высота игрока (иначе 64).
 
 ## Создание заказа штампом, доска только для мониторинга, одна станция на деревню (25.10.2026)

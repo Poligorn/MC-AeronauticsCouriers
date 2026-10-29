@@ -37,8 +37,6 @@ public final class AeroCouriersClient {
         NeoForge.EVENT_BUS.addListener(ZoneParticles::onClientTick);
         NeoForge.EVENT_BUS.addListener(ZoneParticles::onLoggingOut);
         NeoForge.EVENT_BUS.addListener(NavRenderer::onRenderLevel);
-        NeoForge.EVENT_BUS.addListener(NavRenderer::onRenderHud);
-        NeoForge.EVENT_BUS.addListener(NavRenderer::onChatLayout);
     }
 
     private static void registerTooltips(RegisterClientTooltipComponentFactoriesEvent event) {
