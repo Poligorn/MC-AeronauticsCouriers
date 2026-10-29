@@ -123,6 +123,19 @@ public final class StampGameTests {
     }
 
     @GameTest(template = CouriersGameTests.EMPTY, timeoutTicks = 200)
+    public static void stampHonoursRaisedMinRank(GameTestHelper helper) {
+        Fixture f = new Fixture(helper);
+        ContractManager.Outcome created = f.manager.createFromWaybill(
+                f.issuer, helper.absolutePos(CHEST),
+                new Destination(helper.getLevel().dimension(), helper.absolutePos(TARGET), 8),
+                20, 20, 60, 3);
+        helper.assertTrue(created.success(), "raised rank stamp: " + created.message().getString());
+        helper.assertValueEqual(created.contract().orElseThrow().requiredRank(), LicenseRank.RANK3,
+                "issuer floor raises required rank");
+        helper.succeed();
+    }
+
+    @GameTest(template = CouriersGameTests.EMPTY, timeoutTicks = 200)
     public static void stampMediumContainerForHeavyCargo(GameTestHelper helper) {
         Fixture f = new Fixture(helper, LicenseRank.RANK1);
         fillChest(f, 8, 64, Items.COBBLESTONE);

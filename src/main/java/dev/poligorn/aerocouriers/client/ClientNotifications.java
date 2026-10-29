@@ -40,5 +40,6 @@ public final class ClientNotifications {
 
     public static void playAlertSound() {
         ClientCouriersSounds.playNotification();
+        TabletAntennaSignal.triggerReceive();
     }
 }

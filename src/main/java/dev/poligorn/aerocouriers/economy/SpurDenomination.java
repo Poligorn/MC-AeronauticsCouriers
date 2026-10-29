@@ -36,7 +36,7 @@ public enum SpurDenomination {
     }
 
     public String nameTranslationKey() {
-        return "ui.aerocouriers.coin." + id;
+        return "item.numismatics." + id;
     }
 
     public String englishNameTranslationKey() {

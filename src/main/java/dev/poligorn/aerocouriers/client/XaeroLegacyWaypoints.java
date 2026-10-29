@@ -1,6 +1,8 @@
 package dev.poligorn.aerocouriers.client;
 
 import dev.poligorn.aerocouriers.AeronauticsCouriers;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
@@ -22,8 +24,9 @@ final class XaeroLegacyWaypoints {
             ResourceKey<Level> dimension,
             BlockPos pos,
             String label,
-            XaeroWaypointSymbols.Kind symbolKind,
-            boolean persistent
+            String symbol,
+            boolean persistent,
+            WaypointColor color
     ) {
         try {
             MinimapSession session = BuiltInHudModules.MINIMAP.getCurrentSession();
@@ -38,16 +41,19 @@ final class XaeroLegacyWaypoints {
             if (set == null) {
                 return;
             }
-            String symbol = XaeroWaypointSymbols.resolve(label, symbolKind);
             WaypointPurpose purpose = persistent ? WaypointPurpose.NORMAL : WaypointPurpose.DESTINATION;
             Waypoint waypoint = new Waypoint(
                     pos.getX(), pos.getY(), pos.getZ(),
                     label, symbol,
-                    WaypointColor.GOLD, purpose, true);
+                    color, purpose, true);
+            List<Waypoint> sameName = new ArrayList<>();
             for (Waypoint existing : set.getWaypoints()) {
-                if (label.equals(existing.getName()) && existing.isTemporary()) {
-                    set.remove(existing);
+                if (label.equals(existing.getName())) {
+                    sameName.add(existing);
                 }
+            }
+            for (Waypoint existing : sameName) {
+                set.remove(existing);
             }
             set.add(waypoint);
         } catch (Throwable t) {

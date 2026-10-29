@@ -2,6 +2,7 @@ package dev.poligorn.aerocouriers.contract;
 
 import dev.poligorn.aerocouriers.cargo.CargoSize;
 import dev.poligorn.aerocouriers.config.CouriersServerConfig;
+import dev.poligorn.aerocouriers.economy.MoneyScale;
 import dev.poligorn.aerocouriers.license.CourierProfile;
 import dev.poligorn.aerocouriers.license.LicenseRank;
 import java.util.EnumMap;
@@ -61,10 +62,17 @@ public final class RankRules {
         int xlRank = CouriersServerConfig.rankRequiredXl();
         if (rank.isAdmin() || rank.level() >= xlRank) {
             if (base.maxSize().ordinal() < CargoSize.XL.ordinal()) {
-                return new Limits(base.maxCollateral(), CargoSize.XL, base.maxDistance(), base.maxActive());
+                base = new Limits(base.maxCollateral(), CargoSize.XL, base.maxDistance(), base.maxActive());
             }
         }
-        return base;
+        long cap = base.maxCollateral();
+        if (cap < Long.MAX_VALUE / 2) {
+            cap = MoneyScale.fromSpurs(cap);
+        }
+        if (cap == base.maxCollateral()) {
+            return base;
+        }
+        return new Limits(cap, base.maxSize(), base.maxDistance(), base.maxActive());
     }
 
     /** {@code requiredRank = max(by collateral, by container, by distance)} (GDD §5.3). */

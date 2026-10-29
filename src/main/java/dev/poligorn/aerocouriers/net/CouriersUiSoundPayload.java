@@ -1,6 +1,7 @@
 package dev.poligorn.aerocouriers.net;
 
 import dev.poligorn.aerocouriers.AeronauticsCouriers;
+import dev.poligorn.aerocouriers.client.ClientBoard;
 import dev.poligorn.aerocouriers.client.ClientCouriersSounds;
 import dev.poligorn.aerocouriers.client.TabletAntennaSignal;
 import io.netty.buffer.ByteBuf;
@@ -27,9 +28,12 @@ public record CouriersUiSoundPayload(Kind kind) implements CustomPacketPayload {
             switch (payload.kind()) {
                 case ORDER_ACCEPT -> {
                     ClientCouriersSounds.playOrderAccept();
-                    TabletAntennaSignal.trigger();
+                    TabletAntennaSignal.triggerSend();
                 }
-                case ORDER_DENY -> ClientCouriersSounds.playOrderDeny();
+                case ORDER_DENY -> {
+                    ClientCouriersSounds.playOrderDeny();
+                    ClientBoard.onOrderDenied();
+                }
             }
         });
     }

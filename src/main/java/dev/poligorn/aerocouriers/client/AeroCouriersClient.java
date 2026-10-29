@@ -10,19 +10,25 @@ import dev.poligorn.aerocouriers.client.board.BoardCargoClientTooltip;
 import dev.poligorn.aerocouriers.client.board.BoardCargoTooltip;
 import dev.poligorn.aerocouriers.client.navigation.NavRenderer;
 import net.neoforged.api.distmarker.Dist;
+import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import net.neoforged.bus.api.IEventBus;
+import net.neoforged.neoforge.client.event.RegisterClientReloadListenersEvent;
 import net.neoforged.neoforge.client.event.RegisterClientTooltipComponentFactoriesEvent;
+import net.neoforged.neoforge.client.gui.ConfigurationScreen;
+import net.neoforged.neoforge.client.gui.IConfigScreenFactory;
 import net.neoforged.neoforge.common.NeoForge;
 import top.theillusivec4.curios.api.client.CuriosRendererRegistry;
 
 @Mod(value = AeronauticsCouriers.MOD_ID, dist = Dist.CLIENT)
 public final class AeroCouriersClient {
 
-    public AeroCouriersClient(IEventBus modBus) {
+    public AeroCouriersClient(IEventBus modBus, ModContainer container) {
+        container.registerExtensionPoint(IConfigScreenFactory.class, ConfigurationScreen::new);
         modBus.addListener(AeroCouriersClient::onClientSetup);
         modBus.addListener(AeroCouriersClient::registerTooltips);
+        modBus.addListener(AeroCouriersClient::registerReloaders);
         modBus.addListener(BoardKeyMappings::register);
         NeoForge.EVENT_BUS.addListener(BoardKeyMappings::onClientTick);
         NeoForge.EVENT_BUS.addListener(XaeroMapPicker::onClientTick);
@@ -31,13 +37,16 @@ public final class AeroCouriersClient {
         NeoForge.EVENT_BUS.addListener(ZoneParticles::onClientTick);
         NeoForge.EVENT_BUS.addListener(ZoneParticles::onLoggingOut);
         NeoForge.EVENT_BUS.addListener(NavRenderer::onRenderLevel);
-        NeoForge.EVENT_BUS.addListener(NavRenderer::onRenderHud);
-        NeoForge.EVENT_BUS.addListener(NavRenderer::onChatLayout);
     }
 
     private static void registerTooltips(RegisterClientTooltipComponentFactoriesEvent event) {
         event.register(BoardCargoTooltip.class, BoardCargoClientTooltip::new);
         event.register(SpurBreakdownTooltip.class, SpurBreakdownClientTooltip::new);
+    }
+
+    private static void registerReloaders(RegisterClientReloadListenersEvent event) {
+        event.registerReloadListener((barrier, manager, prepProfiler, applyProfiler, background, game) ->
+                barrier.wait(null).thenRunAsync(GuiOverride::clearCache, game));
     }
 
     private static void onClientSetup(FMLClientSetupEvent event) {

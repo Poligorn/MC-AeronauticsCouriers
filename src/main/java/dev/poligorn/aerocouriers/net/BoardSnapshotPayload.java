@@ -172,12 +172,13 @@ public record BoardSnapshotPayload(
             int issuerCountS,
             int issuerCountM,
             int issuerCountL,
-            int issuerCountXl
+            int issuerCountXl,
+            boolean pilotLicenseHeld
     ) {
         public static final BoardProfile EMPTY = new BoardProfile(
                 "", LicenseRank.RANK1, 0, 0, 0L, 0L, 0, 3, 800,
                 0, 0, 300, 1500, 5000, 15000, 90,
-                false, 0, 0, 0L, 0L, 0, 0, 0, 0);
+                false, 0, 0, 0L, 0L, 0, 0, 0, 0, false);
 
         public List<Integer> rankXpThresholds() {
             return List.of(rankXp0, rankXp1, rankXp2, rankXp3, rankXp4);
@@ -190,7 +191,7 @@ public record BoardSnapshotPayload(
 
         /** True when the player never received a pilot license (first issue is free from the profile tab). */
         public boolean neverHadPilotLicense() {
-            return licensesIssued <= 0 && !licensedCourier;
+            return licensesIssued <= 0 && !licensedCourier && !pilotLicenseHeld;
         }
 
         public Optional<CargoSize> issuerMostCommonSize() {
@@ -226,6 +227,7 @@ public record BoardSnapshotPayload(
             ByteBufCodecs.VAR_INT.encode(buf, p.issuerCountM);
             ByteBufCodecs.VAR_INT.encode(buf, p.issuerCountL);
             ByteBufCodecs.VAR_INT.encode(buf, p.issuerCountXl);
+            buf.writeBoolean(p.pilotLicenseHeld);
         }
 
         private static BoardProfile read(RegistryFriendlyByteBuf buf) {
@@ -254,7 +256,8 @@ public record BoardSnapshotPayload(
                     ByteBufCodecs.VAR_INT.decode(buf),
                     ByteBufCodecs.VAR_INT.decode(buf),
                     ByteBufCodecs.VAR_INT.decode(buf),
-                    ByteBufCodecs.VAR_INT.decode(buf));
+                    ByteBufCodecs.VAR_INT.decode(buf),
+                    buf.readBoolean());
         }
     }
 
@@ -288,10 +291,24 @@ public record BoardSnapshotPayload(
             int customerReputationNext,
             int customerReputationBonusPercent,
             boolean originRevealed,
-            boolean crossDimension
+            boolean crossDimension,
+            boolean originStation,
+            boolean destinationStation,
+            /** Container slot count and weight limit from the server config (client config may differ). */
+            int slots,
+            int maxWeight,
+            double weightValue,
+            /** Game minutes since the order was published. */
+            long ageMinutes,
+            /** Active haul whose container already left the pickup area (stamp/NPC crates are IN_TRANSIT at once). */
+            boolean cargoPickedUp
     ) {
         public static final StreamCodec<RegistryFriendlyByteBuf, BoardEntry> STREAM_CODEC =
                 StreamCodec.of(BoardEntry::write, BoardEntry::read);
+
+        public long rewardPer1000Blocks() {
+            return distance <= 0 ? 0 : reward * 1000L / distance;
+        }
 
         private static void write(RegistryFriendlyByteBuf buf, BoardEntry e) {
             UUIDUtil.STREAM_CODEC.encode(buf, e.id);
@@ -326,6 +343,13 @@ public record BoardSnapshotPayload(
             ByteBufCodecs.VAR_INT.encode(buf, e.customerReputationBonusPercent);
             buf.writeBoolean(e.originRevealed);
             buf.writeBoolean(e.crossDimension);
+            buf.writeBoolean(e.originStation);
+            buf.writeBoolean(e.destinationStation);
+            ByteBufCodecs.VAR_INT.encode(buf, e.slots);
+            ByteBufCodecs.VAR_INT.encode(buf, e.maxWeight);
+            buf.writeDouble(e.weightValue);
+            ByteBufCodecs.VAR_LONG.encode(buf, e.ageMinutes);
+            buf.writeBoolean(e.cargoPickedUp);
         }
 
         private static BoardEntry read(RegistryFriendlyByteBuf buf) {
@@ -359,6 +383,13 @@ public record BoardSnapshotPayload(
                     ByteBufCodecs.VAR_INT.decode(buf),
                     ByteBufCodecs.VAR_INT.decode(buf),
                     buf.readBoolean(),
+                    buf.readBoolean(),
+                    buf.readBoolean(),
+                    buf.readBoolean(),
+                    ByteBufCodecs.VAR_INT.decode(buf),
+                    ByteBufCodecs.VAR_INT.decode(buf),
+                    buf.readDouble(),
+                    ByteBufCodecs.VAR_LONG.decode(buf),
                     buf.readBoolean());
         }
     }

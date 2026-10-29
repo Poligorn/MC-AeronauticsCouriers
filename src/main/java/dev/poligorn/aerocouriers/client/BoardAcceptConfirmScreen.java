@@ -15,7 +15,6 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Renderable;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
-import net.minecraft.util.FormattedCharSequence;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.jetbrains.annotations.Nullable;
 
@@ -37,6 +36,7 @@ public final class BoardAcceptConfirmScreen extends Screen {
     private int btnY;
     private @Nullable SpurBreakdownTooltip hoverSpurBreakdown;
     private @Nullable Component hoverSpurHeader;
+    private ScreenFit fit = ScreenFit.of(ScreenFit.DESIGN_W, ScreenFit.DESIGN_H);
 
     public BoardAcceptConfirmScreen(Screen parent, BoardSnapshotPayload.BoardEntry entry,
                                     BoardSnapshotPayload.BoardProfile profile, int activeHauls) {
@@ -49,6 +49,7 @@ public final class BoardAcceptConfirmScreen extends Screen {
 
     @Override
     protected void init() {
+        refreshFit();
         super.init();
         relayout();
         int btnW = (boxW - 24) / 2;
@@ -66,7 +67,9 @@ public final class BoardAcceptConfirmScreen extends Screen {
     }
 
     private void relayout() {
-        boxW = Math.min(360, width - 48);
+        int spaceW = fit.shrinking() ? fit.layoutW : width;
+        int spaceH = fit.shrinking() ? fit.layoutH : height;
+        boxW = Math.min(360, spaceW - 48);
         int textW = boxW - PAD * 2;
         int contentH = PAD + font.lineHeight + 6;
         for (Component line : bodyLinesBeforeMoney()) {
@@ -81,14 +84,14 @@ public final class BoardAcceptConfirmScreen extends Screen {
         contentH += wrappedHeight(riskLine(), textW) + LINE_GAP;
         contentH += wrappedHeight(Component.translatable("ui.aerocouriers.accept.confirm.cargo_damage"), textW);
         contentH += PAD;
-        boxH = Math.min(Math.max(contentH + FOOTER, 140), height - 48);
-        boxY = (height - boxH) / 2;
-        boxX = (width - boxW) / 2;
+        boxH = Math.min(Math.max(contentH + FOOTER, 140), spaceH - 48);
+        boxY = (spaceH - boxH) / 2;
+        boxX = (spaceW - boxW) / 2;
         btnY = boxY + boxH - 28;
     }
 
     private int wrappedHeight(Component text, int maxWidth) {
-        return font.split(text, maxWidth).size() * font.lineHeight;
+        return MoneyText.lineCount(font, text, maxWidth) * font.lineHeight;
     }
 
     private void confirm() {
@@ -130,14 +133,44 @@ public final class BoardAcceptConfirmScreen extends Screen {
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         hoverSpurBreakdown = null;
         hoverSpurHeader = null;
+        refreshFit();
         relayout();
         for (Renderable widget : renderables) {
             if (widget instanceof TabletButton button) {
                 button.setY(btnY);
             }
         }
+        if (fit.shrinking()) {
+            int lx = fit.localXi(mouseX);
+            int ly = fit.localYi(mouseY);
+            InGamePauseBackground.render(this, graphics, mouseX, mouseY, partialTick);
+            graphics.fill(0, 0, width, height, 0xC0000000);
+            graphics.pose().pushPose();
+            fit.apply(graphics);
+            try {
+                drawScaledPanel(graphics);
+                for (Renderable widget : renderables) {
+                    widget.render(graphics, lx, ly, partialTick);
+                }
+                drawBody(graphics, lx, ly);
+            } finally {
+                graphics.pose().popPose();
+            }
+            drawSpurTooltip(graphics, mouseX, mouseY);
+            return;
+        }
         super.render(graphics, mouseX, mouseY, partialTick);
 
+        drawBody(graphics, mouseX, mouseY);
+        drawSpurTooltip(graphics, mouseX, mouseY);
+    }
+
+    /** Panel under the fit pose. Kept out of {@code render} so the chrome guard stays on {@code renderBackground}. */
+    private void drawScaledPanel(GuiGraphics graphics) {
+        TabletGui.drawListPanel(graphics, boxX, boxY, boxW, boxH);
+    }
+
+    private void drawBody(GuiGraphics graphics, int mouseX, int mouseY) {
         graphics.drawString(font, title, boxX + PAD, boxY + PAD, TabletGui.TEXT_HEADER, false);
         int textX = boxX + PAD;
         int textW = boxW - PAD * 2;
@@ -164,9 +197,35 @@ public final class BoardAcceptConfirmScreen extends Screen {
         y = drawWrapped(graphics, riskLine(), textX, y + LINE_GAP, textW, TabletGui.TEXT_WARN) + LINE_GAP;
         drawWrapped(graphics, Component.translatable("ui.aerocouriers.accept.confirm.cargo_damage"),
                 textX, y, textW, TabletGui.TEXT_WARN);
+    }
+
+    private void drawSpurTooltip(GuiGraphics graphics, int mouseX, int mouseY) {
         if (hoverSpurBreakdown != null && hoverSpurHeader != null) {
-            graphics.renderTooltip(font, List.of(hoverSpurHeader), Optional.of(hoverSpurBreakdown), mouseX, mouseY);
+            TooltipDraw.render(graphics, font, List.of(), Optional.of(hoverSpurBreakdown), mouseX, mouseY);
         }
+    }
+
+    @Override
+    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        refreshFit();
+        return super.mouseClicked(fit.localX(mouseX), fit.localY(mouseY), button);
+    }
+
+    @Override
+    public boolean mouseReleased(double mouseX, double mouseY, int button) {
+        refreshFit();
+        return super.mouseReleased(fit.localX(mouseX), fit.localY(mouseY), button);
+    }
+
+    @Override
+    public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
+        refreshFit();
+        double s = fit.scale;
+        return super.mouseDragged(fit.localX(mouseX), fit.localY(mouseY), button, dragX / s, dragY / s);
+    }
+
+    private void refreshFit() {
+        fit = ScreenFit.of(width, height);
     }
 
     private void offerSpurTooltip(long spurs, SpurAmountUi.Bounds bounds, int mouseX, int mouseY) {
@@ -175,7 +234,8 @@ public final class BoardAcceptConfirmScreen extends Screen {
         }
         if (bounds.contains(mouseX, mouseY)) {
             hoverSpurBreakdown = new SpurBreakdownTooltip(spurs);
-            hoverSpurHeader = Component.translatable("ui.aerocouriers.spur.tooltip.header", spurs);
+            hoverSpurHeader = Component.translatable("ui.aerocouriers.spur.tooltip.header",
+                    dev.poligorn.aerocouriers.economy.MoneyFormat.component(spurs));
         }
     }
 
@@ -200,24 +260,22 @@ public final class BoardAcceptConfirmScreen extends Screen {
     }
 
     private long collateralDue() {
-        return TraineeRules.collateralDueAtAccept(entry.collateral(), entry.villageCustomer(),
+        return TraineeRules.collateralDueAtAccept(profile.rank(), entry.collateral(), entry.villageCustomer(),
                 profile.villageDelivered(), profile.traineeFreeContracts());
     }
 
     private Component riskLine() {
         long due = collateralDue();
         return entry.villageCustomer()
-                ? Component.translatable("contract.aerocouriers.risk.npc", due, entry.reward())
-                : Component.translatable("contract.aerocouriers.risk", due, entry.reward());
+                ? Component.translatable("contract.aerocouriers.risk.npc",
+                        dev.poligorn.aerocouriers.economy.MoneyFormat.component(due),
+                        dev.poligorn.aerocouriers.economy.MoneyFormat.component(entry.reward()))
+                : Component.translatable("contract.aerocouriers.risk",
+                        dev.poligorn.aerocouriers.economy.MoneyFormat.component(due),
+                        dev.poligorn.aerocouriers.economy.MoneyFormat.component(entry.reward()));
     }
 
     private int drawWrapped(GuiGraphics graphics, Component text, int x, int y, int maxWidth, int color) {
-        List<FormattedCharSequence> lines = font.split(text, maxWidth);
-        int drawY = y;
-        for (FormattedCharSequence line : lines) {
-            graphics.drawString(font, line, x, drawY, color, false);
-            drawY += font.lineHeight;
-        }
-        return drawY;
+        return MoneyText.drawWrapped(graphics, font, text, x, y, maxWidth, color, font.lineHeight);
     }
 }

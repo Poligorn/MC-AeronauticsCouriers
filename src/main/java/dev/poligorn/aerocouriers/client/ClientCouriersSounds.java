@@ -27,6 +27,10 @@ public final class ClientCouriersSounds {
         playUi(ModSounds.TABLET_CLOSE.get());
     }
 
+    public static void playWaybillStamp() {
+        playUi(ModSounds.WAYBILL_SIGN.get());
+    }
+
     /** Order-notification bell; also gated by {@link CouriersClientConfig#notificationSoundsEnabled()}. */
     public static void playNotification() {
         if (!CouriersClientConfig.notificationSoundsEnabled()) {

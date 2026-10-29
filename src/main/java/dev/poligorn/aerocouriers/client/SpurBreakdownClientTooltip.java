@@ -1,5 +1,6 @@
 package dev.poligorn.aerocouriers.client;
 
+import dev.poligorn.aerocouriers.economy.MoneyFormat;
 import dev.poligorn.aerocouriers.economy.SpurBreakdown;
 import dev.poligorn.aerocouriers.economy.SpurDenomination;
 import java.util.List;
@@ -14,32 +15,38 @@ public final class SpurBreakdownClientTooltip implements ClientTooltipComponent 
     private static final int PAD = 4;
     private static final int GAP = 3;
 
+    private final long spurs;
     private final SpurBreakdown breakdown;
     private final Component footer;
 
     public SpurBreakdownClientTooltip(SpurBreakdownTooltip payload) {
+        this.spurs = payload.spurs();
         this.breakdown = SpurBreakdown.greedy(payload.spurs());
-        this.footer = Component.translatable("ui.aerocouriers.spur.tooltip.rate");
+        this.footer = Component.translatable("ui.aerocouriers.spur.tooltip.rate",
+                Component.translatable("item.numismatics.spur"));
     }
 
     @Override
     public int getHeight() {
         int lines = Math.max(1, breakdown.lines().size());
-        return PAD + lines * LINE_H + LINE_H + PAD;
+        return PAD + (lines + 2) * LINE_H + PAD;
     }
 
     @Override
     public int getWidth(Font font) {
-        int max = font.width(footer);
+        int textMax = MoneyText.width(font, footer.getString());
         for (SpurBreakdown.Line line : breakdown.lines()) {
-            max = Math.max(max, font.width(lineText(line)));
+            textMax = Math.max(textMax, MoneyText.width(font, lineText(line).getString()));
         }
-        return PAD * 2 + ICON + GAP + max;
+        int headerW = MoneyText.width(font, header());
+        return PAD * 2 + Math.max(headerW, ICON + GAP + textMax);
     }
 
     @Override
     public void renderImage(Font font, int x, int y, GuiGraphics graphics) {
         int drawY = y + PAD;
+        MoneyText.draw(graphics, font, header(), x + PAD, drawY, 0xFFFFFFFF, MoneyText.Face.DEFAULT);
+        drawY += LINE_H;
         List<SpurBreakdown.Line> lines = breakdown.lines();
         if (lines.isEmpty()) {
             SpurCoinGraphics.drawGenericCoin(graphics, x + PAD, drawY, ICON);
@@ -48,11 +55,16 @@ public final class SpurBreakdownClientTooltip implements ClientTooltipComponent 
         } else {
             for (SpurBreakdown.Line line : lines) {
                 SpurCoinGraphics.drawDenomination(graphics, line.denomination(), x + PAD, drawY, ICON);
-                graphics.drawString(font, lineText(line), x + PAD + ICON + GAP, drawY, 0xFFAF55, false);
+                MoneyText.draw(graphics, font, lineText(line).getString(), x + PAD + ICON + GAP, drawY, 0xFFAF55,
+                        MoneyText.Face.DEFAULT);
                 drawY += LINE_H;
             }
         }
-        graphics.drawString(font, footer, x + PAD, drawY + 1, 0xC87A3A, false);
+        MoneyText.draw(graphics, font, footer.getString(), x + PAD, drawY + 1, 0xC87A3A, MoneyText.Face.DEFAULT);
+    }
+
+    private String header() {
+        return Component.translatable("ui.aerocouriers.spur.tooltip.header", MoneyFormat.component(spurs)).getString();
     }
 
     private static Component lineText(SpurBreakdown.Line line) {

@@ -90,6 +90,7 @@ Data Components (`DeferredRegister.createDataComponents`), Data Attachments (`At
 | Пополнение | `BankAccount.deposit(int spurs)` | ✅ javap |
 | Списание | `BankAccount.deduct(int spurs, boolean allowOverdraft)` → `boolean`; `false` = без ухода в минус | ✅ javap |
 | Дробление монет | `Coin.getCoinsFromSpurAmount(int)` (SPUR/BEVEL/…/SUN, `Coin.value` = номинал в спурах) | ✅ javap |
+| GUI иконки монет | `BuiltInRegistries.ITEM` → `numismatics:{spur,bevel,sprocket,cog,crown,sun}` + `GuiGraphics.renderItem` | ✅ ids в jar 1.1.0 |
 | GDD §14.5 | Старые имена совпадают по смыслу; пакет `dev.ithundxr.createnumismatics.*`, не Create addon namespace | ✅ |
 
 ## Что ещё не проверено

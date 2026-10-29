@@ -1,5 +1,6 @@
 package dev.poligorn.aerocouriers.config;
 
+import net.minecraft.util.Mth;
 import net.neoforged.neoforge.common.ModConfigSpec;
 
 /**
@@ -32,12 +33,8 @@ public final class CouriersClientConfig {
     public static final ModConfigSpec.DoubleValue NAV_BEAM_HEIGHT;
     public static final ModConfigSpec.IntValue NAV_BEAM_RENDER_DISTANCE;
     public static final ModConfigSpec.DoubleValue NAV_BEAM_FADE_START;
-    public static final ModConfigSpec.ConfigValue<String> NAV_BEAM_COLOR;
-
-    public static final ModConfigSpec.BooleanValue NAV_HUD_ENABLED;
-    public static final ModConfigSpec.EnumValue<HudCorner> NAV_HUD_CORNER;
-    public static final ModConfigSpec.IntValue NAV_HUD_OFFSET_X;
-    public static final ModConfigSpec.IntValue NAV_HUD_OFFSET_Y;
+    public static final ModConfigSpec.ConfigValue<String> NAV_BEAM_PICKUP_COLOR;
+    public static final ModConfigSpec.ConfigValue<String> NAV_BEAM_DELIVERY_COLOR;
 
     static {
         ModConfigSpec.Builder b = new ModConfigSpec.Builder();
@@ -85,7 +82,8 @@ public final class CouriersClientConfig {
         b.push("waypoints");
         WAYPOINT_SYMBOL_MODE = b.comment(
                         "How order waypoints look on Xaero's minimap when this mod places them.",
-                        "ICON — crate (📦) Unicode glyph for every order waypoint;",
+                        "ICON — crate (📦) on the pre-accept preview pin only.",
+                        "Accepted pickup and delivery pins always use the letters A and B.",
                         "FIRST_LETTER — first character of the order label;",
                         "CUSTOM — customWaypointSymbol")
                 .defineEnum("waypointSymbolMode", WaypointSymbolMode.ICON);
@@ -94,20 +92,26 @@ public final class CouriersClientConfig {
         b.pop();
 
         b.push("navigation");
-        NAV_BEAM_ENABLED = b.comment("Vertical beacon beam at pickup/delivery for your active hauls")
+        NAV_BEAM_ENABLED = b.comment("Vertical beams at your active hauls: yellow = pickup, blue = delivery")
+                .translation("aerocouriers.configuration.beam_enabled")
                 .define("beam_enabled", true);
-        NAV_BEAM_HEIGHT = b.comment("Beam height in blocks").defineInRange("beam_height", 256.0, 16.0, 512.0);
+        NAV_BEAM_HEIGHT = b.comment("Beam height in blocks")
+                .translation("aerocouriers.configuration.beam_height")
+                .defineInRange("beam_height", 256.0, 16.0, 512.0);
         NAV_BEAM_RENDER_DISTANCE = b.comment("Do not draw the beam farther than this (blocks)")
+                .translation("aerocouriers.configuration.beam_render_distance")
                 .defineInRange("beam_render_distance", 512, 32, 2048);
         NAV_BEAM_FADE_START = b.comment("Full opacity until this distance; fades when closer (blocks)")
+                .translation("aerocouriers.configuration.beam_fade_start")
                 .defineInRange("beam_fade_start", 12.0, 2.0, 64.0);
-        NAV_BEAM_COLOR = b.comment("Beam RGB as \"r,g,b\" (0–1), default gold")
-                .define("beam_color", "1.0,0.75,0.2");
-        NAV_HUD_ENABLED = b.comment("Compass HUD with distance and order id").define("hud_enabled", true);
-        NAV_HUD_CORNER = b.comment("Screen corner for the navigation HUD (offsets apply inward from that corner)")
-                .defineEnum("hud_corner", HudCorner.TOP_LEFT);
-        NAV_HUD_OFFSET_X = b.defineInRange("hud_offset_x", 8, 0, 4000);
-        NAV_HUD_OFFSET_Y = b.defineInRange("hud_offset_y", 8, 0, 4000);
+        NAV_BEAM_PICKUP_COLOR = b.comment(
+                        "Pickup beam RGB as \"r,g,b\" (0–1). Default is Xaero waypoint yellow #FFFF55")
+                .translation("aerocouriers.configuration.beam_pickup_color")
+                .define("beam_pickup_color", "1.0,1.0,0.33333334");
+        NAV_BEAM_DELIVERY_COLOR = b.comment(
+                        "Delivery beam RGB as \"r,g,b\" (0–1). Default is Xaero waypoint aqua #55FFFF")
+                .translation("aerocouriers.configuration.beam_delivery_color")
+                .define("beam_delivery_color", "0.33333334,1.0,1.0");
         b.pop();
 
         SPEC = b.build();
@@ -194,13 +198,6 @@ public final class CouriersClientConfig {
         HIDDEN
     }
 
-    public enum HudCorner {
-        TOP_LEFT,
-        TOP_RIGHT,
-        BOTTOM_LEFT,
-        BOTTOM_RIGHT
-    }
-
     public static boolean navBeamEnabled() {
         try {
             return NAV_BEAM_ENABLED.get();
@@ -209,60 +206,36 @@ public final class CouriersClientConfig {
         }
     }
 
-    public static boolean navHudEnabled() {
-        try {
-            return NAV_HUD_ENABLED.get();
-        } catch (IllegalStateException ignored) {
-            return true;
-        }
-    }
+    /** Xaero {@code WaypointColor.YELLOW} #FFFF55, xaerominimap 26.6.0. */
+    private static final float[] XAERO_YELLOW = {1.0f, 1.0f, 85f / 255f};
+    /** Xaero {@code WaypointColor.AQUA} #55FFFF, xaerominimap 26.6.0. */
+    private static final float[] XAERO_AQUA = {85f / 255f, 1.0f, 1.0f};
 
-    public static float[] navBeamColorRgb() {
+    public static float[] navBeamColorRgb(boolean delivery) {
+        float[] fallback = delivery ? XAERO_AQUA : XAERO_YELLOW;
         try {
-            String raw = NAV_BEAM_COLOR.get();
-            if (raw == null) {
-                return new float[] {1f, 0.75f, 0.2f};
+            String raw = (delivery ? NAV_BEAM_DELIVERY_COLOR : NAV_BEAM_PICKUP_COLOR).get();
+            if (raw == null || isLegacyBeamDefault(raw, delivery)) {
+                return fallback;
             }
             String[] parts = raw.split(",");
             if (parts.length < 3) {
-                return new float[] {1f, 0.75f, 0.2f};
+                return fallback;
             }
             return new float[] {
-                    Float.parseFloat(parts[0].trim()),
-                    Float.parseFloat(parts[1].trim()),
-                    Float.parseFloat(parts[2].trim())
+                    Mth.clamp(Float.parseFloat(parts[0].trim()), 0f, 1f),
+                    Mth.clamp(Float.parseFloat(parts[1].trim()), 0f, 1f),
+                    Mth.clamp(Float.parseFloat(parts[2].trim()), 0f, 1f)
             };
         } catch (IllegalStateException | NumberFormatException ignored) {
-            return new float[] {1f, 0.75f, 0.2f};
-        }
-    }
-
-    /** Top-left of the HUD box in scaled GUI pixels. */
-    public static int[] navHudPosition(int screenW, int screenH) {
-        int boxW = 118;
-        int boxH = 42;
-        int ox = safeInt(NAV_HUD_OFFSET_X, 8);
-        int oy = safeInt(NAV_HUD_OFFSET_Y, 8);
-        HudCorner corner;
-        try {
-            corner = NAV_HUD_CORNER.get();
-        } catch (IllegalStateException ignored) {
-            corner = HudCorner.TOP_LEFT;
-        }
-        return switch (corner) {
-            case TOP_LEFT -> new int[] {ox, oy};
-            case TOP_RIGHT -> new int[] {screenW - boxW - ox, oy};
-            case BOTTOM_LEFT -> new int[] {ox, screenH - boxH - oy};
-            case BOTTOM_RIGHT -> new int[] {screenW - boxW - ox, screenH - boxH - oy};
-        };
-    }
-
-    private static int safeInt(ModConfigSpec.IntValue value, int fallback) {
-        try {
-            return value.get();
-        } catch (IllegalStateException ignored) {
             return fallback;
         }
+    }
+
+    /** Pre-0.1.12 defaults. They do not match Xaero YELLOW / AQUA, so they now resolve to those hexes. */
+    private static boolean isLegacyBeamDefault(String raw, boolean delivery) {
+        String normalized = raw.replace(" ", "");
+        return delivery ? normalized.equals("0.2,0.72,1.0") : normalized.equals("1.0,0.82,0.15");
     }
 
     private CouriersClientConfig() {

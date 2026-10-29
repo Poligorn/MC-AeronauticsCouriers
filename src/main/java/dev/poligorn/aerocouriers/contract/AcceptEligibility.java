@@ -1,6 +1,7 @@
 package dev.poligorn.aerocouriers.contract;
 
 import dev.poligorn.aerocouriers.cargo.CargoSize;
+import dev.poligorn.aerocouriers.economy.MoneyFormat;
 import dev.poligorn.aerocouriers.license.LicenseRank;
 import java.util.Optional;
 import net.minecraft.network.chat.Component;
@@ -42,7 +43,8 @@ public final class AcceptEligibility {
             return Optional.of(new Denial("rank_too_low", requiredRank.displayName()));
         }
         if (collateral > limits.maxCollateral()) {
-            return Optional.of(new Denial("rank_limit_collateral", limits.maxCollateral()));
+            return Optional.of(new Denial("rank_limit_collateral",
+                    MoneyFormat.component(limits.maxCollateral())));
         }
         if (size.ordinal() > limits.maxSize().ordinal()) {
             return Optional.of(new Denial("rank_limit_size", sizeLabel(limits.maxSize())));
@@ -53,9 +55,8 @@ public final class AcceptEligibility {
                     : Integer.toString((int) limits.maxDistance());
             return Optional.of(new Denial("rank_limit_distance", dist));
         }
-        if (villageNpc && TraineeRules.onTraineeVillageContracts(villageDelivered, traineeFreeContracts)
-                && !TraineeRules.villageDistanceAllowed(distance, villageDelivered, traineeFreeContracts,
-                traineeMaxDistance)) {
+        if (villageNpc && !TraineeRules.villageDistanceAllowed(courierRank, distance, villageDelivered,
+                traineeFreeContracts, traineeMaxDistance)) {
             return Optional.of(new Denial("trainee_too_far", traineeMaxDistance));
         }
         return Optional.empty();

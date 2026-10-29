@@ -22,7 +22,8 @@ public record CreateContractPayload(
         long reward,
         long collateral,
         int minutes,
-        int radius
+        int radius,
+        int minRankLevel
 ) implements CustomPacketPayload {
     public static final Type<CreateContractPayload> TYPE = new Type<>(AeronauticsCouriers.id("create_contract"));
     public static final long DEFAULT_REWARD = 10;
@@ -41,6 +42,7 @@ public record CreateContractPayload(
         ByteBufCodecs.VAR_LONG.encode(buf, payload.collateral);
         ByteBufCodecs.VAR_INT.encode(buf, payload.minutes);
         ByteBufCodecs.VAR_INT.encode(buf, payload.radius);
+        ByteBufCodecs.VAR_INT.encode(buf, payload.minRankLevel);
     }
 
     private static CreateContractPayload read(ByteBuf buf) {
@@ -51,7 +53,8 @@ public record CreateContractPayload(
         long collateral = ByteBufCodecs.VAR_LONG.decode(buf);
         int minutes = ByteBufCodecs.VAR_INT.decode(buf);
         int radius = ByteBufCodecs.VAR_INT.decode(buf);
-        return new CreateContractPayload(from, to, dimension, reward, collateral, minutes, radius);
+        int minRankLevel = ByteBufCodecs.VAR_INT.decode(buf);
+        return new CreateContractPayload(from, to, dimension, reward, collateral, minutes, radius, minRankLevel);
     }
 
     @Override

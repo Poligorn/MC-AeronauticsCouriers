@@ -148,7 +148,7 @@ public final class CouriersServerConfig {
         ACE_MIN_SUCCESS = b.comment("Minimum success rate for rank V")
                 .defineInRange("ace_min_success", 0.90, 0.0, 1.0);
         TRAINEE_FREE_CONTRACTS = b.defineInRange("trainee_free_contracts", 3, 0, 100);
-        TRAINEE_BONUS = b.comment("One-time advance paid after the trainee contracts, spurs")
+        TRAINEE_BONUS = b.comment("One-time advance paid after the trainee contracts, spurs (divided by emerald_value_spurs when emeralds are the currency)")
                 .defineInRange("trainee_bonus", 100, 0, 1_000_000);
         TRAINEE_MAX_DISTANCE = b.comment("While trainee_free_contracts remain, NPC orders longer than this cannot be accepted (0 = no limit)")
                 .defineInRange("trainee_max_distance", 800, 0, 50_000);
@@ -156,11 +156,13 @@ public final class CouriersServerConfig {
 
         b.push("economy");
         ECONOMY_BACKEND = b.comment(
-                        "Money backend: auto (Numismatics bank account when the mod is loaded, else internal balance),",
-                        "numismatics (force bank account; falls back to internal with a warning if the mod is missing),",
-                        "internal (mod balance only)")
+                        "Money backend: auto (Numismatics bank account when the mod is loaded, else emeralds),",
+                        "numismatics (force bank account; falls back to emeralds with a warning if the mod is missing),",
+                        "internal (emeralds in the player inventory; 1 emerald block = 9)")
                 .define("backend", "auto");
-        EMERALD_VALUE_SPURS = b.defineInRange("emerald_value_spurs", 8, 1, 4096);
+        EMERALD_VALUE_SPURS = b.comment(
+                        "Without the Numismatics backend, divide spur prices by this to get emeralds. Numismatics keeps the spur numbers.")
+                .defineInRange("emerald_value_spurs", 8, 1, 4096);
         b.pop();
 
         b.push("piracy");

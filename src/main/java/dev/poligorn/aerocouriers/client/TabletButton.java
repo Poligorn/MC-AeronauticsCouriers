@@ -117,12 +117,9 @@ public final class TabletButton extends Button {
         }
         int textW = Math.max(8, getX() + getWidth() - 4 - textX);
         String raw = getMessage().getString();
-        String shown = font.plainSubstrByWidth(raw, textW);
-        if (!shown.equals(raw)) {
-            shown = font.plainSubstrByWidth(raw, Math.max(4, textW - font.width("…"))) + "…";
-        }
+        String shown = MoneyText.trunc(font, raw, textW);
         int textY = drawY + (getHeight() - 8) / 2;
-        graphics.drawString(font, shown, textX, textY, color, false);
+        MoneyText.draw(graphics, font, shown, textX, textY, color, MoneyText.Face.DEFAULT);
         RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
     }
 }

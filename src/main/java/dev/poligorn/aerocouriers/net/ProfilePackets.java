@@ -6,7 +6,6 @@ import dev.poligorn.aerocouriers.license.Licenses;
 import java.util.UUID;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.network.PacketDistributor;
 
 public final class ProfilePackets {
@@ -37,7 +36,7 @@ public final class ProfilePackets {
             BoardPackets.denyTablet(player);
             return;
         }
-        if (Licenses.isLicensedCourier(player)) {
+        if (Licenses.holdsPilotLicense(player) || Licenses.isLicensedCourier(player)) {
             player.displayClientMessage(Component.translatable("ui.aerocouriers.profile.license.already"), true);
             return;
         }
@@ -45,10 +44,7 @@ public final class ProfilePackets {
             player.displayClientMessage(Component.translatable("ui.aerocouriers.profile.license.reissue_hint"), true);
             return;
         }
-        ItemStack license = Licenses.issueLicense(player, LicenseRank.RANK1, true);
-        if (!player.getInventory().add(license)) {
-            player.drop(license, false);
-        }
+        Licenses.deliver(player, Licenses.issueLicense(player, LicenseRank.RANK1, true));
         player.displayClientMessage(Component.translatable("ui.aerocouriers.profile.license.claimed"), true);
         BoardPackets.syncSnapshot(player);
     }

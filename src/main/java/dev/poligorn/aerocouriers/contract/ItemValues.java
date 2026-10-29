@@ -7,6 +7,7 @@ import dev.poligorn.aerocouriers.AeronauticsCouriers;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import dev.poligorn.aerocouriers.economy.MoneyScale;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceLocation;
@@ -110,7 +111,7 @@ public final class ItemValues extends SimpleJsonResourceReloadListener {
                 total += perItem(stack) * stack.getCount();
             }
         }
-        return total;
+        return MoneyScale.fromSpurs(total);
     }
 
     private static @Nullable Rarity rarityKey(String key) {

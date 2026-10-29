@@ -86,7 +86,7 @@ public final class PayloadCodecGameTests {
         BoardSnapshotPayload.BoardProfile profile = new BoardSnapshotPayload.BoardProfile(
                 "issuer", LicenseRank.RANK4, 0, 0, 0L, 0L, 0, 3, 800,
                 100, 0, 300, 1500, 5000, 15000, 90,
-                true, 1, 5, 500L, 120L, 0, 0, 1, 4);
+                true, 1, 5, 500L, 120L, 0, 0, 1, 4, true);
         BoardSnapshotPayload.BoardProfile.STREAM_CODEC.encode(buf, profile);
         buf.readerIndex(0);
         BoardSnapshotPayload.BoardProfile decoded = BoardSnapshotPayload.BoardProfile.STREAM_CODEC.decode(buf);
@@ -163,6 +163,13 @@ public final class PayloadCodecGameTests {
                 -1,
                 0,
                 true,
+                false,
+                true,
+                false,
+                45,
+                4096,
+                10.0,
+                3L,
                 false);
     }
 }

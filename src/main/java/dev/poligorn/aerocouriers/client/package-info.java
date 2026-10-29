@@ -4,7 +4,7 @@
  * {@link dev.poligorn.aerocouriers.client.BoardKeyMappings} (J), zone particles, epaulette renderer.
  * Xaero map pick: {@link dev.poligorn.aerocouriers.client.XaeroMapPicker} (no Xaero types);
  * Minimap/World Map calls live in {@code XaeroMinimapAccess} / {@code XaeroWorldMapAccess}.
- * Navigation: {@link dev.poligorn.aerocouriers.client.navigation.NavRenderer} (beam + HUD);
+ * Navigation: {@link dev.poligorn.aerocouriers.client.navigation.NavRenderer} (pickup/delivery beam);
  * order waypoints via {@link dev.poligorn.aerocouriers.client.XaeroOrderBridge} (see docs/research/xaero.md).
  */
 package dev.poligorn.aerocouriers.client;

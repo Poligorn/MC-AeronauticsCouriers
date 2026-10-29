@@ -11,10 +11,10 @@ from PIL import Image, ImageDraw, ImageFont
 ROOT = Path(__file__).resolve().parents[1]
 SPRITES = ROOT / "src/main/resources/assets/aerocouriers/textures/gui/sprites"
 
-FRAME_BORDER = 30
+FRAME_BORDER = 14
 CONTENT_INSET = 14
-ANTENNA_W, ANTENNA_H = 24, 84
-ANTENNA_BASE_H = FRAME_BORDER
+ANTENNA_W, ANTENNA_H = 24, 78
+ANTENNA_MOUNT_H = 9
 ROW_ACTION_RESERVE = 158
 GRID_STEP = 9
 SCREEN_FILL = (0x0A, 0x02, 0x00)
@@ -77,7 +77,7 @@ def nine_slice_hollow(canvas: Image.Image, patch: Image.Image, x: int, y: int, w
 
 
 def frame_pos(screen_w: int, screen_h: int, frame_w: int, frame_h: int) -> tuple[int, int]:
-    over = ANTENNA_H - ANTENNA_BASE_H
+    over = ANTENNA_H - ANTENNA_MOUNT_H
     fx = max(2, (screen_w - frame_w) // 2)
     block_top = max(2, (screen_h - frame_h - over) // 2)
     fy = block_top + over
@@ -99,7 +99,7 @@ def draw_monitor(canvas: Image.Image, fx: int, fy: int, fw: int, fh: int) -> tup
     draw_screen_background(canvas, sx, sy, sw, sh)
     nine_slice_hollow(canvas, load("tablet_frame"), fx, fy, fw, fh, (FRAME_BORDER, FRAME_BORDER, FRAME_BORDER, FRAME_BORDER))
     ax = fx + FRAME_BORDER // 2
-    ay = fy - (ANTENNA_H - ANTENNA_BASE_H)
+    ay = fy - (ANTENNA_H - ANTENNA_MOUNT_H)
     canvas.alpha_composite(load("tablet_decor_antenna").resize((ANTENNA_W, ANTENNA_H), Image.Resampling.NEAREST), (ax, ay))
     return sx, sy, sw, sh
 
@@ -178,7 +178,7 @@ def try_font(size: int = 8) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
 def render_board(w: int, h: int, tab: int) -> tuple[Image.Image, tuple[int, int, int, int]]:
     canvas = Image.new("RGBA", (w, h), (32, 32, 48, 255))
     margin = 8
-    over = ANTENNA_H - ANTENNA_BASE_H
+    over = ANTENNA_H - ANTENNA_MOUNT_H
     fw = min(int(w * 0.72), w - margin * 2)
     fh = min(int(h * 0.80), h - margin * 2 - over)
     fw = max(320, fw)
@@ -360,9 +360,12 @@ def main() -> None:
             print("--- pixel verify board_profile_480x300 (profile labels) ---")
             img_p, screen_p = render_board(width, height, 2)
             sx, sy, sw, sh = screen_p
-            d = ImageDraw.Draw(img_p)
             sample = img_p.getpixel((sx + sw // 2 + 20, sy + 50))
             print(f"  profile text sample #{sample[0]:02X}{sample[1]:02X}{sample[2]:02X} (expect orange)")
+    frame_preview = out / "tablet_frame_preview_560x400.png"
+    img, _ = render_board(560, 400, 0)
+    img.save(frame_preview)
+    print(frame_preview)
     for width, height in [(400, 300), (480, 360)]:
         path = out / f"stamp_window_{width}x{height}.png"
         render_stamp(width, height).save(path)

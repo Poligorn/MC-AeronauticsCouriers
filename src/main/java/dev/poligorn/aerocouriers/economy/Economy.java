@@ -3,8 +3,8 @@ package dev.poligorn.aerocouriers.economy;
 import java.util.UUID;
 
 /**
- * The only way the mod moves money (GDD §14.2). Amounts are in spurs. Implementations: Numismatics bank accounts
- * (optional bridge, loaded only when the mod is present) or the mod's internal balance.
+ * The only way the mod moves money (GDD §14.2). Amounts are in the active currency: Numismatics spurs, or emeralds
+ * when that backend is off ({@link MoneyScale}). Implementations: Numismatics bank accounts or {@link EmeraldEconomy}.
  */
 public interface Economy {
     long balance(UUID player);

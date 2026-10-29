@@ -55,7 +55,7 @@ ACCEPTED|IN_TRANSIT → FAILED (залог курьера + награда → �
 
 ## Реализация (итерации 2–3)
 - Вся логика переходов — только в `ContractManager` (`create/createFromStamp/accept/spawnContainer/checkContainer/forceDeliver/abandon/cancel/destroy/damage`, `tick`); команды и пакеты лишь вызывают его и показывают `Outcome`. Каждый переход сначала проверяет состояние → повтор не платит дважды.
-- Свой заказ: отказ, если `debug.allow_self_accept = false` (дефолт). При `true` — обычный `accept` на том же UUID + предупреждение в чат; денег/почты/XP не ветвим. Свой `OPEN` в лимит `maxActive` не входит.
+- Свой заказ: отказ, если `debug.allow_self_accept = false` (дефолт). При `true` — обычный `accept` на том же UUID + предупреждение в чат. Выплаты и XP не дублируются. Исключение `DAMAGED`: если ломает тот же UUID, манифест целиком уходит ему в почту (двух игроков не меняем: курьер сломал — дропа нет, пират — частичный дроп). Свой `OPEN` в лимит `maxActive` не входит.
 - `activeJobs(uuid)` — единственный счётчик перевозок; `unfinishedIssued` — только лимит создания.
 - `Contract` неизменяемый; переходы — через `withState`/`accepted` (проверяют `canTransitionTo`).
 - Время — игровые тики overworld (`ContractManager.now`); решение владельца, GDD §5.4.

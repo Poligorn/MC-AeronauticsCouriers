@@ -35,6 +35,7 @@ import org.jetbrains.annotations.Nullable;
 public final class PostStationScreen extends Screen {
     private final StationSnapshotPayload snapshot;
     private final TabletScreenChrome tabletChrome = new TabletScreenChrome(false);
+    private ScreenFit fit = ScreenFit.of(ScreenFit.DESIGN_W, ScreenFit.DESIGN_H);
     private final TabletListRowEffects listRowEffects = new TabletListRowEffects();
     private int scroll;
     private @Nullable EditBox nameField;
@@ -56,6 +57,7 @@ public final class PostStationScreen extends Screen {
 
     @Override
     protected void init() {
+        refreshFit();
         super.init();
         int cx = contentLeft();
         int cy = contentTop();
@@ -91,6 +93,9 @@ public final class PostStationScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+        refreshFit();
+        mouseX = fit.localX(mouseX);
+        mouseY = fit.localY(mouseY);
         if (tabletChrome.blocksInput(false, 0.0F)) {
             return true;
         }
@@ -108,6 +113,9 @@ public final class PostStationScreen extends Screen {
         if (tabletChrome.blocksInput(false, 0.0F)) {
             return true;
         }
+        refreshFit();
+        mouseX = fit.localX(mouseX);
+        mouseY = fit.localY(mouseY);
         if (button == 0) {
             int index = rowAt(mouseX, mouseY);
             if (index >= 0 && !isOverRowIcon((int) mouseX, (int) mouseY)) {
@@ -121,8 +129,22 @@ public final class PostStationScreen extends Screen {
     }
 
     @Override
+    public boolean mouseReleased(double mouseX, double mouseY, int button) {
+        refreshFit();
+        return super.mouseReleased(fit.localX(mouseX), fit.localY(mouseY), button);
+    }
+
+    @Override
+    public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
+        refreshFit();
+        double s = fit.scale;
+        return super.mouseDragged(fit.localX(mouseX), fit.localY(mouseY), button, dragX / s, dragY / s);
+    }
+
+    @Override
     public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        tabletChrome.layout(height, panelTop(), panelH());
+        refreshFit();
+        tabletChrome.layout(guiH(), panelTop(), panelH());
         tabletChrome.renderBackground(this, graphics, mouseX, mouseY, partialTick);
     }
 
@@ -147,15 +169,20 @@ public final class PostStationScreen extends Screen {
         hoverTip = null;
         hoverTipLines = null;
         hoverCargoComponent = null;
+        refreshFit();
+        int mx = fit.localXi(mouseX);
+        int my = fit.localYi(mouseY);
         tabletChrome.tick();
-        tabletChrome.layout(height, panelTop(), panelH());
+        graphics.pose().pushPose();
+        fit.apply(graphics);
+        tabletChrome.layout(guiH(), panelTop(), panelH());
         float cavityAlpha = tabletChrome.cavityContentAlpha(false, false, partialTick);
         tabletChrome.drawTabletBody(graphics, partialTick, () -> {
             TabletGui.drawScreenBackground(graphics, cavityLeft(), cavityTop(), cavityW(), cavityH(), partialTick);
             if (cavityAlpha > 0.001F) {
                 TabletAnim.withAlpha(graphics, cavityAlpha, () -> {
                     for (Renderable widget : renderables) {
-                        widget.render(graphics, mouseX, mouseY, partialTick);
+                        widget.render(graphics, mx, my, partialTick);
                     }
                     int cx = contentLeft();
                     int cy = contentTop();
@@ -169,15 +196,16 @@ public final class PostStationScreen extends Screen {
                     graphics.drawString(font, rep, cx, cy + (snapshot.canRename() ? 42 : 20), TabletGui.TEXT_MUTED,
                             false);
 
-                    renderOrderList(graphics, mouseX, mouseY);
-                    renderRowIconsOnTop(graphics, mouseX, mouseY, partialTick);
+                    renderOrderList(graphics, mx, my);
+                    renderRowIconsOnTop(graphics, mx, my, partialTick);
                 });
             }
             TabletGui.drawFrameChrome(graphics, panelLeft(), panelTop(), panelW(), panelH());
             tabletChrome.drawLoadingGear(graphics, cavityLeft(), cavityTop(), cavityW(), cavityH(), false, false, partialTick);
         });
-        updateRowIconHover(mouseX, mouseY);
-        captureRowHoverTips(mouseX, mouseY);
+        updateRowIconHover(mx, my);
+        captureRowHoverTips(mx, my);
+        graphics.pose().popPose();
         renderTooltips(graphics, mouseX, mouseY);
     }
 
@@ -345,8 +373,10 @@ public final class PostStationScreen extends Screen {
             return;
         }
         hoverTipLines = List.of(
-                Component.translatable("ui.aerocouriers.row.summary.reward", entry.reward()),
-                Component.translatable("ui.aerocouriers.row.summary.collateral", entry.collateral()),
+                Component.translatable("ui.aerocouriers.row.summary.reward",
+                        dev.poligorn.aerocouriers.economy.MoneyFormat.component(entry.reward())),
+                Component.translatable("ui.aerocouriers.row.summary.collateral",
+                        dev.poligorn.aerocouriers.economy.MoneyFormat.component(entry.collateral())),
                 Component.translatable("ui.aerocouriers.row.summary.rank", entry.requiredRank().displayName()),
                 Component.translatable("ui.aerocouriers.row.summary.deadline", entry.deadlineMinutes()),
                 Component.translatable("ui.aerocouriers.row.summary.time", entry.minutesLeft()),
@@ -390,15 +420,15 @@ public final class PostStationScreen extends Screen {
     private void renderTooltips(GuiGraphics graphics, int mouseX, int mouseY) {
         if (hoverCargoComponent != null) {
             List<Component> lines = hoverTip == null ? List.of() : List.of(hoverTip);
-            graphics.renderTooltip(font, lines, Optional.of(hoverCargoComponent), mouseX, mouseY);
+            TooltipDraw.render(graphics, font, lines, Optional.of(hoverCargoComponent), mouseX, mouseY);
             return;
         }
         if (hoverTipLines != null && !hoverTipLines.isEmpty()) {
-            graphics.renderTooltip(font, hoverTipLines, Optional.empty(), mouseX, mouseY);
+            TooltipDraw.render(graphics, font, hoverTipLines, Optional.empty(), mouseX, mouseY);
             return;
         }
         if (hoverTip != null) {
-            graphics.renderTooltip(font, List.of(hoverTip), Optional.empty(), mouseX, mouseY);
+            TooltipDraw.render(graphics, font, List.of(hoverTip), Optional.empty(), mouseX, mouseY);
         }
     }
 
@@ -478,19 +508,31 @@ public final class PostStationScreen extends Screen {
     }
 
     private int panelLeft() {
-        return (width - panelW()) / 2;
+        return (guiW() - panelW()) / 2;
     }
 
     private int panelTop() {
-        return TabletGui.frameTop(height, panelH());
+        return TabletGui.frameTop(guiH(), panelH());
     }
 
     private int panelW() {
-        return Math.min(440, width - 32);
+        return Math.min(440, guiW() - 32);
     }
 
     private int panelH() {
-        return Math.min(360, Math.max(220, TabletGui.maxFrameHeight(height)));
+        return Math.min(360, Math.max(220, TabletGui.maxFrameHeight(guiH())));
+    }
+
+    private int guiW() {
+        return fit.shrinking() ? fit.layoutW : width;
+    }
+
+    private int guiH() {
+        return fit.shrinking() ? fit.layoutH : height;
+    }
+
+    private void refreshFit() {
+        fit = ScreenFit.of(width, height);
     }
 
     @Override

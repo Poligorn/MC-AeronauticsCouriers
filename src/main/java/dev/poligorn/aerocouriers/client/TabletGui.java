@@ -29,21 +29,20 @@ public final class TabletGui {
     private static final int TOOLTIP_BG = 0xF02C0900;
     private static final int GRID_STEP = 9;
 
-    /** Nine-slice brass + bevel before the screen cavity (matches {@code tablet_frame}). */
-    public static final int FRAME_BORDER = 30;
+    /** Nine-slice thin brass bezel (matches {@code tablet_frame}). */
+    public static final int FRAME_BORDER = 14;
     /** Inset from the inner screen cavity to tabs, headings, lists, and chrome (all tablet UIs). */
     public static final int CONTENT_INSET = 14;
-    /** Antenna sprite size (matches {@code gen_tablet_antenna}). */
     public static final int ANTENNA_W = 24;
-    public static final int ANTENNA_H = 84;
-    /** Y center of the tip lamp in {@link #ANTENNA_H} sprite space. */
+    /** Sprite height (long mast + lamp + steel mount); see {@code gen_tablet_antenna}. */
+    public static final int ANTENNA_H = 78;
     public static final int ANTENNA_LAMP_CY = 6;
-    /** Brass foot height in the sprite; equals top {@link #FRAME_BORDER} bezel when drawn flush. */
-    public static final int ANTENNA_BASE_H = FRAME_BORDER;
+    /** Steel base on the top bezel ({@code [frameY, frameY + ANTENNA_MOUNT_H)}). */
+    public static final int ANTENNA_MOUNT_H = 9;
 
     /** Mast + bulb pixels drawn above the frame top (sprite extends upward from the bezel). */
     public static int antennaOverhangTop() {
-        return ANTENNA_H - ANTENNA_BASE_H;
+        return ANTENNA_H - ANTENNA_MOUNT_H;
     }
 
     /** Antenna X offset from frame left (top-left on the bezel). */
@@ -51,7 +50,7 @@ public final class TabletGui {
         return frameX + FRAME_BORDER / 2;
     }
 
-    /** Sprite Y so the foot covers {@code [frameY, frameY + ANTENNA_BASE_H)}. */
+    /** Sprite Y so the steel mount covers {@code [frameY, frameY + ANTENNA_MOUNT_H)}. */
     public static int antennaDrawY(int frameY) {
         return frameY - antennaOverhangTop();
     }
@@ -175,21 +174,13 @@ public final class TabletGui {
                 graphics.fill(x + 1, y + 1, x + w - 1, y + h - 1, 0x30FFAF55);
                 graphics.renderOutline(x, y, w, h, 0xFFFFAF55);
             } else if (hoverStrength > 0.001F) {
-                graphics.fill(x + 1, y + 1, x + w - 1, y + h - 1, TabletAnim.withAlpha(0x30FFAF55, hoverStrength));
-                if (hoverStrength > 0.35F) {
-                    graphics.renderOutline(x, y, w, h, TabletAnim.withAlpha(0xFFFFAF55, hoverStrength));
+                graphics.fill(x + 1, y + 1, x + w - 1, y + h - 1, TabletAnim.withAlpha(0xFF3A2414, hoverStrength * 0.72F));
+                if (hoverStrength > 0.45F) {
+                    graphics.renderOutline(x, y, w, h, TabletAnim.withAlpha(0xFF8A5A32, hoverStrength * 0.65F));
                 }
             }
         });
         graphics.pose().popPose();
-    }
-
-    public static void drawScrollbar(GuiGraphics graphics, int x, int y, int h, float progress, float thumb) {
-        int barH = Math.max(12, h);
-        graphics.blitSprite(AerocouriersGuiSprites.TABLET_SCROLLER_TRACK, x, y, 6, barH);
-        int thumbH = Math.max(9, Math.round(barH * thumb));
-        int thumbY = y + Math.round((barH - thumbH) * progress);
-        graphics.blitSprite(AerocouriersGuiSprites.TABLET_SCROLLER, x, thumbY, 6, thumbH);
     }
 
     public static void drawSpeechTooltip(GuiGraphics graphics, Font font, Component text, int mouseX, int mouseY,

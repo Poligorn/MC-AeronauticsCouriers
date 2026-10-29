@@ -2,7 +2,11 @@ package dev.poligorn.aerocouriers.client;
 
 import dev.poligorn.aerocouriers.AeronauticsCouriers;
 import java.lang.reflect.Field;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import org.jetbrains.annotations.Nullable;
@@ -16,7 +20,6 @@ import xaero.hud.minimap.BuiltInHudModules;
 import xaero.hud.minimap.module.MinimapSession;
 import xaero.hud.minimap.waypoint.WaypointColor;
 import xaero.hud.minimap.waypoint.WaypointPurpose;
-import xaero.hud.minimap.waypoint.thirdparty.ThirdPartyWaypointManager;
 import xaero.hud.minimap.waypoint.thirdparty.ThirdPartyWaypoints;
 import xaero.hud.minimap.world.container.MinimapWorldContainer;
 import xaero.hud.minimap.world.container.MinimapWorldRootContainer;
@@ -30,9 +33,12 @@ final class XaeroOrderWaypoints {
     static final ResourceLocation ORIGIN = AeronauticsCouriers.id("orders");
 
     private static final Set<String> PERSISTENT_IDS = new HashSet<>();
+    /**
+     * Dimension bucket of every waypoint we placed. Xaero keeps third-party waypoints per dimension container (the
+     * session has no shared manager), so removal must go to the same bucket.
+     */
+    private static final Map<String, ResourceKey<Level>> PLACED = new HashMap<>();
     private static @Nullable UUID previewOrderId;
-    private static @Nullable MinimapSession cachedSession;
-    private static @Nullable ThirdPartyWaypointManager cachedManager;
 
     private XaeroOrderWaypoints() {
     }
@@ -80,6 +86,7 @@ final class XaeroOrderWaypoints {
         }
     }
 
+    /** Active haul: yellow pickup or blue delivery waypoint, replaced in place when the haul changes stage. */
     static void markPersistent(
             UUID orderId,
             ResourceKey<Level> dimension,
@@ -122,25 +129,19 @@ final class XaeroOrderWaypoints {
             PERSISTENT_IDS.remove(sid);
             removeByStringId(sid, null);
         }
+        purgeExcept(new HashSet<>(PERSISTENT_IDS));
     }
 
     static void clearAll() {
         PERSISTENT_IDS.clear();
         previewOrderId = null;
-        if (!minimapLoaded()) {
-            return;
-        }
-        try {
-            MinimapSession session = BuiltInHudModules.MINIMAP.getCurrentSession();
-            if (session == null) {
-                return;
+        if (minimapLoaded()) {
+            for (String id : Set.copyOf(PLACED.keySet())) {
+                removeByStringId(id, null);
             }
-            ThirdPartyWaypointManager manager = manager(session);
-            if (manager != null) {
-                manager.clearOrigin(ORIGIN);
-            }
-        } catch (Throwable ignored) {
+            wipeOrigin();
         }
+        PLACED.clear();
     }
 
     static boolean openWorldMapAt(BlockPos pos) {
@@ -180,20 +181,32 @@ final class XaeroOrderWaypoints {
         if (!persistent && PERSISTENT_IDS.contains(id)) {
             return;
         }
+        WaypointColor color = !persistent ? WaypointColor.GOLD
+                : symbolKind == XaeroWaypointSymbols.Kind.PICKUP ? WaypointColor.YELLOW : WaypointColor.AQUA;
         try {
+            ResourceKey<Level> previous = PLACED.get(id);
+            if (previous != null && !previous.equals(dimension)) {
+                removeByStringId(id, previous);
+            }
             ThirdPartyWaypoints bucket = bucket(dimension);
+            String symbol = persistent
+                    ? XaeroWaypointSymbols.persistentLetter(symbolKind)
+                    : XaeroWaypointSymbols.resolve(label, symbolKind);
             if (bucket == null) {
-                XaeroLegacyWaypoints.placeFallback(orderId, dimension, pos, label, symbolKind, persistent);
+                XaeroLegacyWaypoints.placeFallback(orderId, dimension, pos, label, symbol, persistent, color);
                 return;
             }
             bucket.remove(id);
-            String symbol = XaeroWaypointSymbols.resolve(label, symbolKind);
             bucket.add(id, new Waypoint(
                     pos.getX(), pos.getY(), pos.getZ(),
                     label, symbol,
-                    WaypointColor.GOLD, WaypointPurpose.NORMAL, true));
+                    color, WaypointPurpose.NORMAL, true));
+            PLACED.put(id, dimension);
         } catch (Throwable ignored) {
-            XaeroLegacyWaypoints.placeFallback(orderId, dimension, pos, label, symbolKind, persistent);
+            String symbol = persistent
+                    ? XaeroWaypointSymbols.persistentLetter(symbolKind)
+                    : XaeroWaypointSymbols.resolve(label, symbolKind);
+            XaeroLegacyWaypoints.placeFallback(orderId, dimension, pos, label, symbol, persistent, color);
         }
     }
 
@@ -208,8 +221,13 @@ final class XaeroOrderWaypoints {
         if (PERSISTENT_IDS.contains(id)) {
             return;
         }
+        ResourceKey<Level> placedIn = dimension != null ? dimension : PLACED.get(id);
+        PLACED.remove(id);
+        if (placedIn == null) {
+            return;
+        }
         try {
-            ThirdPartyWaypoints bucket = dimension == null ? bucketAny() : bucket(dimension);
+            ThirdPartyWaypoints bucket = bucket(placedIn);
             if (bucket != null) {
                 bucket.remove(id);
             }
@@ -234,6 +252,76 @@ final class XaeroOrderWaypoints {
         }
     }
 
+    /**
+     * Drops our waypoints that are no longer an active haul, including copies left in another dimension container
+     * after a rejoin (the in-memory {@link #PLACED} map does not survive a new session).
+     */
+    private static void purgeExcept(Set<String> keep) {
+        visitOrigins((container, bucket) -> {
+            List<String> drop = new ArrayList<>();
+            for (String id : bucket.getIds()) {
+                if (!keep.contains(id)) {
+                    drop.add(id);
+                    continue;
+                }
+                ResourceKey<Level> placed = PLACED.get(id);
+                ResourceKey<Level> here = container.getEquivalentDimKey();
+                if (placed != null && here != null && !placed.equals(here)) {
+                    drop.add(id);
+                }
+            }
+            for (String id : drop) {
+                bucket.remove(id);
+                if (!keep.contains(id)) {
+                    PLACED.remove(id);
+                }
+            }
+        });
+    }
+
+    /** Third-party waypoints are session memory; wipe every container so a rejoin cannot stack a second copy. */
+    private static void wipeOrigin() {
+        visitOrigins((container, bucket) -> {
+            List<String> ids = new ArrayList<>();
+            bucket.getIds().forEach(ids::add);
+            for (String id : ids) {
+                bucket.remove(id);
+            }
+        });
+    }
+
+    private interface OriginVisitor {
+        void accept(MinimapWorldContainer container, ThirdPartyWaypoints bucket);
+    }
+
+    private static void visitOrigins(OriginVisitor visitor) {
+        if (!minimapLoaded()) {
+            return;
+        }
+        try {
+            MinimapSession session = BuiltInHudModules.MINIMAP.getCurrentSession();
+            if (session == null) {
+                return;
+            }
+            MinimapWorldRootContainer root = session.getWorldManager().getAutoRootContainer();
+            visitOne(root, visitor);
+            for (MinimapWorldContainer sub : root.getSubContainers()) {
+                visitOne(sub, visitor);
+            }
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private static void visitOne(MinimapWorldContainer container, OriginVisitor visitor) {
+        try {
+            ThirdPartyWaypoints bucket = container.getThirdPartyWaypointManager().get(ORIGIN);
+            if (bucket != null && !bucket.isEmpty()) {
+                visitor.accept(container, bucket);
+            }
+        } catch (Throwable ignored) {
+        }
+    }
+
     private static @Nullable ThirdPartyWaypoints bucket(ResourceKey<Level> dimension) {
         MinimapSession session = BuiltInHudModules.MINIMAP.getCurrentSession();
         if (session == null) {
@@ -245,65 +333,7 @@ final class XaeroOrderWaypoints {
             MinimapWorldContainer container = root.addSubContainer(root.getPath().resolve(node));
             return container.getThirdPartyWaypointManager().get(ORIGIN);
         } catch (Throwable ignored) {
-            return bucketLegacy(session);
-        }
-    }
-
-    private static @Nullable ThirdPartyWaypoints bucketAny() {
-        MinimapSession session = BuiltInHudModules.MINIMAP.getCurrentSession();
-        if (session == null) {
             return null;
         }
-        ThirdPartyWaypoints direct = bucketLegacy(session);
-        if (direct != null) {
-            return direct;
-        }
-        Minecraft minecraft = Minecraft.getInstance();
-        if (minecraft.level != null) {
-            return bucket(minecraft.level.dimension());
-        }
-        return null;
-    }
-
-    private static @Nullable ThirdPartyWaypoints bucketLegacy(MinimapSession session) {
-        ThirdPartyWaypointManager manager = manager(session);
-        return manager == null ? null : manager.get(ORIGIN);
-    }
-
-    private static @Nullable ThirdPartyWaypointManager manager(MinimapSession session) {
-        if (session == null) {
-            return null;
-        }
-        if (cachedManager != null && cachedSession == session) {
-            return cachedManager;
-        }
-        ThirdPartyWaypointManager resolved = findManagerField(session);
-        if (resolved == null) {
-            resolved = new ThirdPartyWaypointManager(session);
-        }
-        cachedSession = session;
-        cachedManager = resolved;
-        return resolved;
-    }
-
-    private static @Nullable ThirdPartyWaypointManager findManagerField(MinimapSession session) {
-        Class<?> type = session.getClass();
-        while (type != null) {
-            for (Field field : type.getDeclaredFields()) {
-                if (!ThirdPartyWaypointManager.class.isAssignableFrom(field.getType())) {
-                    continue;
-                }
-                try {
-                    field.setAccessible(true);
-                    Object value = field.get(session);
-                    if (value instanceof ThirdPartyWaypointManager manager) {
-                        return manager;
-                    }
-                } catch (ReflectiveOperationException ignored) {
-                }
-            }
-            type = type.getSuperclass();
-        }
-        return null;
     }
 }

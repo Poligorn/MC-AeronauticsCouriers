@@ -323,6 +323,66 @@ public final class ContractGameTests {
         helper.succeed();
     }
 
+    /**
+     * Self-haul damage used to discard the manifest because the breaker UUID matched the courier, even though that
+     * player is also the customer. Cargo comes back through the mailbox; a different courier still drops nothing.
+     */
+    @GameTest(template = CouriersGameTests.EMPTY)
+    public static void selfAcceptDamageReturnsCargoToTheSamePlayer(GameTestHelper helper) {
+        Fixture f = new Fixture(helper);
+        var curios = CuriosApi.getCuriosInventory(f.issuer).orElseThrow();
+        curios.setEquippedCurio(Licenses.CURIOS_SLOT, 0, new ItemStack(ModItems.PILOT_LICENSE.get()));
+        Licenses.tickWorn(f.issuer, Licenses.findLicense(f.issuer).orElseThrow());
+        ContractManager.registerTestPlayer(f.issuer);
+        f.economy.deposit(f.issuer.getUUID(), 200, "test");
+        CouriersServerConfig.ALLOW_SELF_ACCEPT.set(true);
+        try {
+            Contract contract = f.create(20, 30);
+            f.expect(f.manager.accept(f.issuer, contract.id()), true, "self-accept");
+            f.spawn(contract);
+            Vec3 site = Vec3.atCenterOf(helper.absolutePos(TARGET));
+            f.expect(f.manager.damage(contract.id(), new ContractManager.DropSite(helper.getLevel(), site, f.issuer)),
+                    true, "self damage");
+            helper.assertValueEqual(f.state(contract), ContractState.FAILED, "failed once");
+            f.expect(f.manager.damage(contract.id(), new ContractManager.DropSite(helper.getLevel(), site, f.issuer)),
+                    false, "second damage is a no-op");
+            helper.assertValueEqual(f.dropped(site, Items.COBBLESTONE) + f.dropped(site, Items.IRON_INGOT), 0,
+                    "self-haul does not also drop the cargo");
+            helper.assertValueEqual(f.economy.balance(f.issuer.getUUID()), 199L,
+                    "200 − fee 1, collateral and reward return to the same account");
+            List<ItemStack> mailed = Mailbox.get(f.server()).contents(f.issuer.getUUID());
+            helper.assertValueEqual(count(mailed, Items.COBBLESTONE), 32, "cobblestone mailed back");
+            helper.assertValueEqual(count(mailed, Items.IRON_INGOT), 5, "iron mailed back");
+            helper.assertTrue(Escrow.get(f.server()).holding(contract.id()).isEmpty(), "escrow empty");
+        } finally {
+            CouriersServerConfig.ALLOW_SELF_ACCEPT.set(false);
+        }
+        helper.succeed();
+    }
+
+    /** A sealed crate that disappears is not expired on the same tick; after the grace it is, and the cargo is mailed. */
+    @GameTest(template = CouriersGameTests.EMPTY)
+    public static void removedStampExpiresAfterGraceAndMailsCargo(GameTestHelper helper) {
+        Fixture f = new Fixture(helper);
+        var curios = CuriosApi.getCuriosInventory(f.issuer).orElseThrow();
+        curios.setEquippedCurio(Licenses.CURIOS_SLOT, 0, new ItemStack(ModItems.PILOT_LICENSE.get()));
+        Licenses.tickWorn(f.issuer, Licenses.findLicense(f.issuer).orElseThrow());
+        ContractManager.registerTestPlayer(f.issuer);
+        f.economy.deposit(f.issuer.getUUID(), 100, "test");
+        Contract contract = f.stamp(20, 20);
+        long now = helper.getLevel().getGameTime();
+        helper.getLevel().removeBlock(helper.absolutePos(CHEST), false);
+        f.manager.containerRemoved(contract.id(), now);
+        f.manager.tick(f.server(), now + 1);
+        helper.assertValueEqual(f.state(contract), ContractState.OPEN, "still open during the grace");
+        helper.assertFalse(Escrow.get(f.server()).holding(contract.id()).items().isEmpty(), "escrow kept during grace");
+        f.manager.tick(f.server(), now + ContractManager.MISSING_GRACE_TICKS);
+        helper.assertValueEqual(f.state(contract), ContractState.EXPIRED, "expired after the grace");
+        helper.assertValueEqual(count(Mailbox.get(f.server()).contents(f.issuer.getUUID()), Items.COBBLESTONE), 32,
+                "cargo mailed, not deleted");
+        helper.succeed();
+    }
+
     /** Stamp self-accept: the sealed crate is already there, so accept must not leave a stuck ACCEPTED slot. */
     @GameTest(template = CouriersGameTests.EMPTY, timeoutTicks = 200)
     public static void stampSelfAcceptThenDeliverFreesTheSlot(GameTestHelper helper) {
@@ -555,6 +615,16 @@ public final class ContractGameTests {
         helper.assertValueEqual(Mailbox.get(f.server()).contents(f.courier.getUUID()).size(), 2,
                 "cargo of an abandoned in-transit contract goes to the courier");
         helper.succeed();
+    }
+
+    private static int count(List<ItemStack> stacks, net.minecraft.world.item.Item item) {
+        int total = 0;
+        for (ItemStack stack : stacks) {
+            if (stack.is(item)) {
+                total += stack.getCount();
+            }
+        }
+        return total;
     }
 
     private static boolean sameStacks(List<ItemStack> a, List<ItemStack> b) {

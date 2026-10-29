@@ -110,6 +110,9 @@ public final class CouriersCommands {
         root.then(ContractCommands.balance());
         root.then(ContractCommands.money());
         root.then(StationCommands.station());
+        if (!net.neoforged.fml.loading.FMLEnvironment.production) {
+            root.then(DevSeedCommands.dev());
+        }
 
         dispatcher.register(root);
     }
@@ -172,11 +175,15 @@ public final class CouriersCommands {
     private static int giveLicense(CommandContext<CommandSourceStack> ctx, String rankName) throws CommandSyntaxException {
         Collection<ServerPlayer> targets = EntityArgument.getPlayers(ctx, "targets");
         for (ServerPlayer target : targets) {
-            LicenseRank rank = rankName == null ? Licenses.rankOf(target) : LicenseRank.bySerializedName(rankName);
-            ItemStack license = Licenses.issueLicense(target, rank, false);
-            if (!target.getInventory().add(license)) {
-                target.drop(license, false);
+            LicenseRank rank = rankName == null ? Licenses.effectiveRank(target) : LicenseRank.bySerializedName(rankName);
+            if (!rank.isAdmin()) {
+                CourierProfile profile = Licenses.profile(target);
+                int floor = RankRules.nextThreshold(LicenseRank.byLevel(Math.max(1, rank.level() - 1))).orElse(0);
+                if (profile.xp() < floor) {
+                    Licenses.setProfile(target, profile.withXp(floor));
+                }
             }
+            Licenses.deliver(target, Licenses.issueLicense(target, rank, false));
             ctx.getSource().sendSuccess(() -> Component.translatable("commands.aerocouriers.license.given",
                     target.getDisplayName(), rank.displayName()), true);
         }

@@ -6,6 +6,7 @@ import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.LongArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
+import com.mojang.brigadier.builder.RequiredArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import dev.poligorn.aerocouriers.admin.AdminActions;
@@ -34,6 +35,7 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.commands.arguments.EntityArgument;
+import net.minecraft.commands.arguments.selector.EntitySelector;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -77,35 +79,39 @@ public final class AdminCommands {
     }
 
     private static LiteralArgumentBuilder<CommandSourceStack> playerBranch() {
-        var target = Commands.argument("player", EntityArgument.player());
         LiteralArgumentBuilder<CommandSourceStack> root = Commands.literal("player");
-        root.then(Commands.literal("rank").then(target
+        root.then(Commands.literal("rank").then(target()
                 .then(Commands.argument("rank", StringArgumentType.word())
                         .suggests((ctx, b) -> SharedSuggestionProvider.suggest(
                                 Arrays.stream(LicenseRank.values()).map(LicenseRank::getSerializedName), b))
                         .executes(AdminCommands::playerRank))));
         LiteralArgumentBuilder<CommandSourceStack> xp = Commands.literal("xp");
-        xp.then(Commands.literal("add").then(target.then(Commands.argument("amount", IntegerArgumentType.integer())
+        xp.then(Commands.literal("add").then(target().then(Commands.argument("amount", IntegerArgumentType.integer())
                 .executes(ctx -> playerXp(ctx, true)))));
-        xp.then(Commands.literal("set").then(target.then(Commands.argument("amount", IntegerArgumentType.integer())
+        xp.then(Commands.literal("set").then(target().then(Commands.argument("amount", IntegerArgumentType.integer())
                 .executes(ctx -> playerXp(ctx, false)))));
         root.then(xp);
-        root.then(Commands.literal("rep").then(target
+        root.then(Commands.literal("rep").then(target()
                 .then(Commands.argument("station", StringArgumentType.word())
                         .suggests((ctx, b) -> SharedSuggestionProvider.suggest(
                                 StationAtlas.get(ctx.getSource().getServer()).all().stream().map(
                                         StationAtlas.Station::name), b))
                         .then(Commands.argument("value", IntegerArgumentType.integer())
                                 .executes(AdminCommands::playerRep)))));
-        root.then(Commands.literal("license").then(target
+        root.then(Commands.literal("license").then(target()
                 .then(Commands.argument("rank", StringArgumentType.word())
                         .suggests((ctx, b) -> SharedSuggestionProvider.suggest(
                                 Arrays.stream(LicenseRank.values()).map(LicenseRank::getSerializedName), b))
                         .executes(AdminCommands::playerLicense))));
-        root.then(Commands.literal("waybill").then(target.executes(AdminCommands::playerWaybill)));
-        root.then(Commands.literal("money").then(target.then(Commands.argument("amount", LongArgumentType.longArg(0))
+        root.then(Commands.literal("waybill").then(target().executes(AdminCommands::playerWaybill)));
+        root.then(Commands.literal("money").then(target().then(Commands.argument("amount", LongArgumentType.longArg(0))
                 .executes(AdminCommands::playerMoney))));
         return root;
+    }
+
+    // Brigadier merges children of a reused builder, so every branch needs its own argument node.
+    private static RequiredArgumentBuilder<CommandSourceStack, EntitySelector> target() {
+        return Commands.argument("player", EntityArgument.player());
     }
 
     private static LiteralArgumentBuilder<CommandSourceStack> economyBranch() {
@@ -215,13 +221,7 @@ public final class AdminCommands {
     private static int playerLicense(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
         ServerPlayer target = EntityArgument.getPlayer(ctx, "player");
         LicenseRank rank = LicenseRank.bySerializedName(StringArgumentType.getString(ctx, "rank"));
-        ItemStack license = Licenses.issueLicense(target, rank, false);
-        if (!target.getInventory().add(license)) {
-            target.drop(license, false);
-        }
-        return report(ctx.getSource(), new ContractManager.Outcome(true,
-                Component.translatable("commands.aerocouriers.license.given", target.getDisplayName(), rank.displayName()),
-                Optional.empty()));
+        return report(ctx.getSource(), AdminActions.grantLicense(target, rank));
     }
 
     private static int playerWaybill(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
@@ -241,7 +241,8 @@ public final class AdminCommands {
         Economies.get(ctx.getSource().getServer()).deposit(target.getUUID(), amount, "admin");
         long balance = Economies.get(ctx.getSource().getServer()).balance(target.getUUID());
         return report(ctx.getSource(), new ContractManager.Outcome(true,
-                Component.translatable("contract.aerocouriers.balance", target.getDisplayName(), balance),
+                Component.translatable("contract.aerocouriers.balance", target.getDisplayName(),
+                        dev.poligorn.aerocouriers.economy.MoneyFormat.component(balance)),
                 Optional.empty()));
     }
 
@@ -264,8 +265,9 @@ public final class AdminCommands {
         }
         ResourceLocation id = BuiltInRegistries.ITEM.getKey(hand.getItem());
         if (value) {
-            long v = ItemValues.perItem(hand);
-            ctx.getSource().sendSuccess(() -> Component.translatable("admin.aerocouriers.economy.value_show", id, v), false);
+            long v = dev.poligorn.aerocouriers.economy.MoneyScale.fromSpurs(ItemValues.perItem(hand));
+            ctx.getSource().sendSuccess(() -> Component.translatable("admin.aerocouriers.economy.value_show", id,
+                    dev.poligorn.aerocouriers.economy.MoneyFormat.component(v)), false);
         } else {
             double w = Weights.perItem(hand);
             ctx.getSource().sendSuccess(() -> Component.translatable("admin.aerocouriers.economy.weight_show", id, w), false);

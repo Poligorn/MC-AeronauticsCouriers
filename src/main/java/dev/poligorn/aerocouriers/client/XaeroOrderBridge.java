@@ -73,7 +73,9 @@ public final class XaeroOrderBridge {
             XaeroWaypointSymbols.Kind kind = zone.delivery()
                     ? XaeroWaypointSymbols.Kind.DELIVERY
                     : XaeroWaypointSymbols.Kind.PICKUP;
-            String label = zone.contract();
+            String label = net.minecraft.network.chat.Component.translatable(zone.delivery()
+                    ? "ui.aerocouriers.waypoint.delivery" : "ui.aerocouriers.waypoint.pickup", zone.contract())
+                    .getString();
             XaeroOrderWaypoints.markPersistent(zone.orderId(), zone.dimension(), zone.pos(), label, kind);
         }
         XaeroOrderWaypoints.syncPersistent(seen);

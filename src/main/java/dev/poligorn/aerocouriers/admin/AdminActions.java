@@ -128,10 +128,7 @@ public final class AdminActions {
             CourierProfile profile = Licenses.profile(target);
             Licenses.setProfile(target, profile.withXp(minimumXp(rank)));
         }
-        ItemStack license = Licenses.issueLicense(target, rank, false);
-        if (!target.getInventory().add(license)) {
-            target.drop(license, false);
-        }
+        Licenses.deliver(target, Licenses.issueLicense(target, rank, false));
         return new ContractManager.Outcome(true,
                 Component.translatable("commands.aerocouriers.license.given", target.getDisplayName(), rank.displayName()),
                 Optional.empty());
@@ -141,7 +138,8 @@ public final class AdminActions {
         Economies.get(target.server).deposit(target.getUUID(), amount, "admin");
         long balance = Economies.get(target.server).balance(target.getUUID());
         return new ContractManager.Outcome(true,
-                Component.translatable("contract.aerocouriers.balance", target.getDisplayName(), balance),
+                Component.translatable("contract.aerocouriers.balance", target.getDisplayName(),
+                        dev.poligorn.aerocouriers.economy.MoneyFormat.component(balance)),
                 Optional.empty());
     }
 
@@ -187,13 +185,16 @@ public final class AdminActions {
         }
         ResourceLocation id = BuiltInRegistries.ITEM.getKey(hand.getItem());
         if (set) {
-            WorldCargoOverrides.get(admin.server).setValue(id, valueSpurs);
+            long stored = dev.poligorn.aerocouriers.economy.MoneyScale.toSpurs(valueSpurs);
+            WorldCargoOverrides.get(admin.server).setValue(id, stored);
             return new ContractManager.Outcome(true,
-                    Component.translatable("admin.aerocouriers.economy.value_set", id, valueSpurs), Optional.empty());
+                    Component.translatable("admin.aerocouriers.economy.value_set", id,
+                            dev.poligorn.aerocouriers.economy.MoneyFormat.component(valueSpurs)), Optional.empty());
         }
-        long shown = ItemValues.perItem(hand);
+        long shown = dev.poligorn.aerocouriers.economy.MoneyScale.fromSpurs(ItemValues.perItem(hand));
         return new ContractManager.Outcome(true,
-                Component.translatable("admin.aerocouriers.economy.value_show", id, shown), Optional.empty());
+                Component.translatable("admin.aerocouriers.economy.value_show", id,
+                        dev.poligorn.aerocouriers.economy.MoneyFormat.component(shown)), Optional.empty());
     }
 
     public static ContractManager.Outcome handWeight(ServerPlayer admin, boolean set, double weight) {

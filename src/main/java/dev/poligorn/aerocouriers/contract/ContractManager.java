@@ -3,10 +3,13 @@ package dev.poligorn.aerocouriers.contract;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import dev.poligorn.aerocouriers.AeronauticsCouriers;
+import dev.poligorn.aerocouriers.cargo.CargoBlock;
+import dev.poligorn.aerocouriers.cargo.CargoContainerBlock;
 import dev.poligorn.aerocouriers.cargo.CargoContainerBlockEntity;
 import dev.poligorn.aerocouriers.cargo.CargoSize;
 import dev.poligorn.aerocouriers.cargo.CargoSpawner;
 import dev.poligorn.aerocouriers.cargo.CargoTracker;
+import dev.poligorn.aerocouriers.cargo.SableBridge;
 import dev.poligorn.aerocouriers.config.CouriersServerConfig;
 import dev.poligorn.aerocouriers.item.Waybills;
 import dev.poligorn.aerocouriers.economy.Economies;
@@ -21,11 +24,13 @@ import dev.poligorn.aerocouriers.village.StationContractSource;
 import dev.poligorn.aerocouriers.village.StationReputation;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
@@ -48,6 +53,7 @@ import net.minecraft.world.Container;
 import net.minecraft.world.Containers;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.saveddata.SavedData;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
@@ -76,6 +82,7 @@ public final class ContractManager extends SavedData {
     /** A container block that disappeared and did not report from anywhere else for this long is destroyed. */
     public static final long MISSING_GRACE_TICKS = 60;
     private static final long TICK_INTERVAL = 20;
+    private static final int PICKUP_MARGIN = 4;
     private static final long BLOCKED_NOTICE_INTERVAL = 60L * 20;
 
     public enum FailReason {
@@ -123,6 +130,11 @@ public final class ContractManager extends SavedData {
     /** Failures of couriers who were offline when their contract failed; applied to the profile on login. */
     private final Map<UUID, Integer> pendingFailures = new HashMap<>();
     private final List<Delivery> recentDeliveries = new ArrayList<>();
+    /**
+     * IN_TRANSIT contracts whose container has left the pickup area. Stamp/NPC crates switch to IN_TRANSIT on accept
+     * while still standing at the pickup, so the state alone cannot tell the courier where to fly next.
+     */
+    private final Set<UUID> pickedUp = new HashSet<>();
 
     // Transient, rebuilt after a restart.
     private final Map<UUID, Integer> stillChecks = new HashMap<>();
@@ -204,7 +216,9 @@ public final class ContractManager extends SavedData {
     /** What the courier loses on failure — shown before and on acceptance (owner's decision, GDD §7.2 / §6.3). */
     public static Component riskLine(Contract contract) {
         String key = contract.type().isNpc() ? "contract.aerocouriers.risk.npc" : "contract.aerocouriers.risk";
-        return Component.translatable(key, contract.collateral(), contract.reward());
+        return Component.translatable(key,
+                dev.poligorn.aerocouriers.economy.MoneyFormat.component(contract.collateral()),
+                dev.poligorn.aerocouriers.economy.MoneyFormat.component(contract.reward()));
     }
 
     // ---- transitions ----
@@ -255,21 +269,24 @@ public final class ContractManager extends SavedData {
         double distance = ContractDistances.pricingBlocks(origin, destination);
         long minReward = Math.max(1, Pricing.minReward(distance, weight));
         if (reward < minReward) {
-            return Outcome.error("reward_too_low", minReward);
+            return Outcome.error("reward_too_low", dev.poligorn.aerocouriers.economy.MoneyFormat.component(minReward));
         }
         if (collateral < 0) {
             return Outcome.error("negative_collateral");
         }
         long minCollateral = Pricing.minP2pCollateral(reward, manifest);
         if (collateral < minCollateral) {
-            return Outcome.error("collateral_below_minimum", minCollateral);
+            return Outcome.error("collateral_below_minimum",
+                    dev.poligorn.aerocouriers.economy.MoneyFormat.component(minCollateral));
         }
 
         UUID id = UUID.randomUUID();
         long fee = Pricing.fee(reward, size.get());
         Economy economy = Economies.get(server);
         if (!economy.withdraw(issuer.getUUID(), reward + fee, "create:" + id)) {
-            return Outcome.error("not_enough_money", reward + fee, economy.balance(issuer.getUUID()));
+            return Outcome.error("not_enough_money",
+                    dev.poligorn.aerocouriers.economy.MoneyFormat.component(reward + fee),
+                    dev.poligorn.aerocouriers.economy.MoneyFormat.component(economy.balance(issuer.getUUID())));
         }
         Optional<OriginContainerSnapshot> originSnapshot = Optional.empty();
         if (issuer.level() instanceof ServerLevel originLevel) {
@@ -291,7 +308,9 @@ public final class ContractManager extends SavedData {
         recordIssuerOrder(issuer, size.get(), reward, weight);
         AeronauticsCouriers.LOGGER.info("[contract] {} created by {}: {} stacks, W={}, D={}, reward={}, fee={}, collateral={}",
                 id, issuer.getGameProfile().getName(), manifest.size(), weight, (long) distance, reward, fee, collateral);
-        return Outcome.ok(contract, "created", contract.shortId(), reward, fee,
+        return Outcome.ok(contract, "created", contract.shortId(),
+                dev.poligorn.aerocouriers.economy.MoneyFormat.component(reward),
+                dev.poligorn.aerocouriers.economy.MoneyFormat.component(fee),
                 contract.requiredRank().displayName());
     }
 
@@ -303,6 +322,11 @@ public final class ContractManager extends SavedData {
      */
     public Outcome createFromWaybill(ServerPlayer issuer, BlockPos sourcePos, Destination destination,
                                    long reward, long collateral, int deadlineMinutes) {
+        return createFromWaybill(issuer, sourcePos, destination, reward, collateral, deadlineMinutes, 0);
+    }
+
+    public Outcome createFromWaybill(ServerPlayer issuer, BlockPos sourcePos, Destination destination,
+                                   long reward, long collateral, int deadlineMinutes, int minRankLevel) {
         if (!Licenses.isLicensedCourier(issuer)) {
             return Outcome.error("no_license");
         }
@@ -356,21 +380,24 @@ public final class ContractManager extends SavedData {
         double distance = ContractDistances.pricingBlocks(origin, destination);
         long minReward = Math.max(1, Pricing.minReward(distance, weight));
         if (reward < minReward) {
-            return Outcome.error("reward_too_low", minReward);
+            return Outcome.error("reward_too_low", dev.poligorn.aerocouriers.economy.MoneyFormat.component(minReward));
         }
         if (collateral < 0) {
             return Outcome.error("negative_collateral");
         }
         long minCollateral = Pricing.minP2pCollateral(reward, manifest);
         if (collateral < minCollateral) {
-            return Outcome.error("collateral_below_minimum", minCollateral);
+            return Outcome.error("collateral_below_minimum",
+                    dev.poligorn.aerocouriers.economy.MoneyFormat.component(minCollateral));
         }
 
         UUID id = UUID.randomUUID();
         long fee = Pricing.fee(reward, size.get());
         Economy economy = Economies.get(server);
         if (!economy.withdraw(issuer.getUUID(), reward + fee, "create:" + id)) {
-            return Outcome.error("not_enough_money", reward + fee, economy.balance(issuer.getUUID()));
+            return Outcome.error("not_enough_money",
+                    dev.poligorn.aerocouriers.economy.MoneyFormat.component(reward + fee),
+                    dev.poligorn.aerocouriers.economy.MoneyFormat.component(economy.balance(issuer.getUUID())));
         }
 
         Optional<OriginContainerSnapshot> originSnapshot = OriginContainerSnapshot.capture(level, access);
@@ -396,9 +423,12 @@ public final class ContractManager extends SavedData {
         }
 
         long deadline = deadlineMinutes * Pricing.TICKS_PER_MINUTE;
+        LicenseRank required = ContractDistances.routeRequiredRank(collateral, size.get(), origin, destination);
+        if (minRankLevel >= 1 && minRankLevel <= 5 && minRankLevel > required.level()) {
+            required = LicenseRank.byLevel(minRankLevel);
+        }
         Contract contract = new Contract(id, ContractType.PLAYER, issuer.getUUID(), issuer.getUUID(), Optional.empty(),
-                origin, destination, size.get(), weight, reward, collateral,
-                ContractDistances.routeRequiredRank(collateral, size.get(), origin, destination),
+                origin, destination, size.get(), weight, reward, collateral, required,
                 new Contract.Timing(now, now + deadline, deadline, -1, 0), ContractState.OPEN, true,
                 originSnapshot);
         Escrow.get(server).open(id, manifest, reward);
@@ -412,7 +442,9 @@ public final class ContractManager extends SavedData {
                 "[contract] {} waybill by {}: {} stacks, W={}, D={}, reward={}, fee={}, collateral={}",
                 id, issuer.getGameProfile().getName(), manifest.size(), weight, (long) distance, reward, fee,
                 collateral);
-        return Outcome.ok(contract, "created_waybill", contract.shortId(), reward, fee,
+        return Outcome.ok(contract, "created_waybill", contract.shortId(),
+                dev.poligorn.aerocouriers.economy.MoneyFormat.component(reward),
+                dev.poligorn.aerocouriers.economy.MoneyFormat.component(fee),
                 contract.requiredRank().displayName(), sourcePos.toShortString());
     }
 
@@ -448,6 +480,27 @@ public final class ContractManager extends SavedData {
         return Optional.of(contract);
     }
 
+    /**
+     * Dev seed only ({@code /couriers dev seed}, not registered in production): a player order from an arbitrary
+     * issuer without charging the issuer or emptying a container. {@code ageMinutes} back-dates the creation time.
+     */
+    public Contract publishDevPlayerOrder(MinecraftServer server, UUID issuer, Destination origin,
+                                          Destination destination, List<ItemStack> manifest, CargoSize size,
+                                          long reward, long collateral, int deadlineMinutes, int ageMinutes) {
+        long now = now(server);
+        long created = now - (long) ageMinutes * Pricing.TICKS_PER_MINUTE;
+        long deadline = deadlineMinutes * Pricing.TICKS_PER_MINUTE;
+        UUID id = UUID.randomUUID();
+        Contract contract = new Contract(id, ContractType.PLAYER, issuer, issuer, Optional.empty(),
+                origin, destination, size, Weights.of(manifest), reward, collateral,
+                ContractDistances.routeRequiredRank(collateral, size, origin, destination),
+                new Contract.Timing(created, created + deadline, deadline, -1, 0), ContractState.OPEN, false,
+                Optional.empty());
+        Escrow.get(server).open(id, manifest, reward);
+        put(contract);
+        return contract;
+    }
+
     /** GDD §7.2: own contracts cannot be taken unless {@code debug.allow_self_accept}; collateral is atomic. */
     public Outcome accept(ServerPlayer courier, UUID id) {
         MinecraftServer server = courier.server;
@@ -465,7 +518,7 @@ public final class ContractManager extends SavedData {
         if (!Licenses.isLicensedCourier(courier)) {
             return Outcome.error("no_license");
         }
-        LicenseRank rank = Licenses.rankOf(courier);
+        LicenseRank rank = Licenses.effectiveRank(courier);
         CourierProfile profile = Licenses.profile(courier);
         int traineeFree = CouriersServerConfig.TRAINEE_FREE_CONTRACTS.get();
         int traineeMax = CouriersServerConfig.TRAINEE_MAX_DISTANCE.get();
@@ -489,13 +542,13 @@ public final class ContractManager extends SavedData {
             String ids = active.stream().map(Contract::shortId).collect(Collectors.joining(", "));
             return Outcome.error("too_many_active", maxActive, ids);
         }
-        long collateralDue = contract.collateral();
-        if (contract.type().isNpc() && profile.villageDelivered() < traineeFree) {
-            collateralDue = 0;
-        }
+        long collateralDue = TraineeRules.collateralDueAtAccept(rank, contract.collateral(), contract.type().isNpc(),
+                profile.villageDelivered(), traineeFree);
         Economy economy = Economies.get(server);
         if (collateralDue > 0 && !economy.withdraw(courier.getUUID(), collateralDue, "collateral:" + id)) {
-            return Outcome.error("not_enough_money", collateralDue, economy.balance(courier.getUUID()));
+            return Outcome.error("not_enough_money",
+                    dev.poligorn.aerocouriers.economy.MoneyFormat.component(collateralDue),
+                    dev.poligorn.aerocouriers.economy.MoneyFormat.component(economy.balance(courier.getUUID())));
         }
         if (collateralDue > 0) {
             Escrow.get(server).addCollateral(id, collateralDue);
@@ -511,8 +564,14 @@ public final class ContractManager extends SavedData {
             if (pickup != null && pickup.isLoaded(accepted.origin().pos())) {
                 CargoSpawner.unlockAndAssemble(pickup, accepted.origin().pos());
             }
-            accepted = accepted.withState(ContractState.IN_TRANSIT);
-            put(accepted);
+            // A removal during unlock must not be overwritten back into an active haul.
+            Contract current = contracts.get(id);
+            if (current != null && current.state() == ContractState.ACCEPTED) {
+                accepted = accepted.withState(ContractState.IN_TRANSIT);
+                put(accepted);
+            } else if (current != null) {
+                accepted = current;
+            }
         }
         if (!self) {
             notify(server, contract.issuer(), Component.translatable("contract.aerocouriers.notify.accepted",
@@ -520,7 +579,8 @@ public final class ContractManager extends SavedData {
         }
         String acceptKey = contract.preplaced() ? "accepted_preplaced" : "accepted";
         Component message = Component.translatable("contract.aerocouriers." + acceptKey, contract.shortId(),
-                        contract.collateral(), accepted.timing().deadline() / Pricing.TICKS_PER_MINUTE,
+                        dev.poligorn.aerocouriers.economy.MoneyFormat.component(collateralDue),
+                        accepted.timing().deadline() / Pricing.TICKS_PER_MINUTE,
                         contract.origin().pos().toShortString())
                 .append("\n").append(riskLine(contract));
         if (self) {
@@ -725,11 +785,13 @@ public final class ContractManager extends SavedData {
                 : profile.withDelivery(xp, Math.round(contract.distance()), late, paid);
         if (contract.type().isNpc() && !profile.traineeAdvancePaid()
                 && profile.villageDelivered() >= CouriersServerConfig.TRAINEE_FREE_CONTRACTS.get()) {
-            long bonus = CouriersServerConfig.TRAINEE_BONUS.get();
-            if (bonus > 0) {
+            long bonus = dev.poligorn.aerocouriers.economy.MoneyScale.fromSpurs(CouriersServerConfig.TRAINEE_BONUS.get());
+            if (bonus > 0 && TraineeRules.applies(rankBefore, profile.villageDelivered() - 1,
+                    CouriersServerConfig.TRAINEE_FREE_CONTRACTS.get())) {
                 economy.deposit(courier.getUUID(), bonus, "trainee_advance:" + id);
                 CouriersNotifications.notifyOrder(server, courier.getUUID(),
-                        Component.translatable("contract.aerocouriers.trainee.advance", bonus), Optional.of(id));
+                        Component.translatable("contract.aerocouriers.trainee.advance",
+                                dev.poligorn.aerocouriers.economy.MoneyFormat.component(bonus)), Optional.of(id));
             }
             profile = profile.withTraineeAdvancePaid();
         }
@@ -738,9 +800,15 @@ public final class ContractManager extends SavedData {
 
         Contract delivered = contract.withState(ContractState.DELIVERED);
         put(delivered);
+        boolean selfHaul = contract.issuer().equals(courier.getUUID());
         Component message = Component.translatable(
                 late ? "contract.aerocouriers.delivered_late" : "contract.aerocouriers.delivered",
-                contract.shortId(), paid, xp);
+                contract.shortId(), dev.poligorn.aerocouriers.economy.MoneyFormat.component(paid), xp);
+        if (!contract.type().isNpc() && selfHaul) {
+            String where = placedAt.map(BlockPos::toShortString).orElse("?");
+            message = message.copy().append("\n").append(Component.translatable(
+                    "contract.aerocouriers.notify.delivered", contract.shortId(), courier.getDisplayName(), where));
+        }
         CouriersNotifications.notifyOrder(server, courier.getUUID(), message, Optional.of(id));
         if (rankAfter.level() > rankBefore.level() && !rankAfter.isAdmin()) {
             CouriersNotifications.notifyOrder(server, courier.getUUID(),
@@ -755,7 +823,7 @@ public final class ContractManager extends SavedData {
                     Component.translatable("contract.aerocouriers.notify.delivered_village",
                             contract.shortId(), stationName),
                     Optional.of(id));
-        } else {
+        } else if (!selfHaul) {
             String where = placedAt.map(BlockPos::toShortString).orElse("?");
             notify(server, contract.recipient(), Component.translatable("contract.aerocouriers.notify.delivered",
                     contract.shortId(), courier.getDisplayName(), where), id);
@@ -903,15 +971,11 @@ public final class ContractManager extends SavedData {
         if (contract == null) {
             return;
         }
-        if (contract.preplaced() && contract.state() == ContractState.OPEN && server != null) {
-            expire(server, contract);
-            return;
-        }
-        if (contract.preplaced() && contract.state() == ContractState.ACCEPTED && server != null) {
-            fail(server, contract, FailReason.DESTROYED, null);
-            return;
-        }
-        if (contract.state() == ContractState.IN_TRANSIT) {
+        // Sable moves the block entity when a ship is assembled. Wait to see if the same id reports again
+        // before expiring or destroying — an immediate fail deleted the crate and emptied escrow.
+        boolean preplacedOpenOrAccepted = contract.preplaced()
+                && (contract.state() == ContractState.OPEN || contract.state() == ContractState.ACCEPTED);
+        if (preplacedOpenOrAccepted || contract.state() == ContractState.IN_TRANSIT) {
             missingSince.putIfAbsent(id, now);
         }
     }
@@ -922,6 +986,9 @@ public final class ContractManager extends SavedData {
      * the world if damaged. The state changes and escrow empties before anything reaches the world.
      */
     Outcome fail(MinecraftServer server, Contract contract, FailReason reason, @Nullable DropSite site) {
+        if (contract.state().isFinal()) {
+            return Outcome.error("wrong_state", contract.state().displayName());
+        }
         UUID id = contract.id();
         UUID courier = contract.courier().orElseThrow();
         removePreplacedContainer(server, contract);
@@ -945,12 +1012,16 @@ public final class ContractManager extends SavedData {
         blockedNoticeAt.remove(id);
         CargoTracker.forget(id);
 
+        boolean selfHaul = contract.issuer().equals(courier);
         boolean courierBroke = site != null && site.breaker() != null && site.breaker().getUUID().equals(courier);
         int dropped = 0;
         if (!contract.type().isNpc()) {
             switch (reason) {
                 case DAMAGED -> {
-                    if (site != null && !courierBroke) {
+                    // Same player is customer and courier: discarding "because the courier broke it" loses their cargo.
+                    if (selfHaul) {
+                        Mailbox.get(server).post(contract.issuer(), items);
+                    } else if (site != null && !courierBroke) {
                         dropped = drop(site, items);
                     }
                 }
@@ -977,10 +1048,11 @@ public final class ContractManager extends SavedData {
                 : Component.translatable("contract.aerocouriers.fail." + reason.key());
         notify(server, contract.issuer(), Component.translatable("contract.aerocouriers.notify.failed.issuer",
                 contract.shortId(), cause), id);
-        if (online != null && reason != FailReason.ABANDONED) {
+        if (online != null && reason != FailReason.ABANDONED && !selfHaul) {
             CouriersNotifications.notifyOrder(server, courier,
                     Component.translatable("contract.aerocouriers.notify.failed.courier",
-                            contract.shortId(), cause, contract.collateral()),
+                            contract.shortId(), cause,
+                            dev.poligorn.aerocouriers.economy.MoneyFormat.component(contract.collateral())),
                     Optional.of(id));
         }
         AeronauticsCouriers.LOGGER.info("[contract] {} failed: {} (dropped {} items{})", id, reason, dropped,
@@ -1024,6 +1096,44 @@ public final class ContractManager extends SavedData {
         return Outcome.ok(expired, "expired", contract.shortId());
     }
 
+    /**
+     * A preplaced crate stays sealed until accept. If accept ran while the chunk was unloaded, or Sable had already
+     * moved the still-locked block, retry until it is an unlocked physics object.
+     */
+    private void ensurePreplacedUnlocked(MinecraftServer server, Contract contract) {
+        CargoTracker.Snapshot tracked = CargoTracker.get(contract.id()).orElse(null);
+        if (tracked != null && unlockIfPresent(server.getLevel(tracked.dimension()), tracked.plotPos(), contract.id())) {
+            return;
+        }
+        ServerLevel origin = server.getLevel(contract.origin().dimension());
+        if (origin != null) {
+            unlockIfPresent(origin, contract.origin().pos(), contract.id());
+        }
+    }
+
+    /** @return {@code true} when a cargo block for {@code id} is at {@code pos} (already physics, or just unlocked) */
+    private static boolean unlockIfPresent(ServerLevel level, BlockPos pos, UUID id) {
+        if (level == null || !level.isLoaded(pos)) {
+            return false;
+        }
+        BlockState state = level.getBlockState(pos);
+        if (!(state.getBlock() instanceof CargoBlock cargo)) {
+            return false;
+        }
+        BlockPos controller = cargo.controllerPos(pos, state);
+        if (!(level.getBlockEntity(controller) instanceof CargoContainerBlockEntity be) || !id.equals(be.contractId())) {
+            return false;
+        }
+        BlockState controllerState = level.getBlockState(controller);
+        boolean locked = CargoContainerBlock.isPhysicsLocked(controllerState);
+        boolean assembled = SableBridge.containingSubLevel(level, controller) != null;
+        if (!locked && assembled) {
+            return true;
+        }
+        CargoSpawner.unlockAndAssemble(level, controller);
+        return true;
+    }
+
     /** Drops the physical Sable crate of a stamp order without treating it as a destroyed in-transit container. */
     void removePreplacedContainer(MinecraftServer server, Contract contract) {
         if (!contract.preplaced()) {
@@ -1056,10 +1166,14 @@ public final class ContractManager extends SavedData {
     }
 
     public void tick(MinecraftServer server, long now) {
+        detectPickups(server);
         double lateWindow = Pricing.lateWindow();
         int spawnRadius = CouriersServerConfig.SPAWN_TRIGGER_RADIUS.get();
         for (Contract contract : List.copyOf(contracts.values())) {
             UUID id = contract.id();
+            if (contract.preplaced() && contract.state().isActive()) {
+                ensurePreplacedUnlocked(server, contract);
+            }
             if (contract.state() == ContractState.OPEN && now >= contract.timing().expiresAt()) {
                 expire(server, contract);
             } else if (contract.state().isActive() && now > contract.timing().lateUntil(lateWindow)) {
@@ -1070,13 +1184,19 @@ public final class ContractManager extends SavedData {
                         && contract.origin().within(courier.level().dimension(), courier.position(), spawnRadius)) {
                     spawnContainer(server, id);
                 }
-            } else if (contract.state() == ContractState.IN_TRANSIT && missingSince.containsKey(id)) {
+            } else if (missingSince.containsKey(id)) {
                 long since = missingSince.get(id);
                 boolean reportedSince = CargoTracker.get(id).filter(s -> s.gameTime() > since).isPresent();
                 if (reportedSince) {
                     missingSince.remove(id);
                 } else if (now - since >= MISSING_GRACE_TICKS) {
-                    fail(server, contract, FailReason.DESTROYED, null);
+                    if (contract.state() == ContractState.OPEN) {
+                        expire(server, contract);
+                    } else if (contract.state().isActive()) {
+                        fail(server, contract, FailReason.DESTROYED, null);
+                    } else {
+                        missingSince.remove(id);
+                    }
                 }
             } else if (contract.state().isFinal() && now - contract.timing().createdAt() > HISTORY_TICKS
                     && Escrow.get(server).holding(id).isEmpty()) {
@@ -1119,6 +1239,9 @@ public final class ContractManager extends SavedData {
 
     private void put(Contract contract) {
         Contract previous = contracts.put(contract.id(), contract);
+        if (!contract.state().isActive()) {
+            pickedUp.remove(contract.id());
+        }
         setDirty();
         boolean changed = previous == null || previous.state() != contract.state();
         if (changed && server != null && contract.courier().isPresent()) {
@@ -1129,6 +1252,34 @@ public final class ContractManager extends SavedData {
         }
     }
 
+    /** Marks IN_TRANSIT cargo that moved beyond the pickup area (spawn spot search included) and re-sends zones. */
+    private void detectPickups(MinecraftServer server) {
+        for (Contract contract : contracts.values()) {
+            if (contract.state() != ContractState.IN_TRANSIT || pickedUp.contains(contract.id())) {
+                continue;
+            }
+            Optional<CargoTracker.Snapshot> snapshot = CargoTracker.get(contract.id());
+            if (snapshot.isEmpty()) {
+                continue;
+            }
+            Vec3 at = new Vec3(snapshot.get().position().x(), snapshot.get().position().y(),
+                    snapshot.get().position().z());
+            double area = Math.max(contract.origin().radius(), CouriersServerConfig.SPAWN_SEARCH_RADIUS.get())
+                    + PICKUP_MARGIN;
+            if (contract.origin().within(snapshot.get().dimension(), at, area)) {
+                continue;
+            }
+            pickedUp.add(contract.id());
+            setDirty();
+            contract.courier().map(id -> server.getPlayerList().getPlayer(id)).ifPresent(this::syncZones);
+        }
+    }
+
+    /** Whether the courier already took the cargo away from the pickup point (delivery waypoint instead of pickup). */
+    public boolean cargoPickedUp(UUID id) {
+        return pickedUp.contains(id);
+    }
+
     /** Sends the courier the zones of their active contracts for the particle outline (GDD §10.3). */
     public void syncZones(ServerPlayer courier) {
         if (!courier.connection.hasChannel(ZoneSyncPayload.TYPE)) {
@@ -1137,7 +1288,7 @@ public final class ContractManager extends SavedData {
         List<ZoneSyncPayload.Zone> zones = byCourier(courier.getUUID())
                 .filter(c -> c.state().isActive())
                 .map(c -> {
-                    boolean delivery = c.state() == ContractState.IN_TRANSIT;
+                    boolean delivery = c.state() == ContractState.IN_TRANSIT && pickedUp.contains(c.id());
                     Destination zone = delivery ? c.destination() : c.origin();
                     return new ZoneSyncPayload.Zone(c.id(), c.shortId(), zone.dimension(), zone.pos(), zone.radius(),
                             delivery);
@@ -1153,6 +1304,7 @@ public final class ContractManager extends SavedData {
     // ---- persistence ----
 
     private static final Codec<Map<UUID, Integer>> PENDING_CODEC = Codec.unboundedMap(UUIDUtil.STRING_CODEC, Codec.INT);
+    private static final Codec<List<UUID>> PICKED_UP_CODEC = UUIDUtil.STRING_CODEC.listOf();
 
     public static ContractManager load(CompoundTag tag, HolderLookup.Provider registries) {
         ContractManager manager = new ContractManager();
@@ -1163,6 +1315,10 @@ public final class ContractManager extends SavedData {
                 .ifPresent(manager.pendingFailures::putAll);
         Delivery.CODEC.listOf().parse(NbtOps.INSTANCE, tag.get("recent_deliveries")).result()
                 .ifPresent(manager.recentDeliveries::addAll);
+        if (tag.contains("picked_up")) {
+            PICKED_UP_CODEC.parse(NbtOps.INSTANCE, tag.get("picked_up")).result()
+                    .ifPresent(manager.pickedUp::addAll);
+        }
         return manager;
     }
 
@@ -1172,6 +1328,7 @@ public final class ContractManager extends SavedData {
                 .getOrThrow());
         tag.put("pending_failures", PENDING_CODEC.encodeStart(NbtOps.INSTANCE, pendingFailures).getOrThrow());
         tag.put("recent_deliveries", Delivery.CODEC.listOf().encodeStart(NbtOps.INSTANCE, recentDeliveries).getOrThrow());
+        tag.put("picked_up", PICKED_UP_CODEC.encodeStart(NbtOps.INSTANCE, List.copyOf(pickedUp)).getOrThrow());
         return tag;
     }
 }

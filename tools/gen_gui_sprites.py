@@ -401,6 +401,29 @@ def _rivet_row(img: Image.Image, x0: int, y0: int, x1: int, step: int = 7) -> No
         x += step
 
 
+def _brass_grain_tile(img: Image.Image, x0: int, y0: int, x1: int, y1: int) -> None:
+    """Subtle speckle that tiles cleanly on stretched nine-slice edges."""
+    px = img.load()
+    for y in range(y0, y1):
+        for x in range(x0, x1):
+            if (x * 3 + y * 5) % 11 == 0:
+                px[x, y] = TB_SH
+            elif (x * 7 + y * 2) % 13 == 0:
+                px[x, y] = TB_MED
+
+
+def _inner_lip(img: Image.Image, border: int) -> None:
+    """Thin dark line at the screen cavity — not a wide flat band."""
+    px = img.load()
+    inner = border - 2
+    for x in range(inner, img.width - inner):
+        px[x, inner] = TB_INNER
+        px[x, img.height - 1 - inner] = TB_DK
+    for y in range(inner, img.height - inner):
+        px[inner, y] = TB_INNER
+        px[img.width - 1 - inner, y] = TB_DK
+
+
 def _miter_corner(img: Image.Image, ox: int, oy: int, flip_x: bool, flip_y: bool) -> None:
     px = img.load()
     for i in range(14):
@@ -416,38 +439,23 @@ def _miter_corner(img: Image.Image, ox: int, oy: int, flip_x: bool, flip_y: bool
 
 
 def gen_tablet_frame() -> None:
-    """30px nine-slice brass monitor bezel: screws, plates, rivets, miter seams, inner lip."""
-    w, h = 128, 128
-    border = 30
+    """14px nine-slice: thin smooth brass bezel, transparent screen hole (no screws/plates)."""
+    w, h = 84, 84
+    border = 14
     img = Image.new("RGBA", (w, h), TRANSPARENT)
     fill_rect(img, 0, 0, w, h, BLACK)
     fill_rect(img, 1, 1, w - 1, h - 1, TB_MID)
-    fill_rect(img, 1, 1, w - 1, 7, TB_HI)
-    fill_rect(img, 1, 1, 7, h - 1, TB_HI)
-    fill_rect(img, 2, 2, w - 2, 12, TB_MED)
-    fill_rect(img, 2, 2, 12, h - 2, TB_MED)
-    fill_rect(img, w - 7, 1, w - 1, h - 1, TB_DK)
-    fill_rect(img, 1, h - 7, w - 1, h - 1, TB_DK)
-    fill_rect(img, w - 12, 5, w - 2, h - 5, TB_SH)
-    fill_rect(img, 5, h - 12, w - 5, h - 2, TB_SH)
-    fill_rect(img, 24, 24, w - 24, h - 24, TB_INNER)
+    fill_rect(img, 1, 1, w - 1, 4, TB_HI)
+    fill_rect(img, 1, 1, 4, h - 1, TB_HI)
+    fill_rect(img, 2, 2, w - 2, 6, TB_MED)
+    fill_rect(img, 2, 2, 6, h - 2, TB_MED)
+    fill_rect(img, w - 4, 1, w - 1, h - 1, TB_DK)
+    fill_rect(img, 1, h - 4, w - 1, h - 1, TB_DK)
+    fill_rect(img, w - 7, 4, w - 2, h - 4, TB_SH)
+    fill_rect(img, 4, h - 7, w - 4, h - 2, TB_SH)
+    _brass_grain_tile(img, 2, 2, w - 2, h - 2)
+    fill_rect(img, 11, 11, w - 11, h - 11, TB_INNER)
     fill_rect(img, border, border, w - border, h - border, TRANSPARENT)
-    _miter_corner(img, 0, 0, False, False)
-    _miter_corner(img, w - border, 0, True, False)
-    _miter_corner(img, 0, h - border, False, True)
-    _miter_corner(img, w - border, h - border, True, True)
-    for cx, cy in ((14, 14), (w - 15, 14), (14, h - 15), (w - 15, h - 15)):
-        _corner_screw(img, cx, cy)
-    _bolt_plate(img, (w - 28) // 2, 4, 28, 10)
-    _bolt_plate(img, (w - 28) // 2, h - 14, 28, 10)
-    _bolt_plate(img, 4, (h - 22) // 2, 10, 22)
-    _bolt_plate(img, w - 14, (h - 22) // 2, 10, 22)
-    _rivet_row(img, 36, 20, w - 36)
-    _rivet_row(img, 36, h - 21, w - 36)
-    px = img.load()
-    for y in range(border, h - border):
-        px[13, y] = TB_DK
-        px[w - 14, y] = TB_DK
     save_sprite(
         "tablet_frame",
         img,
@@ -537,57 +545,26 @@ def gen_tablet_scroller() -> None:
     )
 
 
-def _signal_bracket(d: ImageDraw.ImageDraw, cx: int, cy: int, spread: int, alpha: int) -> None:
-    col = (0xFF, 0xE9, 0x4A, alpha)
-    dark = (0xFF, 0xAF, 0x55, alpha)
-    lx = cx - spread
-    rx = cx + spread
-    for dy, lx_off, rx_off in ((0, 0, 0), (1, -1, 1), (2, -1, 1), (3, 0, 0)):
-        y = cy + dy - 1
-        d.point((lx + lx_off, y), fill=col)
-        d.point((rx + rx_off, y), fill=col)
-        if dy in (1, 2):
-            d.point((lx + lx_off - 1, y), fill=dark)
-            d.point((rx + rx_off + 1, y), fill=dark)
-
-
-def gen_tablet_antenna_signal() -> None:
-    """Bracket arcs for accept pulse (blit centered on antenna tip)."""
-    w, h = 56, 14
-    for stage, spreads, alpha in ((1, (5,), 255), (2, (5, 12), 255), (3, (12,), 140)):
-        img = Image.new("RGBA", (w, h), TRANSPARENT)
-        d = ImageDraw.Draw(img)
-        cx = w // 2
-        cy = h // 2
-        for spread in spreads:
-            _signal_bracket(d, cx, cy, spread, alpha)
-        save_sprite(f"tablet_antenna_signal_{stage}", img, None)
-
-
 def gen_tablet_antenna() -> None:
-    """24×84: steel mount + 30px brass foot + copper mast with rings + signal lamp."""
-    w, h = 24, 84
-    base = 30
+    """24×78: steel mount on top bezel + long copper mast (rings) + square lamp."""
+    w, h = 24, 78
     steel_h = 9
     img = Image.new("RGBA", (w, h), TRANSPARENT)
     d = ImageDraw.Draw(img)
     cx = w // 2
-    fill_rect(img, 1, h - base, w - 1, h, TB_SH)
-    fill_rect(img, 2, h - base + 1, w - 2, h - 1, TB_MID)
-    fill_rect(img, 3, h - base + 3, w - 3, h - 2, TB_HI)
-    fill_rect(img, 2, h - base + 1, w - 2, h - base + 3, TB_DK)
-    fill_rect(img, 2, h - base - steel_h, w - 2, h - base, (0x66, 0x6A, 0x72, 255))
-    fill_rect(img, 3, h - base - steel_h + 1, w - 3, h - base - 1, (0x88, 0x8C, 0x94, 255))
+    fill_rect(img, 2, h - steel_h, w - 2, h, (0x66, 0x6A, 0x72, 255))
+    fill_rect(img, 3, h - steel_h + 1, w - 3, h - 1, (0x88, 0x8C, 0x94, 255))
     for rx in (5, w - 7):
-        d.ellipse((rx, h - base - steel_h + 2, rx + 3, h - base - steel_h + 5), fill=(0xBB, 0xBB, 0xBB, 255), outline=BLACK)
+        d.ellipse((rx, h - steel_h + 2, rx + 3, h - steel_h + 5), fill=(0xBB, 0xBB, 0xBB, 255), outline=BLACK)
     rod_l, rod_r = cx - 3, cx + 3
     mast_top = 11
-    fill_rect(img, rod_l, mast_top, rod_r, h - base - steel_h, TB_COPPER_DK)
-    fill_rect(img, rod_l + 1, mast_top + 1, rod_r - 1, h - base - steel_h - 1, TB_COPPER)
-    fill_rect(img, rod_l + 1, mast_top + 1, rod_l + 2, h - base - steel_h - 2, TB_COPPER_HI)
-    for ring_y in (mast_top + 10, mast_top + 22, mast_top + 34):
-        fill_rect(img, rod_l - 1, ring_y, rod_r + 1, ring_y + 3, TB_COPPER_EDGE)
-        fill_rect(img, rod_l, ring_y + 1, rod_r, ring_y + 2, (0x55, 0x55, 0x55, 255))
+    fill_rect(img, rod_l, mast_top, rod_r, h - steel_h, TB_COPPER_DK)
+    fill_rect(img, rod_l + 1, mast_top + 1, rod_r - 1, h - steel_h - 1, TB_COPPER)
+    fill_rect(img, rod_l + 1, mast_top + 1, rod_l + 2, h - steel_h - 2, TB_COPPER_HI)
+    for ring_y in (mast_top + 12, mast_top + 24, mast_top + 36, mast_top + 48):
+        if ring_y + 3 <= h - steel_h:
+            fill_rect(img, rod_l - 1, ring_y, rod_r + 1, ring_y + 3, TB_COPPER_EDGE)
+            fill_rect(img, rod_l, ring_y + 1, rod_r, ring_y + 2, (0x55, 0x55, 0x55, 255))
     fill_rect(img, cx - 4, 2, cx + 4, 10, (0xFF, 0xE9, 0x4A, 255))
     fill_rect(img, cx - 3, 3, cx + 3, 9, (0xFF, 0xFF, 0xAA, 255))
     d.rectangle((cx - 4, 2, cx + 4, 10), outline=BLACK)
@@ -683,7 +660,6 @@ def gen_tablet() -> None:
     gen_tablet_list_row()
     gen_tablet_scroller()
     gen_tablet_antenna()
-    gen_tablet_antenna_signal()
     gen_envelope_tablet()
     gen_bell_icons()
     gen_board_row_icons()
