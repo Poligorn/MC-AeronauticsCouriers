@@ -420,15 +420,15 @@ public final class PostStationScreen extends Screen {
     private void renderTooltips(GuiGraphics graphics, int mouseX, int mouseY) {
         if (hoverCargoComponent != null) {
             List<Component> lines = hoverTip == null ? List.of() : List.of(hoverTip);
-            graphics.renderTooltip(font, lines, Optional.of(hoverCargoComponent), mouseX, mouseY);
+            TooltipDraw.render(graphics, font, lines, Optional.of(hoverCargoComponent), mouseX, mouseY);
             return;
         }
         if (hoverTipLines != null && !hoverTipLines.isEmpty()) {
-            graphics.renderTooltip(font, hoverTipLines, Optional.empty(), mouseX, mouseY);
+            TooltipDraw.render(graphics, font, hoverTipLines, Optional.empty(), mouseX, mouseY);
             return;
         }
         if (hoverTip != null) {
-            graphics.renderTooltip(font, List.of(hoverTip), Optional.empty(), mouseX, mouseY);
+            TooltipDraw.render(graphics, font, List.of(hoverTip), Optional.empty(), mouseX, mouseY);
         }
     }
 

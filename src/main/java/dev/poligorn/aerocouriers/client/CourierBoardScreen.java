@@ -1046,7 +1046,6 @@ public final class CourierBoardScreen extends Screen {
                 SpurAmountUi.Bounds avgBounds = SpurAmountUi.drawLabeled(
                         graphics, font, avgLabel, avgReward, statsX, y, statsW, TabletGui.TEXT, TabletGui.TEXT);
                 offerSpurTooltip(avgReward, avgBounds, mouseX, mouseY);
-                // The coin is 16px; a profile line is 11px, so the amount sat on the next stat.
                 y += Math.max(PROFILE_LINE_HEIGHT, avgBounds.height()) + 2;
             }
             y = drawProfileStatBlock(graphics,
@@ -1414,20 +1413,20 @@ public final class CourierBoardScreen extends Screen {
             return;
         }
         if (hoverSpurBreakdown != null && hoverSpurHeader != null) {
-            graphics.renderTooltip(font, List.of(), Optional.of(hoverSpurBreakdown), mouseX, mouseY);
+            TooltipDraw.render(graphics, font, List.of(), Optional.of(hoverSpurBreakdown), mouseX, mouseY);
             return;
         }
         if (hoverCargoComponent != null) {
             List<Component> lines = hoverTip == null ? List.of() : List.of(hoverTip);
-            graphics.renderTooltip(font, lines, Optional.of(hoverCargoComponent), mouseX, mouseY);
+            TooltipDraw.render(graphics, font, lines, Optional.of(hoverCargoComponent), mouseX, mouseY);
             return;
         }
         if (hoverTipLines != null && !hoverTipLines.isEmpty()) {
-            graphics.renderTooltip(font, hoverTipLines, Optional.empty(), mouseX, mouseY);
+            TooltipDraw.render(graphics, font, hoverTipLines, Optional.empty(), mouseX, mouseY);
             return;
         }
         if (hoverTip != null) {
-            graphics.renderTooltip(font, List.of(hoverTip), Optional.empty(), mouseX, mouseY);
+            TooltipDraw.render(graphics, font, List.of(hoverTip), Optional.empty(), mouseX, mouseY);
         }
     }
 

@@ -10,6 +10,9 @@ public final class SpurAmountUi {
     private static final int ICON_TEXT_GAP = BoardRowMetrics.ICON_TEXT_GAP;
     /** Bitmap height {@link TabletTabButton} uses to centre a tab label in the row. */
     private static final int TAB_FONT_H = 8;
+    /** Inline coin on a text line. Same 8px as the waybill; the 16px row icon does not fit. */
+    private static final int INLINE_ICON = 8;
+    private static final int INLINE_GAP = 2;
 
     private SpurAmountUi() {
     }
@@ -76,6 +79,10 @@ public final class SpurAmountUi {
         return new Bounds(x, top, w, bottom - top);
     }
 
+    /**
+     * Label and amount on one text line. The coin is 8px and shares the label baseline;
+     * a 16px row icon sat below the label and covered the next stat.
+     */
     public static Bounds drawLabeled(
             GuiGraphics graphics,
             Font font,
@@ -88,17 +95,17 @@ public final class SpurAmountUi {
             int amountColor
     ) {
         graphics.drawString(font, label, x, y, labelColor, false);
-        int amountX = x + font.width(label);
-        int amountMaxW = Math.max(8, maxWidth - font.width(label));
-        if (width(font, amount, false) > amountMaxW) {
-            String raw = dev.poligorn.aerocouriers.economy.MoneyFormat.text(amount);
-            String shown = MoneyText.trunc(font, raw, Math.max(4, amountMaxW - ICON - ICON_TEXT_GAP));
-            SpurCoinGraphics.drawGenericCoin(graphics, amountX, y, ICON);
-            int textX = amountX + ICON + ICON_TEXT_GAP;
-            MoneyText.draw(graphics, font, shown, textX, y, amountColor, MoneyText.Face.DEFAULT);
-            return new Bounds(x, y, Math.min(maxWidth, textX + MoneyText.width(font, shown) - x), Math.max(ICON, 9));
-        }
-        Bounds amountBounds = draw(graphics, font, amount, amountX, y, false, amountColor);
-        return new Bounds(x, y, amountBounds.x() + amountBounds.width() - x, amountBounds.height());
+        int labelW = font.width(label);
+        int amountX = x + labelW;
+        int iconY = y + Math.max(0, (TAB_FONT_H - INLINE_ICON) / 2);
+        String raw = dev.poligorn.aerocouriers.economy.MoneyFormat.text(amount);
+        int textMax = Math.max(4, maxWidth - labelW - INLINE_ICON - INLINE_GAP);
+        String shown = MoneyText.width(font, raw) > textMax ? MoneyText.trunc(font, raw, textMax) : raw;
+        SpurCoinGraphics.drawGenericCoin(graphics, amountX, iconY, INLINE_ICON);
+        int textX = amountX + INLINE_ICON + INLINE_GAP;
+        MoneyText.draw(graphics, font, shown, textX, y, amountColor, MoneyText.Face.DEFAULT);
+        int width = textX + MoneyText.width(font, shown) - x;
+        int height = Math.max(TAB_FONT_H, iconY + INLINE_ICON - y);
+        return new Bounds(x, y, Math.min(maxWidth, width), height);
     }
 }

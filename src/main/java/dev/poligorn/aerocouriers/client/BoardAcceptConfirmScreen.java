@@ -201,7 +201,7 @@ public final class BoardAcceptConfirmScreen extends Screen {
 
     private void drawSpurTooltip(GuiGraphics graphics, int mouseX, int mouseY) {
         if (hoverSpurBreakdown != null && hoverSpurHeader != null) {
-            graphics.renderTooltip(font, List.of(), Optional.of(hoverSpurBreakdown), mouseX, mouseY);
+            TooltipDraw.render(graphics, font, List.of(), Optional.of(hoverSpurBreakdown), mouseX, mouseY);
         }
     }
 

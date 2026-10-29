@@ -416,7 +416,7 @@ public final class WaybillCreateScreen extends Screen {
                 if (hoveredStack != null) {
                     graphics.renderTooltip(font, hoveredStack, mouseX, mouseY);
                 } else if (hoverSpur != null && hoverSpurHeader != null) {
-                    graphics.renderTooltip(font, List.of(), Optional.of(hoverSpur), mouseX, mouseY);
+                    TooltipDraw.render(graphics, font, List.of(), Optional.of(hoverSpur), mouseX, mouseY);
                 } else if (hoverLines != null && !cargoOverlay.isOpen()) {
                     WaybillCreateGui.tooltip(graphics, font, toScreenX(hoverTipX), toScreenY(hoverTipY), hoverLines);
                 }
@@ -534,8 +534,10 @@ public final class WaybillCreateScreen extends Screen {
                 tr("ui.aerocouriers.create.cargo_value"), valueText, null, 0);
         int valueRoom = Math.max(8, layout.leftColX1 - x0 - font.width(tr("ui.aerocouriers.create.cargo_value")) - 6);
         String valueShown = MoneyText.trunc(font, valueText, valueRoom);
-        WaybillCreateGui.spur(g, layout.leftColX1 - MoneyText.width(font, valueShown) - 9,
-                layout.cargoMetaY + 12 + yOff);
+        int valueY = layout.cargoMetaY + 12 + yOff;
+        int valueX = layout.leftColX1 - MoneyText.width(font, valueShown) - 9;
+        WaybillCreateGui.spur(g, valueX, valueY);
+        offerMoneyTooltip(value, valueX, valueY, layout.leftColX1 - valueX, 10, mouseX, mouseY);
         BlockPos origin = preview.origin();
         String from = origin.getX() + ", " + origin.getY() + ", " + origin.getZ();
         WaybillCreateGui.metaRow(g, font, x0, layout.leftColX1, layout.cargoMetaY + 24 + yOff,
