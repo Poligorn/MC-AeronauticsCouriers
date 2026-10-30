@@ -2310,7 +2310,9 @@ public final class CourierBoardScreen extends Screen {
 
     @Override
     public boolean isPauseScreen() {
-        return true;
+        // Pausing singleplayer freezes the integrated server, so TaskSync never flushes until this screen
+        // closes, and Minecraft.isPaused() hides toasts that are supposed to draw on top of the tablet.
+        return false;
     }
 
     private final class OverlayHost implements BoardOverlayHost {
