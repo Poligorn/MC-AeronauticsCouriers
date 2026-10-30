@@ -14,7 +14,10 @@ import net.minecraft.world.level.Level;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import org.jetbrains.annotations.Nullable;
 
-/** Optional Xaero bridge for order-board map pins (no Xaero types in public API). */
+/**
+ * Optional Xaero bridge for order-board map pins (no Xaero types in public API).
+ * {@link XaeroOrderWaypoints} links Xaero classes, so it is touched only after {@code ModList.isLoaded}.
+ */
 public final class XaeroOrderBridge {
     private static boolean sawXaeroWhilePreview;
     private static @Nullable ResourceKey<Level> trackedDimension;
@@ -23,32 +26,60 @@ public final class XaeroOrderBridge {
     }
 
     public static boolean xaeroMinimapPresent() {
-        return XaeroOrderWaypoints.minimapLoaded();
+        return XaeroMapPicker.minimapPresent();
     }
 
     public static boolean xaeroWorldMapPresent() {
-        return XaeroOrderWaypoints.worldMapLoaded();
+        return XaeroMapPicker.worldMapPresent();
     }
 
     public static void onHoverDestination(UUID orderId, ResourceKey<Level> dimension, BlockPos pos, String label) {
-        XaeroOrderWaypoints.showPeek(orderId, dimension, pos, label);
+        if (!xaeroMinimapPresent()) {
+            return;
+        }
+        try {
+            XaeroOrderWaypoints.showPeek(orderId, dimension, pos, label);
+        } catch (Throwable ignored) {
+        }
     }
 
     public static void onLeaveDestination(UUID orderId) {
-        XaeroOrderWaypoints.hidePeek(orderId);
+        if (!xaeroMinimapPresent()) {
+            return;
+        }
+        try {
+            XaeroOrderWaypoints.hidePeek(orderId);
+        } catch (Throwable ignored) {
+        }
     }
 
     /** Map-pin click: temporary preview waypoint (at most one) plus optional world map. */
     public static void onPreviewDestination(UUID orderId, ResourceKey<Level> dimension, BlockPos pos, String label) {
-        XaeroOrderWaypoints.setPreview(orderId, dimension, pos, label);
+        if (!xaeroMinimapPresent()) {
+            return;
+        }
+        try {
+            XaeroOrderWaypoints.setPreview(orderId, dimension, pos, label);
+        } catch (Throwable ignored) {
+        }
     }
 
     /** @return whether the world map opened and camera centering succeeded */
     public static boolean openWorldMapAt(BlockPos pos) {
-        return XaeroOrderWaypoints.openWorldMapAt(pos);
+        if (!xaeroWorldMapPresent()) {
+            return false;
+        }
+        try {
+            return XaeroOrderWaypoints.openWorldMapAt(pos);
+        } catch (Throwable ignored) {
+            return false;
+        }
     }
 
     public static void onBoardSnapshot(BoardSnapshotPayload payload) {
+        if (!xaeroMinimapPresent()) {
+            return;
+        }
         Set<UUID> relevant = new HashSet<>();
         for (BoardSnapshotPayload.BoardEntry entry : payload.board()) {
             if (!entry.state().isFinal()) {
@@ -60,32 +91,44 @@ public final class XaeroOrderBridge {
                 relevant.add(entry.id());
             }
         }
-        XaeroOrderWaypoints.prunePreview(relevant);
+        try {
+            XaeroOrderWaypoints.prunePreview(relevant);
+        } catch (Throwable ignored) {
+        }
     }
 
     public static void syncActiveCourierZones(List<ZoneSyncPayload.Zone> zones) {
         if (!xaeroMinimapPresent()) {
             return;
         }
-        Set<UUID> seen = new HashSet<>();
-        for (ZoneSyncPayload.Zone zone : zones) {
-            seen.add(zone.orderId());
-            XaeroWaypointSymbols.Kind kind = zone.delivery()
-                    ? XaeroWaypointSymbols.Kind.DELIVERY
-                    : XaeroWaypointSymbols.Kind.PICKUP;
-            String label = net.minecraft.network.chat.Component.translatable(zone.delivery()
-                    ? "ui.aerocouriers.waypoint.delivery" : "ui.aerocouriers.waypoint.pickup", zone.contract())
-                    .getString();
-            XaeroOrderWaypoints.markPersistent(zone.orderId(), zone.dimension(), zone.pos(), label, kind);
+        try {
+            Set<UUID> seen = new HashSet<>();
+            for (ZoneSyncPayload.Zone zone : zones) {
+                seen.add(zone.orderId());
+                XaeroWaypointSymbols.Kind kind = zone.delivery()
+                        ? XaeroWaypointSymbols.Kind.DELIVERY
+                        : XaeroWaypointSymbols.Kind.PICKUP;
+                String label = net.minecraft.network.chat.Component.translatable(zone.delivery()
+                        ? "ui.aerocouriers.waypoint.delivery" : "ui.aerocouriers.waypoint.pickup", zone.contract())
+                        .getString();
+                XaeroOrderWaypoints.markPersistent(zone.orderId(), zone.dimension(), zone.pos(), label, kind);
+            }
+            XaeroOrderWaypoints.syncPersistent(seen);
+        } catch (Throwable ignored) {
         }
-        XaeroOrderWaypoints.syncPersistent(seen);
     }
 
     public static void onLogout() {
         sawXaeroWhilePreview = false;
         trackedDimension = null;
-        XaeroOrderWaypoints.clearPreview();
-        XaeroOrderWaypoints.clearAll();
+        if (!xaeroMinimapPresent()) {
+            return;
+        }
+        try {
+            XaeroOrderWaypoints.clearPreview();
+            XaeroOrderWaypoints.clearAll();
+        } catch (Throwable ignored) {
+        }
     }
 
     /**
@@ -96,6 +139,13 @@ public final class XaeroOrderBridge {
         if (!xaeroMinimapPresent()) {
             return;
         }
+        try {
+            tickPreview();
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private static void tickPreview() {
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.level != null) {
             ResourceKey<Level> dimension = minecraft.level.dimension();
