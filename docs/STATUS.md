@@ -2,9 +2,14 @@
 
 > Живой документ. Обновлять при каждом завершённом шаге итерации или изменении решения (см. `.cursor/rules/90-maintaining-docs.mdc`).
 
-**Обновлено:** 30.10.2026 · **Версия:** 0.2.0-alpha · Бета-ревью: [PR #65](https://github.com/Poligorn/MC-AeronauticsCouriers/pull/65) (`cursor/beta-review-c258` → main), **не влит**. Чеклист PR пройден в клиенте. В ветку влит локальный main с рецептом накладной (`dd4fcab`); на `origin/main` (`27238f6`, PR #64) этого коммита нет.
+**Обновлено:** 30.10.2026 · **Версия:** 0.2.0-beta · [PR #65](https://github.com/Poligorn/MC-AeronauticsCouriers/pull/65) влит в main (`06cf748`). `PROTOCOL_VERSION` остаётся `"3"`.
 
 ## Сделано
+
+### Релиз 0.2.0-beta (30.10.2026)
+- `mod_version`: `0.2.0-alpha` → `0.2.0-beta`. Протокол сети не менялся (`PROTOCOL_VERSION` `"3"`).
+- Состав тот же, что у альфы после бета-ревью и рецепта накладной: обучение, профили залога, уведомления и задачи, маршрут Xaero, иконка и текстура накладной, рецепты планшета и накладной.
+- Проверка релиза: `./gradlew build` SUCCESS, `runGameTestServer` **59/59** (без Numismatics). Jar `aerocouriers-0.2.0-beta.jar`.
 
 ### Бета-ревью 0.2.0-alpha (30.10.2026, ветка `cursor/beta-review-c258`)
 Предыдущий агент: NPE `Connection.channel()` у FakePlayer / игроков без соединения (`CouriersNetwork.canSend`), null `getProfileCache()` в `BoardPackets.playerName`, баланс изумрудов для тестовых игроков через `ContractManager.findPlayer`. GameTest выровнены под изумрудный бэкенд и текущие правила — **59/59** на чистом сервере.
