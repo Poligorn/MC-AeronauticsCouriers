@@ -74,8 +74,14 @@ final class BoardTutorialUi {
         if (task.isEmpty()) {
             return fromWorld;
         }
-        // A task synced before the license (or before this screen opened) must not pin the checklist at 0/4.
-        return Math.max(task.get().currentStep(), fromWorld);
+        int fromTask = task.get().currentStep();
+        // A task still on step 0 must not hide progress already on the snapshot (license taken before
+        // this screen opened). Once the task has advanced, it is the cargo-aware step and wins over a
+        // tutorial state that ran ahead of the container.
+        if (fromTask == 0 && fromWorld > 0) {
+            return fromWorld;
+        }
+        return fromTask;
     }
 
     /** License and order state already on the board snapshot, including progress made before the tablet opened. */
