@@ -1,0 +1,7 @@
+{
+  "processors": [
+    {
+      "processor_type": "aerocouriers:once_per_village_station"
+    }
+  ]
+}
