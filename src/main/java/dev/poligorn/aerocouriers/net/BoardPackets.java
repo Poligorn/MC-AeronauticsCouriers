@@ -504,6 +504,10 @@ public final class BoardPackets {
         return atlas.byPos(dest.dimension(), dest.pos()).isPresent();
     }
 
+    public static String placeLabel(StationAtlas atlas, Destination dest) {
+        return label(atlas, dest);
+    }
+
     private static String label(StationAtlas atlas, Destination dest) {
         return atlas.all().stream()
                 .filter(s -> s.dimension().equals(dest.dimension()) && s.pos().equals(dest.pos()))

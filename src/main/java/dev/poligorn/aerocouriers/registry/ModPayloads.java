@@ -34,7 +34,7 @@ import net.neoforged.neoforge.network.registration.PayloadRegistrar;
  * Network payloads (GDD §14.1 {@code net/}). C2S carry intents only; the server validates everything.
  */
 public final class ModPayloads {
-    public static final String PROTOCOL_VERSION = "1";
+    public static final String PROTOCOL_VERSION = "2";
 
     public static void register(RegisterPayloadHandlersEvent event) {
         PayloadRegistrar registrar = event.registrar(PROTOCOL_VERSION);

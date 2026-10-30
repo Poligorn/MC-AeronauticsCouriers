@@ -1285,13 +1285,20 @@ public final class ContractManager extends SavedData {
         if (!courier.connection.hasChannel(ZoneSyncPayload.TYPE)) {
             return;
         }
+        StationAtlas atlas = StationAtlas.get(courier.server);
+        long now = now(courier.server);
         List<ZoneSyncPayload.Zone> zones = byCourier(courier.getUUID())
                 .filter(c -> c.state().isActive())
                 .map(c -> {
                     boolean delivery = c.state() == ContractState.IN_TRANSIT && pickedUp.contains(c.id());
                     Destination zone = delivery ? c.destination() : c.origin();
+                    Optional<ZoneSyncPayload.Next> next = delivery
+                            || !c.destination().dimension().equals(zone.dimension())
+                            ? Optional.empty()
+                            : Optional.of(new ZoneSyncPayload.Next(c.destination().pos(), c.destination().radius(),
+                                    BoardPackets.placeLabel(atlas, c.destination())));
                     return new ZoneSyncPayload.Zone(c.id(), c.shortId(), zone.dimension(), zone.pos(), zone.radius(),
-                            delivery);
+                            delivery, BoardPackets.placeLabel(atlas, zone), c.timing().dueAt() - now, next);
                 })
                 .toList();
         PacketDistributor.sendToPlayer(courier, new ZoneSyncPayload(zones));
