@@ -2,7 +2,7 @@
 
 > Живой документ. Обновлять при каждом завершённом шаге итерации или изменении решения (см. `.cursor/rules/90-maintaining-docs.mdc`).
 
-**Обновлено:** 30.10.2026 · **Версия:** 0.2.0-alpha · Бета-ревью (`cursor/beta-review-c258`): очистка, горячие пути, ассеты, lang, GameTest 59/59; main влит (PR #64 — логотип и накладная).
+**Обновлено:** 30.10.2026 · **Версия:** 0.2.0-alpha · Бета-ревью: [PR #65](https://github.com/Poligorn/MC-AeronauticsCouriers/pull/65) (`cursor/beta-review-c258` → main). GameTest 59/59; main влит (PR #64 — логотип и накладная).
 
 ## Сделано
 
@@ -16,7 +16,7 @@
 - **Lang.** Паритет `en_us`/`ru_ru` 961/961, других locale нет. Опечатки «sp» (`spot`/`spawn`/`sprites`/`speed`) и ru «изиска» / «Сейчасишется» / «Ванильныерайты». Предложить позже: `uk_ua`, `de_de`, `zh_cn` — переводы не писались. Мёртвые ключи (`stamp.*`, `test.*`, часть `filters.*.tooltip`, ~77 `aerocouriers.configuration.*` без `.translation()` в spec) не чистились.
 - **Docs.** GDD §12: межмир с ранга IV, не «MVP одно измерение»; `pause_on_logout_singleplayer` — ключ есть, код не читает. CLARIFICATIONS / SETTINGS / правила синхронизированы. Межмировой UI не менялся (0.3.0).
 - **Баги, найденные при ревью (поведение не менялось, кроме явных NPE предыдущего агента):** `pause_on_logout_singleplayer` и `cargo_mass_scale` не влияют на рантайм; конфиг-lang почти не подключён к Spec; плюрализация RU только у «заказ»/«слот».
-- **Сборка.** `./gradlew build` проходит, jar `aerocouriers-0.2.0-alpha.jar`. `runGameTestServer` после правок — **59/59**. `origin/main` влит (27238f6, PR #64); `aerocouriers_logo.png` и `textures/item/transport_waybill.png` совпадают с main.
+- **Сборка.** `./gradlew build` проходит, jar `aerocouriers-0.2.0-alpha.jar`. `runGameTestServer` после правок — **59/59**. `origin/main` влит (27238f6, PR #64); `aerocouriers_logo.png` и `textures/item/transport_waybill.png` совпадают с main. PR: [#65](https://github.com/Poligorn/MC-AeronauticsCouriers/pull/65) (не влит).
 - **Не проверено в клиенте этим прогоном:** HUD/планшет глазами, Xaero-линия, Numismatics, межмир в игре, звук штампа.
 
 ### Иконка мода (30.10.2026)
