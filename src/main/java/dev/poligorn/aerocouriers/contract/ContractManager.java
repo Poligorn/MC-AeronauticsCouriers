@@ -1454,10 +1454,25 @@ public final class ContractManager extends SavedData {
         }
         farNoticeAt.put(contract.id(), now);
         boolean inZone = contract.destination().contains(level.dimension(), position);
-        CouriersNotifications.notify(server, courier.getUUID(), Component.translatable(
-                inZone ? "contract.aerocouriers.notify.far_container" : "contract.aerocouriers.notify.far_container_behind",
-                contract.shortId(), (int) Math.sqrt(courier.level() == level ? courier.position().distanceToSqr(position) : 0)),
+        boolean sameDimension = courier.level() == level;
+        String key;
+        Object where;
+        if (sameDimension) {
+            key = inZone ? "contract.aerocouriers.notify.far_container"
+                    : "contract.aerocouriers.notify.far_container_behind";
+            where = (int) Math.sqrt(courier.position().distanceToSqr(position));
+        } else {
+            key = inZone ? "contract.aerocouriers.notify.far_container_dimension"
+                    : "contract.aerocouriers.notify.far_container_behind_dimension";
+            where = dimensionLabel(level);
+        }
+        CouriersNotifications.notify(server, courier.getUUID(), Component.translatable(key, contract.shortId(), where),
                 Optional.of(contract.id()), NoticeKind.URGENT);
+    }
+
+    private static Component dimensionLabel(ServerLevel level) {
+        net.minecraft.resources.ResourceLocation id = level.dimension().location();
+        return Component.translatableWithFallback("dimension." + id.toLanguageKey(), id.toString());
     }
 
     /** Marks IN_TRANSIT cargo that moved beyond the pickup area (spawn spot search included) and re-sends zones. */
