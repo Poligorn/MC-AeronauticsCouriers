@@ -488,6 +488,9 @@ public final class CourierBoardScreen extends Screen {
         onInboxCountsChanged();
     }
 
+    void onTasksChanged() {
+    }
+
     private void onInboxCountsChanged() {
         TabletTabButton mail = mainTabs.get(Tab.MAIL);
         if (mail != null) {

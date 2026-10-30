@@ -78,6 +78,15 @@ public final class CouriersServerConfig {
 
     public static final ModConfigSpec.BooleanValue REQUIRE_TABLET;
 
+    public static final ModConfigSpec.ConfigValue<List<? extends Integer>> NOTIFY_WARN_MINUTES;
+    public static final ModConfigSpec.IntValue NOTIFY_FAR_CONTAINER_BLOCKS;
+    public static final ModConfigSpec.IntValue NOTIFY_FAR_COOLDOWN_S;
+
+    public static final ModConfigSpec.BooleanValue TUTORIAL_ENABLED;
+    public static final ModConfigSpec.IntValue TUTORIAL_STATION_RADIUS;
+    public static final ModConfigSpec.IntValue TUTORIAL_XP;
+    public static final ModConfigSpec.IntValue LICENSE_RESTORE_PRICE;
+
     static {
         ModConfigSpec.Builder b = new ModConfigSpec.Builder();
 
@@ -223,6 +232,30 @@ public final class CouriersServerConfig {
         b.push("access");
         REQUIRE_TABLET = b.comment("Job board (J, inventory button, /couriers ui, post station, tablet use) requires the order tablet")
                 .define("require_tablet", true);
+        b.pop();
+
+        b.push("notifications");
+        NOTIFY_WARN_MINUTES = b.comment("Warn the courier this many minutes before the deadline (orders shorter than 10 min are skipped)")
+                .defineList("warn_minutes", List.of(5, 2, 1), () -> 1, o -> o instanceof Integer i && i > 0);
+        NOTIFY_FAR_CONTAINER_BLOCKS = b.comment("Urgent notice when the courier is farther than this from a picked-up container, blocks")
+                .defineInRange("far_container_blocks", 64, 8, 4096);
+        NOTIFY_FAR_COOLDOWN_S = b.comment("Minimum seconds between two «container is far» notices for one order")
+                .defineInRange("far_notice_cooldown_s", 30, 1, 3600);
+        b.pop();
+
+        b.push("tutorial");
+        TUTORIAL_ENABLED = b.comment("Onboarding for new couriers: welcome window, training order, checklist.",
+                        "Same value as the admin panel toggle and /couriers admin server tutorial on|off")
+                .define("tutorial_enabled", true);
+        TUTORIAL_STATION_RADIUS = b.comment("Pickup point A is the nearest post station within this radius; otherwise 6-10 blocks from the player")
+                .defineInRange("station_search_radius", 512, 16, 4096);
+        TUTORIAL_XP = b.comment("XP for finishing the training order (granted once)")
+                .defineInRange("xp", 100, 0, 100_000);
+        b.pop();
+
+        b.push("license");
+        LICENSE_RESTORE_PRICE = b.comment("Price to restore a lost license, spurs (divided by emerald_value_spurs with emeralds)")
+                .defineInRange("restore_price", 25, 0, 1_000_000);
         b.pop();
 
         SPEC = b.build();

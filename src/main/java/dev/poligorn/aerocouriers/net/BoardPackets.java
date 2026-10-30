@@ -57,6 +57,7 @@ public final class BoardPackets {
 
     /** Pushes a fresh snapshot without opening the screen (profile XP after delivery, etc.). */
     public static void syncSnapshot(ServerPlayer player) {
+        dev.poligorn.aerocouriers.task.TaskSync.sync(player);
         if (!canSendBoard(player)) {
             return;
         }
@@ -73,6 +74,9 @@ public final class BoardPackets {
         if (openScreen && !OrderTablets.canAccessBoard(player)) {
             denyTablet(player);
             return;
+        }
+        if (openScreen) {
+            dev.poligorn.aerocouriers.tutorial.Tutorials.onBoardOpened(player);
         }
         CouriersNetwork.sendRegistryPayload(player, snapshot(player, page, openScreen, notice),
                 BoardSnapshotPayload.STREAM_CODEC);
@@ -103,7 +107,8 @@ public final class BoardPackets {
 
         List<BoardSnapshotPayload.BoardEntry> open = manager.open()
                 .filter(c -> visibleOnBoard(c, self, atlas, allStations))
-                .sorted(Comparator.comparingLong(c -> c.timing().createdAt()))
+                .sorted(Comparator.comparing((Contract c) -> !c.type().isTutorial())
+                        .thenComparingLong(c -> c.timing().createdAt()))
                 .map(c -> entry(c, self, atlas, escrow, now, server))
                 .toList();
         int safePage = Math.max(0, page);
@@ -173,10 +178,20 @@ public final class BoardPackets {
     }
 
     private static BoardSnapshotPayload.Extras extras(ServerPlayer player, boolean operator) {
+        dev.poligorn.aerocouriers.tutorial.TutorialData.Entry tutorial =
+                dev.poligorn.aerocouriers.tutorial.Tutorials.entry(player);
         return new BoardSnapshotPayload.Extras(
                 dev.poligorn.aerocouriers.contract.CollateralProfile.active().ordinal(),
                 operator ? dev.poligorn.aerocouriers.config.EconomySettingsView.lines() : List.of(),
-                false, 0, Optional.empty(), false, false, 0, 0, 0L, false);
+                dev.poligorn.aerocouriers.tutorial.Tutorials.enabled(),
+                tutorial.state().ordinal(),
+                tutorial.orderId(),
+                tutorial.noStation(),
+                tutorial.completionPending(),
+                CouriersServerConfig.TUTORIAL_XP.get(),
+                tutorial.hintsSeen(),
+                dev.poligorn.aerocouriers.economy.MoneyScale.fromSpurs(CouriersServerConfig.LICENSE_RESTORE_PRICE.get()),
+                Licenses.canRestore(player));
     }
 
     private static BoardSnapshotPayload.AdminActiveEntry adminEntry(Contract contract, StationAtlas atlas,
@@ -349,6 +364,9 @@ public final class BoardPackets {
             case DEBUG_TOGGLE_SELF_ACCEPT -> AdminActions.toggleAllowSelfAccept();
             case ECONOMY_SET_COLLATERAL_PROFILE -> dev.poligorn.aerocouriers.contract.CollateralProfiles.apply(server,
                     dev.poligorn.aerocouriers.contract.CollateralProfile.byOrdinal((int) payload.longArg()));
+            case SERVER_TUTORIAL_TOGGLE -> new ContractManager.Outcome(true,
+                    dev.poligorn.aerocouriers.tutorial.Tutorials.setEnabled(server, payload.longArg() != 0),
+                    Optional.empty());
         };
         reply(player, outcome.message());
         return outcome;
@@ -425,6 +443,9 @@ public final class BoardPackets {
 
     /** NPC orders only appear between stations this player has discovered (GDD §6.1). */
     private static boolean visibleOnBoard(Contract contract, UUID viewer, StationAtlas atlas, boolean allStations) {
+        if (contract.type().isTutorial()) {
+            return contract.recipient().equals(viewer);
+        }
         if (!contract.type().isNpc() || allStations) {
             return true;
         }

@@ -79,6 +79,11 @@ public final class CouriersConfigEditor {
         saveServerConfig();
     }
 
+    public static void setTutorialEnabled(boolean on) {
+        CouriersServerConfig.TUTORIAL_ENABLED.set(on);
+        saveServerConfig();
+    }
+
     public static void toggleDebugAllowSelfAccept() {
         boolean next = !CouriersServerConfig.ALLOW_SELF_ACCEPT.get();
         CouriersServerConfig.ALLOW_SELF_ACCEPT.set(next);

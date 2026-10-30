@@ -142,6 +142,10 @@ public final class ContractManager extends SavedData {
     private final Map<UUID, Integer> stillChecks = new HashMap<>();
     private final Map<UUID, Long> missingSince = new HashMap<>();
     private final Map<UUID, Long> blockedNoticeAt = new HashMap<>();
+    /** Smallest {@code warn_minutes} threshold already announced per order (transient: one repeat after restart). */
+    private final Map<UUID, Integer> warnedMinutes = new HashMap<>();
+    private final java.util.Set<UUID> lateNoticed = new java.util.HashSet<>();
+    private final Map<UUID, Long> farNoticeAt = new HashMap<>();
     private @Nullable MinecraftServer server;
 
     public static ContractManager get(MinecraftServer server) {
@@ -206,6 +210,7 @@ public final class ContractManager extends SavedData {
     public List<Contract> activeJobs(UUID courier) {
         return all()
                 .filter(c -> c.courier().filter(courier::equals).isPresent())
+                .filter(c -> !c.type().isTutorial())
                 .filter(c -> c.state() == ContractState.ACCEPTED || c.state() == ContractState.IN_TRANSIT)
                 .toList();
     }
@@ -217,6 +222,9 @@ public final class ContractManager extends SavedData {
 
     /** What the courier loses on failure — shown before and on acceptance (owner's decision, GDD §7.2 / §6.3). */
     public static Component riskLine(Contract contract) {
+        if (contract.type().isTutorial()) {
+            return Component.translatable("contract.aerocouriers.risk.tutorial");
+        }
         if (contract.collateral() <= 0 && CollateralProfile.active().noCollateral()) {
             return Component.translatable(contract.type().isNpc() ? "contract.aerocouriers.risk.npc.no_collateral"
                     : "contract.aerocouriers.risk.no_collateral");
@@ -525,6 +533,92 @@ public final class ContractManager extends SavedData {
         return contract;
     }
 
+    /** Practically endless for tutorial orders, still small enough that {@code ticks / 1200} fits an int. */
+    private static final long TUTORIAL_TICKS = 1L << 40;
+
+    /** Onboarding order: issued by the courier service to one player, nothing is charged or paid. */
+    public Contract publishTutorial(ServerPlayer player, Destination origin, Destination destination) {
+        MinecraftServer server = player.server;
+        long now = now(server);
+        List<ItemStack> manifest = List.of(new ItemStack(net.minecraft.world.item.Items.PAPER, 8));
+        UUID id = UUID.randomUUID();
+        Contract contract = new Contract(id, ContractType.TUTORIAL,
+                dev.poligorn.aerocouriers.tutorial.Tutorials.SERVICE, player.getUUID(), Optional.empty(),
+                origin, destination, CargoSize.S, Weights.of(manifest), 0L, 0L, LicenseRank.RANK1,
+                new Contract.Timing(now, now + TUTORIAL_TICKS, TUTORIAL_TICKS, -1, 0), ContractState.OPEN, false,
+                Optional.empty());
+        Escrow.get(server).open(id, manifest, 0L);
+        put(contract);
+        return contract;
+    }
+
+    /** Silently ends a tutorial order in any state; its practice cargo is discarded. */
+    public void removeTutorialOrder(MinecraftServer server, UUID id) {
+        Contract contract = contracts.get(id);
+        if (contract == null || !contract.type().isTutorial() || contract.state().isFinal()) {
+            return;
+        }
+        Escrow escrow = Escrow.get(server);
+        escrow.takeReward(id);
+        escrow.takeCollateral(id);
+        escrow.takeItems(id);
+        put(contract.tutorialRewind(ContractState.EXPIRED, contract.courier(), contract.timing().acceptedAt()));
+        stillChecks.remove(id);
+        missingSince.remove(id);
+        blockedNoticeAt.remove(id);
+        CargoTracker.forget(id);
+        AeronauticsCouriers.LOGGER.info("[tutorial] order {} removed", contract.shortId());
+    }
+
+    private Outcome acceptTutorial(ServerPlayer courier, Contract contract) {
+        if (!contract.recipient().equals(courier.getUUID())) {
+            return Outcome.error("not_your_contract");
+        }
+        if (!Licenses.isLicensedCourier(courier)) {
+            return Outcome.error("no_license");
+        }
+        Contract accepted = contract.accepted(courier.getUUID(), now(courier.server));
+        put(accepted);
+        dev.poligorn.aerocouriers.tutorial.Tutorials.onAccepted(courier);
+        return Outcome.ok(accepted, "tutorial.accepted", contract.shortId(), contract.origin().pos().toShortString());
+    }
+
+    private Outcome deliverTutorial(MinecraftServer server, Contract contract, ServerPlayer courier) {
+        UUID id = contract.id();
+        Escrow escrow = Escrow.get(server);
+        escrow.takeReward(id);
+        escrow.takeCollateral(id);
+        escrow.takeItems(id);
+        Contract delivered = contract.withState(ContractState.DELIVERED);
+        put(delivered);
+        dev.poligorn.aerocouriers.tutorial.Tutorials.onDelivered(courier);
+        AeronauticsCouriers.LOGGER.info("[tutorial] {} delivered by {}", contract.shortId(),
+                courier.getGameProfile().getName());
+        BoardPackets.syncSnapshot(courier);
+        return Outcome.ok(delivered, "tutorial.delivered", contract.shortId());
+    }
+
+    /** Tutorial orders cannot fail: abandon reissues the order, a lost container is respawned at A. */
+    private Outcome failTutorial(MinecraftServer server, Contract contract, FailReason reason) {
+        UUID id = contract.id();
+        UUID courier = contract.courier().orElse(contract.recipient());
+        stillChecks.remove(id);
+        missingSince.remove(id);
+        blockedNoticeAt.remove(id);
+        pickedUp.remove(id);
+        CargoTracker.forget(id);
+        if (reason == FailReason.ABANDONED) {
+            Contract reopened = contract.tutorialRewind(ContractState.OPEN, Optional.empty(), -1);
+            put(reopened);
+            dev.poligorn.aerocouriers.tutorial.Tutorials.onAbandoned(server, courier);
+            return Outcome.ok(reopened, "tutorial.reissued", contract.shortId());
+        }
+        Contract again = contract.tutorialRewind(ContractState.ACCEPTED, Optional.of(courier), now(server));
+        put(again);
+        dev.poligorn.aerocouriers.tutorial.Tutorials.onLost(server, courier);
+        return Outcome.ok(again, "tutorial.respawn", contract.shortId(), contract.origin().pos().toShortString());
+    }
+
     /** GDD §7.2: own contracts cannot be taken unless {@code debug.allow_self_accept}; collateral is atomic. */
     public Outcome accept(ServerPlayer courier, UUID id) {
         MinecraftServer server = courier.server;
@@ -534,6 +628,9 @@ public final class ContractManager extends SavedData {
         }
         if (contract.state() != ContractState.OPEN || now(server) >= contract.timing().expiresAt()) {
             return Outcome.error("not_open");
+        }
+        if (contract.type().isTutorial()) {
+            return acceptTutorial(courier, contract);
         }
         boolean self = contract.issuer().equals(courier.getUUID());
         if (self && !CouriersServerConfig.ALLOW_SELF_ACCEPT.get()) {
@@ -723,6 +820,9 @@ public final class ContractManager extends SavedData {
         }
         Vec3 position = new Vec3(world.x(), world.y(), world.z());
         ServerPlayer courier = findPlayer(server, contract.courier().orElseThrow());
+        if (pickedUp.contains(id) || contract.destination().contains(level.dimension(), position)) {
+            farContainerNotice(server, contract, courier, level, position);
+        }
         boolean ready = contract.destination().contains(level.dimension(), position)
                 && speed < CouriersServerConfig.DELIVERY_MAX_SPEED.get()
                 && courier != null && courier.level() == level
@@ -768,6 +868,9 @@ public final class ContractManager extends SavedData {
 
     /** Successful delivery (GDD §9.3, §9.6). */
     private Outcome completeDelivery(MinecraftServer server, Contract contract, ServerPlayer courier, Vec3 deliveryAt) {
+        if (contract.type().isTutorial()) {
+            return deliverTutorial(server, contract, courier);
+        }
         UUID id = contract.id();
         long now = now(server);
         if (now > contract.timing().lateUntil(Pricing.lateWindow())) {
@@ -907,6 +1010,12 @@ public final class ContractManager extends SavedData {
         if (contract.state().isFinal()) {
             return Outcome.error("wrong_state", contract.state().displayName());
         }
+        if (contract.type().isTutorial()) {
+            removeTutorialOrder(server, id);
+            dev.poligorn.aerocouriers.tutorial.Tutorials.onRemovedByAdmin(server, contract.recipient());
+            return Outcome.ok(contracts.get(id),
+                    Component.translatable("admin.aerocouriers.contract.cancelled", contract.shortId()));
+        }
         removePreplacedContainer(server, contract);
         CargoTracker.forget(id);
         Escrow escrow = Escrow.get(server);
@@ -1013,6 +1122,9 @@ public final class ContractManager extends SavedData {
     Outcome fail(MinecraftServer server, Contract contract, FailReason reason, @Nullable DropSite site) {
         if (contract.state().isFinal()) {
             return Outcome.error("wrong_state", contract.state().displayName());
+        }
+        if (contract.type().isTutorial()) {
+            return failTutorial(server, contract, reason);
         }
         UUID id = contract.id();
         UUID courier = contract.courier().orElseThrow();
@@ -1192,6 +1304,7 @@ public final class ContractManager extends SavedData {
 
     public void tick(MinecraftServer server, long now) {
         detectPickups(server);
+        deadlineNotices(server, now);
         double lateWindow = Pricing.lateWindow();
         int spawnRadius = CouriersServerConfig.SPAWN_TRIGGER_RADIUS.get();
         for (Contract contract : List.copyOf(contracts.values())) {
@@ -1247,7 +1360,6 @@ public final class ContractManager extends SavedData {
                 manager.setDirty();
             }
             manager.syncZones(player);
-            CouriersNotifications.sync(player);
         }
     }
 
@@ -1275,6 +1387,80 @@ public final class ContractManager extends SavedData {
                 syncZones(courier);
             }
         }
+        if (changed && server != null) {
+            dev.poligorn.aerocouriers.task.TaskSync.syncLater(contract.issuer());
+            contract.courier().ifPresent(dev.poligorn.aerocouriers.task.TaskSync::syncLater);
+        }
+    }
+
+    private void deadlineNotices(MinecraftServer server, long now) {
+        List<? extends Integer> warn = CouriersServerConfig.NOTIFY_WARN_MINUTES.get();
+        for (Contract contract : contracts.values()) {
+            UUID id = contract.id();
+            if (!contract.state().isActive() || contract.courier().isEmpty()
+                    || contract.type() == ContractType.TUTORIAL) {
+                warnedMinutes.remove(id);
+                lateNoticed.remove(id);
+                farNoticeAt.remove(id);
+                continue;
+            }
+            UUID courier = contract.courier().get();
+            long left = contract.timing().dueAt() - now;
+            if (left <= 0) {
+                if (lateNoticed.add(id)) {
+                    long lateLeft = contract.timing().lateUntil(Pricing.lateWindow()) - now;
+                    CouriersNotifications.notify(server, courier, Component.translatable(
+                            "contract.aerocouriers.notify.late", contract.shortId(),
+                            Math.max(1L, (lateLeft + Pricing.TICKS_PER_MINUTE - 1) / Pricing.TICKS_PER_MINUTE)),
+                            Optional.of(id), NoticeKind.URGENT);
+                }
+                continue;
+            }
+            if (contract.timing().deadline() < 10L * Pricing.TICKS_PER_MINUTE) {
+                continue;
+            }
+            int reached = Integer.MAX_VALUE;
+            for (int minutes : warn) {
+                if (left <= minutes * Pricing.TICKS_PER_MINUTE && minutes < reached) {
+                    reached = minutes;
+                }
+            }
+            if (reached == Integer.MAX_VALUE) {
+                continue;
+            }
+            Integer previous = warnedMinutes.get(id);
+            if (previous == null || reached < previous) {
+                warnedMinutes.put(id, reached);
+                long shown = Math.max(1L, (left + Pricing.TICKS_PER_MINUTE - 1) / Pricing.TICKS_PER_MINUTE);
+                CouriersNotifications.notify(server, courier, Component.translatable(
+                        "contract.aerocouriers.notify.deadline_warn", contract.shortId(), shown),
+                        Optional.of(id), NoticeKind.URGENT);
+            }
+        }
+    }
+
+    /** Urgent notice with cooldown when a picked-up or delivered-zone container is out of the courier's reach. */
+    private void farContainerNotice(MinecraftServer server, Contract contract, @Nullable ServerPlayer courier,
+                                    ServerLevel level, Vec3 position) {
+        if (courier == null) {
+            return;
+        }
+        double far = CouriersServerConfig.NOTIFY_FAR_CONTAINER_BLOCKS.get();
+        boolean away = courier.level() != level || courier.position().distanceToSqr(position) > far * far;
+        if (!away) {
+            return;
+        }
+        long now = now(server);
+        Long last = farNoticeAt.get(contract.id());
+        if (last != null && now - last < CouriersServerConfig.NOTIFY_FAR_COOLDOWN_S.get() * 20L) {
+            return;
+        }
+        farNoticeAt.put(contract.id(), now);
+        boolean inZone = contract.destination().contains(level.dimension(), position);
+        CouriersNotifications.notify(server, courier.getUUID(), Component.translatable(
+                inZone ? "contract.aerocouriers.notify.far_container" : "contract.aerocouriers.notify.far_container_behind",
+                contract.shortId(), (int) Math.sqrt(courier.level() == level ? courier.position().distanceToSqr(position) : 0)),
+                Optional.of(contract.id()), NoticeKind.URGENT);
     }
 
     /** Marks IN_TRANSIT cargo that moved beyond the pickup area (spawn spot search included) and re-sends zones. */

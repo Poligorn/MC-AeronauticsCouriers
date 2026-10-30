@@ -94,7 +94,7 @@ public record Contract(UUID id, ContractType type, UUID issuer, UUID recipient, 
 
     /** Whether board packets may include pickup coordinates for this viewer (anti-pirate until accept). */
     public boolean revealsPickupTo(UUID viewer) {
-        if (issuer.equals(viewer)) {
+        if (issuer.equals(viewer) || (type.isTutorial() && recipient.equals(viewer))) {
             return true;
         }
         return isCourier(viewer) && state != ContractState.OPEN;
@@ -123,6 +123,13 @@ public record Contract(UUID id, ContractType type, UUID issuer, UUID recipient, 
     Contract withCollateral(long nextCollateral, LicenseRank nextRank) {
         return new Contract(id, type, issuer, recipient, courier, origin, destination, size, weight, reward,
                 nextCollateral, nextRank, timing, state, preplaced, originSnapshot);
+    }
+
+    /** Tutorial only: back to OPEN (abandon → reissue) or ACCEPTED (lost container → respawn at A). */
+    Contract tutorialRewind(ContractState next, Optional<UUID> nextCourier, long acceptedAt) {
+        return new Contract(id, type, issuer, recipient, nextCourier, origin, destination, size, weight, reward,
+                collateral, requiredRank, new Timing(timing.createdAt(), timing.expiresAt(), timing.deadline(),
+                acceptedAt, 0), next, preplaced, originSnapshot);
     }
 
     Contract withPause(long extraTicks) {
