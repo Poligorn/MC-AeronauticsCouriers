@@ -136,7 +136,7 @@ public final class MineTabFilterState {
                 BoardSortKey.DISTANCE, BoardSortKey.COLLATERAL);
         int idx = 0;
         for (int i = 0; i < values.length; i++) {
-            if (values[i] == sortKey) {
+            if (values[i] == sortKey()) {
                 idx = i;
                 break;
             }
@@ -189,7 +189,7 @@ public final class MineTabFilterState {
             out.add(entry);
         }
         Map<java.util.UUID, Integer> index = BoardSortKey.indexMap(sectionEntries);
-        Comparator<BoardSnapshotPayload.BoardEntry> cmp = BoardSortKey.comparator(sortKey, index);
+        Comparator<BoardSnapshotPayload.BoardEntry> cmp = BoardSortKey.comparator(sortKey(), index);
         out.sort(sortDescending ? cmp.reversed() : cmp);
         return out;
     }

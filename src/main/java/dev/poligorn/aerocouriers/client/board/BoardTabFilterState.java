@@ -65,7 +65,7 @@ public final class BoardTabFilterState {
                 BoardSortKey.DEADLINE, BoardSortKey.COLLATERAL);
         int idx = 0;
         for (int i = 0; i < values.length; i++) {
-            if (values[i] == sortKey) {
+            if (values[i] == sortKey()) {
                 idx = i;
                 break;
             }
@@ -107,7 +107,7 @@ public final class BoardTabFilterState {
         }
         Map<java.util.UUID, Integer> index = BoardSortKey.indexMap(source);
         Comparator<BoardSnapshotPayload.BoardEntry> cmp =
-                BoardSortKey.comparator(sortKey, index);
+                BoardSortKey.comparator(sortKey(), index);
         out.sort(sortDescending ? cmp.reversed() : cmp);
         return out;
     }
