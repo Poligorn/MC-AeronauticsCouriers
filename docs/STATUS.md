@@ -2,9 +2,21 @@
 
 > Живой документ. Обновлять при каждом завершённом шаге итерации или изменении решения (см. `.cursor/rules/90-maintaining-docs.mdc`).
 
-**Обновлено:** 30.10.2026 · **Версия:** 0.2.0-alpha · Обучение курьера, профили залога, уведомления, общая панель задач; маршрут доставки на картах Xaero (ветка `cursor/xaero-route-line-6b59`, main влит).
+**Обновлено:** 30.10.2026 · **Версия:** 0.2.0-alpha · Бета-ревью (`cursor/beta-review-c258`): очистка, горячие пути, ассеты, lang, GameTest 59/59; main влит (PR #64 — логотип и накладная).
 
 ## Сделано
+
+### Бета-ревью 0.2.0-alpha (30.10.2026, ветка `cursor/beta-review-c258`)
+Предыдущий агент: NPE `Connection.channel()` у FakePlayer / игроков без соединения (`CouriersNetwork.canSend`), null `getProfileCache()` в `BoardPackets.playerName`, баланс изумрудов для тестовых игроков через `ContractManager.findPlayer`. GameTest выровнены под изумрудный бэкенд и текущие правила — **59/59** на чистом сервере.
+
+Этот прогон:
+- **Код.** Удалены мёртвые `BoardAcceptConfirmScreen`, `CourierButton`, `BalanceDisplay`, `NumismaticsBalanceFormat`, `BoardRowDebug`; константы `ICON_COIN`/`BELL_TABLET`, глифы без вызовов, `SpurDenomination.texture()`.
+- **Горячие пути.** Фильтры доски / «Мои» / админки и почта кэшируют результат по **ссылке** на исходный список (не `List.equals` по record). HUD задач сортирует срочность раз в секунду. Поля камеры `GuiMap` кэшируются при загрузке класса. Снимки доски по-прежнему только при открытии и смене состояния, не каждый тик. `PROTOCOL_VERSION` остаётся `"3"`.
+- **Ассеты (удалены, не грузились):** `textures/gui/coins/{sun,crown,cog,sprocket,bevel,spur}.png`, `textures/gui/sprites/icon/{coin,bell}_tablet.png`, `models/block/cargo_container_l_waybill.json`. **Не трогались:** `slot/order_tablet.png`, `aerocouriers_logo.png`, `textures/item/transport_waybill.png` (после слияния main = PR #64).
+- **Lang.** Паритет `en_us`/`ru_ru` 961/961, других locale нет. Опечатки «sp» (`spot`/`spawn`/`sprites`/`speed`) и ru «изиска» / «Сейчасишется» / «Ванильныерайты». Предложить позже: `uk_ua`, `de_de`, `zh_cn` — переводы не писались. Мёртвые ключи (`stamp.*`, `test.*`, часть `filters.*.tooltip`, ~77 `aerocouriers.configuration.*` без `.translation()` в spec) не чистились.
+- **Docs.** GDD §12: межмир с ранга IV, не «MVP одно измерение»; `pause_on_logout_singleplayer` — ключ есть, код не читает. CLARIFICATIONS / SETTINGS / правила синхронизированы. Межмировой UI не менялся (0.3.0).
+- **Баги, найденные при ревью (поведение не менялось, кроме явных NPE предыдущего агента):** `pause_on_logout_singleplayer` и `cargo_mass_scale` не влияют на рантайм; конфиг-lang почти не подключён к Spec; плюрализация RU только у «заказ»/«слот».
+- **Не проверено в клиенте этим прогоном:** HUD/планшет глазами, Xaero-линия, Numismatics, межмир в игре, звук штампа.
 
 ### Иконка мода (30.10.2026)
 - `logoFile="aerocouriers_logo.png"`, `logoBlur=false` не менялись. NeoForge 21.1.235 рисует логотип вписанным в полосу высотой 50 px (`ModListScreen`, `blitInscribed`) и своего размера файла не требует. Исходник 1024×1024 уменьшен до 512×512 ближайшим соседом: углы прозрачные, пиксели ящика не смешиваются. Вторая картинка заменила первую: накладная на передней грани крупнее. Версия мода не менялась.
