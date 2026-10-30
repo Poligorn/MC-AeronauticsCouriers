@@ -183,7 +183,7 @@ public final class BoardPackets {
         dev.poligorn.aerocouriers.tutorial.TutorialData.Entry tutorial =
                 dev.poligorn.aerocouriers.tutorial.Tutorials.entry(player);
         return new BoardSnapshotPayload.Extras(
-                dev.poligorn.aerocouriers.contract.CollateralProfile.active().ordinal(),
+                dev.poligorn.aerocouriers.contract.CollateralProfile.active().key(),
                 operator ? dev.poligorn.aerocouriers.config.EconomySettingsView.lines() : List.of(),
                 dev.poligorn.aerocouriers.tutorial.Tutorials.enabled(),
                 tutorial.state().ordinal(),
@@ -299,7 +299,7 @@ public final class BoardPackets {
         CouriersNetwork.sendRegistryPayload(player, new OpenWaybillCreatePayload(
                 origin, cargo, weight, Economies.get(player.server).balance(player.getUUID()),
                 Economies.usesNumismatics(player.server), stations,
-                dev.poligorn.aerocouriers.contract.CollateralProfile.active().ordinal()),
+                dev.poligorn.aerocouriers.contract.CollateralProfile.active().key()),
                 OpenWaybillCreatePayload.STREAM_CODEC);
     }
 
@@ -365,7 +365,7 @@ public final class BoardPackets {
             case CONFIG_SET -> AdminActions.setConfig(payload.arg1().orElse(""), payload.arg2().orElse(""));
             case DEBUG_TOGGLE_SELF_ACCEPT -> AdminActions.toggleAllowSelfAccept();
             case ECONOMY_SET_COLLATERAL_PROFILE -> dev.poligorn.aerocouriers.contract.CollateralProfiles.apply(server,
-                    dev.poligorn.aerocouriers.contract.CollateralProfile.byOrdinal((int) payload.longArg()));
+                    dev.poligorn.aerocouriers.contract.CollateralProfile.byKey(payload.arg1().orElse("")));
             case SERVER_TUTORIAL_TOGGLE -> new ContractManager.Outcome(true,
                     dev.poligorn.aerocouriers.tutorial.Tutorials.setEnabled(server, payload.longArg() != 0),
                     Optional.empty());

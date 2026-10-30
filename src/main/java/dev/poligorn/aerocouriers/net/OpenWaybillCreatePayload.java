@@ -21,7 +21,7 @@ public record OpenWaybillCreatePayload(
         long balance,
         boolean numismaticsEconomy,
         List<BoardSnapshotPayload.StationHint> stations,
-        int collateralProfile
+        String collateralProfile
 ) implements CustomPacketPayload {
     public static final Type<OpenWaybillCreatePayload> TYPE = new Type<>(AeronauticsCouriers.id("open_waybill_create"));
 
@@ -40,16 +40,17 @@ public record OpenWaybillCreatePayload(
         buf.writeVarLong(p.balance);
         buf.writeBoolean(p.numismaticsEconomy);
         STATIONS_CODEC.encode(buf, p.stations);
-        buf.writeVarInt(p.collateralProfile);
+        ByteBufCodecs.STRING_UTF8.encode(buf, p.collateralProfile);
     }
 
     private static OpenWaybillCreatePayload read(RegistryFriendlyByteBuf buf) {
         return new OpenWaybillCreatePayload(BlockPos.STREAM_CODEC.decode(buf), CARGO_CODEC.decode(buf),
-                buf.readDouble(), buf.readVarLong(), buf.readBoolean(), STATIONS_CODEC.decode(buf), buf.readVarInt());
+                buf.readDouble(), buf.readVarLong(), buf.readBoolean(), STATIONS_CODEC.decode(buf),
+                ByteBufCodecs.STRING_UTF8.decode(buf));
     }
 
     public dev.poligorn.aerocouriers.contract.CollateralProfile profile() {
-        return dev.poligorn.aerocouriers.contract.CollateralProfile.byOrdinal(collateralProfile);
+        return dev.poligorn.aerocouriers.contract.CollateralProfile.byKey(collateralProfile);
     }
 
     public static void handle(OpenWaybillCreatePayload payload,

@@ -9,10 +9,10 @@ import java.util.Locale;
  */
 public enum CollateralProfile {
     PEACEFUL("peace", 0.0),
-    CUSTOM("custom", 0.0),
     EASY("easy", 0.25),
     NORMAL("normal", 0.5),
-    HARD("hard", 0.75);
+    HARD("hard", 0.75),
+    CUSTOM("custom", 0.0);
 
     /** Upper bound of the free collateral field in {@link #CUSTOM}, as a share of the cargo value. */
     public static final double CUSTOM_MAX_RATIO = 2.0;
@@ -67,6 +67,7 @@ public enum CollateralProfile {
         return NORMAL;
     }
 
+    /** Not used on the wire. Packets carry {@link #key()} so this declaration order can change. */
     public static CollateralProfile byOrdinal(int ordinal) {
         CollateralProfile[] all = values();
         return ordinal >= 0 && ordinal < all.length ? all[ordinal] : NORMAL;

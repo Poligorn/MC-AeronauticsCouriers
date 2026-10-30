@@ -145,7 +145,7 @@ public record BoardSnapshotPayload(
      * rendered in the operator panel. {@code economyLines} ({@code key=value}) are filled for operators only.
      */
     public record Extras(
-            int collateralProfile,
+            String collateralProfile,
             List<String> economyLines,
             boolean tutorialEnabled,
             int tutorialState,
@@ -157,14 +157,14 @@ public record BoardSnapshotPayload(
             long licenseRestorePrice,
             boolean licenseRestorable
     ) {
-        public static final Extras EMPTY = new Extras(3, List.of(), false, 0, Optional.empty(), false, false, 0, 0,
-                0L, false);
+        public static final Extras EMPTY = new Extras(dev.poligorn.aerocouriers.contract.CollateralProfile.NORMAL.key(),
+                List.of(), false, 0, Optional.empty(), false, false, 0, 0, 0L, false);
 
         public static final StreamCodec<RegistryFriendlyByteBuf, Extras> STREAM_CODEC =
                 StreamCodec.of(Extras::write, Extras::read);
 
         public dev.poligorn.aerocouriers.contract.CollateralProfile profile() {
-            return dev.poligorn.aerocouriers.contract.CollateralProfile.byOrdinal(collateralProfile);
+            return dev.poligorn.aerocouriers.contract.CollateralProfile.byKey(collateralProfile);
         }
 
         public boolean isTutorialOrder(UUID id) {
@@ -172,7 +172,7 @@ public record BoardSnapshotPayload(
         }
 
         private static void write(RegistryFriendlyByteBuf buf, Extras e) {
-            buf.writeVarInt(e.collateralProfile);
+            ByteBufCodecs.STRING_UTF8.encode(buf, e.collateralProfile);
             ByteBufCodecs.STRING_UTF8.apply(ByteBufCodecs.list(PayloadLimits.ADMIN_CONFIG_LINES))
                     .encode(buf, PayloadLimits.cap(e.economyLines, PayloadLimits.ADMIN_CONFIG_LINES));
             buf.writeBoolean(e.tutorialEnabled);
@@ -188,7 +188,7 @@ public record BoardSnapshotPayload(
 
         private static Extras read(RegistryFriendlyByteBuf buf) {
             return new Extras(
-                    buf.readVarInt(),
+                    ByteBufCodecs.STRING_UTF8.decode(buf),
                     ByteBufCodecs.STRING_UTF8.apply(ByteBufCodecs.list(PayloadLimits.ADMIN_CONFIG_LINES)).decode(buf),
                     buf.readBoolean(),
                     buf.readVarInt(),
