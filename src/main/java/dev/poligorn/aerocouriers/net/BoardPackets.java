@@ -1,5 +1,6 @@
 package dev.poligorn.aerocouriers.net;
 
+import dev.poligorn.aerocouriers.AeronauticsCouriers;
 import dev.poligorn.aerocouriers.access.OrderTablets;
 import dev.poligorn.aerocouriers.config.CouriersServerConfig;
 import dev.poligorn.aerocouriers.contract.CargoContainers;
@@ -246,13 +247,23 @@ public final class BoardPackets {
             return;
         }
         ContractManager manager = ContractManager.get(player.server);
-        ContractManager.Outcome outcome = switch (payload.kind()) {
-            case ACCEPT -> manager.accept(player, payload.id());
-            case ABANDON -> manager.abandon(player, payload.id());
-            case CANCEL -> manager.cancel(player, payload.id());
-        };
+        ContractManager.Outcome outcome;
+        try {
+            outcome = switch (payload.kind()) {
+                case ACCEPT -> manager.accept(player, payload.id());
+                case ABANDON -> manager.abandon(player, payload.id());
+                case CANCEL -> manager.cancel(player, payload.id());
+            };
+        } catch (Throwable t) {
+            AeronauticsCouriers.LOGGER.error("[board] {} {} threw", payload.kind(), payload.id(), t);
+            Component failed = Component.translatable("contract.aerocouriers.error.action_failed");
+            player.displayClientMessage(failed, true);
+            player.sendSystemMessage(failed);
+            sendUiSound(player, CouriersUiSoundPayload.Kind.ORDER_DENY);
+            return;
+        }
+        player.displayClientMessage(outcome.message(), true);
         if (!outcome.success()) {
-            player.displayClientMessage(outcome.message(), true);
             sendUiSound(player, CouriersUiSoundPayload.Kind.ORDER_DENY);
         } else if (payload.kind() == ContractIntentPayload.Kind.ACCEPT) {
             sendUiSound(player, CouriersUiSoundPayload.Kind.ORDER_ACCEPT);
