@@ -13,6 +13,7 @@ import java.util.Optional;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.FormattedText;
 import net.minecraft.util.FormattedCharSequence;
@@ -38,6 +39,7 @@ final class AdminEconomyUi {
     private static final int RELATED_Y = TOOLS_BUTTONS_Y + 5 * 24 + 6;
 
     private final CourierBoardScreen screen;
+    private final List<AbstractWidget> widgets = new ArrayList<>();
     private int scroll;
     private @Nullable CollateralProfile selected;
     private boolean confirming;
@@ -47,9 +49,23 @@ final class AdminEconomyUi {
     }
 
     void reset() {
+        clearWidgets();
         scroll = 0;
         selected = null;
         confirming = false;
+    }
+
+    /** Profile segments are {@code TabletTabButton}s, which the board's button sweep does not remove. */
+    private void clearWidgets() {
+        for (AbstractWidget widget : widgets) {
+            screen.adminRemoveWidget(widget);
+        }
+        widgets.clear();
+    }
+
+    private void add(AbstractWidget widget) {
+        widgets.add(widget);
+        screen.adminAddWidget(widget);
     }
 
     boolean scroll(double delta, BoardSnapshotPayload snapshot, int top) {
@@ -73,6 +89,7 @@ final class AdminEconomyUi {
     }
 
     void init(BoardSnapshotPayload snapshot, int sx, int top, int sw) {
+        clearWidgets();
         int bottom = screen.adminContentBottom();
         CollateralProfile active = active(snapshot);
         CollateralProfile shown = shown(snapshot);
@@ -90,7 +107,7 @@ final class AdminEconomyUi {
                             screen.refreshAdminContent();
                         });
                 seg.selected(p == shown);
-                screen.adminAddWidget(seg);
+                add(seg);
             }
         }
         int applyY = top + APPLY_Y - scroll;
@@ -101,11 +118,11 @@ final class AdminEconomyUi {
                         screen.refreshAdminContent();
                     });
             apply.active = shown != active;
-            screen.adminAddWidget(apply);
+            add(apply);
         }
         if (confirming && visible(applyY + 34, 18, top, bottom)) {
             int by = applyY + 34;
-            screen.adminAddWidget(TabletButton.create(sx, by, 96, 18,
+            add(TabletButton.create(sx, by, 96, 18,
                     Component.translatable("ui.aerocouriers.admin.economy.profile.confirm_yes"), b -> {
                         PacketDistributor.sendToServer(new OperatorBoardPayload(
                                 OperatorBoardPayload.Action.ECONOMY_SET_COLLATERAL_PROFILE, Optional.empty(),
@@ -114,7 +131,7 @@ final class AdminEconomyUi {
                         selected = null;
                         screen.refreshAdminContent();
                     }));
-            screen.adminAddWidget(TabletButton.create(sx + 100, by, 72, 18,
+            add(TabletButton.create(sx + 100, by, 72, 18,
                     Component.translatable("gui.cancel"), b -> {
                         confirming = false;
                         screen.refreshAdminContent();
@@ -128,12 +145,12 @@ final class AdminEconomyUi {
         addTool(y + 48, top, bottom, sx, w, "ui.aerocouriers.admin.economy.show_weight",
                 OperatorBoardPayload.Action.ECONOMY_SHOW_WEIGHT, 0);
         if (visible(y + 72, 20, top, bottom)) {
-            screen.adminAddWidget(TabletButton.create(sx, y + 72, w, 20,
+            add(TabletButton.create(sx, y + 72, w, 20,
                     Component.translatable("ui.aerocouriers.admin.economy.set_value", MoneyFormat.component(100)),
                     b -> send(OperatorBoardPayload.Action.ECONOMY_SET_VALUE, 100)));
         }
         if (visible(y + 96, 20, top, bottom)) {
-            screen.adminAddWidget(TabletButton.create(sx, y + 96, w, 20,
+            add(TabletButton.create(sx, y + 96, w, 20,
                     Component.translatable("ui.aerocouriers.admin.economy.set_weight", 1.0),
                     b -> send(OperatorBoardPayload.Action.ECONOMY_SET_WEIGHT, Double.doubleToLongBits(1.0))));
         }
@@ -142,7 +159,7 @@ final class AdminEconomyUi {
     private void addTool(int y, int top, int bottom, int sx, int w, String key, OperatorBoardPayload.Action action,
                          long arg) {
         if (visible(y, 20, top, bottom)) {
-            screen.adminAddWidget(TabletButton.create(sx, y, w, 20, Component.translatable(key), b -> send(action, arg)));
+            add(TabletButton.create(sx, y, w, 20, Component.translatable(key), b -> send(action, arg)));
         }
     }
 
