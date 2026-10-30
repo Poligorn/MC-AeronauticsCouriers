@@ -7,7 +7,7 @@ alwaysApply: false
 # Контракты (GDD §5, §7, §9.5–9.6, §12, §13)
 
 ## Поля `Contract` (§5.1)
-`id` UUID · `type` VILLAGE|PLAYER|TUTORIAL (NPC-источники см. `60-ikaria-pack.mdc`) · `issuer` · `recipient` (по умолчанию = issuer) · `courier` (nullable) · `origin`/`destination` (измерение + позиция + радиус) · `manifest` (List<ItemStack>, лежит в Escrow, **не** в блоке) · `weight`, `value` (считаются) · `reward`, `collateral` (спуры) · `requiredRank` · `deadline` (длительность после принятия) · `expiresAt` · `state`.
+`id` UUID · `type` VILLAGE|PLAYER|TUTORIAL (NPC-источники см. `60-ikaria-pack.mdc`) · `issuer` · `recipient` (по умолчанию = issuer) · `courier` (nullable) · `origin`/`destination` (измерение + позиция + радиус) · `manifest` (List<ItemStack>, лежит в Escrow, **не** в блоке) · `weight`, `value` (считаются) · `reward`, `collateral` (спуры) · `requiredRank` · `deadline` (длительность после принятия) · `expiresAt` · `state` · `waybillFace` (горизонтальная сторона бумаги, один раз при публикации; нет в сети; старые сохранения = восток).
 
 ## Машина состояний (§5.2)
 ```
@@ -59,7 +59,7 @@ ACCEPTED|IN_TRANSIT → FAILED (залог курьера + награда → �
 - `activeJobs(uuid)` — единственный счётчик перевозок; `unfinishedIssued` — только лимит создания.
 - `Contract` неизменяемый; переходы — через `withState`/`accepted` (проверяют `canTransitionTo`).
 - Время — игровые тики overworld (`ContractManager.now`); решение владельца, GDD §5.4.
-- Команд `pickup`/`deliver` **нет**. `tick` вызывает `spawnContainer`, когда курьер `ACCEPTED`-заказа ближе `spawn_trigger_radius` к точке погрузки; нет места 3×3×3 (`CargoSpawner.findSpot`, `spawn_search_radius`) → `Timing.paused` растёт, уведомление раз в минуту. Доставка — только `checkContainer` из блок-сущности; деньги считает один `completeDelivery`.
+- Команд `pickup`/`deliver` **нет**. `tick` вызывает `spawnContainer`, когда курьер `ACCEPTED`-заказа ближе `spawn_trigger_radius` к точке погрузки; нет места 3×3×3 (`CargoSpawner.findSpot`, `spawn_search_radius`) → `Timing.paused` растёт, уведомление раз в минуту. Доставка — только `checkContainer` из блок-сущности; деньги считает один `completeDelivery`. `spawnContainer` берёт `facing` из `contract.containerFacing()` (накладная = `waybillFace`); не пересчитывает по текущему игроку.
 - Провал — один метод `fail(reason, site)`: сначала деньги заказчику, `takeItems`, `put(FAILED)`, и только потом груз (почта / потерян / дроп `DAMAGED`). NPC (`VILLAGE`): залог и награда сгорают, груз уничтожается (без почты и дропа). Новые причины добавлять туда же.
 - Пропажа контейнера: `setRemoved` (не выгрузка чанка, не самоудаление) → `containerRemoved` → если `CargoTracker` не получил свежего отчёта за `MISSING_GRACE_TICKS` (60) → `DESTROYED`. Sable пересоздаёт BE при переносе — поэтому окно, а не мгновенный провал.
 - FakePlayer нет в списке игроков: GameTest регистрирует курьера через `registerTestPlayer` (работает только при включённых GameTest'ах).
