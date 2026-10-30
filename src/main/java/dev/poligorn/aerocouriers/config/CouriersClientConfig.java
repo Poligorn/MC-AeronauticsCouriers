@@ -5,7 +5,7 @@ import net.neoforged.neoforge.common.ModConfigSpec;
 
 /**
  * {@code aerocouriers-client.toml} (GDD §10.1, §10.3). {@code [button]} places the inventory button;
- * {@code [zones]} drives the zone outline particles.
+ * {@code [zones]} drives the zone outline particles; {@code [route]} the route line on Xaero's maps.
  */
 public final class CouriersClientConfig {
     public static final ModConfigSpec SPEC;
@@ -35,6 +35,21 @@ public final class CouriersClientConfig {
     public static final ModConfigSpec.DoubleValue NAV_BEAM_FADE_START;
     public static final ModConfigSpec.ConfigValue<String> NAV_BEAM_PICKUP_COLOR;
     public static final ModConfigSpec.ConfigValue<String> NAV_BEAM_DELIVERY_COLOR;
+
+    public static final ModConfigSpec.BooleanValue ROUTE_ENABLED;
+    public static final ModConfigSpec.BooleanValue ROUTE_WORLD_MAP;
+    public static final ModConfigSpec.BooleanValue ROUTE_MINIMAP;
+    public static final ModConfigSpec.BooleanValue ROUTE_LABEL;
+    public static final ModConfigSpec.BooleanValue ROUTE_ERASE_PASSED;
+    public static final ModConfigSpec.BooleanValue ROUTE_WAYBILL_PREVIEW;
+    public static final ModConfigSpec.BooleanValue ROUTE_OTHER_ORDERS;
+    public static final ModConfigSpec.IntValue ROUTE_CORRIDOR;
+    public static final ModConfigSpec.DoubleValue ROUTE_REROUTE_DELAY;
+    public static final ModConfigSpec.EnumValue<RouteThickness> ROUTE_THICKNESS;
+    public static final ModConfigSpec.BooleanValue ROUTE_CONTRAST;
+    public static final ModConfigSpec.EnumValue<RouteEtaMode> ROUTE_ETA_MODE;
+    public static final ModConfigSpec.DoubleValue ROUTE_FIXED_SPEED;
+    public static final ModConfigSpec.IntValue ROUTE_BREADCRUMB_STEP;
 
     static {
         ModConfigSpec.Builder b = new ModConfigSpec.Builder();
@@ -114,7 +129,66 @@ public final class CouriersClientConfig {
                 .define("beam_delivery_color", "0.33333334,1.0,1.0");
         b.pop();
 
+        b.push("route");
+        ROUTE_ENABLED = b.comment("Draw the delivery route line on Xaero's World Map and minimap (needs Xaero)")
+                .define("enabled", true);
+        ROUTE_WORLD_MAP = b.comment("Draw the route on the full-screen World Map").define("world_map", true);
+        ROUTE_MINIMAP = b.comment("Draw the route inside the minimap").define("minimap", true);
+        ROUTE_LABEL = b.comment("Label at the target on the World Map: distance, travel time, time to deadline")
+                .define("label", true);
+        ROUTE_ERASE_PASSED = b.comment("Erase the part of the line behind the ship").define("erase_passed", true);
+        ROUTE_WAYBILL_PREVIEW = b.comment("\"Show on map\" button on the waybill").define("waybill_preview", true);
+        ROUTE_OTHER_ORDERS = b.comment("Also draw your other active orders as a thin dashed line")
+                .define("other_orders", false);
+        ROUTE_CORRIDOR = b.comment("Rebuild the line when the ship is farther than this from it, blocks")
+                .defineInRange("corridor", 32, 16, 96);
+        ROUTE_REROUTE_DELAY = b.comment("Seconds outside the corridor before the line is rebuilt")
+                .defineInRange("reroute_delay", 2.0, 0.5, 10.0);
+        ROUTE_THICKNESS = b.comment("THIN, NORMAL or THICK").defineEnum("thickness", RouteThickness.NORMAL);
+        ROUTE_CONTRAST = b.comment("Colour-blind friendly colours: orange to A, white to B")
+                .define("contrast_colors", false);
+        ROUTE_ETA_MODE = b.comment(
+                        "SHIP_SPEED - travel time from the ship's speed over the last 10 s;",
+                        "FIXED - always fixed_speed")
+                .defineEnum("eta_mode", RouteEtaMode.SHIP_SPEED);
+        ROUTE_FIXED_SPEED = b.comment("Blocks per second for FIXED and while the ship is standing still")
+                .defineInRange("fixed_speed", 8.0, 1.0, 64.0);
+        ROUTE_BREADCRUMB_STEP = b.comment(
+                        "Fallback when the line cannot be drawn in this Xaero version:",
+                        "temporary Xaero waypoints every N blocks along the route")
+                .defineInRange("breadcrumb_step", 96, 32, 512);
+        b.pop();
+
         SPEC = b.build();
+    }
+
+    public enum RouteThickness {
+        THIN,
+        NORMAL,
+        THICK
+    }
+
+    public enum RouteEtaMode {
+        SHIP_SPEED,
+        FIXED
+    }
+
+    /** Reads a client value, falling back to its default before the config file is loaded. */
+    public static <T> T get(ModConfigSpec.ConfigValue<T> value) {
+        try {
+            return value.get();
+        } catch (IllegalStateException ignored) {
+            return value.getDefault();
+        }
+    }
+
+    /** Stores and saves a client value from an in-game settings screen. */
+    public static <T> void set(ModConfigSpec.ConfigValue<T> value, T newValue) {
+        try {
+            value.set(newValue);
+            value.save();
+        } catch (IllegalStateException ignored) {
+        }
     }
 
     /** Client-only; safe when config is not loaded yet (defaults to mod sprites). */

@@ -323,6 +323,10 @@ final class XaeroOrderWaypoints {
     }
 
     private static @Nullable ThirdPartyWaypoints bucket(ResourceKey<Level> dimension) {
+        return bucket(dimension, ORIGIN);
+    }
+
+    static @Nullable ThirdPartyWaypoints bucket(ResourceKey<Level> dimension, ResourceLocation origin) {
         MinimapSession session = BuiltInHudModules.MINIMAP.getCurrentSession();
         if (session == null) {
             return null;
@@ -331,7 +335,7 @@ final class XaeroOrderWaypoints {
             MinimapWorldRootContainer root = session.getWorldManager().getAutoRootContainer();
             String node = session.getDimensionHelper().getDimensionDirectoryName(dimension);
             MinimapWorldContainer container = root.addSubContainer(root.getPath().resolve(node));
-            return container.getThirdPartyWaypointManager().get(ORIGIN);
+            return container.getThirdPartyWaypointManager().get(origin);
         } catch (Throwable ignored) {
             return null;
         }
