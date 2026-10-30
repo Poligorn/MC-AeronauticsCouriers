@@ -60,7 +60,16 @@ public final class Tutorials {
 
     private static void put(ServerPlayer player, TutorialData.Entry entry) {
         TutorialData.get(player.server).put(player.getUUID(), entry);
-        TaskSync.sync(player);
+        TaskSync.sendNow(player);
+    }
+
+    private static void syncPlayer(MinecraftServer server, UUID id) {
+        ServerPlayer online = server.getPlayerList().getPlayer(id);
+        if (online != null) {
+            TaskSync.sendNow(online);
+        } else {
+            TaskSync.syncLater(id);
+        }
     }
 
     /** First tablet open without any license: offer the welcome window once. */
@@ -154,13 +163,13 @@ public final class Tutorials {
         TutorialData data = TutorialData.get(server);
         TutorialData.Entry e = data.get(player);
         data.put(player, e.withState(TutorialData.State.STARTED).nextAttempt());
-        TaskSync.syncLater(player);
+        syncPlayer(server, player);
     }
 
     public static void onLost(MinecraftServer server, UUID player) {
         TutorialData data = TutorialData.get(server);
         data.put(player, data.get(player).withState(TutorialData.State.ACCEPTED).nextAttempt());
-        TaskSync.syncLater(player);
+        syncPlayer(server, player);
         ServerPlayer online = server.getPlayerList().getPlayer(player);
         if (online != null) {
             online.displayClientMessage(Component.translatable("tutorial.aerocouriers.bar.lost"), true);
@@ -172,7 +181,7 @@ public final class Tutorials {
         TutorialData data = TutorialData.get(server);
         data.put(player, data.get(player).withState(TutorialData.State.DISABLED_REMOVED)
                 .withOrder(Optional.empty(), false));
-        TaskSync.syncLater(player);
+        syncPlayer(server, player);
     }
 
     public static void onDelivered(ServerPlayer player) {
@@ -205,7 +214,7 @@ public final class Tutorials {
             } else if (on && e.state() == TutorialData.State.DISABLED_REMOVED) {
                 data.put(row.getKey(), e.withState(TutorialData.State.NOT_STARTED));
             }
-            TaskSync.syncLater(row.getKey());
+            syncPlayer(server, row.getKey());
         }
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             BoardPackets.syncSnapshot(player);
@@ -256,7 +265,7 @@ public final class Tutorials {
             Contract order = found.get();
             if (order.state() == ContractState.IN_TRANSIT && e.state() == TutorialData.State.ACCEPTED) {
                 data.put(player.getUUID(), e.withState(TutorialData.State.IN_TRANSIT));
-                TaskSync.sync(player);
+                TaskSync.sendNow(player);
             }
             actionBar(player, order, manager).ifPresent(text -> player.displayClientMessage(text, true));
         }

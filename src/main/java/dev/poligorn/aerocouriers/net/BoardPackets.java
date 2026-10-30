@@ -57,7 +57,7 @@ public final class BoardPackets {
 
     /** Pushes a fresh snapshot without opening the screen (profile XP after delivery, etc.). */
     public static void syncSnapshot(ServerPlayer player) {
-        dev.poligorn.aerocouriers.task.TaskSync.sync(player);
+        dev.poligorn.aerocouriers.task.TaskSync.sendNow(player);
         if (!canSendBoard(player)) {
             return;
         }
@@ -78,6 +78,7 @@ public final class BoardPackets {
         if (openScreen) {
             dev.poligorn.aerocouriers.tutorial.Tutorials.onBoardOpened(player);
         }
+        dev.poligorn.aerocouriers.task.TaskSync.sendNow(player);
         CouriersNetwork.sendRegistryPayload(player, snapshot(player, page, openScreen, notice),
                 BoardSnapshotPayload.STREAM_CODEC);
         if (openScreen) {
@@ -90,6 +91,7 @@ public final class BoardPackets {
         if (!canSendBoard(player)) {
             return;
         }
+        dev.poligorn.aerocouriers.task.TaskSync.sendNow(player);
         CouriersNetwork.sendRegistryPayload(player, snapshot(player, 0, true, Optional.empty()),
                 BoardSnapshotPayload.STREAM_CODEC);
         CouriersNotifications.sync(player);

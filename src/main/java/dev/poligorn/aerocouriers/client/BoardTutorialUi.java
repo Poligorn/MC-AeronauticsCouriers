@@ -68,11 +68,24 @@ final class BoardTutorialUi {
         if (!extras.tutorialEnabled() || !state().inProgress()) {
             return -1;
         }
+        int fromWorld = stepFromSnapshot();
         Optional<TaskView> task = ClientTasks.byId("tutorial");
-        if (task.isPresent()) {
-            return task.get().currentStep();
+        if (task.isEmpty()) {
+            return fromWorld;
         }
-        return state() == TutorialData.State.STARTED ? 0 : state() == TutorialData.State.ACCEPTED ? 2 : 3;
+        // A task synced before the license (or before this screen opened) must not pin the checklist at 0/4.
+        return Math.max(task.get().currentStep(), fromWorld);
+    }
+
+    /** License and order state already on the board snapshot, including progress made before the tablet opened. */
+    private static int stepFromSnapshot() {
+        boolean licensed = ClientBoard.knownLicensed();
+        return switch (state()) {
+            case STARTED -> licensed ? 1 : 0;
+            case ACCEPTED -> 2;
+            case IN_TRANSIT -> 3;
+            default -> -1;
+        };
     }
 
     // --- modal windows -------------------------------------------------------------------------------------------

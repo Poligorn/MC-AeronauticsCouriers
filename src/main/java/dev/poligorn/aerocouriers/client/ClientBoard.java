@@ -24,6 +24,8 @@ import org.jetbrains.annotations.Nullable;
  */
 public final class ClientBoard {
     private static boolean requireTablet = true;
+    private static boolean licensedCourier;
+    private static boolean pilotLicenseHeld;
     private static BoardSnapshotPayload.Extras extras = BoardSnapshotPayload.Extras.EMPTY;
     private static @Nullable java.util.UUID pendingContractFocus;
     private static MineListSection mineSection = MineListSection.CURRENT;
@@ -103,9 +105,15 @@ public final class ClientBoard {
         return extras.profile();
     }
 
+    public static boolean knownLicensed() {
+        return licensedCourier || pilotLicenseHeld;
+    }
+
     public static void apply(BoardSnapshotPayload payload) {
         requireTablet = payload.requireTablet();
         extras = payload.extras();
+        licensedCourier = payload.profile().licensedCourier();
+        pilotLicenseHeld = payload.profile().pilotLicenseHeld();
         dev.poligorn.aerocouriers.economy.MoneyScale.reportBackend(payload.numismaticsEconomy());
         if (VillageRefreshUi.isEnabled(payload.nextVillageRefreshGameTime())) {
             VillageRefreshUi.applySnapshot(payload.nextVillageRefreshGameTime(), payload.snapshotOverworldGameTime());

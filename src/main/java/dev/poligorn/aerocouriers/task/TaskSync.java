@@ -33,6 +33,14 @@ public final class TaskSync {
         syncLater(player.getUUID());
     }
 
+    /** Sends immediately. A deferred flush never runs while the integrated server is not ticking. */
+    public static void sendNow(ServerPlayer player) {
+        synchronized (TaskSync.class) {
+            PENDING.remove(player.getUUID());
+        }
+        send(player);
+    }
+
     public static void onServerTick(ServerTickEvent.Post event) {
         List<UUID> batch;
         synchronized (TaskSync.class) {
