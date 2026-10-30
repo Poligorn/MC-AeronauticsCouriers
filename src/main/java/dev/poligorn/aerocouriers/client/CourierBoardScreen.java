@@ -341,6 +341,9 @@ public final class CourierBoardScreen extends Screen {
     private void removeTabletButtons() {
         List<AbstractWidget> remove = new ArrayList<>();
         for (Renderable widget : renderables) {
+            if (widget instanceof AbstractWidget owned && adminUi.ownsWidget(owned)) {
+                continue;
+            }
             if (widget instanceof TabletButton || widget instanceof TabletRowIconButton) {
                 remove.add((AbstractWidget) widget);
             }
@@ -1736,7 +1739,10 @@ public final class CourierBoardScreen extends Screen {
         }
         if (snapshot != null && tab == Tab.ADMIN && adminUi.scrollEconomy(scrollY, snapshot,
                 adminUi.contentTop(adminUi.subToggleY(headingY(), font.lineHeight)))) {
-            refreshAdminContent();
+            int subY = adminUi.subToggleY(headingY(), font.lineHeight);
+            int rowY = adminUi.subTab() == BoardAdminUi.SubTab.ORDERS
+                    ? adminOrdersRowY(subY) : adminUi.contentTop(subY);
+            adminUi.moveEconomy(snapshot, screenLeft(), rowY, screenW());
             return true;
         }
         if (snapshot != null && (tab == Tab.BOARD || tab == Tab.MINE)) {

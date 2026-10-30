@@ -40,6 +40,12 @@ final class AdminEconomyUi {
 
     private final CourierBoardScreen screen;
     private final List<AbstractWidget> widgets = new ArrayList<>();
+    private final List<TabletTabButton> segments = new ArrayList<>();
+    private final List<AbstractWidget> tools = new ArrayList<>();
+    private @Nullable TabletButton applyButton;
+    private @Nullable TabletButton confirmYes;
+    private @Nullable TabletButton confirmNo;
+    private boolean built;
     private int scroll;
     private @Nullable CollateralProfile selected;
     private boolean confirming;
@@ -61,6 +67,16 @@ final class AdminEconomyUi {
             screen.adminRemoveWidget(widget);
         }
         widgets.clear();
+        segments.clear();
+        tools.clear();
+        applyButton = null;
+        confirmYes = null;
+        confirmNo = null;
+        built = false;
+    }
+
+    boolean owns(AbstractWidget widget) {
+        return widgets.contains(widget);
     }
 
     private void add(AbstractWidget widget) {
@@ -89,7 +105,21 @@ final class AdminEconomyUi {
     }
 
     void init(BoardSnapshotPayload snapshot, int sx, int top, int sw) {
-        clearWidgets();
+        // Structural refresh (open, resize, sub-tab, confirm). Scroll must call {@link #move} instead:
+        // rebuilding here on every wheel notch stacked a second row of segment labels.
+        rebuild(snapshot, sx, sw);
+        move(snapshot, sx, top, sw);
+    }
+
+    /**
+     * Wheel scroll only. Widgets stay mounted and change Y; creating a new row here stacked labels on the old one
+     * because profile segments are not removed by the board's button sweep.
+     */
+    void move(BoardSnapshotPayload snapshot, int sx, int top, int sw) {
+        if (!built) {
+            init(snapshot, sx, top, sw);
+            return;
+        }
         int bottom = screen.adminContentBottom();
         CollateralProfile active = active(snapshot);
         CollateralProfile shown = shown(snapshot);
@@ -97,70 +127,106 @@ final class AdminEconomyUi {
         int gap = 3;
         int segW = (sw - 4 - gap * (order.length - 1)) / order.length;
         int segY = top + SEGMENTS_Y - scroll;
-        if (visible(segY, 18, top, bottom)) {
-            for (int i = 0; i < order.length; i++) {
-                CollateralProfile p = order[i];
-                TabletTabButton seg = new TabletTabButton(sx + i * (segW + gap), segY, segW, 18,
-                        Component.translatable(p.langKey()), () -> {
-                            selected = p;
-                            confirming = false;
-                            screen.refreshAdminContent();
-                        });
-                seg.selected(p == shown);
-                add(seg);
-            }
+        for (int i = 0; i < segments.size() && i < order.length; i++) {
+            TabletTabButton seg = segments.get(i);
+            seg.setX(sx + i * (segW + gap));
+            seg.setY(segY);
+            seg.visible = visible(segY, 18, top, bottom);
+            seg.selected(order[i] == shown);
         }
         int applyY = top + APPLY_Y - scroll;
-        if (!confirming && visible(applyY, 18, top, bottom)) {
-            TabletButton apply = TabletButton.create(sx, applyY, Math.min(160, sw - 4), 18,
+        if (applyButton != null) {
+            applyButton.setX(sx);
+            applyButton.setY(applyY);
+            applyButton.visible = visible(applyY, 18, top, bottom);
+            applyButton.active = shown != active;
+        }
+        int by = applyY + 34;
+        if (confirmYes != null) {
+            confirmYes.setX(sx);
+            confirmYes.setY(by);
+            confirmYes.visible = visible(by, 18, top, bottom);
+        }
+        if (confirmNo != null) {
+            confirmNo.setX(sx + 100);
+            confirmNo.setY(by);
+            confirmNo.visible = visible(by, 18, top, bottom);
+        }
+        int toolsY = top + TOOLS_BUTTONS_Y - scroll;
+        int[] offsets = {0, 24, 48, 72, 96};
+        int[] heights = {20, 20, 20, 20, 20};
+        for (int i = 0; i < tools.size() && i < offsets.length; i++) {
+            AbstractWidget tool = tools.get(i);
+            tool.setX(sx);
+            tool.setY(toolsY + offsets[i]);
+            tool.visible = visible(toolsY + offsets[i], heights[i], top, bottom);
+        }
+    }
+
+    private void rebuild(BoardSnapshotPayload snapshot, int sx, int sw) {
+        clearWidgets();
+        CollateralProfile shown = shown(snapshot);
+        CollateralProfile[] order = CollateralProfile.values();
+        int gap = 3;
+        int segW = Math.max(1, (sw - 4 - gap * (order.length - 1)) / order.length);
+        for (int i = 0; i < order.length; i++) {
+            CollateralProfile p = order[i];
+            TabletTabButton seg = new TabletTabButton(sx + i * (segW + gap), 0, segW, 18,
+                    Component.translatable(p.langKey()), () -> {
+                        selected = p;
+                        confirming = false;
+                        screen.refreshAdminContent();
+                    });
+            seg.selected(p == shown);
+            segments.add(seg);
+            add(seg);
+        }
+        if (!confirming) {
+            applyButton = TabletButton.create(sx, 0, Math.min(160, sw - 4), 18,
                     Component.translatable("ui.aerocouriers.admin.economy.profile.apply"), b -> {
                         confirming = true;
                         screen.refreshAdminContent();
                     });
-            apply.active = shown != active;
-            add(apply);
-        }
-        if (confirming && visible(applyY + 34, 18, top, bottom)) {
-            int by = applyY + 34;
-            add(TabletButton.create(sx, by, 96, 18,
+            add(applyButton);
+        } else {
+            confirmYes = TabletButton.create(sx, 0, 96, 18,
                     Component.translatable("ui.aerocouriers.admin.economy.profile.confirm_yes"), b -> {
                         PacketDistributor.sendToServer(new OperatorBoardPayload(
                                 OperatorBoardPayload.Action.ECONOMY_SET_COLLATERAL_PROFILE, Optional.empty(),
-                                Optional.empty(), Optional.empty(), Optional.empty(), shown.ordinal(), true));
+                                Optional.empty(), Optional.of(shown(snapshot).key()), Optional.empty(), 0L, true));
                         confirming = false;
                         selected = null;
                         screen.refreshAdminContent();
-                    }));
-            add(TabletButton.create(sx + 100, by, 72, 18,
+                    });
+            confirmNo = TabletButton.create(sx + 100, 0, 72, 18,
                     Component.translatable("gui.cancel"), b -> {
                         confirming = false;
                         screen.refreshAdminContent();
-                    }));
+                    });
+            add(confirmYes);
+            add(confirmNo);
         }
-        int y = top + TOOLS_BUTTONS_Y - scroll;
         int w = Math.min(200, sw - 4);
-        addTool(y, top, bottom, sx, w, "ui.aerocouriers.admin.economy.reload", OperatorBoardPayload.Action.ECONOMY_RELOAD, 0);
-        addTool(y + 24, top, bottom, sx, w, "ui.aerocouriers.admin.economy.show_value",
-                OperatorBoardPayload.Action.ECONOMY_SHOW_VALUE, 0);
-        addTool(y + 48, top, bottom, sx, w, "ui.aerocouriers.admin.economy.show_weight",
-                OperatorBoardPayload.Action.ECONOMY_SHOW_WEIGHT, 0);
-        if (visible(y + 72, 20, top, bottom)) {
-            add(TabletButton.create(sx, y + 72, w, 20,
-                    Component.translatable("ui.aerocouriers.admin.economy.set_value", MoneyFormat.component(100)),
-                    b -> send(OperatorBoardPayload.Action.ECONOMY_SET_VALUE, 100)));
-        }
-        if (visible(y + 96, 20, top, bottom)) {
-            add(TabletButton.create(sx, y + 96, w, 20,
-                    Component.translatable("ui.aerocouriers.admin.economy.set_weight", 1.0),
-                    b -> send(OperatorBoardPayload.Action.ECONOMY_SET_WEIGHT, Double.doubleToLongBits(1.0))));
-        }
+        addTool(sx, w, "ui.aerocouriers.admin.economy.reload", OperatorBoardPayload.Action.ECONOMY_RELOAD, 0);
+        addTool(sx, w, "ui.aerocouriers.admin.economy.show_value", OperatorBoardPayload.Action.ECONOMY_SHOW_VALUE, 0);
+        addTool(sx, w, "ui.aerocouriers.admin.economy.show_weight", OperatorBoardPayload.Action.ECONOMY_SHOW_WEIGHT, 0);
+        AbstractWidget setValue = TabletButton.create(sx, 0, w, 20,
+                Component.translatable("ui.aerocouriers.admin.economy.set_value", MoneyFormat.component(100)),
+                b -> send(OperatorBoardPayload.Action.ECONOMY_SET_VALUE, 100));
+        AbstractWidget setWeight = TabletButton.create(sx, 0, w, 20,
+                Component.translatable("ui.aerocouriers.admin.economy.set_weight", 1.0),
+                b -> send(OperatorBoardPayload.Action.ECONOMY_SET_WEIGHT, Double.doubleToLongBits(1.0)));
+        tools.add(setValue);
+        tools.add(setWeight);
+        add(setValue);
+        add(setWeight);
+        built = true;
     }
 
-    private void addTool(int y, int top, int bottom, int sx, int w, String key, OperatorBoardPayload.Action action,
-                         long arg) {
-        if (visible(y, 20, top, bottom)) {
-            add(TabletButton.create(sx, y, w, 20, Component.translatable(key), b -> send(action, arg)));
-        }
+    private void addTool(int sx, int w, String key, OperatorBoardPayload.Action action, long arg) {
+        AbstractWidget button = TabletButton.create(sx, 0, w, 20, Component.translatable(key), b -> send(action, arg));
+        tools.add(button);
+        add(button);
     }
 
     private static boolean visible(int y, int h, int top, int bottom) {

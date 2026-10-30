@@ -366,8 +366,19 @@ final class BoardAdminUi {
         return subY + CourierBoardScreen.ADMIN_SUB_TOGGLE_H + CourierBoardScreen.ADMIN_SUB_GAP;
     }
 
+    boolean ownsWidget(AbstractWidget widget) {
+        return economyUi.owns(widget);
+    }
+
     boolean scrollEconomy(double delta, BoardSnapshotPayload snapshot, int top) {
         return subTab == SubTab.ECONOMY && economyUi.scroll(delta, snapshot, top);
+    }
+
+    /** Moves the economy widgets with the page scroll. Does not create a second copy. */
+    void moveEconomy(BoardSnapshotPayload snapshot, int sx, int top, int sw) {
+        if (subTab == SubTab.ECONOMY) {
+            economyUi.move(snapshot, sx, top, sw);
+        }
     }
 
     void scrollAdmin(int delta) {
