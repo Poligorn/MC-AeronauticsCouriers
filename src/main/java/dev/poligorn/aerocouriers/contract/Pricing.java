@@ -42,22 +42,37 @@ public final class Pricing {
         return Math.round(reward * rate * CouriersServerConfig.feeMultiplier(size));
     }
 
-    /**
-     * Minimum P2P collateral ({@code aerocouriers-server.toml} {@code p2p_min_collateral_ratio}): at least the
-     * reward, at least {@code reward × ratio}, and at least {@code cargo value × ratio} when value is known.
-     */
     public static long minP2pCollateral(long reward, List<ItemStack> manifest) {
-        double ratio = CouriersServerConfig.SPEC.isLoaded()
-                ? CouriersServerConfig.P2P_MIN_COLLATERAL_RATIO.get()
-                : 0.5;
-        long min = Math.max(reward, Math.round(reward * ratio));
-        if (manifest != null) {
-            long value = ItemValues.of(manifest);
-            if (value > 0) {
-                min = Math.max(min, Math.round(value * ratio));
-            }
+        return minP2pCollateral(CollateralProfile.active(), reward, manifest);
+    }
+
+    /**
+     * Minimum P2P collateral for {@code profile}: none for peace and custom; otherwise at least the reward and at
+     * least {@code cargo value × profile share}.
+     */
+    public static long minP2pCollateral(CollateralProfile profile, long reward, List<ItemStack> manifest) {
+        if (profile.noCollateral() || profile.freeCollateral()) {
+            return 0L;
+        }
+        long min = reward;
+        long value = manifest == null ? 0L : ItemValues.of(manifest);
+        if (value > 0) {
+            min = Math.max(min, Math.round(value * profile.ratio()));
         }
         return min;
+    }
+
+    /** Highest accepted P2P collateral: {@code 200 %} of value in custom, {@code 0} in peace, unbounded otherwise. */
+    public static long maxP2pCollateral(CollateralProfile profile, long reward, List<ItemStack> manifest) {
+        if (profile.noCollateral()) {
+            return 0L;
+        }
+        if (!profile.freeCollateral()) {
+            return Long.MAX_VALUE;
+        }
+        long value = manifest == null ? 0L : ItemValues.of(manifest);
+        long base = value > 0 ? value : reward;
+        return Math.max(0L, Math.round(base * CollateralProfile.CUSTOM_MAX_RATIO));
     }
 
     public record NpcMoney(long reward, long collateral) {
@@ -100,12 +115,23 @@ public final class Pricing {
         return MoneyScale.fromSpurs(Math.max(1, Math.round(base * factor)));
     }
 
-    /** NPC collateral from cargo value (GDD §8.3) or {@code ≈2×} weight when value is zero. */
     public static long npcCollateral(List<ItemStack> manifest, double weight) {
+        return npcCollateral(CollateralProfile.active(), manifest, weight);
+    }
+
+    /**
+     * NPC collateral: {@code profile share × cargo value × collateral_factor} (GDD §8.3), or the same share of
+     * {@code ≈2×} weight when value is zero; {@code 0} in peace.
+     */
+    public static long npcCollateral(CollateralProfile profile, List<ItemStack> manifest, double weight) {
+        double share = profile.npcRatio();
+        if (share <= 0.0) {
+            return 0L;
+        }
         long value = ItemValues.of(manifest);
         if (value > 0) {
-            return Math.max(1, Math.round(value * ItemValues.collateralFactor()));
+            return Math.max(1, Math.round(value * share * ItemValues.collateralFactor()));
         }
-        return MoneyScale.fromSpurs(Math.max(1, Math.round(weight * 2.0)));
+        return Math.max(1, Math.round(MoneyScale.fromSpurs(Math.max(1, Math.round(weight * 2.0))) * share));
     }
 }

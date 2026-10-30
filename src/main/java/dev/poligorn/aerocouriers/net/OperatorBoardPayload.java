@@ -51,7 +51,8 @@ public record OperatorBoardPayload(
         SERVER_REGEN,
         CONFIG_SET,
         DEBUG_TOGGLE_SELF_ACCEPT,
-        PLAYER_RESET_LICENSE
+        PLAYER_RESET_LICENSE,
+        ECONOMY_SET_COLLATERAL_PROFILE
     }
 
     public static final long TEST_MONEY = 500;

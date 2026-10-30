@@ -135,6 +135,8 @@ public final class ContractManager extends SavedData {
      * while still standing at the pickup, so the state alone cannot tell the courier where to fly next.
      */
     private final Set<UUID> pickedUp = new HashSet<>();
+    /** {@code p2p_min_collateral_ratio} was already mapped to {@code economy.collateral_profile} for this world. */
+    private boolean collateralMigrated;
 
     // Transient, rebuilt after a restart.
     private final Map<UUID, Integer> stillChecks = new HashMap<>();
@@ -215,6 +217,10 @@ public final class ContractManager extends SavedData {
 
     /** What the courier loses on failure — shown before and on acceptance (owner's decision, GDD §7.2 / §6.3). */
     public static Component riskLine(Contract contract) {
+        if (contract.collateral() <= 0 && CollateralProfile.active().noCollateral()) {
+            return Component.translatable(contract.type().isNpc() ? "contract.aerocouriers.risk.npc.no_collateral"
+                    : "contract.aerocouriers.risk.no_collateral");
+        }
         String key = contract.type().isNpc() ? "contract.aerocouriers.risk.npc" : "contract.aerocouriers.risk";
         return Component.translatable(key,
                 dev.poligorn.aerocouriers.economy.MoneyFormat.component(contract.collateral()),
@@ -274,10 +280,19 @@ public final class ContractManager extends SavedData {
         if (collateral < 0) {
             return Outcome.error("negative_collateral");
         }
-        long minCollateral = Pricing.minP2pCollateral(reward, manifest);
+        CollateralProfile collateralProfile = CollateralProfile.active();
+        if (collateralProfile.noCollateral()) {
+            collateral = 0L;
+        }
+        long minCollateral = Pricing.minP2pCollateral(collateralProfile, reward, manifest);
         if (collateral < minCollateral) {
             return Outcome.error("collateral_below_minimum",
                     dev.poligorn.aerocouriers.economy.MoneyFormat.component(minCollateral));
+        }
+        long maxCollateral = Pricing.maxP2pCollateral(collateralProfile, reward, manifest);
+        if (collateral > maxCollateral) {
+            return Outcome.error("collateral_above_maximum",
+                    dev.poligorn.aerocouriers.economy.MoneyFormat.component(maxCollateral));
         }
 
         UUID id = UUID.randomUUID();
@@ -385,10 +400,19 @@ public final class ContractManager extends SavedData {
         if (collateral < 0) {
             return Outcome.error("negative_collateral");
         }
-        long minCollateral = Pricing.minP2pCollateral(reward, manifest);
+        CollateralProfile collateralProfile = CollateralProfile.active();
+        if (collateralProfile.noCollateral()) {
+            collateral = 0L;
+        }
+        long minCollateral = Pricing.minP2pCollateral(collateralProfile, reward, manifest);
         if (collateral < minCollateral) {
             return Outcome.error("collateral_below_minimum",
                     dev.poligorn.aerocouriers.economy.MoneyFormat.component(minCollateral));
+        }
+        long maxCollateral = Pricing.maxP2pCollateral(collateralProfile, reward, manifest);
+        if (collateral > maxCollateral) {
+            return Outcome.error("collateral_above_maximum",
+                    dev.poligorn.aerocouriers.economy.MoneyFormat.component(maxCollateral));
         }
 
         UUID id = UUID.randomUUID();
@@ -577,7 +601,8 @@ public final class ContractManager extends SavedData {
             notify(server, contract.issuer(), Component.translatable("contract.aerocouriers.notify.accepted",
                     contract.shortId(), courier.getDisplayName()), id);
         }
-        String acceptKey = contract.preplaced() ? "accepted_preplaced" : "accepted";
+        String acceptKey = (contract.preplaced() ? "accepted_preplaced" : "accepted")
+                + (collateralDue <= 0 ? ".free" : "");
         Component message = Component.translatable("contract.aerocouriers." + acceptKey, contract.shortId(),
                         dev.poligorn.aerocouriers.economy.MoneyFormat.component(collateralDue),
                         accepted.timing().deadline() / Pricing.TICKS_PER_MINUTE,
@@ -1275,6 +1300,37 @@ public final class ContractManager extends SavedData {
         }
     }
 
+    public boolean collateralMigrated() {
+        return collateralMigrated;
+    }
+
+    public void markCollateralMigrated() {
+        collateralMigrated = true;
+        setDirty();
+    }
+
+    /**
+     * Peace profile: open orders drop their collateral so a courier never pays what the UI no longer shows. The
+     * issuer's own minimum rank survives; the collateral part of the requirement is recomputed.
+     */
+    public int clearOpenCollateral() {
+        int changed = 0;
+        for (Contract c : List.copyOf(contracts.values())) {
+            if (c.state() != ContractState.OPEN || c.collateral() <= 0) {
+                continue;
+            }
+            LicenseRank byOld = ContractDistances.routeRequiredRank(c.collateral(), c.size(), c.origin(), c.destination());
+            LicenseRank byZero = ContractDistances.routeRequiredRank(0L, c.size(), c.origin(), c.destination());
+            LicenseRank rank = c.requiredRank().level() > byOld.level() ? c.requiredRank() : byZero;
+            contracts.put(c.id(), c.withCollateral(0L, rank));
+            changed++;
+        }
+        if (changed > 0) {
+            setDirty();
+        }
+        return changed;
+    }
+
     /** Whether the courier already took the cargo away from the pickup point (delivery waypoint instead of pickup). */
     public boolean cargoPickedUp(UUID id) {
         return pickedUp.contains(id);
@@ -1319,6 +1375,7 @@ public final class ContractManager extends SavedData {
             PICKED_UP_CODEC.parse(NbtOps.INSTANCE, tag.get("picked_up")).result()
                     .ifPresent(manager.pickedUp::addAll);
         }
+        manager.collateralMigrated = tag.getBoolean("collateral_migrated");
         return manager;
     }
 
@@ -1329,6 +1386,7 @@ public final class ContractManager extends SavedData {
         tag.put("pending_failures", PENDING_CODEC.encodeStart(NbtOps.INSTANCE, pendingFailures).getOrThrow());
         tag.put("recent_deliveries", Delivery.CODEC.listOf().encodeStart(NbtOps.INSTANCE, recentDeliveries).getOrThrow());
         tag.put("picked_up", PICKED_UP_CODEC.encodeStart(NbtOps.INSTANCE, List.copyOf(pickedUp)).getOrThrow());
+        tag.putBoolean("collateral_migrated", collateralMigrated);
         return tag;
     }
 }

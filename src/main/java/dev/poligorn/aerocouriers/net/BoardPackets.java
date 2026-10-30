@@ -168,7 +168,15 @@ public final class BoardPackets {
                 online,
                 configLines,
                 nextVillageRefresh,
-                overworldGameTime);
+                overworldGameTime,
+                extras(player, operator));
+    }
+
+    private static BoardSnapshotPayload.Extras extras(ServerPlayer player, boolean operator) {
+        return new BoardSnapshotPayload.Extras(
+                dev.poligorn.aerocouriers.contract.CollateralProfile.active().ordinal(),
+                operator ? dev.poligorn.aerocouriers.config.EconomySettingsView.lines() : List.of(),
+                false, 0, Optional.empty(), false, false, 0, 0, 0L, false);
     }
 
     private static BoardSnapshotPayload.AdminActiveEntry adminEntry(Contract contract, StationAtlas atlas,
@@ -273,7 +281,8 @@ public final class BoardPackets {
                 .toList();
         CouriersNetwork.sendRegistryPayload(player, new OpenWaybillCreatePayload(
                 origin, cargo, weight, Economies.get(player.server).balance(player.getUUID()),
-                Economies.usesNumismatics(player.server), stations),
+                Economies.usesNumismatics(player.server), stations,
+                dev.poligorn.aerocouriers.contract.CollateralProfile.active().ordinal()),
                 OpenWaybillCreatePayload.STREAM_CODEC);
     }
 
@@ -338,6 +347,8 @@ public final class BoardPackets {
             case SERVER_REGEN -> AdminActions.regenerateVillageBoards(server);
             case CONFIG_SET -> AdminActions.setConfig(payload.arg1().orElse(""), payload.arg2().orElse(""));
             case DEBUG_TOGGLE_SELF_ACCEPT -> AdminActions.toggleAllowSelfAccept();
+            case ECONOMY_SET_COLLATERAL_PROFILE -> dev.poligorn.aerocouriers.contract.CollateralProfiles.apply(server,
+                    dev.poligorn.aerocouriers.contract.CollateralProfile.byOrdinal((int) payload.longArg()));
         };
         reply(player, outcome.message());
         return outcome;

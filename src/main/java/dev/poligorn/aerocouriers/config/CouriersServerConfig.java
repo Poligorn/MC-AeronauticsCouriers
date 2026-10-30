@@ -66,6 +66,8 @@ public final class CouriersServerConfig {
 
     public static final ModConfigSpec.IntValue EMERALD_VALUE_SPURS;
     public static final ModConfigSpec.ConfigValue<String> ECONOMY_BACKEND;
+    public static final ModConfigSpec.ConfigValue<String> COLLATERAL_PROFILE;
+    public static final ModConfigSpec.DoubleValue NPC_CUSTOM_RATIO;
 
     public static final ModConfigSpec.IntValue MIGRATION_XP_CADET;
     public static final ModConfigSpec.IntValue MIGRATION_XP_SECOND;
@@ -84,7 +86,7 @@ public final class CouriersServerConfig {
                 .defineInRange("village_generation_interval_min", 10, 1, 1440);
         VILLAGE_BOARD_MAX = b.comment("Maximum NPC contracts on the board at once")
                 .defineInRange("village_board_max", 12, 0, 1000);
-        P2P_MIN_COLLATERAL_RATIO = b.comment("Minimum collateral as a share of the estimated cargo value")
+        P2P_MIN_COLLATERAL_RATIO = b.comment("Legacy: read once to migrate to economy.collateral_profile, then ignored")
                 .defineInRange("p2p_min_collateral_ratio", 0.5, 0.0, 10.0);
         P2P_FEE = b.comment("Player contract fee as a share of the reward (burned)")
                 .defineInRange("p2p_fee", 0.05, 0.0, 1.0);
@@ -163,6 +165,16 @@ public final class CouriersServerConfig {
         EMERALD_VALUE_SPURS = b.comment(
                         "Without the Numismatics backend, divide spur prices by this to get emeralds. Numismatics keeps the spur numbers.")
                 .defineInRange("emerald_value_spurs", 8, 1, 4096);
+        COLLATERAL_PROFILE = b.comment(
+                        "Collateral difficulty: peace (no collateral), easy (25% of cargo value), normal (50%), hard (75%),",
+                        "custom (issuer picks 0..200% of value). Replaces contracts.p2p_min_collateral_ratio, which is read once",
+                        "to migrate older worlds. NPC collateral = profile share × value × item_values collateral_factor.")
+                .define("collateral_profile", "normal",
+                        o -> o instanceof String s && java.util.Arrays.stream(
+                                dev.poligorn.aerocouriers.contract.CollateralProfile.values())
+                                .anyMatch(p -> p.key().equalsIgnoreCase(s.trim())));
+        NPC_CUSTOM_RATIO = b.comment("NPC collateral share of cargo value when collateral_profile = custom")
+                .defineInRange("npc_custom_ratio", 0.5, 0.0, 10.0);
         b.pop();
 
         b.push("piracy");

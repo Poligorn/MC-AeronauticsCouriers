@@ -103,7 +103,7 @@ public final class PayloadCodecGameTests {
             cargo.add(new ItemStack(Items.IRON_INGOT, 1));
         }
         OpenWaybillCreatePayload payload = new OpenWaybillCreatePayload(
-                BlockPos.ZERO, cargo, 128.0, 1000L, false, List.of());
+                BlockPos.ZERO, cargo, 128.0, 1000L, false, List.of(), 0);
         OpenWaybillCreatePayload.STREAM_CODEC.encode(buf, payload);
         buf.readerIndex(0);
         OpenWaybillCreatePayload decoded = OpenWaybillCreatePayload.STREAM_CODEC.decode(buf);
@@ -119,11 +119,12 @@ public final class PayloadCodecGameTests {
             cargo.add(new ItemStack(Items.IRON_INGOT, 1));
         }
         OpenWaybillCreatePayload payload = new OpenWaybillCreatePayload(
-                BlockPos.ZERO, cargo, 200.0, 1000L, false, List.of());
+                BlockPos.ZERO, cargo, 200.0, 1000L, false, List.of(), 4);
         OpenWaybillCreatePayload.STREAM_CODEC.encode(buf, payload);
         buf.readerIndex(0);
         OpenWaybillCreatePayload decoded = OpenWaybillCreatePayload.STREAM_CODEC.decode(buf);
         helper.assertValueEqual(decoded.cargo().size(), 200, "large cargo round-trip");
+        helper.assertValueEqual(decoded.collateralProfile(), 4, "collateral profile round-trip");
         helper.succeed();
     }
 

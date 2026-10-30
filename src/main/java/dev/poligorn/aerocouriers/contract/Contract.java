@@ -120,6 +120,11 @@ public record Contract(UUID id, ContractType type, UUID issuer, UUID recipient, 
                 originSnapshot);
     }
 
+    Contract withCollateral(long nextCollateral, LicenseRank nextRank) {
+        return new Contract(id, type, issuer, recipient, courier, origin, destination, size, weight, reward,
+                nextCollateral, nextRank, timing, state, preplaced, originSnapshot);
+    }
+
     Contract withPause(long extraTicks) {
         return new Contract(id, type, issuer, recipient, courier, origin, destination, size, weight, reward,
                 collateral, requiredRank,

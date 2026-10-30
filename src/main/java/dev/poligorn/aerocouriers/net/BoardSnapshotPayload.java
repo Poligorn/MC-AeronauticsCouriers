@@ -51,7 +51,8 @@ public record BoardSnapshotPayload(
         /** Absolute overworld game time of the next NPC board generation; 0 if disabled. */
         long nextVillageRefreshGameTime,
         /** Overworld game time when this snapshot was built (client countdown baseline). */
-        long snapshotOverworldGameTime
+        long snapshotOverworldGameTime,
+        Extras extras
 ) implements CustomPacketPayload {
     public static final Type<BoardSnapshotPayload> TYPE = new Type<>(AeronauticsCouriers.id("board_snapshot"));
     public static final int PAGE_SIZE = PayloadLimits.BOARD_PAGE;
@@ -136,6 +137,68 @@ public record BoardSnapshotPayload(
                     ByteBufCodecs.VAR_LONG.decode(buf),
                     ByteBufCodecs.VAR_LONG.decode(buf),
                     ByteBufCodecs.VAR_LONG.decode(buf));
+        }
+    }
+
+    /**
+     * 0.2.0 additions. {@code collateralProfile} drives which collateral elements the client shows; its name is only
+     * rendered in the operator panel. {@code economyLines} ({@code key=value}) are filled for operators only.
+     */
+    public record Extras(
+            int collateralProfile,
+            List<String> economyLines,
+            boolean tutorialEnabled,
+            int tutorialState,
+            Optional<UUID> tutorialOrderId,
+            boolean tutorialNoStation,
+            boolean tutorialCompletionPending,
+            int tutorialXp,
+            int tutorialHintsSeen,
+            long licenseRestorePrice,
+            boolean licenseRestorable
+    ) {
+        public static final Extras EMPTY = new Extras(3, List.of(), false, 0, Optional.empty(), false, false, 0, 0,
+                0L, false);
+
+        public static final StreamCodec<RegistryFriendlyByteBuf, Extras> STREAM_CODEC =
+                StreamCodec.of(Extras::write, Extras::read);
+
+        public dev.poligorn.aerocouriers.contract.CollateralProfile profile() {
+            return dev.poligorn.aerocouriers.contract.CollateralProfile.byOrdinal(collateralProfile);
+        }
+
+        public boolean isTutorialOrder(UUID id) {
+            return tutorialOrderId.filter(id::equals).isPresent();
+        }
+
+        private static void write(RegistryFriendlyByteBuf buf, Extras e) {
+            buf.writeVarInt(e.collateralProfile);
+            ByteBufCodecs.STRING_UTF8.apply(ByteBufCodecs.list(PayloadLimits.ADMIN_CONFIG_LINES))
+                    .encode(buf, PayloadLimits.cap(e.economyLines, PayloadLimits.ADMIN_CONFIG_LINES));
+            buf.writeBoolean(e.tutorialEnabled);
+            buf.writeVarInt(e.tutorialState);
+            ByteBufCodecs.optional(UUIDUtil.STREAM_CODEC).encode(buf, e.tutorialOrderId);
+            buf.writeBoolean(e.tutorialNoStation);
+            buf.writeBoolean(e.tutorialCompletionPending);
+            buf.writeVarInt(e.tutorialXp);
+            buf.writeVarInt(e.tutorialHintsSeen);
+            buf.writeVarLong(e.licenseRestorePrice);
+            buf.writeBoolean(e.licenseRestorable);
+        }
+
+        private static Extras read(RegistryFriendlyByteBuf buf) {
+            return new Extras(
+                    buf.readVarInt(),
+                    ByteBufCodecs.STRING_UTF8.apply(ByteBufCodecs.list(PayloadLimits.ADMIN_CONFIG_LINES)).decode(buf),
+                    buf.readBoolean(),
+                    buf.readVarInt(),
+                    ByteBufCodecs.optional(UUIDUtil.STREAM_CODEC).decode(buf),
+                    buf.readBoolean(),
+                    buf.readBoolean(),
+                    buf.readVarInt(),
+                    buf.readVarInt(),
+                    buf.readVarLong(),
+                    buf.readBoolean());
         }
     }
 
@@ -425,6 +488,7 @@ public record BoardSnapshotPayload(
                 .encode(buf, PayloadLimits.cap(p.adminConfigLines, PayloadLimits.ADMIN_CONFIG_LINES));
         ByteBufCodecs.VAR_LONG.encode(buf, p.nextVillageRefreshGameTime);
         ByteBufCodecs.VAR_LONG.encode(buf, p.snapshotOverworldGameTime);
+        Extras.STREAM_CODEC.encode(buf, p.extras);
     }
 
     private static BoardSnapshotPayload read(RegistryFriendlyByteBuf buf) {
@@ -455,12 +519,13 @@ public record BoardSnapshotPayload(
                 ByteBufCodecs.STRING_UTF8.apply(ByteBufCodecs.list(PayloadLimits.ADMIN_CONFIG_LINES)).decode(buf);
         long nextVillageRefreshGameTime = ByteBufCodecs.VAR_LONG.decode(buf);
         long snapshotOverworldGameTime = ByteBufCodecs.VAR_LONG.decode(buf);
+        Extras extras = Extras.STREAM_CODEC.decode(buf);
         return new BoardSnapshotPayload(openScreen, page, boardTotal, balance, numismaticsEconomy, mailCount,
                 notificationUnread, operator,
                 licensed,
                 allowSelfAccept, requireTablet, notice,
                 board, mine, stations, profile, adminActive, onlinePlayers, adminConfigLines,
-                nextVillageRefreshGameTime, snapshotOverworldGameTime);
+                nextVillageRefreshGameTime, snapshotOverworldGameTime, extras);
     }
 
     public Optional<BoardEntry> find(UUID id) {
