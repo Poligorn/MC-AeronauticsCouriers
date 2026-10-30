@@ -14,8 +14,9 @@
 ### Аудит деревень и бэклог (30.10.2026, версия не поднималась)
 - Документация: [research/villages-0.3.0-audit.md](research/villages-0.3.0-audit.md), [BACKLOG.md](BACKLOG.md). Фичи деревень не писались.
 - Главное по коду: NPC **не** preplaced (ленивый спавн), GDD §6.2 врёт; модель станции — стол картографа; окно станции (`PostStationScreen`) есть, но это список строк, не карточки планшета; редкий груз есть, на репутации 0 не выпадает; контейнеры деревень фактически только S из-за таблиц; «дорогих» заказов нет.
+- Дополнение аудита: **§A** — инвентаризация блока станции (id, stub-модель 16×16, jigsaw, функции, все виджеты/пакеты, дубли с планшетом, keep/remove/add); **§B** — Jade по S/M/L/XL и станции (какие поля уже есть, что слать, что прятать чужим). Jade на плоте Sable **не проверен**.
 - Первый пункт бэклога: via-waypoints Xaero — **не делать сейчас**.
-- Схема окна станции (не runClient): `/opt/cursor/artifacts/villages-audit/station-window-layout-mock.png`.
+- Макеты (не runClient): `/opt/cursor/artifacts/villages-audit/` (`station-block-in-world-stub.png`, `station-screen-*-layout.png`, `jade-*-current-mock.png`).
 
 ### Релиз 0.2.1-beta (30.10.2026)
 - `mod_version`: `0.2.0-beta` → `0.2.1-beta`. Протокол сети не менялся (`PROTOCOL_VERSION` `"3"`).
