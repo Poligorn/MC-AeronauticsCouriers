@@ -20,21 +20,38 @@ public record OpenWaybillCreatePayload(
         double weight,
         long balance,
         boolean numismaticsEconomy,
-        List<BoardSnapshotPayload.StationHint> stations
+        List<BoardSnapshotPayload.StationHint> stations,
+        String collateralProfile
 ) implements CustomPacketPayload {
     public static final Type<OpenWaybillCreatePayload> TYPE = new Type<>(AeronauticsCouriers.id("open_waybill_create"));
 
+    private static final StreamCodec<RegistryFriendlyByteBuf, List<ItemStack>> CARGO_CODEC =
+            ItemStack.STREAM_CODEC.apply(ByteBufCodecs.list(PayloadLimits.WIRE_ITEM_STACK_LIST));
+    private static final StreamCodec<RegistryFriendlyByteBuf, List<BoardSnapshotPayload.StationHint>> STATIONS_CODEC =
+            BoardSnapshotPayload.StationHint.STREAM_CODEC.apply(ByteBufCodecs.list(64));
+
     public static final StreamCodec<RegistryFriendlyByteBuf, OpenWaybillCreatePayload> STREAM_CODEC =
-            StreamCodec.composite(
-                    BlockPos.STREAM_CODEC, OpenWaybillCreatePayload::origin,
-                    ItemStack.STREAM_CODEC.apply(ByteBufCodecs.list(PayloadLimits.WIRE_ITEM_STACK_LIST)),
-                    OpenWaybillCreatePayload::cargo,
-                    ByteBufCodecs.DOUBLE, OpenWaybillCreatePayload::weight,
-                    ByteBufCodecs.VAR_LONG, OpenWaybillCreatePayload::balance,
-                    ByteBufCodecs.BOOL, OpenWaybillCreatePayload::numismaticsEconomy,
-                    BoardSnapshotPayload.StationHint.STREAM_CODEC.apply(ByteBufCodecs.list(64)),
-                    OpenWaybillCreatePayload::stations,
-                    OpenWaybillCreatePayload::new);
+            StreamCodec.of(OpenWaybillCreatePayload::write, OpenWaybillCreatePayload::read);
+
+    private static void write(RegistryFriendlyByteBuf buf, OpenWaybillCreatePayload p) {
+        BlockPos.STREAM_CODEC.encode(buf, p.origin);
+        CARGO_CODEC.encode(buf, p.cargo);
+        buf.writeDouble(p.weight);
+        buf.writeVarLong(p.balance);
+        buf.writeBoolean(p.numismaticsEconomy);
+        STATIONS_CODEC.encode(buf, p.stations);
+        ByteBufCodecs.STRING_UTF8.encode(buf, p.collateralProfile);
+    }
+
+    private static OpenWaybillCreatePayload read(RegistryFriendlyByteBuf buf) {
+        return new OpenWaybillCreatePayload(BlockPos.STREAM_CODEC.decode(buf), CARGO_CODEC.decode(buf),
+                buf.readDouble(), buf.readVarLong(), buf.readBoolean(), STATIONS_CODEC.decode(buf),
+                ByteBufCodecs.STRING_UTF8.decode(buf));
+    }
+
+    public dev.poligorn.aerocouriers.contract.CollateralProfile profile() {
+        return dev.poligorn.aerocouriers.contract.CollateralProfile.byKey(collateralProfile);
+    }
 
     public static void handle(OpenWaybillCreatePayload payload,
                               net.neoforged.neoforge.network.handling.IPayloadContext context) {

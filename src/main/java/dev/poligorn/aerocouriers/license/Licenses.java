@@ -39,7 +39,42 @@ public final class Licenses {
         return findLicense(player)
                 .map(stack -> stack.get(ModComponents.LICENSE_OWNER.get()))
                 .filter(owner -> owner.isOwnedBy(player.getUUID()))
+                .filter(owner -> !(player instanceof ServerPlayer sp)
+                        || LicenseRegistry.get(sp.server).isValid(owner.uuid(), owner.number()))
                 .isPresent();
+    }
+
+    /** Lost license: the player had one before and holds none now (Curios, inventory, mailbox). */
+    public static boolean canRestore(ServerPlayer player) {
+        return profile(player).licensesIssued() > 0 && !holdsValidLicense(player);
+    }
+
+    private static boolean holdsValidLicense(ServerPlayer player) {
+        LicenseRegistry registry = LicenseRegistry.get(player.server);
+        List<ItemStack> stacks = new ArrayList<>(licenseStacks(player));
+        stacks.addAll(Mailbox.get(player.server).contents(player.getUUID()).stream()
+                .filter(stack -> stack.is(ModItems.PILOT_LICENSE.get())).toList());
+        for (ItemStack stack : stacks) {
+            LicenseOwner owner = stack.get(ModComponents.LICENSE_OWNER.get());
+            if (owner == null || (owner.isOwnedBy(player.getUUID()) && registry.isValid(owner.uuid(), owner.number()))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Issues a fresh license of the current rank with a new number and annuls every older one. Payment is the
+     * caller's job; this does not count towards {@code licensesIssued}.
+     */
+    public static ItemStack restore(ServerPlayer player) {
+        ItemStack stack = issueLicense(player, rankOf(player), false);
+        LicenseOwner owner = stack.get(ModComponents.LICENSE_OWNER.get());
+        if (owner != null) {
+            LicenseRegistry.get(player.server).setCurrent(player.getUUID(), owner.number());
+        }
+        deliver(player, stack);
+        return stack;
     }
 
     public static CourierProfile profile(Player player) {

@@ -24,6 +24,9 @@ import org.jetbrains.annotations.Nullable;
  */
 public final class ClientBoard {
     private static boolean requireTablet = true;
+    private static boolean licensedCourier;
+    private static boolean pilotLicenseHeld;
+    private static BoardSnapshotPayload.Extras extras = BoardSnapshotPayload.Extras.EMPTY;
     private static @Nullable java.util.UUID pendingContractFocus;
     private static MineListSection mineSection = MineListSection.CURRENT;
     private static final BoardTabFilterState boardFilters = new BoardTabFilterState();
@@ -94,8 +97,24 @@ public final class ClientBoard {
         return section == MineListSection.HISTORY ? mineHistoryFilters : mineCurrentFilters;
     }
 
+    public static BoardSnapshotPayload.Extras extras() {
+        return extras;
+    }
+
+    public static dev.poligorn.aerocouriers.contract.CollateralProfile collateralProfile() {
+        return extras.profile();
+    }
+
+    public static boolean knownLicensed() {
+        return licensedCourier || pilotLicenseHeld;
+    }
+
     public static void apply(BoardSnapshotPayload payload) {
         requireTablet = payload.requireTablet();
+        extras = payload.extras();
+        licensedCourier = payload.profile().licensedCourier();
+        pilotLicenseHeld = payload.profile().pilotLicenseHeld();
+        dev.poligorn.aerocouriers.economy.MoneyScale.reportBackend(payload.numismaticsEconomy());
         if (VillageRefreshUi.isEnabled(payload.nextVillageRefreshGameTime())) {
             VillageRefreshUi.applySnapshot(payload.nextVillageRefreshGameTime(), payload.snapshotOverworldGameTime());
         } else {
@@ -156,7 +175,36 @@ public final class ClientBoard {
         PacketDistributor.sendToServer(ClaimTraineeLicensePayload.INSTANCE);
     }
 
+    private static final java.util.Set<UUID> seenBoardOrders = new java.util.HashSet<>();
+    private static boolean boardSeenInitialized;
+
+    /** Dot on «Orders»: an open order appeared that the player has not had on screen yet. */
+    public static boolean hasUnseenBoardOrders(BoardSnapshotPayload payload) {
+        if (!boardSeenInitialized) {
+            markBoardSeen(payload);
+            return false;
+        }
+        for (BoardSnapshotPayload.BoardEntry entry : payload.board()) {
+            if (!"issuer".equals(entry.role()) && !seenBoardOrders.contains(entry.id())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public static void markBoardSeen(BoardSnapshotPayload payload) {
+        boardSeenInitialized = true;
+        for (BoardSnapshotPayload.BoardEntry entry : payload.board()) {
+            seenBoardOrders.add(entry.id());
+        }
+    }
+
+    public static void tutorial(dev.poligorn.aerocouriers.net.TutorialIntentPayload.Op op, int arg) {
+        PacketDistributor.sendToServer(new dev.poligorn.aerocouriers.net.TutorialIntentPayload(op, arg));
+    }
+
     public static void openWaybillCreate(OpenWaybillCreatePayload payload) {
+        dev.poligorn.aerocouriers.economy.MoneyScale.reportBackend(payload.numismaticsEconomy());
         Minecraft.getInstance().setScreen(new WaybillCreateScreen(payload));
     }
 }

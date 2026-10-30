@@ -51,6 +51,18 @@ public final class CouriersClientConfig {
     public static final ModConfigSpec.DoubleValue ROUTE_FIXED_SPEED;
     public static final ModConfigSpec.IntValue ROUTE_BREADCRUMB_STEP;
 
+    public static final ModConfigSpec.EnumValue<ToastCorner> TOAST_CORNER;
+    public static final ModConfigSpec.IntValue TOAST_MAX_VISIBLE;
+    public static final ModConfigSpec.IntValue TOAST_SECONDS;
+    public static final ModConfigSpec.BooleanValue DO_NOT_DISTURB;
+    public static final ModConfigSpec.EnumValue<TaskPanelMode> TASK_PANEL_MODE;
+    private static final java.util.Map<NoticeChannel.Row, ModConfigSpec.BooleanValue> CATEGORY_TOAST =
+            new java.util.EnumMap<>(NoticeChannel.Row.class);
+    private static final java.util.Map<NoticeChannel.Row, ModConfigSpec.BooleanValue> CATEGORY_SOUND =
+            new java.util.EnumMap<>(NoticeChannel.Row.class);
+    private static final java.util.Map<NoticeChannel.Row, ModConfigSpec.BooleanValue> CATEGORY_CHAT =
+            new java.util.EnumMap<>(NoticeChannel.Row.class);
+
     static {
         ModConfigSpec.Builder b = new ModConfigSpec.Builder();
         b.push("button");
@@ -159,6 +171,31 @@ public final class CouriersClientConfig {
                 .defineInRange("breadcrumb_step", 96, 32, 512);
         b.pop();
 
+        b.push("notifications");
+        TOAST_CORNER = b.comment("Corner of the toast stack")
+                .defineEnum("toast_corner", ToastCorner.TOP_RIGHT);
+        TOAST_MAX_VISIBLE = b.comment("Toasts shown at once; the rest wait in the queue")
+                .defineInRange("toast_max_visible", 3, 1, 5);
+        TOAST_SECONDS = b.comment("How long a toast stays, seconds (urgent ones stay twice as long)")
+                .defineInRange("toast_seconds", 5, 2, 30);
+        DO_NOT_DISTURB = b.comment("No toasts and no sounds except urgent ones; the log in Mail is always kept")
+                .define("do_not_disturb", false);
+        b.push("category");
+        for (NoticeChannel.Row row : NoticeChannel.Row.values()) {
+            b.push(row.key());
+            CATEGORY_TOAST.put(row, b.define("toast", row.defaultToast()));
+            CATEGORY_SOUND.put(row, b.define("sound", row.defaultSound()));
+            CATEGORY_CHAT.put(row, b.define("chat", row.defaultChat()));
+            b.pop();
+        }
+        b.pop();
+        b.pop();
+
+        b.push("tasks");
+        TASK_PANEL_MODE = b.comment("Task panel on the right: FULL / COMPACT / COLLAPSED / HIDDEN")
+                .defineEnum("panel_mode", TaskPanelMode.FULL);
+        b.pop();
+
         SPEC = b.build();
     }
 
@@ -182,11 +219,66 @@ public final class CouriersClientConfig {
         }
     }
 
-    /** Stores and saves a client value from an in-game settings screen. */
-    public static <T> void set(ModConfigSpec.ConfigValue<T> value, T newValue) {
+    public enum ToastCorner {
+        TOP_RIGHT, TOP_LEFT, BOTTOM_RIGHT, BOTTOM_LEFT;
+
+        public boolean right() {
+            return this == TOP_RIGHT || this == BOTTOM_RIGHT;
+        }
+
+        public boolean top() {
+            return this == TOP_RIGHT || this == TOP_LEFT;
+        }
+    }
+
+    public enum TaskPanelMode {
+        FULL, COMPACT, COLLAPSED, HIDDEN;
+
+        public TaskPanelMode next() {
+            return values()[(ordinal() + 1) % values().length];
+        }
+    }
+
+    private static ModConfigSpec.BooleanValue channel(NoticeChannel.Row row, NoticeChannel channel) {
+        return switch (channel) {
+            case TOAST -> CATEGORY_TOAST.get(row);
+            case SOUND -> CATEGORY_SOUND.get(row);
+            case CHAT -> CATEGORY_CHAT.get(row);
+        };
+    }
+
+    public static boolean channelEnabled(NoticeChannel.Row row, NoticeChannel channel) {
         try {
-            value.set(newValue);
-            value.save();
+            return channel(row, channel).get();
+        } catch (IllegalStateException ignored) {
+            return switch (channel) {
+                case TOAST -> row.defaultToast();
+                case SOUND -> row.defaultSound();
+                case CHAT -> row.defaultChat();
+            };
+        }
+    }
+
+    public static void setChannel(NoticeChannel.Row row, NoticeChannel channel, boolean on) {
+        try {
+            channel(row, channel).set(on);
+            SPEC.save();
+        } catch (IllegalStateException ignored) {
+        }
+    }
+
+    public static <T> T get(ModConfigSpec.ConfigValue<T> value, T fallback) {
+        try {
+            return value.get();
+        } catch (IllegalStateException ignored) {
+            return fallback;
+        }
+    }
+
+    public static <T> void set(ModConfigSpec.ConfigValue<T> value, T next) {
+        try {
+            value.set(next);
+            SPEC.save();
         } catch (IllegalStateException ignored) {
         }
     }

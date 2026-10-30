@@ -12,7 +12,7 @@ alwaysApply: false
   - генерация с деревнями: свой элемент **добавляется** в пулы деревень при запуске сервера. Ванильные пулы и пулы других модов не заменять и не перезаписывать JSON. Выключается `stations.generate_in_villages`;
   - администратор ставит сам (креатив, `/give`). В выживании предмета нет.
 - Атлас (`StationAtlas`, SavedData): станция открывается игроку **с лицензией**, когда он ближе `stations.register_radius` (32). На сервере атлас общий, доска показывает заказы между станциями, открытыми этим игроком.
-- NPC-заказы генерирует `StationContractSource implements ContractSource` (GDD §6.2–6.5): пары **любых** станций в атласе (деревенские и админские) в одном измерении, ≤ 10 000 блоков, раз в `village_generation_interval_min`, ≤ `village_board_max`. На доске заказ виден, если игрок открыл обе станции. При провале груз уничтожается, залог сгорает (CLARIFICATIONS).
+- NPC-заказы генерирует `StationContractSource implements ContractSource` (GDD §6.2–6.5): пары **любых** станций в атласе (деревенские и админские) в одном измерении, ≤ 10 000 блоков, раз в `village_generation_interval_min`, ≤ `village_board_max`. Если `allow_cross_dimension_orders`, добивается пары из разных измерений (`cross_dimension_order_chance`). На доске заказ виден, если игрок открыл обе станции. При провале груз уничтожается, залог сгорает (CLARIFICATIONS). Принять межмировой заказ можно с ранга IV.
 - Worldgen проверять на dev-сервере (новый мир, `/locate structure minecraft:village_plains`, телепорт) и отмечать в STATUS.
 
 ## Реализация (начато вместе с итерацией 3)
@@ -26,6 +26,6 @@ alwaysApply: false
 - Не сделано: репутация станции, редкий груз, отдельное окно станции, зомби-деревни.
 
 ## Реализация (итерация 5)
-- `StationContractSource` раз в `village_generation_interval_min` (и `/couriers station generate`) берёт пары станций **в атласе** (деревенские и админские) в одном измерении, ≤ 10 000 блоков, до `village_board_max` открытых NPC. Груз — `data/aerocouriers/village_cargo/<biome>.json` (биом клетки станции, иначе `default`). Контейнер ставится сразу у станции погрузки (`preplaced`).
+- `StationContractSource` раз в `village_generation_interval_min` (и `/couriers station generate`) берёт пары станций **в атласе** (деревенские и админские) в одном измерении, ≤ 10 000 блоков, до `village_board_max` открытых NPC. Отдельный проход `generateCrossDimension` добавляет пары из разных измерений, если включён `allow_cross_dimension_orders`. Груз — `data/aerocouriers/village_cargo/<biome>.json` (биом клетки станции, иначе `default`). Контейнер ставится сразу у станции погрузки (`preplaced`).
 - Issuer/recipient — UUID станций. Награда минтится в Escrow. При провале залог сгорает, груз уничтожается. Стажировка: первые `trainee_free_contracts` без залога; после 3-го — аванс `trainee_bonus`.
 - На доске NPC-заказ виден, если игрок открыл обе станции (оператор видит все).

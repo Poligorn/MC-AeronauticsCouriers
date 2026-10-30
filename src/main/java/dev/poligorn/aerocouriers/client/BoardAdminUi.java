@@ -32,9 +32,11 @@ final class BoardAdminUi {
     private int adminScroll;
     private @Nullable UUID pendingLicenseResetId;
     private @Nullable String pendingLicenseResetName;
+    private final AdminEconomyUi economyUi;
 
     BoardAdminUi(CourierBoardScreen screen) {
         this.screen = screen;
+        this.economyUi = new AdminEconomyUi(screen);
     }
 
     SubTab subTab() {
@@ -53,6 +55,11 @@ final class BoardAdminUi {
             screen.adminRemoveWidget(widget);
         }
         subToggles.clear();
+    }
+
+    /** Profile segments stay mounted while the economy sub-tab scrolls. Any other tab must drop them. */
+    void dismissEconomy() {
+        economyUi.reset();
     }
 
     void initSubToggles(int sx, int y, int sw) {
@@ -75,6 +82,7 @@ final class BoardAdminUi {
         adminScroll = 0;
         pendingLicenseResetId = null;
         pendingLicenseResetName = null;
+        economyUi.reset();
         screen.refreshAdminContent();
     }
 
@@ -84,7 +92,7 @@ final class BoardAdminUi {
         } else if (subTab == SubTab.PLAYERS) {
             initPlayers(snapshot, sx, rowY, sw);
         } else if (subTab == SubTab.ECONOMY) {
-            initEconomy(sx, rowY);
+            economyUi.init(snapshot, sx, rowY, sw);
         } else {
             initServer(snapshot, sx, rowY, sw);
         }
@@ -217,26 +225,6 @@ final class BoardAdminUi {
         }
     }
 
-    private void initEconomy(int sx, int y) {
-        screen.adminAddWidget(TabletButton.create(sx, y, 200, 20,
-                Component.translatable("ui.aerocouriers.admin.economy.reload"), b ->
-                        send(OperatorBoardPayload.Action.ECONOMY_RELOAD, Optional.empty(), Optional.empty(), "", "", 0, false)));
-        screen.adminAddWidget(TabletButton.create(sx, y + 24, 200, 20,
-                Component.translatable("ui.aerocouriers.admin.economy.show_value"), b ->
-                        send(OperatorBoardPayload.Action.ECONOMY_SHOW_VALUE, Optional.empty(), Optional.empty(), "", "", 0, false)));
-        screen.adminAddWidget(TabletButton.create(sx, y + 48, 200, 20,
-                Component.translatable("ui.aerocouriers.admin.economy.show_weight"), b ->
-                        send(OperatorBoardPayload.Action.ECONOMY_SHOW_WEIGHT, Optional.empty(), Optional.empty(), "", "", 0, false)));
-        screen.adminAddWidget(TabletButton.create(sx, y + 72, 200, 20,
-                Component.translatable("ui.aerocouriers.admin.economy.set_value",
-                        dev.poligorn.aerocouriers.economy.MoneyFormat.component(100)), b ->
-                        send(OperatorBoardPayload.Action.ECONOMY_SET_VALUE, Optional.empty(), Optional.empty(), "", "", 100, false)));
-        screen.adminAddWidget(TabletButton.create(sx, y + 96, 200, 20,
-                Component.translatable("ui.aerocouriers.admin.economy.set_weight", 1.0), b ->
-                        send(OperatorBoardPayload.Action.ECONOMY_SET_WEIGHT, Optional.empty(), Optional.empty(), "", "",
-                                Double.doubleToLongBits(1.0), false)));
-    }
-
     private void initServer(BoardSnapshotPayload snapshot, int sx, int y, int sw) {
         screen.adminAddWidget(TabletButton.create(sx, y, sw - 4, 20,
                 Component.translatable("ui.aerocouriers.admin.server.regen"), b ->
@@ -269,6 +257,12 @@ final class BoardAdminUi {
                 Component.translatable("ui.aerocouriers.admin.server.debug_self_accept"), b ->
                         send(OperatorBoardPayload.Action.DEBUG_TOGGLE_SELF_ACCEPT, Optional.empty(), Optional.empty(),
                                 "", "", 0, false)));
+        boolean tutorialOn = snapshot.extras().tutorialEnabled();
+        screen.adminAddWidget(TabletButton.create(sx, y + 100, sw - 4, 20,
+                Component.translatable("ui.aerocouriers.admin.server.tutorial",
+                        Component.translatable(tutorialOn ? "ui.aerocouriers.common.on" : "ui.aerocouriers.common.off")),
+                b -> send(OperatorBoardPayload.Action.SERVER_TUTORIAL_TOGGLE, Optional.empty(), Optional.empty(),
+                        "", "", tutorialOn ? 0 : 1, false)));
     }
 
     private static String toggleConfigValue(String cur) {
@@ -298,6 +292,10 @@ final class BoardAdminUi {
             Component question = Component.translatable("ui.aerocouriers.admin.player.reset_license.confirm",
                     pendingLicenseResetName);
             graphics.drawString(screen.adminFont(), question, sx, confirmY + 3, TabletGui.TEXT_WARN, false);
+            return;
+        }
+        if (subTab == SubTab.ECONOMY) {
+            economyUi.render(graphics, snapshot, sx, rowY, sw);
             return;
         }
         if (subTab != SubTab.ORDERS) {
@@ -371,6 +369,21 @@ final class BoardAdminUi {
 
     int contentTop(int subY) {
         return subY + CourierBoardScreen.ADMIN_SUB_TOGGLE_H + CourierBoardScreen.ADMIN_SUB_GAP;
+    }
+
+    boolean ownsWidget(AbstractWidget widget) {
+        return economyUi.owns(widget);
+    }
+
+    boolean scrollEconomy(double delta, BoardSnapshotPayload snapshot, int top) {
+        return subTab == SubTab.ECONOMY && economyUi.scroll(delta, snapshot, top);
+    }
+
+    /** Moves the economy widgets with the page scroll. Does not create a second copy. */
+    void moveEconomy(BoardSnapshotPayload snapshot, int sx, int top, int sw) {
+        if (subTab == SubTab.ECONOMY) {
+            economyUi.move(snapshot, sx, top, sw);
+        }
     }
 
     void scrollAdmin(int delta) {

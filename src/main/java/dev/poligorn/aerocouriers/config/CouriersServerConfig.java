@@ -66,6 +66,8 @@ public final class CouriersServerConfig {
 
     public static final ModConfigSpec.IntValue EMERALD_VALUE_SPURS;
     public static final ModConfigSpec.ConfigValue<String> ECONOMY_BACKEND;
+    public static final ModConfigSpec.ConfigValue<String> COLLATERAL_PROFILE;
+    public static final ModConfigSpec.DoubleValue NPC_CUSTOM_RATIO;
 
     public static final ModConfigSpec.IntValue MIGRATION_XP_CADET;
     public static final ModConfigSpec.IntValue MIGRATION_XP_SECOND;
@@ -76,6 +78,15 @@ public final class CouriersServerConfig {
 
     public static final ModConfigSpec.BooleanValue REQUIRE_TABLET;
 
+    public static final ModConfigSpec.ConfigValue<List<? extends Integer>> NOTIFY_WARN_MINUTES;
+    public static final ModConfigSpec.IntValue NOTIFY_FAR_CONTAINER_BLOCKS;
+    public static final ModConfigSpec.IntValue NOTIFY_FAR_COOLDOWN_S;
+
+    public static final ModConfigSpec.BooleanValue TUTORIAL_ENABLED;
+    public static final ModConfigSpec.IntValue TUTORIAL_STATION_RADIUS;
+    public static final ModConfigSpec.IntValue TUTORIAL_XP;
+    public static final ModConfigSpec.IntValue LICENSE_RESTORE_PRICE;
+
     static {
         ModConfigSpec.Builder b = new ModConfigSpec.Builder();
 
@@ -84,7 +95,7 @@ public final class CouriersServerConfig {
                 .defineInRange("village_generation_interval_min", 10, 1, 1440);
         VILLAGE_BOARD_MAX = b.comment("Maximum NPC contracts on the board at once")
                 .defineInRange("village_board_max", 12, 0, 1000);
-        P2P_MIN_COLLATERAL_RATIO = b.comment("Minimum collateral as a share of the estimated cargo value")
+        P2P_MIN_COLLATERAL_RATIO = b.comment("Legacy: read once to migrate to economy.collateral_profile, then ignored")
                 .defineInRange("p2p_min_collateral_ratio", 0.5, 0.0, 10.0);
         P2P_FEE = b.comment("Player contract fee as a share of the reward (burned)")
                 .defineInRange("p2p_fee", 0.05, 0.0, 1.0);
@@ -163,6 +174,16 @@ public final class CouriersServerConfig {
         EMERALD_VALUE_SPURS = b.comment(
                         "Without the Numismatics backend, divide spur prices by this to get emeralds. Numismatics keeps the spur numbers.")
                 .defineInRange("emerald_value_spurs", 8, 1, 4096);
+        COLLATERAL_PROFILE = b.comment(
+                        "Collateral difficulty: peace (no collateral), easy (25% of cargo value), normal (50%), hard (75%),",
+                        "custom (issuer picks 0..200% of value). Replaces contracts.p2p_min_collateral_ratio, which is read once",
+                        "to migrate older worlds. NPC collateral = profile share × value × item_values collateral_factor.")
+                .define("collateral_profile", "normal",
+                        o -> o instanceof String s && java.util.Arrays.stream(
+                                dev.poligorn.aerocouriers.contract.CollateralProfile.values())
+                                .anyMatch(p -> p.key().equalsIgnoreCase(s.trim())));
+        NPC_CUSTOM_RATIO = b.comment("NPC collateral share of cargo value when collateral_profile = custom")
+                .defineInRange("npc_custom_ratio", 0.5, 0.0, 10.0);
         b.pop();
 
         b.push("piracy");
@@ -211,6 +232,30 @@ public final class CouriersServerConfig {
         b.push("access");
         REQUIRE_TABLET = b.comment("Job board (J, inventory button, /couriers ui, post station, tablet use) requires the order tablet")
                 .define("require_tablet", true);
+        b.pop();
+
+        b.push("notifications");
+        NOTIFY_WARN_MINUTES = b.comment("Warn the courier this many minutes before the deadline (orders shorter than 10 min are skipped)")
+                .defineList("warn_minutes", List.of(5, 2, 1), () -> 1, o -> o instanceof Integer i && i > 0);
+        NOTIFY_FAR_CONTAINER_BLOCKS = b.comment("Urgent notice when the courier is farther than this from a picked-up container, blocks")
+                .defineInRange("far_container_blocks", 64, 8, 4096);
+        NOTIFY_FAR_COOLDOWN_S = b.comment("Minimum seconds between two «container is far» notices for one order")
+                .defineInRange("far_notice_cooldown_s", 30, 1, 3600);
+        b.pop();
+
+        b.push("tutorial");
+        TUTORIAL_ENABLED = b.comment("Onboarding for new couriers: welcome window, training order, checklist.",
+                        "Same value as the admin panel toggle and /couriers admin server tutorial on|off")
+                .define("tutorial_enabled", true);
+        TUTORIAL_STATION_RADIUS = b.comment("Pickup point A is the nearest post station within this radius; otherwise 6-10 blocks from the player")
+                .defineInRange("station_search_radius", 512, 16, 4096);
+        TUTORIAL_XP = b.comment("XP for finishing the training order (granted once)")
+                .defineInRange("xp", 100, 0, 100_000);
+        b.pop();
+
+        b.push("license");
+        LICENSE_RESTORE_PRICE = b.comment("Price to restore a lost license, spurs (divided by emerald_value_spurs with emeralds)")
+                .defineInRange("restore_price", 25, 0, 1_000_000);
         b.pop();
 
         SPEC = b.build();

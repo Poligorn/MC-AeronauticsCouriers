@@ -39,7 +39,20 @@ public final class ClientCouriersSounds {
         playUi(ModSounds.NOTIFICATION.get());
     }
 
+    /** Urgent alert: the same bell, lower and doubled, so it is told apart without a new sound asset. */
+    public static void playUrgent() {
+        if (!CouriersClientConfig.notificationSoundsEnabled()) {
+            return;
+        }
+        playUi(ModSounds.NOTIFICATION.get(), 0.7F);
+        playUi(net.minecraft.sounds.SoundEvents.NOTE_BLOCK_BELL.value(), 0.6F);
+    }
+
     public static void playUi(SoundEvent sound) {
+        playUi(sound, 1.0F);
+    }
+
+    public static void playUi(SoundEvent sound, float pitch) {
         if (!CouriersClientConfig.couriersSoundsEnabled()) {
             return;
         }
@@ -48,6 +61,6 @@ public final class ClientCouriersSounds {
             return;
         }
         float volume = CouriersClientConfig.couriersSoundsVolume();
-        minecraft.getSoundManager().play(SimpleSoundInstance.forUI(sound, volume, 1.0F));
+        minecraft.getSoundManager().play(SimpleSoundInstance.forUI(sound, pitch, volume));
     }
 }

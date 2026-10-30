@@ -372,17 +372,21 @@ public final class PostStationScreen extends Screen {
             hoverTip = rare;
             return;
         }
-        hoverTipLines = List.of(
-                Component.translatable("ui.aerocouriers.row.summary.reward",
-                        dev.poligorn.aerocouriers.economy.MoneyFormat.component(entry.reward())),
-                Component.translatable("ui.aerocouriers.row.summary.collateral",
-                        dev.poligorn.aerocouriers.economy.MoneyFormat.component(entry.collateral())),
+        java.util.List<Component> summary = new java.util.ArrayList<>();
+        summary.add(Component.translatable("ui.aerocouriers.row.summary.reward",
+                dev.poligorn.aerocouriers.economy.MoneyFormat.component(entry.reward())));
+        if (!dev.poligorn.aerocouriers.client.board.CollateralUi.hidden(entry.collateral())) {
+            summary.add(Component.translatable("ui.aerocouriers.row.summary.collateral",
+                    dev.poligorn.aerocouriers.economy.MoneyFormat.component(entry.collateral())));
+        }
+        summary.addAll(List.of(
                 Component.translatable("ui.aerocouriers.row.summary.rank", entry.requiredRank().displayName()),
                 Component.translatable("ui.aerocouriers.row.summary.deadline", entry.deadlineMinutes()),
                 Component.translatable("ui.aerocouriers.row.summary.time", entry.minutesLeft()),
                 Component.translatable("ui.aerocouriers.row.summary.cargo", entry.weight(),
                         AcceptEligibility.sizeLabel(CargoSize.valueOf(entry.size().toUpperCase(Locale.ROOT)))),
-                Component.translatable("ui.aerocouriers.row.summary.distance", entry.distance()));
+                Component.translatable("ui.aerocouriers.row.summary.distance", entry.distance())));
+        hoverTipLines = summary;
     }
 
     private void applyCrateHover(BoardSnapshotPayload.BoardEntry entry) {

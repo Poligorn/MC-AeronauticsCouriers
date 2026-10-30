@@ -35,7 +35,9 @@ public final class CourierInbox extends SavedData {
             Component text,
             Optional<UUID> contractId,
             boolean read,
-            List<ItemStack> items
+            List<ItemStack> items,
+            int category,
+            int priority
     ) {
         public static final Codec<Message> CODEC = RecordCodecBuilder.create(instance -> instance.group(
                 Codec.LONG.fieldOf("id").forGetter(Message::id),
@@ -43,18 +45,24 @@ public final class CourierInbox extends SavedData {
                 ComponentSerialization.CODEC.fieldOf("text").forGetter(Message::text),
                 UUIDUtil.CODEC.optionalFieldOf("contract").forGetter(Message::contractId),
                 Codec.BOOL.fieldOf("read").forGetter(Message::read),
-                ItemStack.CODEC.listOf().fieldOf("items").forGetter(Message::items)
+                ItemStack.CODEC.listOf().fieldOf("items").forGetter(Message::items),
+                Codec.INT.optionalFieldOf("category", 0).forGetter(Message::category),
+                Codec.INT.optionalFieldOf("priority", NoticeKind.Priority.NORMAL.ordinal()).forGetter(Message::priority)
         ).apply(instance, Message::new));
+
+        public NoticeKind kind() {
+            return new NoticeKind(NoticeKind.Category.byOrdinal(category), NoticeKind.Priority.byOrdinal(priority));
+        }
 
         boolean hasItems() {
             return !items.isEmpty();
         }
 
         Message markRead() {
-            return read ? this : new Message(id, at, text, contractId, true, items);
+            return read ? this : new Message(id, at, text, contractId, true, items, category, priority);
         }
 
-        static int totalItemCount(List<ItemStack> stacks) {
+        public static int totalItemCount(List<ItemStack> stacks) {
             int total = 0;
             for (ItemStack stack : stacks) {
                 total += stack.getCount();
@@ -67,6 +75,8 @@ public final class CourierInbox extends SavedData {
             Codec.unboundedMap(UUIDUtil.STRING_CODEC, Message.CODEC.listOf());
 
     private final Map<UUID, List<Message>> byPlayer = new HashMap<>();
+    private final Map<UUID, Long> lastSeen = new HashMap<>();
+    private static final Codec<Map<UUID, Long>> SEEN_CODEC = Codec.unboundedMap(UUIDUtil.STRING_CODEC, Codec.LONG);
     private long nextId = 1L;
     private boolean legacyMigrated;
 
@@ -88,6 +98,11 @@ public final class CourierInbox extends SavedData {
                 .resultOrPartial(error -> AeronauticsCouriers.LOGGER.error("Inbox: {}", error))
                 .ifPresent(loaded -> loaded.forEach((player, entries) ->
                         inbox.byPlayer.put(player, new ArrayList<>(entries))));
+        if (tag.contains("last_seen")) {
+            SEEN_CODEC.parse(NbtOps.INSTANCE, tag.get("last_seen"))
+                    .resultOrPartial(error -> AeronauticsCouriers.LOGGER.error("Inbox last_seen: {}", error))
+                    .ifPresent(inbox.lastSeen::putAll);
+        }
         return inbox;
     }
 
@@ -102,7 +117,8 @@ public final class CourierInbox extends SavedData {
             UUID player = entry.getKey();
             List<Message> list = messagesMutable(player);
             for (NotificationLog.Entry note : entry.getValue()) {
-                list.add(new Message(note.id(), note.at(), note.text(), note.contractId(), note.read(), List.of()));
+                list.add(new Message(note.id(), note.at(), note.text(), note.contractId(), note.read(), List.of(),
+                        0, NoticeKind.Priority.NORMAL.ordinal()));
                 nextId = Math.max(nextId, note.id() + 1L);
             }
             changed = true;
@@ -120,7 +136,9 @@ public final class CourierInbox extends SavedData {
                     defaultCargoText(stacks),
                     Optional.empty(),
                     false,
-                    copyStacks(stacks)));
+                    copyStacks(stacks),
+                    NoticeKind.Category.CARGO.ordinal(),
+                    NoticeKind.Priority.NORMAL.ordinal()));
             changed = true;
         }
         if (changed) {
@@ -162,6 +180,27 @@ public final class CourierInbox extends SavedData {
         return count;
     }
 
+    /** Game tick of the player's last logout; {@code -1} when unknown (first login). */
+    public long lastSeen(UUID player) {
+        return lastSeen.getOrDefault(player, -1L);
+    }
+
+    public void markSeen(UUID player, long tick) {
+        lastSeen.put(player, tick);
+        setDirty();
+    }
+
+    /** Unread entries logged after {@code since} (the «while you were away» group). */
+    public int unreadSince(UUID player, long since) {
+        int count = 0;
+        for (Message message : byPlayer.getOrDefault(player, List.of())) {
+            if (!message.read() && message.at() > since) {
+                count++;
+            }
+        }
+        return count;
+    }
+
     public int mailStackCount(UUID player) {
         int stacks = 0;
         for (Message message : byPlayer.getOrDefault(player, List.of())) {
@@ -171,8 +210,14 @@ public final class CourierInbox extends SavedData {
     }
 
     public Message pushText(MinecraftServer server, UUID player, Component text, Optional<UUID> contractId) {
+        return pushText(server, player, text, contractId, NoticeKind.classify(text));
+    }
+
+    public Message pushText(MinecraftServer server, UUID player, Component text, Optional<UUID> contractId,
+                            NoticeKind kind) {
         List<Message> list = messagesMutable(player);
-        Message message = new Message(nextId++, ContractManager.now(server), text, contractId, false, List.of());
+        Message message = new Message(nextId++, ContractManager.now(server), text, contractId, false, List.of(),
+                kind.category().ordinal(), kind.priority().ordinal());
         list.add(message);
         trim(list);
         setDirty();
@@ -191,7 +236,9 @@ public final class CourierInbox extends SavedData {
                 label,
                 Optional.empty(),
                 false,
-                copyStacks(items));
+                copyStacks(items),
+                NoticeKind.Category.CARGO.ordinal(),
+                NoticeKind.Priority.NORMAL.ordinal());
         list.add(message);
         trim(list);
         setDirty();
@@ -290,7 +337,7 @@ public final class CourierInbox extends SavedData {
                 }
             } else {
                 list.set(i, new Message(message.id(), message.at(), message.text(), message.contractId(),
-                        message.read(), left));
+                        message.read(), left, message.category(), message.priority()));
             }
             setDirty();
             return movedStacks;
@@ -367,6 +414,7 @@ public final class CourierInbox extends SavedData {
     public CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
         tag.putLong("next_id", nextId);
         tag.putBoolean("legacy_migrated", legacyMigrated);
+        tag.put("last_seen", SEEN_CODEC.encodeStart(NbtOps.INSTANCE, lastSeen).getOrThrow());
         tag.put("players", STORE_CODEC.encodeStart(registries.createSerializationContext(NbtOps.INSTANCE), byPlayer)
                 .getOrThrow());
         return tag;

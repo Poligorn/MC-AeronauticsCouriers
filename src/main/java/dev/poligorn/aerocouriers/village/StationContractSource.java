@@ -3,6 +3,7 @@ package dev.poligorn.aerocouriers.village;
 import dev.poligorn.aerocouriers.AeronauticsCouriers;
 import dev.poligorn.aerocouriers.cargo.CargoSize;
 import dev.poligorn.aerocouriers.config.CouriersServerConfig;
+import dev.poligorn.aerocouriers.contract.CollateralProfile;
 import dev.poligorn.aerocouriers.contract.Contract;
 import dev.poligorn.aerocouriers.contract.ContractDistances;
 import dev.poligorn.aerocouriers.contract.ContractManager;
@@ -228,10 +229,13 @@ public final class StationContractSource implements ContractSource {
                 new Destination(from.dimension(), from.pos(), ZONE_RADIUS),
                 new Destination(to.dimension(), to.pos(), ZONE_RADIUS));
         long reward = Pricing.npcReward(distance, weight, random);
-        long collateral = Pricing.npcCollateral(manifest, weight);
+        CollateralProfile profile = CollateralProfile.active();
+        long collateral = Pricing.npcCollateral(profile, manifest, weight);
         Destination origin = new Destination(from.dimension(), from.pos(), ZONE_RADIUS);
         Destination destination = new Destination(to.dimension(), to.pos(), ZONE_RADIUS);
-        Pricing.NpcMoney money = Pricing.balanceNpcMoney(reward, collateral, size.get(), origin, destination);
+        Pricing.NpcMoney money = profile.noCollateral()
+                ? new Pricing.NpcMoney(reward, 0L)
+                : Pricing.balanceNpcMoney(reward, collateral, size.get(), origin, destination);
         return ContractManager.get(level.getServer()).publishVillage(level, from, to, manifest, size.get(), weight,
                 money.reward(), money.collateral(), DEFAULT_DEADLINE_MINUTES, villageRare);
     }

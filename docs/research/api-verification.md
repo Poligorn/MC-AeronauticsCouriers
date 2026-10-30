@@ -107,6 +107,16 @@ Data Components (`DeferredRegister.createDataComponents`), Data Attachments (`At
 | GUI иконки монет | `BuiltInRegistries.ITEM` → `numismatics:{spur,bevel,sprocket,cog,crown,sun}` + `GuiGraphics.renderItem` | ✅ ids в jar 1.1.0 |
 | GDD §14.5 | Старые имена совпадают по смыслу; пакет `dev.ithundxr.createnumismatics.*`, не Create addon namespace | ✅ |
 
+## NeoForge 21.1.235 / MC 1.21.1 — UI уведомлений 0.2.0 (сверено по `neoforge-21.1.235-sources.jar`, 30.10.2026)
+| Что | Сигнатура | Статус |
+|---|---|---|
+| Бейдж на предмете | `IItemDecorator.render(GuiGraphics, Font, ItemStack, int xOffset, int yOffset)` → `boolean` | ✅ исходники |
+| Регистрация | `RegisterItemDecorationsEvent.register(ItemLike, IItemDecorator)`, шина мода, клиент | ✅ исходники |
+| Звук UI | `SimpleSoundInstance.forUI(SoundEvent, float pitch, float volume)` — **pitch раньше volume**; у нас были перепутаны | ✅ исходники |
+| F3 открыт | `DebugScreenOverlay.showDebugScreen()` (`Minecraft.getDebugOverlay()`) | ✅ исходники |
+| Чанк загружен | `Level.isLoaded(BlockPos)` вместо устаревшего `LevelReader.hasChunkAt` | ✅ исходники |
+| Лицензия при смерти | Curios `ICurioItem.getDropRule(...)` → `ICurio.DropRule.ALWAYS_KEEP` | ✅ (уже было в `PilotLicenseItem`) |
+
 ## Что ещё не проверено
 - Xaero: fair-play mod ID; выбор точки на карте **в игре** (код есть); линия маршрута на World Map и миникарте **в игре** (код есть).
 - FFItemWeight: API для веса предметов.

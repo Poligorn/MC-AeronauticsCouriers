@@ -5,10 +5,12 @@ import java.util.List;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import top.theillusivec4.curios.api.SlotContext;
+import top.theillusivec4.curios.api.type.capability.ICurio;
 import top.theillusivec4.curios.api.type.capability.ICurioItem;
 
 /**
@@ -29,6 +31,19 @@ public class PilotLicenseItem extends Item implements ICurioItem {
                 && player.tickCount % SYNC_INTERVAL_TICKS == 0) {
             Licenses.tickWorn(player, stack);
         }
+    }
+
+    @Override
+    public ICurio.DropRule getDropRule(SlotContext slotContext, DamageSource source, boolean recentlyHit,
+                                       ItemStack stack) {
+        return ICurio.DropRule.ALWAYS_KEEP;
+    }
+
+    @Override
+    @SuppressWarnings("deprecation")
+    public ICurio.DropRule getDropRule(SlotContext slotContext, DamageSource source, int lootingLevel,
+                                       boolean recentlyHit, ItemStack stack) {
+        return ICurio.DropRule.ALWAYS_KEEP;
     }
 
     @Override

@@ -26,6 +26,10 @@ import dev.poligorn.aerocouriers.net.RenameStationPayload;
 import dev.poligorn.aerocouriers.net.StationPackets;
 import dev.poligorn.aerocouriers.net.StationSnapshotPayload;
 import dev.poligorn.aerocouriers.net.ZoneSyncPayload;
+import dev.poligorn.aerocouriers.net.TaskPrefPayload;
+import dev.poligorn.aerocouriers.net.TaskSyncPayload;
+import dev.poligorn.aerocouriers.net.TutorialIntentPayload;
+import dev.poligorn.aerocouriers.task.TaskSync;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
@@ -34,7 +38,7 @@ import net.neoforged.neoforge.network.registration.PayloadRegistrar;
  * Network payloads (GDD §14.1 {@code net/}). C2S carry intents only; the server validates everything.
  */
 public final class ModPayloads {
-    public static final String PROTOCOL_VERSION = "2";
+    public static final String PROTOCOL_VERSION = "3";
 
     public static void register(RegisterPayloadHandlersEvent event) {
         PayloadRegistrar registrar = event.registrar(PROTOCOL_VERSION);
@@ -54,6 +58,13 @@ public final class ModPayloads {
                 StationSnapshotPayload::handle);
         registrar.playToClient(PlayerProfilePayload.TYPE, PlayerProfilePayload.STREAM_CODEC,
                 PlayerProfilePayload::handle);
+        registrar.playToClient(TaskSyncPayload.TYPE, TaskSyncPayload.STREAM_CODEC, TaskSyncPayload::handle);
+        registrar.playToServer(TaskPrefPayload.TYPE, TaskPrefPayload.STREAM_CODEC,
+                (payload, context) -> context.enqueueWork(() -> {
+                    if (context.player() instanceof ServerPlayer player) {
+                        TaskSync.handlePref(player, payload);
+                    }
+                }));
 
         registrar.playToServer(OpenBoardPayload.TYPE, OpenBoardPayload.STREAM_CODEC,
                 (payload, context) -> context.enqueueWork(() -> {
@@ -131,6 +142,12 @@ public final class ModPayloads {
                 (payload, context) -> context.enqueueWork(() -> {
                     if (context.player() instanceof ServerPlayer player) {
                         ProfilePackets.handleClaimTrainee(player);
+                    }
+                }));
+        registrar.playToServer(TutorialIntentPayload.TYPE, TutorialIntentPayload.STREAM_CODEC,
+                (payload, context) -> context.enqueueWork(() -> {
+                    if (context.player() instanceof ServerPlayer player) {
+                        ProfilePackets.handleTutorial(player, payload);
                     }
                 }));
     }

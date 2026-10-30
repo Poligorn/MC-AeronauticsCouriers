@@ -1,7 +1,6 @@
 package dev.poligorn.aerocouriers.item;
 
 import dev.poligorn.aerocouriers.contract.CargoContainers;
-import dev.poligorn.aerocouriers.license.Licenses;
 import dev.poligorn.aerocouriers.net.BoardPackets;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
@@ -28,10 +27,6 @@ public class TransportWaybillItem extends Item {
         if (!(context.getLevel() instanceof ServerLevel level)
                 || !(context.getPlayer() instanceof ServerPlayer player)) {
             return InteractionResult.SUCCESS;
-        }
-        if (!Licenses.isLicensedCourier(player)) {
-            player.sendSystemMessage(Component.translatable("contract.aerocouriers.error.no_license"));
-            return InteractionResult.FAIL;
         }
         if (!CargoContainers.canOpen(player, level, context.getClickedPos())) {
             player.sendSystemMessage(Component.translatable("contract.aerocouriers.error.no_access",
