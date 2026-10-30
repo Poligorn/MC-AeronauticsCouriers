@@ -44,11 +44,12 @@ public final class ClientNotifications {
                 ClientCouriersSounds.playNotification();
             }
         }
-        if (payload.awayCount() <= 0) {
+        if (!quiet && payload.awayCount() <= 0) {
             TabletAntennaSignal.triggerReceive();
         }
         Minecraft mc = Minecraft.getInstance();
-        if (mc.player != null && payload.awayCount() <= 0 && CouriersClientConfig.channelEnabled(row, NoticeChannel.CHAT)) {
+        if (!quiet && mc.player != null && payload.awayCount() <= 0
+                && CouriersClientConfig.channelEnabled(row, NoticeChannel.CHAT)) {
             mc.player.displayClientMessage(Component.translatable("ui.aerocouriers.notify.chat_prefix")
                     .append(line.text()), false);
         }
