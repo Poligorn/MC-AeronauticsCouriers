@@ -98,7 +98,7 @@ public final class TutorialGameTests {
     public static void extrasAndTasksRoundTrip(GameTestHelper helper) {
         RegistryFriendlyByteBuf buf = new RegistryFriendlyByteBuf(Unpooled.buffer(), helper.getLevel().registryAccess());
         UUID order = UUID.randomUUID();
-        BoardSnapshotPayload.Extras extras = new BoardSnapshotPayload.Extras(2, List.of("a=b"), true,
+        BoardSnapshotPayload.Extras extras = new BoardSnapshotPayload.Extras("easy", List.of("a=b"), true,
                 TutorialData.State.IN_TRANSIT.ordinal(), Optional.of(order), true, false, 100, 3, 25L, true);
         BoardSnapshotPayload.Extras.STREAM_CODEC.encode(buf, extras);
         TaskView task = new TaskView("tutorial", TaskView.Source.TUTORIAL, Component.literal("t"),
