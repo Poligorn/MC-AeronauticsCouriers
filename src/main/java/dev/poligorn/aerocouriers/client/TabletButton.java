@@ -23,6 +23,8 @@ public final class TabletButton extends Button {
     private @Nullable ResourceLocation atlasIcon;
     private @Nullable Component hint;
     private long pressedAt = Long.MIN_VALUE;
+    /** When inactive: gray sprite, no hover, no press flash. Active look is unchanged. */
+    private boolean muteWhenInactive;
 
     private TabletButton(int x, int y, int w, int h, Component message, OnPress onPress, WidgetSprites sprites,
                          boolean tabletChrome) {
@@ -43,6 +45,11 @@ public final class TabletButton extends Button {
 
     public TabletButton hint(Component hint) {
         this.hint = hint;
+        return this;
+    }
+
+    public TabletButton muteWhenInactive() {
+        this.muteWhenInactive = true;
         return this;
     }
 
@@ -80,11 +87,12 @@ public final class TabletButton extends Button {
 
     @Override
     protected void renderWidget(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        boolean muted = muteWhenInactive && !active;
         Minecraft mc = Minecraft.getInstance();
-        boolean pressed = isHovered() && mc.mouseHandler.isLeftPressed();
+        boolean pressed = !muted && isHovered() && mc.mouseHandler.isLeftPressed();
         float pressOffset = TabletAnim.enabled() && pressed ? 1.0F : 0.0F;
         float flash = 0.0F;
-        if (TabletAnim.enabled() && pressedAt != Long.MIN_VALUE) {
+        if (!muted && TabletAnim.enabled() && pressedAt != Long.MIN_VALUE) {
             flash = 1.0F - TabletAnim.progress(pressedAt, 100L);
             if (flash <= 0.001F) {
                 pressedAt = Long.MIN_VALUE;
@@ -94,7 +102,9 @@ public final class TabletButton extends Button {
         float brighten = 1.0F + flash * 0.35F;
         RenderSystem.setShaderColor(brighten, brighten, brighten, 1.0F);
         RenderSystem.enableBlend();
-        ResourceLocation sprite = sprites.get(active, isHoveredOrFocused());
+        ResourceLocation sprite = muted && tabletChrome
+                ? AerocouriersGuiSprites.TABLET_BUTTON_INACTIVE
+                : sprites.get(active, muted ? false : isHoveredOrFocused());
         int drawY = getY() + (int) pressOffset;
         graphics.blitSprite(sprite, getX(), drawY, getWidth(), getHeight());
         Font font = Minecraft.getInstance().font;
@@ -109,7 +119,9 @@ public final class TabletButton extends Button {
         }
         int color;
         if (!active) {
-            color = tabletChrome ? TabletGui.TEXT_BUTTON_DISABLED : CreateGui.TEXT_BUTTON_DISABLED;
+            color = tabletChrome && !muteWhenInactive
+                    ? TabletGui.TEXT_BUTTON_DISABLED
+                    : CreateGui.TEXT_BUTTON_DISABLED;
         } else if (isHoveredOrFocused()) {
             color = tabletChrome ? TabletGui.TEXT_BUTTON_HOVER : CreateGui.TEXT_BUTTON;
         } else {

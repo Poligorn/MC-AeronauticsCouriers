@@ -13,6 +13,7 @@ import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.neoforged.neoforge.common.ModConfigSpec;
 
 /** Profile → "Route on Xaero maps" (mockup 07). Writes straight into {@code aerocouriers-client.toml [route]}. */
@@ -86,6 +87,7 @@ public final class RouteSettingsScreen extends Screen {
             b.setMessage(onOff(name, next));
         });
         button.hint(Component.translatable("ui.aerocouriers.route.settings." + key + ".hint"));
+        button.muteWhenInactive();
         add(button);
     }
 
@@ -97,11 +99,13 @@ public final class RouteSettingsScreen extends Screen {
     private <E extends Enum<E>> void cycle(int x, int y, int w, String key, ModConfigSpec.EnumValue<E> value,
                                            E[] values) {
         Component name = Component.translatable("ui.aerocouriers.route.settings." + key);
-        add(TabletButton.create(x, y, w, 18, enumLabel(name, key, CouriersClientConfig.get(value)), b -> {
+        TabletButton button = TabletButton.create(x, y, w, 18, enumLabel(name, key, CouriersClientConfig.get(value)), b -> {
             E next = values[(CouriersClientConfig.get(value).ordinal() + 1) % values.length];
             CouriersClientConfig.set(value, next);
             b.setMessage(enumLabel(name, key, next));
-        }));
+        });
+        button.muteWhenInactive();
+        add(button);
     }
 
     private static Component enumLabel(Component name, String key, Enum<?> value) {
@@ -128,6 +132,16 @@ public final class RouteSettingsScreen extends Screen {
             @Override
             protected void applyValue() {
                 apply.accept(snap.applyAsDouble(value));
+            }
+
+            @Override
+            protected ResourceLocation getSprite() {
+                return active ? super.getSprite() : ResourceLocation.withDefaultNamespace("widget/slider");
+            }
+
+            @Override
+            protected ResourceLocation getHandleSprite() {
+                return active ? super.getHandleSprite() : ResourceLocation.withDefaultNamespace("widget/slider_handle");
             }
         };
         add(slider);
@@ -185,7 +199,7 @@ public final class RouteSettingsScreen extends Screen {
                 XaeroRouteHooks.status() == XaeroRouteHooks.Status.LINE ? TabletGui.TEXT_BRIGHT
                         : TabletGui.TEXT_WARN, false);
         for (var widget : renderables) {
-            if (widget instanceof TabletButton button && button.isHovered() && button.hint() != null) {
+            if (widget instanceof TabletButton button && button.active && button.isHovered() && button.hint() != null) {
                 graphics.renderTooltip(font, font.split(button.hint(), 220), mouseX, mouseY);
             }
         }
