@@ -21,19 +21,31 @@ public final class RouteCanvas {
     private static @Nullable ByteBufferBuilder buffer;
 
     private final GuiGraphics graphics;
-    private final RouteProbes.Projection projection;
+    private final RouteProbes.@Nullable Projection projection;
     private final float unit;
     private final float depth;
     private @Nullable BufferBuilder builder;
 
     public RouteCanvas(GuiGraphics graphics, RouteProbes.Projection projection, float unit) {
+        this(graphics, projection, unit, (float) projection.depth());
+    }
+
+    private RouteCanvas(GuiGraphics graphics, RouteProbes.@Nullable Projection projection, float unit, float depth) {
         this.graphics = graphics;
         this.projection = projection;
         this.unit = unit;
-        this.depth = (float) projection.depth();
+        this.depth = depth;
+    }
+
+    /** Canvas in plain render space (no world projection), e.g. HUD overlays drawn at a known point. */
+    public static RouteCanvas flat(GuiGraphics graphics, float unit, float depth) {
+        return new RouteCanvas(graphics, null, unit, depth);
     }
 
     public RouteProbes.Projection projection() {
+        if (projection == null) {
+            throw new IllegalStateException("flat canvas has no world projection");
+        }
         return projection;
     }
 
@@ -43,11 +55,11 @@ public final class RouteCanvas {
     }
 
     public double sx(double worldX, double worldZ) {
-        return projection.screenX(worldX, worldZ);
+        return projection().screenX(worldX, worldZ);
     }
 
     public double sy(double worldX, double worldZ) {
-        return projection.screenY(worldX, worldZ);
+        return projection().screenY(worldX, worldZ);
     }
 
     private BufferBuilder builder() {
@@ -158,12 +170,16 @@ public final class RouteCanvas {
 
     /** Text at a render-space point, scaled like Xaero's own waypoint labels. */
     public void text(Font font, String text, double x, double y, int argb) {
+        text(font, text, x, y, argb, true);
+    }
+
+    public void text(Font font, String text, double x, double y, int argb, boolean shadow) {
         flush();
         graphics.pose().pushPose();
         graphics.pose().setIdentity();
         graphics.pose().translate(x, y, depth + 1);
         graphics.pose().scale(unit, unit, 1);
-        graphics.drawString(font, text, 0, 0, argb, true);
+        graphics.drawString(font, text, 0, 0, argb, shadow);
         graphics.flush();
         graphics.pose().popPose();
     }

@@ -208,12 +208,37 @@ public final class RouteScene {
         c.dashed(c.sx(x1, z1), c.sy(x1, z1), c.sx(x2, z2), c.sy(x2, z2), width, dash, gap, 0, argb);
     }
 
+    /**
+     * Badge for a tracked target beyond the minimap frame. {@code (edgeX, edgeY)} is where Xaero clamped the target
+     * to the frame, {@code (dirX, dirY)} points from the minimap centre towards it. The opaque badge sits exactly on
+     * that point, so it also covers Xaero's own A/B waypoint when the player's waypoint set shows it; the chevron
+     * inside the frame points at the target.
+     */
+    public static void drawEdgeMarker(RouteCanvas c, Font font, double edgeX, double edgeY, double dirX,
+                                      double dirY) {
+        RouteTracker.RouteState s = RouteTracker.state();
+        double len = Math.hypot(dirX, dirY);
+        if (s == null || len < 1e-6) {
+            return;
+        }
+        double ux = dirX / len;
+        double uy = dirY / len;
+        float u = c.unit();
+        int color = s.late() ? RouteStyle.LATE : RouteStyle.color(s.delivery());
+        double chevronX = edgeX - ux * 10 * u;
+        double chevronY = edgeY - uy * 10 * u;
+        c.chevron(chevronX, chevronY, ux, uy, 5 * u, 2.5 * u, RouteStyle.OUTLINE);
+        c.chevron(chevronX, chevronY, ux, uy, 5 * u, 1.25 * u, color);
+        marker(c, font, edgeX, edgeY, s.delivery() ? "B" : "A", color);
+        c.flush();
+    }
+
     private static void marker(RouteCanvas c, @Nullable Font font, double x, double y, String letter, int argb) {
         float u = c.unit();
         c.rect(x - 5 * u, y - 5 * u, x + 5 * u, y + 5 * u, RouteStyle.OUTLINE);
         c.rect(x - 4 * u, y - 4 * u, x + 4 * u, y + 4 * u, argb);
         if (font != null) {
-            c.text(font, letter, x - font.width(letter) * u / 2.0 + 0.5 * u, y - 3.5 * u, 0xFF101418);
+            c.text(font, letter, x - font.width(letter) * u / 2.0 + 0.5 * u, y - 3.5 * u, 0xFF101418, false);
         }
     }
 
