@@ -55,6 +55,19 @@
 ## NeoForge 21.1.235
 Data Components (`DeferredRegister.createDataComponents`), Data Attachments (`AttachmentType.builder(...).serialize(codec).copyOnDeath()`), `ModConfigSpec`, `RegisterCommandsEvent`, `PlayerEvent.PlayerLoggedInEvent` — проверены компиляцией против 21.1.235.
 
+Worldgen (sources `neoforge-21.1.235-sources.jar`, 30.10.2026):
+| Что | Факт | Статус |
+|---|---|---|
+| `StructurePoolElement.single(String, Holder<StructureProcessorList>)` | есть, `Holder.direct(new StructureProcessorList(...))` допустим на рантайме | ✅ |
+| `StructureProcessor.process(LevelReader, BlockPos, BlockPos, StructureBlockInfo, StructureBlockInfo, StructurePlaceSettings, StructureTemplate)` | NeoForge; vanilla `processBlock` помечен `@Deprecated` | ✅ |
+| `StructureTemplate.processBlockInfos(..., template)` | вызывает `processor.process(..., template)`, не голый `processBlock` | ✅ |
+| `Structure.generate(RegistryAccess, ChunkGenerator, BiomeSource, RandomState, StructureTemplateManager, long, ChunkPos, int, LevelHeightAccessor, Predicate)` | как `PlaceCommand` | ✅ |
+| `LevelReader.getChunk(cx, cz, ChunkStatus.EMPTY, false)` | `null`, если чанка нет; `hasChunk` `@Deprecated` | ✅ |
+| `SinglePoolElement.getSettings` | `this.processors.value().list().forEach(addProcessor)` — процессор с `Holder` из `Registries.PROCESSOR_LIST` доезжает до `placeInWorld` | ✅ |
+| `placeInChunk` bounding box | процессор видит все блоки куска, `setBlock` только внутри чанка; клеймить станцию вне бокса нельзя | ✅ |
+| `ChunkAccess.setStartForStructure` / `addReferenceForStructure` | старт только в чанке старта, ссылка — во всех чанках бокса; иначе `StructureManager.getStructureAt` пуст | ✅ |
+| `data/<ns>/worldgen/processor_list/*.json` | реестр `Registries.PROCESSOR_LIST`; `processor_type` диспатчится в `StructureProcessorType.SINGLE_CODEC` | ✅ |
+
 ## Xaero 26.6.0 / World Map 1.47.0 (выбор точки на штампе)
 | Что | Факт | Статус |
 |---|---|---|

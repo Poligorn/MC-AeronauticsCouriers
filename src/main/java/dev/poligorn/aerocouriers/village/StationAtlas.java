@@ -114,6 +114,16 @@ public final class StationAtlas extends SavedData {
         }
     }
 
+    /** Drops atlas entries near {@code pos}. GameTests use this so a neighbour slot cannot steal the original. */
+    public int removeNear(ResourceKey<Level> dimension, BlockPos pos, double distance) {
+        List<UUID> ids = stations.values().stream()
+                .filter(s -> s.dimension().equals(dimension) && s.pos().closerThan(pos, distance))
+                .map(Station::id)
+                .toList();
+        ids.forEach(this::remove);
+        return ids.size();
+    }
+
     /** @return {@code true} if this is a new discovery for the player */
     public boolean discover(UUID station, UUID player) {
         Station s = stations.get(station);

@@ -20,6 +20,7 @@ import dev.poligorn.aerocouriers.registry.ModComponents;
 import dev.poligorn.aerocouriers.registry.ModItems;
 import dev.poligorn.aerocouriers.registry.ModMenus;
 import dev.poligorn.aerocouriers.registry.ModPayloads;
+import dev.poligorn.aerocouriers.registry.ModProcessors;
 import dev.poligorn.aerocouriers.registry.ModSounds;
 import dev.poligorn.aerocouriers.village.StationAtlas;
 import dev.poligorn.aerocouriers.village.StationContractSource;
@@ -48,6 +49,7 @@ public final class AeronauticsCouriers {
         ModBlocks.REGISTER.register(modBus);
         ModItems.REGISTER.register(modBus);
         ModBlockEntities.REGISTER.register(modBus);
+        ModProcessors.REGISTER.register(modBus);
         ModMenus.REGISTER.register(modBus);
         ModSounds.REGISTER.register(modBus);
 
