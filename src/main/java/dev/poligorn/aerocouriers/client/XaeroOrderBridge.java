@@ -58,7 +58,11 @@ public final class XaeroOrderBridge {
         if (!xaeroWorldMapPresent()) {
             return false;
         }
-        return XaeroOrderWaypoints.openWorldMapAt(pos);
+        try {
+            return XaeroWorldMapAccess.openWorldMapAt(pos);
+        } catch (Throwable ignored) {
+            return false;
+        }
     }
 
     public static void onBoardSnapshot(BoardSnapshotPayload payload) {

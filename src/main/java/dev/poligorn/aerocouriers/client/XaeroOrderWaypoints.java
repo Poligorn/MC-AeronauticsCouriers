@@ -1,7 +1,6 @@
 package dev.poligorn.aerocouriers.client;
 
 import dev.poligorn.aerocouriers.AeronauticsCouriers;
-import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -10,7 +9,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import org.jetbrains.annotations.Nullable;
-import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
@@ -23,11 +21,10 @@ import xaero.hud.minimap.waypoint.WaypointPurpose;
 import xaero.hud.minimap.waypoint.thirdparty.ThirdPartyWaypoints;
 import xaero.hud.minimap.world.container.MinimapWorldContainer;
 import xaero.hud.minimap.world.container.MinimapWorldRootContainer;
-import xaero.map.WorldMapSession;
-import xaero.map.gui.GuiMap;
 
 /**
- * Xaero-only third-party order waypoints ({@code aerocouriers:orders}, temp). Loaded via compileOnly jars.
+ * Xaero's Minimap only: third-party order waypoints ({@code aerocouriers:orders}, temp). Must not reference World Map
+ * types — the minimap is often installed without it.
  */
 final class XaeroOrderWaypoints {
     static final ResourceLocation ORIGIN = AeronauticsCouriers.id("orders");
@@ -45,10 +42,6 @@ final class XaeroOrderWaypoints {
 
     static boolean minimapLoaded() {
         return net.neoforged.fml.ModList.get().isLoaded("xaerominimap");
-    }
-
-    static boolean worldMapLoaded() {
-        return net.neoforged.fml.ModList.get().isLoaded("xaeroworldmap");
     }
 
     static String waypointId(UUID orderId) {
@@ -144,28 +137,6 @@ final class XaeroOrderWaypoints {
         PLACED.clear();
     }
 
-    static boolean openWorldMapAt(BlockPos pos) {
-        if (!worldMapLoaded()) {
-            return false;
-        }
-        try {
-            WorldMapSession session = WorldMapSession.getCurrentSession();
-            if (session == null || !session.isUsable()) {
-                return false;
-            }
-            Minecraft minecraft = Minecraft.getInstance();
-            if (minecraft.getCameraEntity() == null) {
-                return false;
-            }
-            GuiMap map = new GuiMap(null, null, session.getMapProcessor(), minecraft.getCameraEntity());
-            boolean centered = centerGuiMap(map, pos.getX() + 0.5, pos.getZ() + 0.5);
-            minecraft.setScreen(map);
-            return minecraft.screen instanceof GuiMap && centered;
-        } catch (Throwable ignored) {
-            return false;
-        }
-    }
-
     private static void place(
             UUID orderId,
             ResourceKey<Level> dimension,
@@ -232,23 +203,6 @@ final class XaeroOrderWaypoints {
                 bucket.remove(id);
             }
         } catch (Throwable ignored) {
-        }
-    }
-
-    private static boolean centerGuiMap(GuiMap map, double blockX, double blockZ) {
-        try {
-            Field cameraX = GuiMap.class.getDeclaredField("cameraX");
-            Field cameraZ = GuiMap.class.getDeclaredField("cameraZ");
-            Field shouldReset = GuiMap.class.getDeclaredField("shouldResetCameraPos");
-            cameraX.setAccessible(true);
-            cameraZ.setAccessible(true);
-            shouldReset.setAccessible(true);
-            cameraX.setDouble(map, blockX);
-            cameraZ.setDouble(map, blockZ);
-            shouldReset.setBoolean(map, false);
-            return true;
-        } catch (Throwable ignored) {
-            return false;
         }
     }
 
