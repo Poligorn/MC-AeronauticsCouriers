@@ -40,6 +40,7 @@ final class BoardTutorialUi {
     private @Nullable Rect primaryButton;
     private @Nullable Rect secondaryButton;
     private @Nullable Rect skipLink;
+    private @Nullable Rect plate;
 
     BoardTutorialUi(Runnable toBoard, Runnable toProfile) {
         this.toBoard = toBoard;
@@ -243,6 +244,7 @@ final class BoardTutorialUi {
     void renderCoach(GuiGraphics graphics, Font font, int step, Component text, @Nullable Rect target, int x,
                      int anchorY, boolean fromTop, int w, int mx, int my, boolean onTop) {
         skipLink = null;
+        plate = null;
         if (step < 0) {
             return;
         }
@@ -261,6 +263,7 @@ final class BoardTutorialUi {
         List<FormattedCharSequence> body = font.split(text, textW);
         int h = 6 + LINE + 2 + body.size() * LINE + 4;
         int y = fromTop ? anchorY : anchorY - h;
+        plate = new Rect(x, y, w, h);
         TabletDraw.box(graphics, x, y, x + w - 1, y + h - 1, TEAL_BG, TabletPalette.TEAL);
         String head = Component.translatable("ui.aerocouriers.tutorial.coach.step", step + 1, STEPS).getString();
         TabletDraw.bold(graphics, font, head, x + 6, y + 5, TabletPalette.TEAL);
@@ -284,18 +287,23 @@ final class BoardTutorialUi {
         graphics.pose().popPose();
     }
 
+    /** The plate swallows clicks so they do not reach buttons underneath. Skip is the only action on it. */
     boolean coachClicked(double mx, double my) {
+        if (plate == null || !plate.contains(mx, my)) {
+            return false;
+        }
         if (skipLink != null && skipLink.contains(mx, my)) {
             skipLink = null;
+            plate = null;
             ClientCouriersSounds.playUi(net.minecraft.sounds.SoundEvents.UI_BUTTON_CLICK.value());
             ClientBoard.tutorial(TutorialIntentPayload.Op.SKIP, 0);
-            return true;
         }
-        return false;
+        return true;
     }
 
     void clearCoach() {
         skipLink = null;
+        plate = null;
     }
 
     // --- Profile checklist ---------------------------------------------------------------------------------------

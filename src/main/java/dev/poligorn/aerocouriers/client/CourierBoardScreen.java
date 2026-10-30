@@ -796,6 +796,12 @@ public final class CourierBoardScreen extends Screen {
                 return;
             }
             key = "ui.aerocouriers.tutorial.coach.2_accept";
+            int buttonTop = detailsOverlay.buttonsScreenTop();
+            int plateX = detailsOverlay.screenX(10);
+            int plateW = Math.max(120, detailsOverlay.screenX(BoardDetailsOverlay.W - 10) - plateX);
+            tutorialUi.renderCoach(graphics, font, step, Component.translatable(key), null, plateX,
+                    buttonTop - 6, false, plateW, mx, my, true);
+            return;
         } else if (step == 0) {
             if (tab != Tab.PROFILE) {
                 target = tabRect(Tab.PROFILE);

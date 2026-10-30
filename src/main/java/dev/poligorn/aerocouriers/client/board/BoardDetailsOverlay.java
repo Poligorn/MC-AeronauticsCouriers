@@ -30,6 +30,11 @@ public final class BoardDetailsOverlay extends TabletOverlay {
     private static final int VALUE_X = LABEL_X + 66;
     private static final int RIGHT_EDGE = W - 12;
     private static final int BUTTONS_Y = H - 42;
+
+    /** Screen Y of the Accept / Show-on-map row, after {@link #layout}. */
+    public int buttonsScreenTop() {
+        return screenY(BUTTONS_Y);
+    }
     private static final int MAP_X = 10;
     private static final int MAP_W = 150;
     private static final int BACK_W = 70;
