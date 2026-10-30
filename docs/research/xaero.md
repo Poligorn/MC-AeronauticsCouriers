@@ -90,3 +90,40 @@ public final class XaeroCourierBridge {
 // Fallback for Xaero < 26.2.0: Waypoint(... , WaypointPurpose.DESTINATION, true) into
 // s.getWorldManager().getCurrentWorld().getCurrentWaypointSet().add(wp)  (in-list temporary, auto-removed at <4 blocks)
 ```
+
+## Route line on the maps (2026-10-30, javap signatures only, no decompilation)
+Goal: draw our own A/B route polyline on World Map and inside the minimap (not Xaero "Drawings"), stay alive across Xaero updates, never crash without Xaero.
+
+### What Xaero exposes (public, non-final, used by Xaero itself)
+- **World Map:** `xaero.map.WorldMap.mapElementRenderHandler` (public static) → `MapElementRenderHandler.add(ElementRenderer<?,?,?>)`.
+  Base classes `xaero.map.element.MapElementRenderer` / `MapElementReader` / `MapElementRenderProvider`; Xaero's own `WaypointRenderer`, `PlayerTrackerMapElementRenderer` and the OPAC claims renderer extend them. `renderElement(...)` gets `GuiGraphics` with the map pose already applied plus `partialX/partialY`; `MapElementGraphics`/`ElementRenderInfo` carry `renderPos` (camera).
+- **Minimap:** `HudMod.INSTANCE.getMinimap().getMinimapFBORenderer()`; the in-map element handler is a **private** field of type `xaero.hud.minimap.element.render.map.MinimapElementMapRendererHandler` → `add(MinimapElementRenderer)`. Elements in it are drawn **inside the minimap framebuffer**: clipped and rotated with the minimap. `getOverMapRendererHandler()` is public but draws over the map (no clipping/rotation) — not used.
+- No public "world → screen" transform on either map. No line/polyline element type.
+
+### Signature check across versions (javap, `-p -s`, hashes of renderer/reader/provider signatures)
+| Artifact | Versions | Result |
+|---|---|---|
+| Minimap (`xaero.hud.minimap.element.render.*`, FBO handler field) | 25.3.13, 26.1.0, 26.2.0, 26.4.2, 26.5.0, 26.6.0 | identical; handler field of that type present in all |
+| World Map (`xaero.map.element.*`, `WorldMap.mapElementRenderHandler`) | 1.40.11, 1.43.0, 1.45.0, 1.46.0, 1.47.0 | identical |
+| Third-party waypoints (fallback) | ≥ 26.2.0 only | absent in 26.1.0 / 25.x |
+
+### How others do it
+- **XaeroPlus** (rfresh2/XaeroPlus, branch `1.21` @20a89c0, Minimap 26.6.0 / WM 1.47.0, read as public source): lines are drawn from **mixins** — `@WrapOperation` + `@Local(name=...)` into `GuiMap.render` (endBatch slice) and `MinimapFBORenderer.renderChunksToFBO`. Exact, but tied to private method bodies and local variable names → breaks on any Xaero refactor. We do **not** use mixins.
+- Xaero "Drawings" — user feature, no API for third parties.
+
+### Our workaround: probe calibration
+- One element provider per map, feeding 4 invisible "probe" elements: anchor, anchor+X, anchor+Z, anchor+X+Z (step adapts so the probes are ~48 GUI px apart).
+- In `renderElement` we read the pose matrix Xaero applied for each probe → affine world→render-space map (scale, rotation, dimension scale come for free). The 4th probe must close the parallelogram (ratio 0.8–1.25, axes |cos| < 0.2), and votes whether `partialX/partialY` are a sub-pixel remainder to add. Shear, degenerate or clamped (out-of-bounds) probes → nothing is drawn that frame.
+- The line itself is our own `BufferBuilder` (QUADS, POSITION_COLOR), no depth test, drawn in the anchor's `renderElement`; text with `GuiGraphics` under identity pose (World Map only).
+- Failure policy: exception in a hook, handler not found within 60 s in world, or > 600 frames without a valid projection → that map's hook is off for the session, warning in the log, **fallback** = chain of temporary third-party waypoints (`aerocouriers:route`, `route-<n>` every `breadcrumb_step` blocks, Minimap ≥ 26.2.0).
+- Edge marker on the minimap — **our own** badge (2026-10-30). Xaero's A/B third-party waypoint is clamped to the edge only when the player's current waypoint set shows third-party waypoints (default set or "all sets"); in Grok's test it was absent. We register a second renderer in the public `Minimap.getOverMapRendererHandler()` (`OVER_MINIMAP`, where Xaero's waypoints are drawn). For every element there Xaero calls `translatePosition(..., circle, ...)`, which moves the pose to the element's minimap position clamped to the frame (circle or square), then `renderElement(..., outOfBounds, ...)`. We feed two elements — player and target — and draw an opaque A/B badge at the target pose when `outOfBounds`; direction = target pose − player pose. The badge sits exactly where Xaero puts its own waypoint icon and covers it. Handler signature identical in Minimap 25.3.13–26.6.0 (javap).
+- Verified in a dev client (Minimap 26.6.0 + World Map 1.47.0, square minimap, rotating): badge on the left edge and in two corners for three player yaws; Xaero's own waypoint hidden under it.
+
+### What we rely on / where it can break
+1. `WorldMap.mapElementRenderHandler` static field and `add(...)` — public; renamed/removed → no line on World Map, fallback.
+2. Private field of type `MinimapElementMapRendererHandler` inside `MinimapFBORenderer` (only reflection point, searched by type, not name) → absent → no line in minimap, fallback.
+3. Abstract method set of `MapElementRenderer` / `MinimapElementRenderer` / readers / providers — a new abstract method → `AbstractMethodError` at render, caught → fallback. A changed signature → `NoSuchMethodError`/`IncompatibleClassChangeError` on registration, caught → fallback.
+4. Semantics we infer from probes (pose contains world translation; partials are a remainder) — verified only as "affine and self-consistent" at runtime, not visually ⚠️.
+5. Render state inside Xaero's batch (blend, shader, depth) — we set our own and restore; mismatch = visual glitches, not crash ⚠️.
+6. Third-party waypoints for the fallback chain — ≥ 26.2.0.
+7. Edge badge: `getOverMapRendererHandler()` (public) and the clamp-before-render order inside it; if it changes, the badge disappears or is mispositioned (own `try/catch`, disables only the badge).

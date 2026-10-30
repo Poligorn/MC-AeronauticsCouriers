@@ -97,6 +97,20 @@
 | `navigation` | `beam_fade_start` | 12 | 2…64 |
 | `navigation` | `beam_pickup_color` | `1.0,1.0,0.33333334` | `r,g,b` в 0…1 |
 | `navigation` | `beam_delivery_color` | `0.33333334,1.0,1.0` | `r,g,b` в 0…1 |
+| `route` | `enabled` | true | линия маршрута на картах Xaero целиком. Без Xaero ничего не рисуется |
+| `route` | `world_map` | true | линия на полноэкранной World Map |
+| `route` | `minimap` | true | линия в миникарте и метка цели на краю |
+| `route` | `label` | true | подпись у цели на World Map: дистанция, время в пути, время до срока |
+| `route` | `erase_passed` | true | пройденная часть линии стирается |
+| `route` | `waybill_preview` | true | кнопка «Показать на карте» в накладной |
+| `route` | `other_orders` | false | остальные активные заказы тусклым пунктиром |
+| `route` | `corridor` | 32 | 16…96 блоков. Дальше от линии — перестроение |
+| `route` | `reroute_delay` | 2.0 | 0.5…10 с вне коридора до перестроения |
+| `route` | `thickness` | `NORMAL` | `THIN`, `NORMAL`, `THICK` |
+| `route` | `contrast_colors` | false | оранжевый к A и белый к B вместо жёлтого и голубого |
+| `route` | `eta_mode` | `SHIP_SPEED` | `SHIP_SPEED` (средняя скорость за 10 с), `FIXED` |
+| `route` | `fixed_speed` | 8.0 | 1…64 бл/с. Для `FIXED` и пока корабль стоит |
+| `route` | `breadcrumb_step` | 96 | 32…512 блоков. Шаг точек-вех, если линию в этой версии Xaero нарисовать нельзя |
 | `notifications` | `toast_corner` | `TOP_RIGHT` | `TOP_RIGHT`, `TOP_LEFT`, `BOTTOM_RIGHT`, `BOTTOM_LEFT` |
 | `notifications` | `toast_max_visible` | 3 | 1…5 |
 | `notifications` | `toast_seconds` | 5 | 2…30. Срочный тост держится вдвое дольше |
@@ -149,6 +163,8 @@
 | Сервер | Обучение новых курьеров | `tutorial.tutorial_enabled` |
 
 Экран «Уведомления и задачи» (Профиль, не админ-вкладка) пишет клиентский toml: клетки toast / sound / chat, угол тостов, сколько тостов, секунды (3, 5, 8, 10, 15, 20), режим панели, громкость, «Не беспокоить», автоотслеживание задач. Столбец «Почта» на экране всегда включён и в файл не пишется. Строка `admin` видна только оператору.
+
+Окно «Маршрут на карте» (кнопка в своём профиле) пишет секцию `[route]` клиентского toml. Без Xaero переключатели окна неактивны (серые).
 
 ## 3. Нарочно не настраивается
 

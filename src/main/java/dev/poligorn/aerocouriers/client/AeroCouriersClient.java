@@ -33,6 +33,8 @@ public final class AeroCouriersClient {
         NeoForge.EVENT_BUS.addListener(BoardKeyMappings::onClientTick);
         NeoForge.EVENT_BUS.addListener(XaeroMapPicker::onClientTick);
         NeoForge.EVENT_BUS.addListener(XaeroOrderBridge::onClientTick);
+        NeoForge.EVENT_BUS.addListener(XaeroRouteHooks::onClientTick);
+        NeoForge.EVENT_BUS.addListener(XaeroRouteHooks::onScreenRender);
         NeoForge.EVENT_BUS.addListener(InventoryBoardButton::onScreenInit);
         NeoForge.EVENT_BUS.addListener(ZoneParticles::onClientTick);
         NeoForge.EVENT_BUS.addListener(ZoneParticles::onLoggingOut);

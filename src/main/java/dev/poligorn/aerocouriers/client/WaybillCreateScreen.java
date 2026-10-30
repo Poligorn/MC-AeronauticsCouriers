@@ -5,6 +5,7 @@ import dev.poligorn.aerocouriers.cargo.CargoSize;
 import dev.poligorn.aerocouriers.client.board.BoardCardRenderer;
 import dev.poligorn.aerocouriers.client.board.PixelGlyphs;
 import dev.poligorn.aerocouriers.client.board.TabletDraw;
+import dev.poligorn.aerocouriers.client.route.RoutePreview;
 import dev.poligorn.aerocouriers.economy.MoneyFormat;
 import dev.poligorn.aerocouriers.contract.CollateralProfile;
 import dev.poligorn.aerocouriers.contract.ContractDistances;
@@ -76,6 +77,10 @@ public final class WaybillCreateScreen extends Screen {
     private int cargoLinkY;
     private int cargoLinkW;
     private boolean cargoLinkVisible;
+    private boolean showMapVisible;
+    private int showMapX;
+    private int showMapY;
+    private int showMapW;
     private @Nullable PaperEditBox rewardBox;
     private @Nullable PaperEditBox collateralBox;
     private @Nullable PaperEditBox minutesBox;
@@ -769,9 +774,44 @@ public final class WaybillCreateScreen extends Screen {
         }
 
         int sy = layout.summaryY + yOff;
-        WaybillCreateGui.fill(g, x0, sy, x1, sy + 12, WaybillPalette.PAPER2);
-        WaybillCreateGui.text(g, font, MoneyText.trunc(font, summaryLine(), Math.max(8, x1 - x0 - 10)),
+        showMapVisible = canShowOnMap();
+        int summaryX1 = x1;
+        if (showMapVisible) {
+            showMapW = font.width(tr("ui.aerocouriers.create.show_on_map")) + 20;
+            showMapX = x1 - showMapW;
+            showMapY = sy - 1;
+            summaryX1 = showMapX - 4;
+            boolean hover = !picker.isOpen() && TabletDraw.inside(mouseX, mouseY, showMapX, showMapY, showMapW, 14);
+            WaybillCreateGui.button(g, font, showMapX, showMapY, showMapW, 14, tr("ui.aerocouriers.create.show_on_map"),
+                    WaybillCreateGui.ButtonKind.PICK, PixelGlyphs.PIN, hover);
+            if (hover) {
+                hoverLines = new String[] {
+                        tr("ui.aerocouriers.create.show_on_map.hint.1"),
+                        tr("ui.aerocouriers.create.show_on_map.hint.2"),
+                        tr("ui.aerocouriers.create.show_on_map.hint.3")
+                };
+                hoverTipX = showMapX - 60;
+                hoverTipY = showMapY + 18;
+            }
+        }
+        WaybillCreateGui.fill(g, x0, sy, summaryX1, sy + 12, WaybillPalette.PAPER2);
+        WaybillCreateGui.text(g, font, MoneyText.trunc(font, summaryLine(), Math.max(8, summaryX1 - x0 - 10)),
                 x0 + 5, sy + 2, WaybillPalette.INK);
+    }
+
+    private boolean canShowOnMap() {
+        Minecraft minecraft = Minecraft.getInstance();
+        return dest().isPresent() && minecraft.level != null
+                && destinationDimension.equals(minecraft.level.dimension()) && XaeroRouteHooks.canPreview();
+    }
+
+    private void showOnMap() {
+        Optional<BlockPos> to = dest();
+        if (to.isEmpty()) {
+            return;
+        }
+        XaeroRouteHooks.showPreview(new RoutePreview.Preview(destinationDimension, preview.origin(), to.get(),
+                zoneRadius(), destMain()), this);
     }
 
     private void drawTotal(GuiGraphics g, int mouseX, int mouseY, int yOff) {
@@ -971,6 +1011,10 @@ public final class WaybillCreateScreen extends Screen {
         }
         if (cargoLinkVisible && TabletDraw.inside(mouseX, mouseY, cargoLinkX, cargoLinkY, cargoLinkW, 10)) {
             openCargoOverlay();
+            return true;
+        }
+        if (showMapVisible && TabletDraw.inside(mouseX, mouseY, showMapX, showMapY, showMapW, 14)) {
+            showOnMap();
             return true;
         }
         if (TabletDraw.inside(mouseX, mouseY, layout.pickX, layout.pickY, WaybillCreateLayout.PICK_W,

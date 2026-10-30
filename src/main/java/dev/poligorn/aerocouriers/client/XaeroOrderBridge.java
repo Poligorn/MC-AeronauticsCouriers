@@ -70,7 +70,7 @@ public final class XaeroOrderBridge {
             return false;
         }
         try {
-            return XaeroOrderWaypoints.openWorldMapAt(pos);
+            return XaeroWorldMapAccess.openWorldMapAt(pos);
         } catch (Throwable ignored) {
             return false;
         }

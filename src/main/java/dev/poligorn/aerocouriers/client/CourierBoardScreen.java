@@ -405,6 +405,14 @@ public final class CourierBoardScreen extends Screen {
             addRenderableWidget(profileCloseButton(sx, panelW));
             return;
         }
+        Component routeLabel = Component.translatable("ui.aerocouriers.profile.route_settings");
+        int routeW = profileRouteButtonWidth();
+        addRenderableWidget(TabletButton.create(sx + panelW - routeW - 4, profileCloseButtonY(), routeW, 14,
+                routeLabel, b -> {
+                    if (minecraft != null) {
+                        minecraft.setScreen(new RouteSettingsScreen(this));
+                    }
+                }).hint(Component.translatable("ui.aerocouriers.profile.route_settings.hint")));
         int btnW = Math.min(profileStatsWidth(sx), 220);
         int bx = profileStatsX(sx);
         if (profile.neverHadPilotLicense()) {
@@ -1116,7 +1124,8 @@ public final class CourierBoardScreen extends Screen {
         int innerX = sx + 8;
         int titleY = top + 6;
         Component title = Component.translatable("ui.aerocouriers.profile.heading", profile.playerName());
-        drawClipped(graphics, title, innerX, titleY, innerW - 22, TabletGui.TEXT_BRIGHT, mouseX, mouseY);
+        int titleRoom = ClientBoard.viewingOtherProfile() ? innerW - 22 : innerW - profileRouteButtonWidth() - 8;
+        drawClipped(graphics, title, innerX, titleY, titleRoom, TabletGui.TEXT_BRIGHT, mouseX, mouseY);
 
         int contentTop = titleY + font.lineHeight + 6;
         int boxH = Math.max(48, bottom - contentTop);
@@ -1799,6 +1808,10 @@ public final class CourierBoardScreen extends Screen {
                 b -> closeViewedProfile());
     }
 
+    private int profileRouteButtonWidth() {
+        return font.width(Component.translatable("ui.aerocouriers.profile.route_settings")) + 12;
+    }
+
     private int profileCloseButtonX(int sx, int panelW) {
         return sx + panelW - PROFILE_CLOSE_W - 4;
     }
@@ -2392,6 +2405,8 @@ public final class CourierBoardScreen extends Screen {
         @Override
         public void showOnMap(BoardSnapshotPayload.BoardEntry entry) {
             if (activeHaul(entry)) {
+                BlockPos target = entry.cargoPickedUp() ? entry.destinationPos() : entry.originPos();
+                XaeroRouteHooks.showActiveHaul(entry.id(), target);
                 return;
             }
             XaeroOrderBridge.onPreviewDestination(

@@ -1,5 +1,6 @@
 package dev.poligorn.aerocouriers.client;
 
+import dev.poligorn.aerocouriers.client.route.RouteTracker;
 import dev.poligorn.aerocouriers.net.ZoneSyncPayload;
 import java.util.List;
 
@@ -13,6 +14,7 @@ public final class ClientZones {
     public static void set(List<ZoneSyncPayload.Zone> received) {
         zones = List.copyOf(received);
         XaeroOrderBridge.syncActiveCourierZones(zones);
+        RouteTracker.onZones(zones);
     }
 
     public static List<ZoneSyncPayload.Zone> get() {
@@ -22,6 +24,7 @@ public final class ClientZones {
     public static void clear() {
         zones = List.of();
         XaeroOrderBridge.onLogout();
+        XaeroRouteHooks.onLogout();
     }
 
     private ClientZones() {

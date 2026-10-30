@@ -1,12 +1,15 @@
 package dev.poligorn.aerocouriers.client;
 
+import java.lang.reflect.Field;
 import net.minecraft.client.Minecraft;
+import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.Entity;
 import xaero.map.WorldMapSession;
 import xaero.map.gui.GuiMap;
 
 /**
- * All World Map 1.47 types live here. Loaded only after {@code ModList.isLoaded("xaeroworldmap")}.
+ * All World Map 1.47 types live here. Loaded only after {@code ModList.isLoaded("xaeroworldmap")}; must not reference
+ * minimap types — World Map can be installed alone.
  * Opening the map is the same path as Xaero's own M-key: {@code new GuiMap(null, null, processor, camera)}.
  */
 final class XaeroWorldMapAccess {
@@ -32,5 +35,38 @@ final class XaeroWorldMapAccess {
         // our stamp underneath. XaeroMapPicker restores the stamp instance when the map closes.
         minecraft.setScreen(new GuiMap(null, null, session.getMapProcessor(), camera));
         return minecraft.screen instanceof GuiMap;
+    }
+
+    /** @return whether the map opened and its camera was centred on {@code pos} */
+    static boolean openWorldMapAt(BlockPos pos) {
+        WorldMapSession session = WorldMapSession.getCurrentSession();
+        if (session == null || !session.isUsable()) {
+            return false;
+        }
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft.getCameraEntity() == null) {
+            return false;
+        }
+        GuiMap map = new GuiMap(null, null, session.getMapProcessor(), minecraft.getCameraEntity());
+        boolean centered = centerGuiMap(map, pos.getX() + 0.5, pos.getZ() + 0.5);
+        minecraft.setScreen(map);
+        return minecraft.screen instanceof GuiMap && centered;
+    }
+
+    private static boolean centerGuiMap(GuiMap map, double blockX, double blockZ) {
+        try {
+            Field cameraX = GuiMap.class.getDeclaredField("cameraX");
+            Field cameraZ = GuiMap.class.getDeclaredField("cameraZ");
+            Field shouldReset = GuiMap.class.getDeclaredField("shouldResetCameraPos");
+            cameraX.setAccessible(true);
+            cameraZ.setAccessible(true);
+            shouldReset.setAccessible(true);
+            cameraX.setDouble(map, blockX);
+            cameraZ.setDouble(map, blockZ);
+            shouldReset.setBoolean(map, false);
+            return true;
+        } catch (Throwable ignored) {
+            return false;
+        }
     }
 }
