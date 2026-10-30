@@ -326,7 +326,7 @@ public final class Tutorials {
 
     private static Optional<BlockPos> surface(ServerLevel level, int x, int z, int refY, int maxDy) {
         BlockPos column = new BlockPos(x, refY, z);
-        if (!level.hasChunkAt(column)) {
+        if (!level.isLoaded(column)) {
             return Optional.empty();
         }
         int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);

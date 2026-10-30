@@ -478,8 +478,10 @@ public final class BoardPackets {
                 .map(BoardSnapshotPayload.CargoLine::of)
                 .toList();
         boolean villageCustomer = contract.type().isNpc();
-        Optional<UUID> customerId = villageCustomer ? Optional.empty() : Optional.of(contract.issuer());
-        String customerName = villageCustomer
+        boolean service = contract.type().isTutorial();
+        Optional<UUID> customerId = villageCustomer || service ? Optional.empty() : Optional.of(contract.issuer());
+        String customerName = service ? BoardSnapshotPayload.BoardEntry.COURIER_SERVICE
+                : villageCustomer
                 ? label(atlas, contract.origin())
                 : server.getProfileCache()
                         .get(contract.issuer())

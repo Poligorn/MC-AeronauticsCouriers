@@ -10,6 +10,7 @@ import dev.poligorn.aerocouriers.client.board.BoardActionConfirmOverlay;
 import dev.poligorn.aerocouriers.client.board.BoardConfirmOverlay;
 import dev.poligorn.aerocouriers.client.board.BoardAcceptUi;
 import dev.poligorn.aerocouriers.client.board.BoardCardRenderer;
+import dev.poligorn.aerocouriers.net.TutorialIntentPayload;
 import dev.poligorn.aerocouriers.client.board.BoardDetailsOverlay;
 import dev.poligorn.aerocouriers.client.board.BoardOverlayHost;
 import dev.poligorn.aerocouriers.client.board.TabletDraw;
@@ -115,6 +116,9 @@ public final class CourierBoardScreen extends Screen {
     private final Map<Tab, TabletTabButton> mainTabs = new EnumMap<>(Tab.class);
     private final BoardAdminUi adminUi = new BoardAdminUi(this);
     private final BoardTasksUi tasksUi = new BoardTasksUi();
+    private final BoardTutorialUi tutorialUi = new BoardTutorialUi(() -> selectTab(Tab.BOARD),
+            () -> selectTab(Tab.PROFILE));
+    private @Nullable TabletButton claimTraineeButton;
     /** «New» dots stay while the tablet is open and go out when it closes. */
     private boolean mailViewed;
 
@@ -387,14 +391,41 @@ public final class CourierBoardScreen extends Screen {
         int sx = screenLeft();
         int top = listTop();
         int panelW = screenW();
+        claimTraineeButton = null;
         if (ClientBoard.viewingOtherProfile()) {
             addRenderableWidget(profileCloseButton(sx, panelW));
+            return;
         }
-        if (!ClientBoard.viewingOtherProfile() && profile.neverHadPilotLicense()) {
-            int btnW = Math.min(profileStatsWidth(sx), 220);
-            addRenderableWidget(TabletButton.create(profileStatsX(sx), profileTraineeButtonY(profile), btnW, 18,
+        int btnW = Math.min(profileStatsWidth(sx), 220);
+        int bx = profileStatsX(sx);
+        if (profile.neverHadPilotLicense()) {
+            claimTraineeButton = TabletButton.create(bx, profileTraineeButtonY(profile), btnW, 18,
                     Component.translatable("ui.aerocouriers.profile.claim_trainee"),
-                    b -> ClientBoard.claimTraineeLicense()));
+                    b -> ClientBoard.claimTraineeLicense());
+            addRenderableWidget(claimTraineeButton);
+        }
+        BoardSnapshotPayload.Extras extras = ClientBoard.extras();
+        int by = screenTop() + screenH() - 12 - 18;
+        boolean operator = snapshot.operator();
+        addRenderableWidget(TabletButton.create(bx, by, btnW, 18,
+                Component.translatable("ui.aerocouriers.profile.notify_settings"),
+                b -> {
+                    if (minecraft != null) {
+                        minecraft.setScreen(new NotificationSettingsScreen(this, operator));
+                    }
+                }));
+        if (extras.tutorialEnabled() && !BoardTutorialUi.state().inProgress()) {
+            by -= 22;
+            addRenderableWidget(TabletButton.create(bx, by, btnW, 18,
+                    Component.translatable("ui.aerocouriers.profile.tutorial_start"),
+                    b -> ClientBoard.tutorial(TutorialIntentPayload.Op.START, 0)));
+        }
+        if (extras.licenseRestorable()) {
+            by -= 22;
+            addRenderableWidget(TabletButton.create(bx, by, btnW, 18,
+                    Component.translatable("ui.aerocouriers.profile.restore_license",
+                            dev.poligorn.aerocouriers.economy.MoneyFormat.component(extras.licenseRestorePrice())),
+                    b -> ClientBoard.tutorial(TutorialIntentPayload.Op.RESTORE_LICENSE, 0)));
         }
     }
 
@@ -692,8 +723,9 @@ public final class CourierBoardScreen extends Screen {
         int overlayMouseY = (int) tabletChrome.adjustMouseY(my, partialTick);
         syncOverlays();
         boolean overlay = overlayOpen();
-        int contentMouseX = overlay ? -1 : mx;
-        int contentMouseY = overlay ? -1 : overlayMouseY;
+        boolean modal = snapshot != null && BoardTutorialUi.modal() != BoardTutorialUi.Modal.NONE;
+        int contentMouseX = overlay || modal ? -1 : mx;
+        int contentMouseY = overlay || modal ? -1 : overlayMouseY;
         boolean tabLoading = tabEffects.isTabLoadingActive();
         float cavityAlpha = tabletChrome.cavityContentAlpha(snapshot == null, tabLoading, partialTick);
         float contentAlpha = tabEffects.contentAlpha() * cavityAlpha;
@@ -712,7 +744,12 @@ public final class CourierBoardScreen extends Screen {
             }
             RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
             if (overlay && cavityAlpha > 0.001F) {
-                renderOverlays(graphics, mx, overlayMouseY, partialTick);
+                renderOverlays(graphics, modal ? -1 : mx, modal ? -1 : overlayMouseY, partialTick);
+            }
+            if (snapshot != null && cavityAlpha > 0.001F && !tabLoading) {
+                renderTutorialChrome(graphics, mx, overlayMouseY, overlay);
+            } else {
+                tutorialUi.clearCoach();
             }
             TabletGui.drawFrameChrome(graphics, left(), top(), panelW(), panelH());
             tabletChrome.drawLoadingGear(graphics, cavityLeft(), cavityTop(), cavityW(), cavityH(),
@@ -733,6 +770,83 @@ public final class CourierBoardScreen extends Screen {
         }
         graphics.pose().popPose();
         renderTopLayerTooltips(graphics, mouseX, mouseY);
+    }
+
+    private void renderTutorialChrome(GuiGraphics graphics, int mx, int my, boolean overlay) {
+        if (BoardTutorialUi.modal() != BoardTutorialUi.Modal.NONE) {
+            tutorialUi.clearCoach();
+            tutorialUi.renderModal(graphics, font, cavityLeft(), cavityTop(), cavityW(), cavityH(), mx, my);
+            return;
+        }
+        int step = BoardTutorialUi.step();
+        if (step < 0 || (tab == Tab.PROFILE && ClientBoard.viewingOtherProfile())) {
+            tutorialUi.clearCoach();
+            return;
+        }
+        BoardTutorialUi.Rect target = null;
+        String key;
+        if (overlay) {
+            boolean tutorialDetails = confirmOverlay == null && detailsOverlay != null
+                    && ClientBoard.extras().isTutorialOrder(detailsOverlay.orderId());
+            if (!tutorialDetails || step != 1) {
+                tutorialUi.clearCoach();
+                return;
+            }
+            key = "ui.aerocouriers.tutorial.coach.2_accept";
+        } else if (step == 0) {
+            if (tab != Tab.PROFILE) {
+                target = tabRect(Tab.PROFILE);
+                key = "ui.aerocouriers.tutorial.coach.1_tab";
+            } else {
+                if (claimTraineeButton != null) {
+                    target = new BoardTutorialUi.Rect(claimTraineeButton.getX(), claimTraineeButton.getY(),
+                            claimTraineeButton.getWidth(), claimTraineeButton.getHeight());
+                    int statsX = profileStatsX(screenLeft());
+                    tutorialUi.renderCoach(graphics, font, step,
+                            Component.translatable("ui.aerocouriers.tutorial.coach.1"), target, statsX,
+                            target.y() + target.h() + 6, true, profileStatsWidth(screenLeft()), mx, my, false);
+                    return;
+                }
+                key = "ui.aerocouriers.tutorial.coach.1";
+            }
+        } else if (step == 1) {
+            if (tab != Tab.BOARD) {
+                target = tabRect(Tab.BOARD);
+                key = "ui.aerocouriers.tutorial.coach.2_tab";
+            } else {
+                target = tutorialCardRect();
+                key = "ui.aerocouriers.tutorial.coach.2_board";
+            }
+        } else if (step == 2) {
+            target = tab == Tab.MINE ? null : tabRect(Tab.MINE);
+            key = "ui.aerocouriers.tutorial.coach.3";
+        } else {
+            key = "ui.aerocouriers.tutorial.coach.4";
+        }
+        Component text = Component.translatable(key);
+        if (ClientBoard.extras().tutorialNoStation() && step == 1 && !overlay) {
+            text = text.copy().append(" ").append(Component.translatable("ui.aerocouriers.tutorial.no_station"));
+        }
+        tutorialUi.renderCoach(graphics, font, step, text, target, screenLeft(), contentBottom(), false, screenW(),
+                mx, my, overlay);
+    }
+
+    private @Nullable BoardTutorialUi.Rect tabRect(Tab which) {
+        TabletTabButton button = mainTabs.get(which);
+        return button == null ? null
+                : new BoardTutorialUi.Rect(button.getX(), button.getY(), button.getWidth(), button.getHeight());
+    }
+
+    private @Nullable BoardTutorialUi.Rect tutorialCardRect() {
+        List<BoardSnapshotPayload.BoardEntry> all = listEntries();
+        int visible = visibleRows();
+        for (int i = 0; i < visible && scroll + i < all.size(); i++) {
+            if (all.get(scroll + i).courierService()) {
+                return new BoardTutorialUi.Rect(cardLeft(), cardY(i), cardRight() - cardLeft() + 1,
+                        BoardCardRenderer.CARD_H);
+            }
+        }
+        return null;
     }
 
     /** Drops overlays whose order left the snapshot (accepted elsewhere, expired, cancelled). */
@@ -1002,6 +1116,10 @@ public final class CourierBoardScreen extends Screen {
             renderProfileSkin(graphics, boxX, contentTop, boxW, boxH, mouseX, mouseY, previewEntity);
         } else {
             renderProfileHeadFallback(graphics, boxX, contentTop, boxW, boxH, ClientBoard.viewedProfileId());
+        }
+        int checklistH = ClientBoard.viewingOtherProfile() ? 0 : BoardTutorialUi.checklistHeight();
+        if (checklistH > 0) {
+            BoardTutorialUi.renderChecklist(graphics, font, boxX + 4, contentTop + boxH - checklistH - 4, boxW - 8);
         }
 
         int y = contentTop + 4;
@@ -1505,6 +1623,15 @@ public final class CourierBoardScreen extends Screen {
         mouseX = fit.localX(mouseX);
         mouseY = fit.localY(mouseY);
         double adjustedY = tabletChrome.adjustMouseY(mouseY, 0.0F);
+        if (snapshot != null && button == 0 && tutorialUi.modalClicked(mouseX, adjustedY)) {
+            return true;
+        }
+        if (snapshot != null && BoardTutorialUi.modal() != BoardTutorialUi.Modal.NONE) {
+            return true;
+        }
+        if (button == 0 && tutorialUi.coachClicked(mouseX, adjustedY)) {
+            return true;
+        }
         if (confirmOverlay != null) {
             return confirmOverlay.mouseClicked(mouseX, adjustedY, button);
         }
@@ -2229,6 +2356,9 @@ public final class CourierBoardScreen extends Screen {
             if (snapshot == null || !snapshot.licensed()) {
                 return Optional.of(Component.translatable("contract.aerocouriers.error.no_license"));
             }
+            if (entry.courierService()) {
+                return Optional.empty();
+            }
             int activeHauls = BoardAcceptUi.countActiveHauls(snapshot.mine());
             return BoardAcceptUi.denial(entry, snapshot.profile(), activeHauls).map(AcceptEligibility.Denial::message);
         }
@@ -2260,6 +2390,10 @@ public final class CourierBoardScreen extends Screen {
 
         @Override
         public void openAcceptConfirm(BoardSnapshotPayload.BoardEntry entry) {
+            if (entry.courierService()) {
+                confirmAccept(entry);
+                return;
+            }
             confirmOverlay = new BoardAcceptOverlay(this, entry.id());
         }
 

@@ -368,6 +368,18 @@ public record BoardSnapshotPayload(
     ) {
         public static final StreamCodec<RegistryFriendlyByteBuf, BoardEntry> STREAM_CODEC =
                 StreamCodec.of(BoardEntry::write, BoardEntry::read);
+        /** Wire value of {@link #customerName} for the tutorial order; localised on the client. */
+        public static final String COURIER_SERVICE = "@courier_service";
+
+        public boolean courierService() {
+            return COURIER_SERVICE.equals(customerName);
+        }
+
+        public String customerName() {
+            return courierService()
+                    ? Component.translatable("ui.aerocouriers.tutorial.customer").getString()
+                    : customerName;
+        }
 
         public long rewardPer1000Blocks() {
             return distance <= 0 ? 0 : reward * 1000L / distance;

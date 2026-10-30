@@ -252,6 +252,12 @@ final class BoardAdminUi {
                 Component.translatable("ui.aerocouriers.admin.server.debug_self_accept"), b ->
                         send(OperatorBoardPayload.Action.DEBUG_TOGGLE_SELF_ACCEPT, Optional.empty(), Optional.empty(),
                                 "", "", 0, false)));
+        boolean tutorialOn = snapshot.extras().tutorialEnabled();
+        screen.adminAddWidget(TabletButton.create(sx, y + 100, sw - 4, 20,
+                Component.translatable("ui.aerocouriers.admin.server.tutorial",
+                        Component.translatable(tutorialOn ? "ui.aerocouriers.common.on" : "ui.aerocouriers.common.off")),
+                b -> send(OperatorBoardPayload.Action.SERVER_TUTORIAL_TOGGLE, Optional.empty(), Optional.empty(),
+                        "", "", tutorialOn ? 0 : 1, false)));
     }
 
     private static String toggleConfigValue(String cur) {

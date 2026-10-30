@@ -284,9 +284,11 @@ public final class BoardDetailsOverlay extends TabletOverlay {
         ry = separator(graphics, ry);
 
         label(graphics, font, "ui.aerocouriers.details.deadline", ry);
-        String deadline = Component.translatable("ui.aerocouriers.details.minutes", e.deadlineMinutes()).getString();
+        String deadline = e.courierService()
+                ? Component.translatable("ui.aerocouriers.tutorial.no_deadline").getString()
+                : Component.translatable("ui.aerocouriers.details.minutes", e.deadlineMinutes()).getString();
         TabletDraw.text(graphics, font, deadline, VALUE_X, ry, TabletPalette.TXT);
-        if (e.state().isActive()) {
+        if (e.state().isActive() && !e.courierService()) {
             String left = "· " + Component.translatable("ui.aerocouriers.details.minutes_left", e.minutesLeft())
                     .getString();
             TabletDraw.text(graphics, font, left, VALUE_X + font.width(deadline) + 4, ry,
@@ -313,7 +315,8 @@ public final class BoardDetailsOverlay extends TabletOverlay {
         ry += 13;
 
         label(graphics, font, "ui.aerocouriers.details.type", ry);
-        String type = Component.translatable(e.villageCustomer()
+        String type = Component.translatable(e.courierService() ? "ui.aerocouriers.details.type.tutorial"
+                : e.villageCustomer()
                 ? "ui.aerocouriers.details.type.village" : "ui.aerocouriers.details.type.player").getString();
         if (e.originRevealed()) {
             type = Component.translatable(e.originStation()
@@ -338,6 +341,13 @@ public final class BoardDetailsOverlay extends TabletOverlay {
         customerY = ry - 1;
         customerW = 10 + font.width(name);
         boolean hover = TabletDraw.inside(mx, my, customerX, customerY, customerW, 11);
+        if (e.courierService()) {
+            PixelGlyphs.draw(graphics, VALUE_X, ry, PixelGlyphs.HOUSE, TabletPalette.TEAL);
+            TabletDraw.text(graphics, font, name, VALUE_X + 10, ry, TabletPalette.TEAL);
+            TabletDraw.text(graphics, font, "· " + Component.translatable("ui.aerocouriers.tutorial.system")
+                    .getString(), VALUE_X + 14 + font.width(name), ry, TabletPalette.SEC);
+            return;
+        }
         if (e.villageCustomer()) {
             PixelGlyphs.draw(graphics, VALUE_X, ry, PixelGlyphs.HOUSE, TabletPalette.TXT);
             TabletDraw.text(graphics, font, name, VALUE_X + 10, ry, TabletPalette.TXT);
