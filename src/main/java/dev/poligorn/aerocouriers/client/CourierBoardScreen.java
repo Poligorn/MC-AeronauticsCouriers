@@ -252,6 +252,9 @@ public final class CourierBoardScreen extends Screen {
         removeFilterWidgets();
         removeAdminFilterWidgets();
         removeTabletButtons();
+        if (tab != Tab.ADMIN || adminUi.subTab() != BoardAdminUi.SubTab.ECONOMY) {
+            adminUi.dismissEconomy();
+        }
         if (snapshot == null) {
             return;
         }
@@ -294,6 +297,9 @@ public final class CourierBoardScreen extends Screen {
         removeFilterWidgets();
         removeAdminFilterWidgets();
         removeTabletButtons();
+        if (tab != Tab.ADMIN || adminUi.subTab() != BoardAdminUi.SubTab.ECONOMY) {
+            adminUi.dismissEconomy();
+        }
         if (snapshot == null) {
             return;
         }

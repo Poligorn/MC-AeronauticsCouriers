@@ -57,6 +57,11 @@ final class BoardAdminUi {
         subToggles.clear();
     }
 
+    /** Profile segments stay mounted while the economy sub-tab scrolls. Any other tab must drop them. */
+    void dismissEconomy() {
+        economyUi.reset();
+    }
+
     void initSubToggles(int sx, int y, int sw) {
         clearSubToggles();
         int gap = 4;
