@@ -13,6 +13,31 @@ import xaero.map.gui.GuiMap;
  * Opening the map is the same path as Xaero's own M-key: {@code new GuiMap(null, null, processor, camera)}.
  */
 final class XaeroWorldMapAccess {
+    private static final Field CAMERA_X;
+    private static final Field CAMERA_Z;
+    private static final Field SHOULD_RESET;
+
+    static {
+        Field cameraX = null;
+        Field cameraZ = null;
+        Field shouldReset = null;
+        try {
+            cameraX = GuiMap.class.getDeclaredField("cameraX");
+            cameraZ = GuiMap.class.getDeclaredField("cameraZ");
+            shouldReset = GuiMap.class.getDeclaredField("shouldResetCameraPos");
+            cameraX.setAccessible(true);
+            cameraZ.setAccessible(true);
+            shouldReset.setAccessible(true);
+        } catch (Throwable ignored) {
+            cameraX = null;
+            cameraZ = null;
+            shouldReset = null;
+        }
+        CAMERA_X = cameraX;
+        CAMERA_Z = cameraZ;
+        SHOULD_RESET = shouldReset;
+    }
+
     private XaeroWorldMapAccess() {
     }
 
@@ -54,16 +79,13 @@ final class XaeroWorldMapAccess {
     }
 
     private static boolean centerGuiMap(GuiMap map, double blockX, double blockZ) {
+        if (CAMERA_X == null || CAMERA_Z == null || SHOULD_RESET == null) {
+            return false;
+        }
         try {
-            Field cameraX = GuiMap.class.getDeclaredField("cameraX");
-            Field cameraZ = GuiMap.class.getDeclaredField("cameraZ");
-            Field shouldReset = GuiMap.class.getDeclaredField("shouldResetCameraPos");
-            cameraX.setAccessible(true);
-            cameraZ.setAccessible(true);
-            shouldReset.setAccessible(true);
-            cameraX.setDouble(map, blockX);
-            cameraZ.setDouble(map, blockZ);
-            shouldReset.setBoolean(map, false);
+            CAMERA_X.setDouble(map, blockX);
+            CAMERA_Z.setDouble(map, blockZ);
+            SHOULD_RESET.setBoolean(map, false);
             return true;
         } catch (Throwable ignored) {
             return false;

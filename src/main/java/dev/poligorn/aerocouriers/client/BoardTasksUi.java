@@ -70,7 +70,7 @@ final class BoardTasksUi {
     void render(GuiGraphics graphics, Font font, int x, int y, int w, int h, int mouseX, int mouseY) {
         hits.clear();
         List<TaskView> all = new ArrayList<>(ClientTasks.active());
-        all.addAll(ClientTasks.all().stream().filter(TaskView::done).toList());
+        all.addAll(ClientTasks.done());
         long onScreen = ClientTasks.onScreen().size();
         Component counter = Component.translatable("ui.aerocouriers.tasks.on_screen",
                 Math.min(onScreen, ClientTasks.PANEL_ROWS), ClientTasks.PANEL_ROWS);

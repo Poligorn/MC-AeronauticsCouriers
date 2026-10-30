@@ -28,7 +28,32 @@ public enum MineListSection {
         return entry.state().isFinal();
     }
 
+    private static List<BoardSnapshotPayload.BoardEntry> currentSource;
+    private static List<BoardSnapshotPayload.BoardEntry> currentOut = List.of();
+    private static List<BoardSnapshotPayload.BoardEntry> historySource;
+    private static List<BoardSnapshotPayload.BoardEntry> historyOut = List.of();
+
     public static List<BoardSnapshotPayload.BoardEntry> entries(
+            List<BoardSnapshotPayload.BoardEntry> mine, MineListSection section) {
+        if (section == CURRENT) {
+            if (mine == currentSource) {
+                return currentOut;
+            }
+            List<BoardSnapshotPayload.BoardEntry> out = collect(mine, section);
+            currentSource = mine;
+            currentOut = out;
+            return out;
+        }
+        if (mine == historySource) {
+            return historyOut;
+        }
+        List<BoardSnapshotPayload.BoardEntry> out = collect(mine, section);
+        historySource = mine;
+        historyOut = out;
+        return out;
+    }
+
+    private static List<BoardSnapshotPayload.BoardEntry> collect(
             List<BoardSnapshotPayload.BoardEntry> mine, MineListSection section) {
         List<BoardSnapshotPayload.BoardEntry> out = new ArrayList<>();
         for (BoardSnapshotPayload.BoardEntry entry : mine) {

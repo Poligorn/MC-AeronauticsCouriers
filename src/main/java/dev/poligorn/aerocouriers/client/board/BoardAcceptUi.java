@@ -13,16 +13,24 @@ import net.minecraft.network.chat.Component;
 
 /** Client-side accept button state and rank lock styling (GDD §5.3, §7.2). */
 public final class BoardAcceptUi {
+    private static List<BoardSnapshotPayload.BoardEntry> haulSource;
+    private static int haulCount;
+
     private BoardAcceptUi() {
     }
 
     public static int countActiveHauls(List<BoardSnapshotPayload.BoardEntry> mine) {
+        if (mine == haulSource) {
+            return haulCount;
+        }
         int count = 0;
         for (BoardSnapshotPayload.BoardEntry entry : mine) {
             if ("courier".equals(entry.role()) && entry.state().isActive()) {
                 count++;
             }
         }
+        haulSource = mine;
+        haulCount = count;
         return count;
     }
 

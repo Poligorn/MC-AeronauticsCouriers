@@ -21,6 +21,22 @@ public final class MineTabFilterState {
     private BoardSortKey sortKey = BoardSortKey.NEWEST;
     private boolean sortDescending = true;
 
+    /** Identity of the last section list; not {@link List#equals} (deep BoardEntry compare). */
+    private List<BoardSnapshotPayload.BoardEntry> cachedSource;
+    private MineListSection cachedSection;
+    private boolean cachedOpen;
+    private boolean cachedInTransit;
+    private boolean cachedDelivered;
+    private boolean cachedFailed;
+    private boolean cachedRevoked;
+    private boolean cachedReturn;
+    private boolean cachedExpired;
+    private boolean cachedCourier;
+    private boolean cachedCustomer;
+    private BoardSortKey cachedSort;
+    private boolean cachedDesc;
+    private List<BoardSnapshotPayload.BoardEntry> cachedOut = List.of();
+
     public static MineTabFilterState defaults(MineListSection section) {
         MineTabFilterState state = new MineTabFilterState();
         if (section == MineListSection.HISTORY) {
@@ -181,6 +197,22 @@ public final class MineTabFilterState {
 
     public List<BoardSnapshotPayload.BoardEntry> apply(
             List<BoardSnapshotPayload.BoardEntry> sectionEntries, MineListSection section) {
+        BoardSortKey sort = sortKey();
+        if (sectionEntries == cachedSource
+                && section == cachedSection
+                && statusOpen == cachedOpen
+                && statusInTransit == cachedInTransit
+                && statusDelivered == cachedDelivered
+                && statusFailed == cachedFailed
+                && statusRevoked == cachedRevoked
+                && statusReturn == cachedReturn
+                && statusExpired == cachedExpired
+                && roleCourier == cachedCourier
+                && roleCustomer == cachedCustomer
+                && sort == cachedSort
+                && sortDescending == cachedDesc) {
+            return cachedOut;
+        }
         List<BoardSnapshotPayload.BoardEntry> out = new ArrayList<>();
         for (BoardSnapshotPayload.BoardEntry entry : sectionEntries) {
             if (!matches(entry, section)) {
@@ -189,8 +221,22 @@ public final class MineTabFilterState {
             out.add(entry);
         }
         Map<java.util.UUID, Integer> index = BoardSortKey.indexMap(sectionEntries);
-        Comparator<BoardSnapshotPayload.BoardEntry> cmp = BoardSortKey.comparator(sortKey(), index);
+        Comparator<BoardSnapshotPayload.BoardEntry> cmp = BoardSortKey.comparator(sort, index);
         out.sort(sortDescending ? cmp.reversed() : cmp);
+        cachedSource = sectionEntries;
+        cachedSection = section;
+        cachedOpen = statusOpen;
+        cachedInTransit = statusInTransit;
+        cachedDelivered = statusDelivered;
+        cachedFailed = statusFailed;
+        cachedRevoked = statusRevoked;
+        cachedReturn = statusReturn;
+        cachedExpired = statusExpired;
+        cachedCourier = roleCourier;
+        cachedCustomer = roleCustomer;
+        cachedSort = sort;
+        cachedDesc = sortDescending;
+        cachedOut = out;
         return out;
     }
 
