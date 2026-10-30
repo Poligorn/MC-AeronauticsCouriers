@@ -2,9 +2,14 @@
 
 > Живой документ. Обновлять при каждом завершённом шаге итерации или изменении решения (см. `.cursor/rules/90-maintaining-docs.mdc`).
 
-**Обновлено:** 30.10.2026 · **Версия:** 0.2.0-beta · накладная к игроку-публикатору ([PR #67](https://github.com/Poligorn/MC-AeronauticsCouriers/pull/67), ветка `cursor/waybill-faces-player-1d77`). Версия и `PROTOCOL_VERSION` `"3"` не менялись.
+**Обновлено:** 30.10.2026 · **Версия:** 0.2.1-beta. Протокол сети `PROTOCOL_VERSION` `"3"` не менялся.
 
 ## Сделано
+
+### Релиз 0.2.1-beta (30.10.2026)
+- `mod_version`: `0.2.0-beta` → `0.2.1-beta`. Протокол сети не менялся (`PROTOCOL_VERSION` `"3"`).
+- Состав относительно 0.2.0-beta: фикс мерцания погон на скинах со вторым слоем ([PR #66](https://github.com/Poligorn/MC-AeronauticsCouriers/pull/66)); накладная на контейнере смотрит на опубликовавшего игрока ([PR #67](https://github.com/Poligorn/MC-AeronauticsCouriers/pull/67)). Других коммитов в `v0.2.0-beta..HEAD` нет.
+- Проверка релиза: `./gradlew build` SUCCESS, `runGameTestServer` **68/68** (без Numismatics). Jar `aerocouriers-0.2.1-beta.jar`.
 
 ### Накладная смотрит на публикатора (30.10.2026)
 - Сторона бумаги (`waybill_face`) пишется в заказ при `create` / `createFromWaybill` и применяется один раз при появлении контейнера: `facing = waybillFace.counterClockWise` (модели: дверь `north`, накладная `east`). Не пересчитывается потом, в том числе на корабле Sable.

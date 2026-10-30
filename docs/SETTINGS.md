@@ -1,6 +1,6 @@
 # Настройки Aeronautics Couriers
 
-Единый список настроек 0.2.0-beta. Имена ключей — как в файле или в коде (английские). Значения по умолчанию и диапазоны — из `CouriersServerConfig` и `CouriersClientConfig`.
+Единый список настроек 0.2.1-beta. Имена ключей — как в файле или в коде (английские). Значения по умолчанию и диапазоны — из `CouriersServerConfig` и `CouriersClientConfig`.
 
 Три группы:
 
