@@ -1,6 +1,7 @@
 package dev.poligorn.aerocouriers.economy;
 
 import java.util.UUID;
+import dev.poligorn.aerocouriers.contract.ContractManager;
 import dev.poligorn.aerocouriers.contract.Mailbox;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
@@ -24,7 +25,7 @@ public final class EmeraldEconomy implements Economy {
 
     @Override
     public long balance(UUID player) {
-        ServerPlayer online = server.getPlayerList().getPlayer(player);
+        ServerPlayer online = ContractManager.findPlayer(server, player);
         if (online == null) {
             return 0L;
         }
@@ -39,7 +40,7 @@ public final class EmeraldEconomy implements Economy {
         if (amount == 0) {
             return true;
         }
-        ServerPlayer online = server.getPlayerList().getPlayer(player);
+        ServerPlayer online = ContractManager.findPlayer(server, player);
         if (online == null) {
             return false;
         }
@@ -72,7 +73,7 @@ public final class EmeraldEconomy implements Economy {
         if (amount == 0) {
             return;
         }
-        give(server.getPlayerList().getPlayer(player), player, amount);
+        give(ContractManager.findPlayer(server, player), player, amount);
     }
 
     private void give(ServerPlayer online, UUID player, long amount) {
