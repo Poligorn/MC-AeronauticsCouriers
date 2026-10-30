@@ -19,7 +19,9 @@ alwaysApply: false
 | `cargo` | `CargoContainerBlock` (+`FILL`), `CargoContainerBlockEntity`, `CargoSpawner`, `SableBridge` |
 | `economy` | `Economy` → `NumismaticsEconomy` (мост) / `InternalEconomy` |
 | `item` | `CourierStampItem` — единственный игрокский способ создать P2P-заказ |
-| `net` | C2S: OpenBoard, ContractIntent, CreateContract (только со штампа), Claim, OperatorBoard; S2C: BoardSnapshot (по 20), OpenStamp, ZoneSync |
+| `task` | Общий список задач (0.2.0): `TaskView`, `Tasks` (сборка на сервере), `TaskPrefs` (tracked/pinned игрока), `TaskSync` (отложенная отправка) |
+| `tutorial` | Обучение (0.2.0): `TutorialData` (SavedData по UUID), `Tutorials` (состояния, выдача учебного заказа, action bar), `TutorialTask` |
+| `net` | C2S: OpenBoard, ContractIntent, CreateContract (только со штампа), Claim, OperatorBoard; S2C: BoardSnapshot (по 20, + `Extras`), OpenStamp, ZoneSync. 0.2.0: C2S `TutorialIntent`, `TaskPref`, `MarkNotificationsRead`; S2C `NotificationAlert`, `NotificationSync`, `TaskSync`. `PROTOCOL_VERSION` 2 |
 | `client` | Экран, вкладки, кнопка инвентаря, клавиши, `CreateGui` / `CreateGuiTextures` / `CreateStyleButton` (стиль Create по ResourceLocation), NavRenderer (луч погрузки/доставки), `XaeroMapPicker` / `XaeroMinimapAccess` / `XaeroWorldMapAccess`, `XaeroBridge`, `EpauletteRenderer` |
 | `compat` | `JadeProvider`, `ClaimsBridge` и прочие мосты к опциональным модам |
 
