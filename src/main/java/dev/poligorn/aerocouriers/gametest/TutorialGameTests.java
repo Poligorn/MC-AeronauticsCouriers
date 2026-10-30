@@ -1,6 +1,5 @@
 package dev.poligorn.aerocouriers.gametest;
 
-import com.mojang.authlib.GameProfile;
 import dev.poligorn.aerocouriers.AeronauticsCouriers;
 import dev.poligorn.aerocouriers.config.CouriersServerConfig;
 import dev.poligorn.aerocouriers.config.NoticeChannel;
@@ -11,9 +10,7 @@ import dev.poligorn.aerocouriers.contract.ContractType;
 import dev.poligorn.aerocouriers.contract.Destination;
 import dev.poligorn.aerocouriers.contract.NoticeKind;
 import dev.poligorn.aerocouriers.economy.Economies;
-import dev.poligorn.aerocouriers.license.Licenses;
 import dev.poligorn.aerocouriers.net.BoardSnapshotPayload;
-import dev.poligorn.aerocouriers.registry.ModItems;
 import dev.poligorn.aerocouriers.task.TaskView;
 import dev.poligorn.aerocouriers.tutorial.TutorialData;
 import dev.poligorn.aerocouriers.tutorial.Tutorials;
@@ -27,11 +24,8 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.item.ItemStack;
-import net.neoforged.neoforge.common.util.FakePlayerFactory;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
-import top.theillusivec4.curios.api.CuriosApi;
 
 /** Onboarding order (0.2.0): free to take, cannot fail, removed silently when the operator switches it off. */
 @GameTestHolder(AeronauticsCouriers.MOD_ID)
@@ -42,7 +36,7 @@ public final class TutorialGameTests {
 
     @GameTest(template = CouriersGameTests.EMPTY)
     public static void tutorialOrderIsFreeAndReissuedOnAbandon(GameTestHelper helper) {
-        ServerPlayer courier = licensedCourier(helper, "trainee");
+        ServerPlayer courier = TestPlayers.courier(helper, "trainee");
         ContractManager manager = ContractManager.get(helper.getLevel().getServer());
         Destination a = new Destination(helper.getLevel().dimension(), helper.absolutePos(new BlockPos(1, 1, 1)), 8);
         Destination b = new Destination(helper.getLevel().dimension(), helper.absolutePos(new BlockPos(9, 1, 9)), 8);
@@ -149,12 +143,4 @@ public final class TutorialGameTests {
         helper.succeed();
     }
 
-    private static ServerPlayer licensedCourier(GameTestHelper helper, String name) {
-        ServerPlayer courier = FakePlayerFactory.get(helper.getLevel(), new GameProfile(UUID.randomUUID(), name));
-        CuriosApi.getCuriosInventory(courier).orElseThrow()
-                .setEquippedCurio(Licenses.CURIOS_SLOT, 0, new ItemStack(ModItems.PILOT_LICENSE.get()));
-        Licenses.tickWorn(courier, Licenses.findLicense(courier).orElseThrow());
-        ContractManager.registerTestPlayer(courier);
-        return courier;
-    }
 }

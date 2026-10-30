@@ -6,7 +6,6 @@ import dev.poligorn.aerocouriers.contract.Contract;
 import dev.poligorn.aerocouriers.contract.ContractManager;
 import dev.poligorn.aerocouriers.economy.Economies;
 import dev.poligorn.aerocouriers.access.OrderTablets;
-import dev.poligorn.aerocouriers.license.Licenses;
 import dev.poligorn.aerocouriers.registry.ModItems;
 import dev.poligorn.aerocouriers.net.BoardPackets;
 import dev.poligorn.aerocouriers.net.BoardSnapshotPayload;
@@ -48,16 +47,11 @@ public final class BoardGameTests {
         ChestBlockEntity chest = (ChestBlockEntity) helper.getBlockEntity(CHEST);
         chest.setItem(0, new ItemStack(Items.COBBLESTONE, 32));
 
-        ServerPlayer issuer = FakePlayerFactory.get(helper.getLevel(), new GameProfile(UUID.randomUUID(), "issuer"));
+        ServerPlayer issuer = TestPlayers.player(helper, "issuer");
         issuer.setPos(Vec3.atCenterOf(helper.absolutePos(CHEST)));
         Economies.get(helper.getLevel().getServer()).deposit(issuer.getUUID(), 100, "test");
 
-        ServerPlayer courier = FakePlayerFactory.get(helper.getLevel(), new GameProfile(UUID.randomUUID(), "courier"));
-        var curios = CuriosApi.getCuriosInventory(courier).orElseThrow();
-        curios.setEquippedCurio(Licenses.CURIOS_SLOT, 0, new ItemStack(
-                dev.poligorn.aerocouriers.registry.ModItems.PILOT_LICENSE.get()));
-        Licenses.tickWorn(courier, Licenses.findLicense(courier).orElseThrow());
-        ContractManager.registerTestPlayer(courier);
+        ServerPlayer courier = TestPlayers.courier(helper, "courier");
 
         ContractManager manager = ContractManager.get(helper.getLevel().getServer());
         ContractManager.Outcome created = manager.create(issuer, chest, helper.absolutePos(CHEST),

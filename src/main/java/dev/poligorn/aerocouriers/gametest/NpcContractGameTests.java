@@ -1,6 +1,5 @@
 package dev.poligorn.aerocouriers.gametest;
 
-import com.mojang.authlib.GameProfile;
 import dev.poligorn.aerocouriers.AeronauticsCouriers;
 import dev.poligorn.aerocouriers.config.CouriersServerConfig;
 import dev.poligorn.aerocouriers.contract.Contract;
@@ -11,9 +10,9 @@ import dev.poligorn.aerocouriers.contract.Escrow;
 import dev.poligorn.aerocouriers.contract.Mailbox;
 import dev.poligorn.aerocouriers.economy.Economies;
 import dev.poligorn.aerocouriers.economy.Economy;
+import dev.poligorn.aerocouriers.economy.MoneyScale;
 import dev.poligorn.aerocouriers.license.Licenses;
 import dev.poligorn.aerocouriers.registry.ModBlocks;
-import dev.poligorn.aerocouriers.registry.ModItems;
 import dev.poligorn.aerocouriers.village.PostStationBlockEntity;
 import dev.poligorn.aerocouriers.village.StationAtlas;
 import dev.poligorn.aerocouriers.village.StationContractSource;
@@ -25,14 +24,11 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.RandomSource;
-import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.neoforge.common.util.FakePlayerFactory;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 import org.joml.Vector3d;
-import top.theillusivec4.curios.api.CuriosApi;
 
 /** Iteration 5: NPC contracts between post stations (admin-placed included). */
 @GameTestHolder(AeronauticsCouriers.MOD_ID)
@@ -45,7 +41,8 @@ public final class NpcContractGameTests {
     private NpcContractGameTests() {
     }
 
-    @GameTest(template = CouriersGameTests.EMPTY, batch = "aerocouriers.npc", timeoutTicks = 200)
+    /** Own batch: {@code generate} pairs any stations in the atlas, including the far one of a sibling test. */
+    @GameTest(template = CouriersGameTests.EMPTY, batch = "aerocouriers.npc.generate", timeoutTicks = 200)
     public static void npcGenerateAcceptDeliver(GameTestHelper helper) {
         Fixture f = new Fixture(helper);
         helper.startSequence()
@@ -57,6 +54,8 @@ public final class NpcContractGameTests {
                     helper.assertTrue(created >= 1, "generated at least one NPC order, got " + created);
                     Contract contract = f.manager.open()
                             .filter(c -> c.type() == ContractType.VILLAGE)
+                            .filter(c -> (c.issuer().equals(from.id()) && c.recipient().equals(to.id()))
+                                    || (c.issuer().equals(to.id()) && c.recipient().equals(from.id())))
                             .findFirst()
                             .orElse(null);
                     helper.assertTrue(contract != null, "generated contract not on the board");
@@ -162,7 +161,7 @@ public final class NpcContractGameTests {
                     helper.assertValueEqual(Licenses.profile(f.courier).villageDelivered(), 3, "third village");
                     helper.assertTrue(Licenses.profile(f.courier).traineeAdvancePaid(), "advance flagged");
                     helper.assertTrue(f.economy.balance(f.courier.getUUID())
-                                    >= beforeDeliver + CouriersServerConfig.TRAINEE_BONUS.get(),
+                                    >= beforeDeliver + MoneyScale.fromSpurs((long) CouriersServerConfig.TRAINEE_BONUS.get()),
                             "trainee bonus paid");
                     f.cleanup();
                 })
@@ -201,13 +200,9 @@ public final class NpcContractGameTests {
 
         Fixture(GameTestHelper helper) {
             this.helper = helper;
-            this.courier = FakePlayerFactory.get(helper.getLevel(), new GameProfile(UUID.randomUUID(), "npc_courier"));
+            this.courier = TestPlayers.courier(helper, "npc_courier");
             this.manager = ContractManager.get(server());
             this.economy = Economies.get(server());
-            var curios = CuriosApi.getCuriosInventory(courier).orElseThrow();
-            curios.setEquippedCurio(Licenses.CURIOS_SLOT, 0, new ItemStack(ModItems.PILOT_LICENSE.get()));
-            Licenses.tickWorn(courier, Licenses.findLicense(courier).orElseThrow());
-            ContractManager.registerTestPlayer(courier);
             for (int x = 0; x < 8; x++) {
                 for (int z = 0; z < 8; z++) {
                     helper.setBlock(new BlockPos(x, 0, z), Blocks.STONE);

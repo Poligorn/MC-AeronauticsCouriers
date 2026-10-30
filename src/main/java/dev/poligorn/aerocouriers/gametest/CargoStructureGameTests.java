@@ -14,6 +14,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 
@@ -51,11 +52,11 @@ public final class CargoStructureGameTests {
         helper.assertTrue(result instanceof CargoSpawner.Result.Placed, "XL placed locked: " + result);
         Set<Integer> segments = new HashSet<>();
         for (BlockPos offset : CargoStructure.offsets(CargoSize.XL)) {
-            BlockPos pos = anchor.offset(offset);
-            helper.assertTrue(helper.getBlockState(pos).is(ModBlocks.CARGO_CONTAINER_XL.get()), "block at " + offset);
-            int segment = helper.getBlockState(pos).getValue(CargoContainerXlBlock.SEGMENT);
+            BlockState state = helper.getLevel().getBlockState(anchor.offset(offset));
+            helper.assertTrue(state.is(ModBlocks.CARGO_CONTAINER_XL.get()), "block at " + offset + ": " + state);
+            int segment = state.getValue(CargoContainerXlBlock.SEGMENT);
             helper.assertTrue(segments.add(segment), "duplicate segment " + segment);
-            helper.assertTrue(CargoContainerBlock.isPhysicsLocked(helper.getBlockState(pos)), "locked until accept");
+            helper.assertTrue(CargoContainerBlock.isPhysicsLocked(state), "locked until accept");
         }
         helper.assertValueEqual(segments.size(), 12, "segment count");
         helper.succeed();
