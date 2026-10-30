@@ -682,18 +682,7 @@ public final class ContractManager extends SavedData {
         // Stamp / NPC crates already stand at pickup; leaving ACCEPTED until the next tick let a courier
         // fly the crate away and then never reach IN_TRANSIT, so the rank-1 slot stayed occupied.
         if (accepted.preplaced()) {
-            ServerLevel pickup = server.getLevel(accepted.origin().dimension());
-            if (pickup != null && pickup.isLoaded(accepted.origin().pos())) {
-                CargoSpawner.unlockAndAssemble(pickup, accepted.origin().pos());
-            }
-            // A removal during unlock must not be overwritten back into an active haul.
-            Contract current = contracts.get(id);
-            if (current != null && current.state() == ContractState.ACCEPTED) {
-                accepted = accepted.withState(ContractState.IN_TRANSIT);
-                put(accepted);
-            } else if (current != null) {
-                accepted = current;
-            }
+            accepted = finishPreplacedAccept(server, accepted, courier);
         }
         if (!self) {
             notify(server, contract.issuer(), Component.translatable("contract.aerocouriers.notify.accepted",
@@ -709,9 +698,52 @@ public final class ContractManager extends SavedData {
         if (self) {
             Component warning = Component.translatable("contract.aerocouriers.debug.self_accept");
             courier.sendSystemMessage(warning);
+            courier.displayClientMessage(warning, true);
             message = message.copy().append("\n").append(warning);
         }
         return Outcome.ok(accepted, message);
+    }
+
+    /**
+     * Unlock the sealed crate and move it to {@code IN_TRANSIT}. Self-accept happens while the issuer is still
+     * standing on the crate; Sable assemble can throw or eat a zero-mass body. Never leave the player with a
+     * vanished crate and no message: recover at pickup, or stay {@code ACCEPTED} so {@link #tick} retries.
+     */
+    private Contract finishPreplacedAccept(MinecraftServer server, Contract accepted, ServerPlayer courier) {
+        UUID id = accepted.id();
+        try {
+            ServerLevel pickup = server.getLevel(accepted.origin().dimension());
+            Optional<UUID> assembled = Optional.empty();
+            if (pickup != null && pickup.isLoaded(accepted.origin().pos())) {
+                assembled = CargoSpawner.unlockAndAssemble(pickup, accepted.origin().pos());
+            }
+            boolean haveCrate = assembled.isPresent() || cratePresent(server, accepted);
+            if (!haveCrate && !recoverPreplacedCrate(server, accepted, courier.getUUID())) {
+                CouriersNotifications.notify(server, courier.getUUID(),
+                        Component.translatable("contract.aerocouriers.notify.container_lost_on_accept",
+                                accepted.shortId(), accepted.origin().pos().toShortString()),
+                        Optional.of(id), NoticeKind.URGENT);
+                AeronauticsCouriers.LOGGER.error(
+                        "[contract] {} crate missing after accept (courier {}); left ACCEPTED so tick can respawn",
+                        accepted.shortId(), courier.getGameProfile().getName());
+                return contracts.getOrDefault(id, accepted);
+            }
+        } catch (Throwable t) {
+            AeronauticsCouriers.LOGGER.error("[contract] {} unlock after accept threw", accepted.shortId(), t);
+            CouriersNotifications.notify(server, courier.getUUID(),
+                    Component.translatable("contract.aerocouriers.notify.container_lost_on_accept",
+                            accepted.shortId(), accepted.origin().pos().toShortString()),
+                    Optional.of(id), NoticeKind.URGENT);
+            recoverPreplacedCrate(server, accepted, courier.getUUID());
+            return contracts.getOrDefault(id, accepted);
+        }
+        Contract current = contracts.get(id);
+        if (current != null && current.state() == ContractState.ACCEPTED) {
+            Contract inTransit = accepted.withState(ContractState.IN_TRANSIT);
+            put(inTransit);
+            return inTransit;
+        }
+        return current != null ? current : accepted;
     }
 
     /**
@@ -724,6 +756,9 @@ public final class ContractManager extends SavedData {
             return Outcome.error("unknown");
         }
         if (contract.preplaced() && contract.state() == ContractState.IN_TRANSIT) {
+            if (!cratePresent(server, contract)) {
+                recoverPreplacedCrate(server, contract, contract.courier().orElse(null));
+            }
             return Outcome.ok(contract, "container_ready", contract.shortId(),
                     contract.origin().pos().toShortString());
         }
@@ -732,9 +767,19 @@ public final class ContractManager extends SavedData {
         }
         if (contract.preplaced()) {
             blockedNoticeAt.remove(id);
-            ServerLevel pickup = server.getLevel(contract.origin().dimension());
-            if (pickup != null && pickup.isLoaded(contract.origin().pos())) {
-                CargoSpawner.unlockAndAssemble(pickup, contract.origin().pos());
+            if (!cratePresent(server, contract)) {
+                if (!recoverPreplacedCrate(server, contract, contract.courier().orElse(null))) {
+                    put(contract.withPause(TICK_INTERVAL));
+                    notify(server, contract.courier().orElseThrow(), Component.translatable(
+                            "contract.aerocouriers.notify.container_lost_on_accept",
+                            contract.shortId(), contract.origin().pos().toShortString()), id);
+                    return Outcome.error("pickup_blocked", contract.origin().pos().toShortString());
+                }
+            } else {
+                ServerLevel pickup = server.getLevel(contract.origin().dimension());
+                if (pickup != null && pickup.isLoaded(contract.origin().pos())) {
+                    CargoSpawner.unlockAndAssemble(pickup, contract.origin().pos());
+                }
             }
             Contract inTransit = contract.withState(ContractState.IN_TRANSIT);
             put(inTransit);
@@ -789,6 +834,7 @@ public final class ContractManager extends SavedData {
         Contract contract = contracts.get(id);
         if (contract == null) {
             stillChecks.remove(id);
+            AeronauticsCouriers.LOGGER.warn("[contract] container {} has no matching order — removing the crate", id);
             return Verdict.REMOVE;
         }
         // Stamp / NPC crates already stand while OPEN; do not delete them.
@@ -824,7 +870,18 @@ public final class ContractManager extends SavedData {
         if (pickedUp.contains(id) || contract.destination().contains(level.dimension(), position)) {
             farContainerNotice(server, contract, courier, level, position);
         }
-        boolean ready = contract.destination().contains(level.dimension(), position)
+        // Stamp origin copies dest radius (default 8); a nearby B then contains A. Self-accept
+        // happens while the issuer stands on the crate, so three still-checks would "deliver" it
+        // on the spot. NPC stations use radius 12, so A and B in a GameTest (and close villages)
+        // overlap too — blocking the whole origin zone would make those deliveries impossible.
+        // When the crate is inside both zones, require it to be closer to B than to A.
+        boolean atDestination = contract.destination().contains(level.dimension(), position);
+        boolean samePoint = contract.origin().dimension().equals(contract.destination().dimension())
+                && contract.origin().pos().equals(contract.destination().pos());
+        boolean closerToDest = position.distanceToSqr(Vec3.atCenterOf(contract.destination().pos()))
+                < position.distanceToSqr(Vec3.atCenterOf(contract.origin().pos()));
+        boolean ready = atDestination
+                && (samePoint || closerToDest)
                 && speed < CouriersServerConfig.DELIVERY_MAX_SPEED.get()
                 && courier != null && courier.level() == level
                 && courier.position().distanceToSqr(position) <= COURIER_REACH * COURIER_REACH;
@@ -1231,6 +1288,69 @@ public final class ContractManager extends SavedData {
         return Outcome.ok(expired, "expired", contract.shortId());
     }
 
+    /** True when a cargo block for this contract still exists (world pickup or a Sable plot the tracker knows). */
+    boolean cratePresent(MinecraftServer server, Contract contract) {
+        UUID id = contract.id();
+        CargoTracker.Snapshot tracked = CargoTracker.get(id).orElse(null);
+        if (tracked != null && cargoBlockMatches(server.getLevel(tracked.dimension()), tracked.plotPos(), id)) {
+            return true;
+        }
+        ServerLevel origin = server.getLevel(contract.origin().dimension());
+        return cargoBlockMatches(origin, contract.origin().pos(), id);
+    }
+
+    private static boolean cargoBlockMatches(@Nullable ServerLevel level, BlockPos pos, UUID id) {
+        if (level == null || !level.isLoaded(pos)) {
+            return false;
+        }
+        BlockState state = level.getBlockState(pos);
+        if (!(state.getBlock() instanceof CargoBlock cargo)) {
+            return false;
+        }
+        BlockPos controller = cargo.controllerPos(pos, state);
+        return level.getBlockEntity(controller) instanceof CargoContainerBlockEntity be && id.equals(be.contractId());
+    }
+
+    /**
+     * Stamp crates must never disappear silently. If Sable ate the unlocked body, place a new physics crate at
+     * pickup (or the nearest clear spot) with the same contract id — cargo still lives only in Escrow.
+     */
+    private boolean recoverPreplacedCrate(MinecraftServer server, Contract contract, @Nullable UUID notifyPlayer) {
+        if (cratePresent(server, contract)) {
+            ensurePreplacedUnlocked(server, contract);
+            return true;
+        }
+        ServerLevel level = server.getLevel(contract.origin().dimension());
+        if (level == null) {
+            return false;
+        }
+        Optional<BlockPos> spot = CargoSpawner.findSpot(level, contract.origin().pos(),
+                CouriersServerConfig.SPAWN_SEARCH_RADIUS.get(), contract.size());
+        if (spot.isEmpty()) {
+            AeronauticsCouriers.LOGGER.error("[contract] {} cannot respawn crate: no clear spot near {}",
+                    contract.shortId(), contract.origin().pos().toShortString());
+            return false;
+        }
+        int fill = contract.size().fillFor(contract.weight());
+        CargoSpawner.Result spawned = CargoSpawner.spawn(level, spot.get(), contract.size(), fill, contract.id(),
+                false, contract.containerFacing(), false);
+        if (!(spawned instanceof CargoSpawner.Result.Spawned) && !(spawned instanceof CargoSpawner.Result.Placed)) {
+            AeronauticsCouriers.LOGGER.error("[contract] {} crate respawn failed at {} ({})",
+                    contract.shortId(), spot.get().toShortString(), spawned);
+            return false;
+        }
+        missingSince.remove(contract.id());
+        AeronauticsCouriers.LOGGER.warn("[contract] {} crate respawned at {} after it vanished on accept",
+                contract.shortId(), spot.get().toShortString());
+        if (notifyPlayer != null) {
+            CouriersNotifications.notify(server, notifyPlayer,
+                    Component.translatable("contract.aerocouriers.notify.container_respawned",
+                            contract.shortId(), spot.get().toShortString()),
+                    Optional.of(contract.id()), NoticeKind.URGENT);
+        }
+        return true;
+    }
+
     /**
      * A preplaced crate stays sealed until accept. If accept ran while the chunk was unloaded, or Sable had already
      * moved the still-locked block, retry until it is an unlocked physics object.
@@ -1326,7 +1446,10 @@ public final class ContractManager extends SavedData {
                 if (reportedSince) {
                     missingSince.remove(id);
                 } else if (now - since >= MISSING_GRACE_TICKS) {
-                    if (contract.state() == ContractState.OPEN) {
+                    if (contract.preplaced() && contract.state().isActive()
+                            && recoverPreplacedCrate(server, contract, contract.courier().orElse(null))) {
+                        missingSince.remove(id);
+                    } else if (contract.state() == ContractState.OPEN) {
                         expire(server, contract);
                     } else if (contract.state().isActive()) {
                         fail(server, contract, FailReason.DESTROYED, null);

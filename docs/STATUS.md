@@ -6,6 +6,13 @@
 
 ## Сделано
 
+### Фикс самопринятия штампа (30.10.2026, версия не поднималась)
+- Баг: при `debug.allow_self_accept = true` принятие **своего** штампового заказа снимало контейнер без понятного сообщения. Причина: зона A копирует радиус B (дефолт 8), близкая B накрывает A; курьер-заказчик стоит на ящике → `checkContainer` три раза подряд считал доставку и заменял ящик сундуком. Тост ORDERS в чат по умолчанию не идёт.
+- Фикс: если контейнер в пересечении зон A и B, сдача только когда он ближе к B, чем к A (A≡B — исключение; нельзя резать всю зону A — NPC-радиус 12). Unlock Sable в try/catch; пропавший ящик — лог + срочное сообщение, респаун у A из Escrow. Action bar на любой intent с доски. Ключи: `notify.container_lost_on_accept`, `notify.container_respawned`, `error.action_failed`; текст `debug.self_accept` уточнён (en_us / ru_ru).
+- Экономика не менялась: один UUID, нетто − комиссия; двойного списания нет (переход сначала проверяет состояние).
+- GameTest: `stampSelfAcceptDisabledKeepsCrate`, `stampSelfAcceptKeepsCrateThenPaysOnce`. `./gradlew build` SUCCESS, `runGameTestServer` **70/70** (было 68; +2). Версия `0.2.1-beta`, `PROTOCOL_VERSION` `"3"`.
+
+
 ### Релиз 0.2.1-beta (30.10.2026)
 - `mod_version`: `0.2.0-beta` → `0.2.1-beta`. Протокол сети не менялся (`PROTOCOL_VERSION` `"3"`).
 - Состав относительно 0.2.0-beta: фикс мерцания погон на скинах со вторым слоем ([PR #66](https://github.com/Poligorn/MC-AeronauticsCouriers/pull/66)); накладная на контейнере смотрит на опубликовавшего игрока ([PR #67](https://github.com/Poligorn/MC-AeronauticsCouriers/pull/67)). Других коммитов в `v0.2.0-beta..HEAD` нет.

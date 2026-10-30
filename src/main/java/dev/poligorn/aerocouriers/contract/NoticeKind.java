@@ -59,7 +59,9 @@ public record NoticeKind(Category category, Priority priority) {
         }
         if (key.contains(".notify.failed.") || key.endsWith(".notify.pickup_blocked")
                 || key.contains(".notify.deadline_") || key.endsWith(".notify.late")
-                || key.contains(".notify.far_container")) {
+                || key.contains(".notify.far_container")
+                || key.endsWith(".notify.container_lost_on_accept")
+                || key.endsWith(".notify.container_respawned")) {
             return URGENT;
         }
         if (key.equals("contract.aerocouriers.delivered") || key.equals("contract.aerocouriers.delivered_late")

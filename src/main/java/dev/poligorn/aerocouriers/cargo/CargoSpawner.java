@@ -159,11 +159,16 @@ public final class CargoSpawner {
             if (part.getBlock() instanceof CargoBlock && CargoContainerBlock.isPhysicsLocked(part)) {
                 level.setBlock(controller, part.setValue(CargoContainerBlock.LOCKED, false), Block.UPDATE_CLIENTS);
             }
-            Optional<UUID> subLevel = SableBridge.assembleStructure(level, controller, blocks);
-            if (subLevel.isEmpty()) {
-                AeronauticsCouriers.LOGGER.warn("[cargo] Sable did not assemble unlocked container at {}", controller);
+            try {
+                Optional<UUID> subLevel = SableBridge.assembleStructure(level, controller, blocks);
+                if (subLevel.isEmpty()) {
+                    AeronauticsCouriers.LOGGER.warn("[cargo] Sable did not assemble unlocked container at {}", controller);
+                }
+                return subLevel;
+            } catch (Throwable t) {
+                AeronauticsCouriers.LOGGER.error("[cargo] Sable assemble threw at {}", controller, t);
+                return Optional.empty();
             }
-            return subLevel;
         } finally {
             if (controllerBe != null) {
                 controllerBe.markAssembling(false);
