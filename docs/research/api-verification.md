@@ -118,7 +118,20 @@ Data Components (`DeferredRegister.createDataComponents`), Data Attachments (`At
 | Чанк загружен | `Level.isLoaded(BlockPos)` вместо устаревшего `LevelReader.hasChunkAt` | ✅ исходники |
 | Лицензия при смерти | Curios `ICurioItem.getDropRule(...)` → `ICurio.DropRule.ALWAYS_KEEP` | ✅ (уже было в `PilotLicenseItem`) |
 
+## Jade 15.10.6 (аудит 30.10.2026, плагина в моде ещё нет)
+
+Сверено **только с публичной документацией** `https://jademc.readthedocs.io/en/latest/plugins22/getting-started/` и страницей файла CurseForge Jade NeoForge 1.21.1 15.10.6 (changelog: «improve compatibility with Create Aeronautics»). Jar / sources.jar **не** разбирались. Перед кодом моста повторить по артефакту `15.10.6+neoforge`.
+
+| Что | Откуда | Статус |
+|---|---|---|
+| `@WailaPlugin` + `IWailaPlugin.register` / `registerClient` | docs plugins22 | ⚠️ не jar |
+| `IBlockComponentProvider.appendTooltip(ITooltip, BlockAccessor, IPluginConfig)`, `getUid()` | docs | ⚠️ |
+| `StreamServerDataProvider<BlockAccessor, T>` + `registerBlockDataProvider(..., BlockEntity.class)` | docs; sync ~250 мс | ⚠️ |
+| Maven `maven.modrinth:jade:15.10.6+neoforge` | docs (пример `15.10.0+neoforge`) | ⚠️ точный classifier подтвердить по Modrinth |
+| Луч Jade попадает в блок контейнера на плоте Sable / объекте Aeronautics | changelog 15.10.6 про Aeronautics | ⚠️ **в игре не проверено** (см. аудит §B.5) |
+
 ## Что ещё не проверено
 - Xaero: fair-play mod ID; выбор точки на карте **в игре** (код есть); линия маршрута на World Map и миникарте **в игре** (код есть).
 - FFItemWeight: API для веса предметов.
 - Aeronautics: можно ли зацепить верёвку/лебёдку за наш блок (только в игре).
+- Jade: jar 15.10.6 (сигнатуры), подсказка на контейнере в над-мире и на плоте Sable.
