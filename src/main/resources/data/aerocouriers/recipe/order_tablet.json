@@ -4,13 +4,13 @@
   "pattern": [
     "BGB",
     "BTB",
-    "BCB"
+    "BRB"
   ],
   "key": {
     "B": { "item": "create:brass_sheet" },
     "G": { "tag": "c:glass_panes" },
     "T": { "item": "create:electron_tube" },
-    "C": { "item": "create:cogwheel" }
+    "R": { "item": "create:transmitter" }
   },
   "result": {
     "id": "aerocouriers:order_tablet",
