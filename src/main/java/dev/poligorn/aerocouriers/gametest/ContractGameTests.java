@@ -2,6 +2,8 @@ package dev.poligorn.aerocouriers.gametest;
 
 import com.mojang.authlib.GameProfile;
 import dev.poligorn.aerocouriers.AeronauticsCouriers;
+import dev.poligorn.aerocouriers.cargo.CargoContainerBlock;
+import dev.poligorn.aerocouriers.cargo.CargoContainerBlockEntity;
 import dev.poligorn.aerocouriers.cargo.CargoTracker;
 import dev.poligorn.aerocouriers.config.CouriersServerConfig;
 import dev.poligorn.aerocouriers.contract.Contract;
@@ -199,8 +201,8 @@ public final class ContractGameTests {
             ContractManager.Outcome accepted = f.manager.accept(f.issuer, first.id());
             f.expect(accepted, true, "self-accept");
             String acceptText = accepted.message().getString();
-            helper.assertTrue(acceptText.contains("debug.allow_self_accept") || acceptText.contains("Debug mode")
-                            || acceptText.contains("отладочный"),
+            helper.assertTrue(acceptText.contains("allow_self_accept") || acceptText.contains("Debug mode")
+                            || acceptText.contains("отладочный") || acceptText.contains("собственный заказ"),
                     "debug warning in accept chat: " + acceptText);
             helper.assertValueEqual(f.economy.balance(f.issuer.getUUID()), 179L - COLLATERAL, "after collateral");
 
@@ -422,6 +424,100 @@ public final class ContractGameTests {
         helper.startSequence()
                 .thenIdle(SABLE_SETTLE_TICKS)
                 .thenSucceed();
+    }
+
+    /** Flag off: accepting your own stamped order is refused, the sealed crate stays, escrow is untouched. */
+    @GameTest(template = CouriersGameTests.EMPTY, timeoutTicks = 200)
+    public static void stampSelfAcceptDisabledKeepsCrate(GameTestHelper helper) {
+        Fixture f = new Fixture(helper);
+        TestPlayers.license(f.issuer);
+        f.economy.deposit(f.issuer.getUUID(), 100, "test");
+        helper.assertFalse(CouriersServerConfig.ALLOW_SELF_ACCEPT.get(), "flag off by default");
+        Contract contract = f.stamp(REWARD, COLLATERAL);
+        long afterCreate = f.economy.balance(f.issuer.getUUID());
+        ContractManager.Outcome denied = f.manager.accept(f.issuer, contract.id());
+        f.expect(denied, false, "own stamp refused");
+        String deniedText = denied.message().getString();
+        helper.assertTrue(deniedText.toLowerCase(java.util.Locale.ROOT).contains("own")
+                        || deniedText.contains("сво") || deniedText.contains("Сво"),
+                "refusal names the own-contract rule: " + deniedText);
+        helper.assertValueEqual(f.state(contract), ContractState.OPEN, "still open");
+        helper.assertValueEqual(f.economy.balance(f.issuer.getUUID()), afterCreate, "no extra withdraw");
+        helper.assertTrue(helper.getBlockState(CHEST).is(dev.poligorn.aerocouriers.registry.ModBlocks.CARGO_CONTAINER_S.get()),
+                "crate still at pickup");
+        helper.assertTrue(CargoContainerBlock.isPhysicsLocked(helper.getBlockState(CHEST)), "still sealed");
+        helper.assertFalse(Escrow.get(f.server()).holding(contract.id()).items().isEmpty(), "escrow kept");
+        helper.succeed();
+    }
+
+    /**
+     * Flag on: self-accept of a stamped crate must leave the physics container in the world (or tracked by Sable)
+     * and pay like a normal haul — fee is the only net loss. Nearby overlapping A/B zones must not auto-deliver.
+     */
+    @GameTest(template = CouriersGameTests.EMPTY, timeoutTicks = 400)
+    public static void stampSelfAcceptKeepsCrateThenPaysOnce(GameTestHelper helper) {
+        Fixture f = new Fixture(helper);
+        TestPlayers.license(f.issuer);
+        f.economy.deposit(f.issuer.getUUID(), 300, "test");
+        CouriersServerConfig.ALLOW_SELF_ACCEPT.set(true);
+        try {
+            Contract overlap = f.stampWithRadius(REWARD, COLLATERAL, 16);
+            long afterCreate = f.economy.balance(f.issuer.getUUID());
+            ContractManager.Outcome accepted = f.manager.accept(f.issuer, overlap.id());
+            f.expect(accepted, true, "self-accept overlapping zones");
+            helper.assertTrue(accepted.message().getString().contains("allow_self_accept"),
+                    "self-accept warning in the outcome: " + accepted.message().getString());
+            helper.assertValueEqual(f.state(overlap), ContractState.IN_TRANSIT, "in transit");
+            helper.assertValueEqual(f.economy.balance(f.issuer.getUUID()), afterCreate - COLLATERAL,
+                    "collateral taken once");
+            f.issuer.setPos(Vec3.atCenterOf(helper.absolutePos(CHEST)));
+            Vector3d atPickup = f.world(CHEST);
+            int checks = CouriersServerConfig.DELIVERY_STILL_CHECKS.get();
+            for (int i = 0; i < checks + 1; i++) {
+                f.check(overlap, atPickup, 0, ContractManager.Verdict.KEEP,
+                        "must not auto-deliver while the crate is still at A (" + i + ")");
+            }
+            helper.assertValueEqual(f.state(overlap), ContractState.IN_TRANSIT, "still hauling after still-checks at A");
+            helper.assertFalse(Escrow.get(f.server()).holding(overlap.id()).items().isEmpty(),
+                    "escrow not emptied by a false delivery");
+            helper.startSequence()
+                    .thenIdle(SABLE_SETTLE_TICKS)
+                    .thenExecute(() -> helper.assertTrue(crateAlive(helper, overlap.id()),
+                            "crate still exists after Sable settle"))
+                    .thenIdle((int) ContractManager.MISSING_GRACE_TICKS)
+                    .thenExecute(() -> {
+                        helper.assertTrue(crateAlive(helper, overlap.id()),
+                                "crate still exists after the missing-container grace");
+                        helper.assertValueEqual(f.state(overlap), ContractState.IN_TRANSIT,
+                                "grace did not DESTROY a self-accepted crate");
+                    })
+                    .thenExecute(() -> {
+                        Vector3d atTarget = f.world(TARGET);
+                        f.issuer.setPos(Vec3.atCenterOf(helper.absolutePos(TARGET)));
+                        for (int i = 0; i < checks - 1; i++) {
+                            f.check(overlap, atTarget, 0, ContractManager.Verdict.KEEP, "at B still " + i);
+                        }
+                        f.check(overlap, atTarget, 0, ContractManager.Verdict.REMOVE, "deliver at B");
+                        helper.assertValueEqual(f.state(overlap), ContractState.DELIVERED, "delivered");
+                        helper.assertValueEqual(f.economy.balance(f.issuer.getUUID()), afterCreate + REWARD,
+                                "reward and collateral back; fee is the only net loss");
+                        helper.assertTrue(Escrow.get(f.server()).holding(overlap.id()).items().isEmpty(),
+                                "escrow empty after delivery");
+                    })
+                    .thenSucceed();
+        } finally {
+            CouriersServerConfig.ALLOW_SELF_ACCEPT.set(false);
+        }
+    }
+
+    private static boolean crateAlive(GameTestHelper helper, java.util.UUID id) {
+        if (CargoTracker.get(id).isPresent()) {
+            return true;
+        }
+        if (helper.getBlockEntity(CHEST) instanceof CargoContainerBlockEntity be && id.equals(be.contractId())) {
+            return true;
+        }
+        return helper.getBlockState(CHEST).getBlock() instanceof CargoContainerBlock;
     }
 
     @GameTest(template = CouriersGameTests.EMPTY)
@@ -698,9 +794,17 @@ public final class ContractGameTests {
             return stampAt(CHEST, reward, collateral);
         }
 
+        Contract stampWithRadius(long reward, long collateral, int radius) {
+            return stampAt(CHEST, reward, collateral, radius);
+        }
+
         Contract stampAt(BlockPos relative, long reward, long collateral) {
+            return stampAt(relative, reward, collateral, 2);
+        }
+
+        Contract stampAt(BlockPos relative, long reward, long collateral, int radius) {
             issuer.setPos(Vec3.atCenterOf(helper.absolutePos(relative)));
-            Destination destination = new Destination(helper.getLevel().dimension(), helper.absolutePos(TARGET), 2);
+            Destination destination = new Destination(helper.getLevel().dimension(), helper.absolutePos(TARGET), radius);
             ContractManager.Outcome outcome = manager.createFromWaybill(issuer, helper.absolutePos(relative),
                     destination, reward, collateral, 60);
             expect(outcome, true, "stamp");
