@@ -7,6 +7,7 @@ import dev.poligorn.aerocouriers.cargo.CargoTracker;
 import dev.poligorn.aerocouriers.contract.Destination;
 import dev.poligorn.aerocouriers.contract.Pricing;
 import dev.poligorn.aerocouriers.contract.RankRules;
+import dev.poligorn.aerocouriers.economy.MoneyScale;
 import dev.poligorn.aerocouriers.license.CourierProfile;
 import dev.poligorn.aerocouriers.license.LicenseOwner;
 import dev.poligorn.aerocouriers.license.LicenseRank;
@@ -142,12 +143,13 @@ public final class CouriersGameTests {
         double distance = 600.0;
         long lightNpc = Pricing.npcReward(distance, 48.0, RandomSource.create(7L));
         long heavyNpc = Pricing.npcReward(distance, 2048.0, RandomSource.create(7L));
-        helper.assertTrue(heavyNpc >= lightNpc + 50,
+        // Thresholds are in spurs; without Numismatics every amount is divided by emerald_value_spurs.
+        helper.assertTrue(heavyNpc >= lightNpc + MoneyScale.fromSpurs(50L),
                 "full L should pay much more than light S at same distance: light=" + lightNpc + " heavy=" + heavyNpc);
 
         long minLight = Pricing.minReward(distance, 48.0);
         long minHeavy = Pricing.minReward(distance, 2048.0);
-        helper.assertTrue(minHeavy >= minLight + 70,
+        helper.assertTrue(minHeavy >= minLight + MoneyScale.fromSpurs(70L),
                 "P2P minimum should scale with weight: light=" + minLight + " heavy=" + minHeavy);
 
         Destination origin = new Destination(Level.OVERWORLD, BlockPos.ZERO, 8);
@@ -161,6 +163,7 @@ public final class CouriersGameTests {
     @GameTest(template = EMPTY, timeoutTicks = 200)
     public static void cargoContainerReportsWorldPosition(GameTestHelper helper) {
         UUID contractId = UUID.randomUUID();
+        helper.setBlock(new BlockPos(4, 3, 4), Blocks.STONE);
         BlockPos pos = helper.absolutePos(new BlockPos(4, 4, 4));
         var result = CargoSpawner.spawn(helper.getLevel(), pos, CargoSize.S, 8, contractId, true, Direction.NORTH);
         helper.assertTrue(result instanceof CargoSpawner.Result.Spawned, "Container was not assembled: " + result);

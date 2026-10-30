@@ -96,9 +96,7 @@
 | `textures/gui/sprites/button.png` | 200×20 | texture:textures/gui/sprites/button.png |
 | `textures/gui/sprites/button_disabled.png` | 200×20 | texture:textures/gui/sprites/button_disabled.png |
 | `textures/gui/sprites/button_highlighted.png` | 200×20 | texture:textures/gui/sprites/button_highlighted.png |
-| `textures/gui/sprites/icon/bell_tablet.png` | 16×16 | texture:textures/gui/sprites/icon/bell_tablet.png |
 | `textures/gui/sprites/icon/clock_tablet.png` | 16×16 | texture:textures/gui/sprites/icon/clock_tablet.png |
-| `textures/gui/sprites/icon/coin_tablet.png` | 16×16 | texture:textures/gui/sprites/icon/coin_tablet.png |
 | `textures/gui/sprites/icon/crate_tablet.png` | 16×16 | texture:textures/gui/sprites/icon/crate_tablet.png |
 | `textures/gui/sprites/icon/lock_tablet.png` | 16×16 | texture:textures/gui/sprites/icon/lock_tablet.png |
 | `textures/gui/sprites/icon/map_pin_tablet.png` | 16×16 | texture:textures/gui/sprites/icon/map_pin_tablet.png |
@@ -164,16 +162,6 @@
 | `textures/entity/epaulette_rank4_glow.png` | 16×16 | texture:textures/entity/epaulette_rank4_glow.png |
 | `textures/entity/epaulette_rank5.png` | 16×16 | texture:textures/entity/epaulette_rank5.png |
 | `textures/entity/epaulette_rank5_glow.png` | 16×16 | texture:textures/entity/epaulette_rank5_glow.png |
-
-## Монеты (запасные PNG)
-| Файл | Размер | Откуда |
-|---|---|---|
-| `textures/gui/coins/bevel.png` | 9×9 | texture:textures/gui/coins/bevel.png |
-| `textures/gui/coins/cog.png` | 9×9 | texture:textures/gui/coins/cog.png |
-| `textures/gui/coins/crown.png` | 9×9 | texture:textures/gui/coins/crown.png |
-| `textures/gui/coins/sprocket.png` | 9×9 | texture:textures/gui/coins/sprocket.png |
-| `textures/gui/coins/spur.png` | 9×9 | texture:textures/gui/coins/spur.png |
-| `textures/gui/coins/sun.png` | 9×9 | texture:textures/gui/coins/sun.png |
 
 ## Прочие текстуры
 | Файл | Размер | Откуда |

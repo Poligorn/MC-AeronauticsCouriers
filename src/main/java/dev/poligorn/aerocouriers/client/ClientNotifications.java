@@ -106,6 +106,9 @@ public final class ClientNotifications {
     }
 
     private static MailFilter mailFilter = MailFilter.ALL;
+    private static List<NotificationSyncPayload.Line> filteredSource;
+    private static MailFilter filteredBy;
+    private static List<NotificationSyncPayload.Line> filteredCache = List.of();
 
     public static MailFilter mailFilter() {
         return mailFilter;
@@ -119,7 +122,13 @@ public final class ClientNotifications {
         if (mailFilter == MailFilter.ALL) {
             return entries;
         }
-        return entries.stream().filter(mailFilter::accepts).toList();
+        if (filteredSource == entries && filteredBy == mailFilter) {
+            return filteredCache;
+        }
+        filteredCache = entries.stream().filter(mailFilter::accepts).toList();
+        filteredSource = entries;
+        filteredBy = mailFilter;
+        return filteredCache;
     }
 
     /** Current session on top (no header), then events from the offline window, then everything older. */

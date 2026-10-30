@@ -1,6 +1,7 @@
 package dev.poligorn.aerocouriers.task;
 
 import dev.poligorn.aerocouriers.contract.ContractManager;
+import dev.poligorn.aerocouriers.net.CouriersNetwork;
 import dev.poligorn.aerocouriers.net.TaskPrefPayload;
 import dev.poligorn.aerocouriers.net.TaskSyncPayload;
 import java.util.ArrayList;
@@ -66,7 +67,7 @@ public final class TaskSync {
     }
 
     public static void send(ServerPlayer player) {
-        if (!player.connection.hasChannel(TaskSyncPayload.TYPE)) {
+        if (!CouriersNetwork.canSend(player, TaskSyncPayload.TYPE)) {
             return;
         }
         List<TaskView> tasks = Tasks.compute(player);

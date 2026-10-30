@@ -1,7 +1,5 @@
 package dev.poligorn.aerocouriers.economy;
 
-import net.minecraft.resources.ResourceLocation;
-
 /** Numismatics-aligned spur denominations (largest first for greedy breakdown). */
 public enum SpurDenomination {
     SUN(4096, "sun"),
@@ -15,12 +13,10 @@ public enum SpurDenomination {
 
     private final int value;
     private final String id;
-    private final ResourceLocation texture;
 
     SpurDenomination(int value, String id) {
         this.value = value;
         this.id = id;
-        this.texture = ResourceLocation.fromNamespaceAndPath("aerocouriers", "textures/gui/coins/" + id + ".png");
     }
 
     public int value() {
@@ -29,10 +25,6 @@ public enum SpurDenomination {
 
     public String coinId() {
         return id;
-    }
-
-    public ResourceLocation texture() {
-        return texture;
     }
 
     public String nameTranslationKey() {

@@ -1,6 +1,5 @@
 package dev.poligorn.aerocouriers.gametest;
 
-import com.mojang.authlib.GameProfile;
 import dev.poligorn.aerocouriers.AeronauticsCouriers;
 import dev.poligorn.aerocouriers.cargo.CargoContainerBlock;
 import dev.poligorn.aerocouriers.cargo.CargoTracker;
@@ -9,10 +8,7 @@ import dev.poligorn.aerocouriers.contract.ContractManager;
 import dev.poligorn.aerocouriers.contract.ContractState;
 import dev.poligorn.aerocouriers.contract.Destination;
 import dev.poligorn.aerocouriers.economy.Economies;
-import dev.poligorn.aerocouriers.license.Licenses;
 import dev.poligorn.aerocouriers.registry.ModBlocks;
-import dev.poligorn.aerocouriers.registry.ModItems;
-import java.util.UUID;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -22,10 +18,8 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.ChestBlockEntity;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.neoforge.common.util.FakePlayerFactory;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
-import top.theillusivec4.curios.api.CuriosApi;
 
 /** OPEN preplaced cargo stays static until a courier accepts (playtest item 7). */
 @GameTestHolder(AeronauticsCouriers.MOD_ID)
@@ -42,11 +36,7 @@ public final class OpenCargoLockGameTests {
     public static void acceptUnlocksSablePhysics(GameTestHelper helper) {
         Fixture f = new Fixture(helper);
         Contract contract = f.stamp(20, 20).contract().orElseThrow();
-        ServerPlayer courier = FakePlayerFactory.get(helper.getLevel(), new GameProfile(UUID.randomUUID(), "haul"));
-        CuriosApi.getCuriosInventory(courier).orElseThrow()
-                .setEquippedCurio(Licenses.CURIOS_SLOT, 0, new ItemStack(ModItems.PILOT_LICENSE.get()));
-        Licenses.tickWorn(courier, Licenses.findLicense(courier).orElseThrow());
-        ContractManager.registerTestPlayer(courier);
+        ServerPlayer courier = TestPlayers.courier(helper, "haul");
         Economies.get(f.server()).deposit(courier.getUUID(), 50, "test");
 
         f.expect(f.manager.accept(courier, contract.id()), true, "accept");
@@ -81,13 +71,10 @@ public final class OpenCargoLockGameTests {
 
         Fixture(GameTestHelper helper) {
             this.helper = helper;
-            this.issuer = FakePlayerFactory.get(helper.getLevel(), new GameProfile(UUID.randomUUID(), "stamper"));
+            this.issuer = TestPlayers.courier(helper, "stamper");
             this.manager = ContractManager.get(helper.getLevel().getServer());
             issuer.setPos(Vec3.atCenterOf(helper.absolutePos(CHEST)));
-            var curios = CuriosApi.getCuriosInventory(issuer).orElseThrow();
-            curios.setEquippedCurio(Licenses.CURIOS_SLOT, 0, new ItemStack(ModItems.PILOT_LICENSE.get()));
-            Licenses.setProfile(issuer, Licenses.profile(issuer).withXp(0));
-            Licenses.tickWorn(issuer, Licenses.findLicense(issuer).orElseThrow());
+            TestPlayers.giveWaybills(issuer, 2);
             Economies.get(helper.getLevel().getServer()).deposit(issuer.getUUID(), 100, "test");
             for (int x = 0; x < 8; x++) {
                 for (int z = 0; z < 8; z++) {

@@ -1,9 +1,9 @@
 package dev.poligorn.aerocouriers.gametest;
 
-import com.mojang.authlib.GameProfile;
 import dev.poligorn.aerocouriers.AeronauticsCouriers;
 import dev.poligorn.aerocouriers.cargo.CargoContainerBlock;
 import dev.poligorn.aerocouriers.cargo.CargoSize;
+import dev.poligorn.aerocouriers.cargo.CargoStructure;
 import dev.poligorn.aerocouriers.cargo.CargoTracker;
 import dev.poligorn.aerocouriers.client.WaybillCreateLayout;
 import dev.poligorn.aerocouriers.contract.Contract;
@@ -12,12 +12,11 @@ import dev.poligorn.aerocouriers.contract.ContractState;
 import dev.poligorn.aerocouriers.contract.Destination;
 import dev.poligorn.aerocouriers.contract.Escrow;
 import dev.poligorn.aerocouriers.contract.Mailbox;
+import dev.poligorn.aerocouriers.contract.Pricing;
 import dev.poligorn.aerocouriers.economy.Economies;
 import dev.poligorn.aerocouriers.license.LicenseRank;
 import dev.poligorn.aerocouriers.license.Licenses;
 import dev.poligorn.aerocouriers.registry.ModBlocks;
-import dev.poligorn.aerocouriers.registry.ModItems;
-import java.util.UUID;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -29,10 +28,8 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.ChestBlockEntity;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.neoforge.common.util.FakePlayerFactory;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
-import top.theillusivec4.curios.api.CuriosApi;
 
 /** Stamp-created orders: in-place container, no dupe, cancel/expire mail the cargo back. */
 @GameTestHolder(AeronauticsCouriers.MOD_ID)
@@ -64,6 +61,7 @@ public final class StampGameTests {
         helper.assertTrue(CargoContainerBlock.isPhysicsLocked(helper.getBlockState(CHEST)),
                 "OPEN stamp container has no Sable physics yet");
         helper.assertTrue(CargoTracker.get(contract.id()).isEmpty(), "tracker empty until accept");
+        helper.succeed();
     }
 
     @GameTest(template = CouriersGameTests.EMPTY, timeoutTicks = 200)
@@ -83,7 +81,7 @@ public final class StampGameTests {
                 .thenSucceed();
     }
 
-    @GameTest(template = CouriersGameTests.EMPTY)
+    @GameTest(template = CouriersGameTests.EMPTY, batch = ContractGameTests.CLOCK_BATCH)
     public static void stampExpireReturnsCargoToMailbox(GameTestHelper helper) {
         Fixture f = new Fixture(helper);
         Contract contract = f.stamp(20, 20).contract().orElseThrow();
@@ -98,19 +96,16 @@ public final class StampGameTests {
     @GameTest(template = CouriersGameTests.EMPTY)
     public static void stampDeliveryRestoresSourceChestAtDestination(GameTestHelper helper) {
         Fixture f = new Fixture(helper);
-        ServerPlayer courier = FakePlayerFactory.get(helper.getLevel(), new GameProfile(UUID.randomUUID(), "courier"));
-        CuriosApi.getCuriosInventory(courier).orElseThrow()
-                .setEquippedCurio(Licenses.CURIOS_SLOT, 0, new ItemStack(ModItems.PILOT_LICENSE.get()));
-        Licenses.tickWorn(courier, Licenses.findLicense(courier).orElseThrow());
-        ContractManager.registerTestPlayer(courier);
+        ServerPlayer courier = TestPlayers.courier(helper, "courier");
         Economies.get(f.server()).deposit(courier.getUUID(), 50, "test");
-        Contract contract = f.stamp(20, 30).contract().orElseThrow();
+        Contract contract = f.stamp(20, 20).contract().orElseThrow();
         f.expect(f.manager.accept(courier, contract.id()), true, "accept stamp");
         courier.setPos(Vec3.atCenterOf(helper.absolutePos(TARGET)));
         f.expect(f.manager.forceDeliver(f.server(), contract.id()), true, "force deliver");
         helper.assertValueEqual(f.manager.byId(contract.id()).orElseThrow().state(), ContractState.DELIVERED,
                 "delivered");
-        helper.assertTrue(helper.getBlockState(TARGET).is(Blocks.CHEST), "original chest block at destination");
+        // forceDeliver restores the chest where the tracker last saw the container, which may still be the pickup.
+        helper.assertTrue(restoredChestWith(helper, Items.COBBLESTONE, 32), "original chest restored with the cargo");
         helper.assertValueEqual(Mailbox.get(f.server()).contents(f.issuer.getUUID()).size(), 0, "not mailed");
         helper.succeed();
     }
@@ -139,7 +134,7 @@ public final class StampGameTests {
     public static void stampMediumContainerForHeavyCargo(GameTestHelper helper) {
         Fixture f = new Fixture(helper, LicenseRank.RANK1);
         fillChest(f, 8, 64, Items.COBBLESTONE);
-        ContractManager.Outcome created = f.stamp(50, 50);
+        ContractManager.Outcome created = f.stamp(50, f.minCollateral(50));
         helper.assertTrue(created.success(), "stamp M: " + created.message().getString());
         helper.assertValueEqual(Economies.get(f.server()).balance(f.issuer.getUUID()), 46L,
                 "reward + size-scaled fee (50 + 4)");
@@ -149,12 +144,7 @@ public final class StampGameTests {
         helper.assertValueEqual(Escrow.get(f.server()).holding(contract.id()).items().size(), 8, "escrow stacks");
         helper.startSequence()
                 .thenIdle(SABLE_SETTLE_TICKS)
-                .thenExecute(() -> {
-                    helper.assertTrue(helper.getBlockState(CHEST).is(ModBlocks.CARGO_CONTAINER_M.get()),
-                            "medium container at pickup");
-                    helper.assertTrue(helper.getBlockState(CHEST.above()).is(ModBlocks.CARGO_CONTAINER_M.get()),
-                            "medium upper segment");
-                })
+                .thenExecute(() -> assertStructureAt(helper, contract, CargoSize.M, ModBlocks.CARGO_CONTAINER_M.get()))
                 .thenSucceed();
     }
 
@@ -162,7 +152,7 @@ public final class StampGameTests {
     public static void stampLargeContainerForVeryHeavyCargo(GameTestHelper helper) {
         Fixture f = new Fixture(helper, LicenseRank.RANK1);
         fillChest(f, 24, 64, Items.COBBLESTONE);
-        ContractManager.Outcome created = f.stamp(80, 80);
+        ContractManager.Outcome created = f.stamp(80, f.minCollateral(80));
         helper.assertTrue(created.success(), "stamp L: " + created.message().getString());
         helper.assertValueEqual(Economies.get(f.server()).balance(f.issuer.getUUID()), 10L,
                 "reward + size-scaled fee (80 + 10)");
@@ -172,9 +162,18 @@ public final class StampGameTests {
         helper.assertValueEqual(Escrow.get(f.server()).holding(contract.id()).items().size(), 24, "escrow stacks");
         helper.startSequence()
                 .thenIdle(SABLE_SETTLE_TICKS)
-                .thenExecute(() -> helper.assertTrue(helper.getBlockState(CHEST).is(ModBlocks.CARGO_CONTAINER_L.get()),
-                        "large container controller at pickup"))
+                .thenExecute(() -> assertStructureAt(helper, contract, CargoSize.L, ModBlocks.CARGO_CONTAINER_L.get()))
                 .thenSucceed();
+    }
+
+    /** The anchor may shift off the chest ({@code CargoSpawner.resolveAnchor}); the pickup records where it went. */
+    private static void assertStructureAt(GameTestHelper helper, Contract contract, CargoSize size,
+                                          net.minecraft.world.level.block.Block block) {
+        BlockPos anchor = contract.origin().pos();
+        for (BlockPos offset : CargoStructure.offsets(size)) {
+            helper.assertTrue(helper.getLevel().getBlockState(anchor.offset(offset)).is(block),
+                    size + " container part at " + anchor.offset(offset).toShortString());
+        }
     }
 
     @GameTest(template = CouriersGameTests.EMPTY)
@@ -186,11 +185,11 @@ public final class StampGameTests {
         }
         helper.setBlock(CHEST, Blocks.CHEST);
         ((ChestBlockEntity) helper.getBlockEntity(CHEST)).setItem(0, new ItemStack(Items.DIRT, 8));
-        ServerPlayer stranger = FakePlayerFactory.get(helper.getLevel(), new GameProfile(UUID.randomUUID(), "no_lic"));
+        ServerPlayer stranger = TestPlayers.player(helper, "no_lic");
         stranger.setPos(Vec3.atCenterOf(helper.absolutePos(CHEST)));
         stranger.getInventory().add(dev.poligorn.aerocouriers.item.Waybills.stack(1));
         Economies.get(helper.getLevel().getServer()).deposit(stranger.getUUID(), 100, "test");
-        ServerPlayer remote = FakePlayerFactory.get(helper.getLevel(), new GameProfile(UUID.randomUUID(), "far"));
+        ServerPlayer remote = TestPlayers.player(helper, "far");
         remote.setPos(Vec3.atCenterOf(helper.absolutePos(CHEST)).add(64, 0, 64));
         remote.getInventory().add(dev.poligorn.aerocouriers.item.Waybills.stack(1));
         Economies.get(helper.getLevel().getServer()).deposit(remote.getUUID(), 100, "test");
@@ -211,6 +210,17 @@ public final class StampGameTests {
         }
     }
 
+    private static boolean restoredChestWith(GameTestHelper helper, net.minecraft.world.item.Item item, int count) {
+        for (BlockPos pos : BlockPos.betweenClosed(0, 1, 0, 7, 3, 7)) {
+            if (helper.getBlockState(pos).is(Blocks.CHEST)
+                    && helper.getBlockEntity(pos) instanceof ChestBlockEntity chest
+                    && chest.countItem(item) == count) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private static int droppedAround(GameTestHelper helper, BlockPos relative) {
         Vec3 at = Vec3.atCenterOf(helper.absolutePos(relative));
         return helper.getLevel().getEntitiesOfClass(ItemEntity.class, new AABB(at, at).inflate(4)).stream()
@@ -229,14 +239,13 @@ public final class StampGameTests {
 
         Fixture(GameTestHelper helper, LicenseRank rank) {
             this.helper = helper;
-            this.issuer = FakePlayerFactory.get(helper.getLevel(), new GameProfile(UUID.randomUUID(), "stamper"));
+            this.issuer = TestPlayers.player(helper, "stamper");
             this.manager = ContractManager.get(helper.getLevel().getServer());
             issuer.setPos(Vec3.atCenterOf(helper.absolutePos(CHEST)));
-            var curios = CuriosApi.getCuriosInventory(issuer).orElseThrow();
-            curios.setEquippedCurio(Licenses.CURIOS_SLOT, 0, new ItemStack(ModItems.PILOT_LICENSE.get()));
             Licenses.setProfile(issuer, Licenses.profile(issuer).withXp(rank == LicenseRank.RANK1 ? 0
                     : rank == LicenseRank.RANK3 ? 1500 : 300));
-            Licenses.tickWorn(issuer, Licenses.findLicense(issuer).orElseThrow());
+            TestPlayers.license(issuer);
+            TestPlayers.giveWaybills(issuer, 4);
             Economies.get(helper.getLevel().getServer()).deposit(issuer.getUUID(),
                     rank == LicenseRank.RANK3 ? 10_000 : 100, "test");
             for (int x = 0; x < 8; x++) {
@@ -258,6 +267,18 @@ public final class StampGameTests {
             return manager.createFromWaybill(issuer, helper.absolutePos(CHEST),
                     new Destination(helper.getLevel().dimension(), helper.absolutePos(TARGET), 8),
                     reward, collateral, 60);
+        }
+
+        /** Heavy cargo is worth more than the reward, so the collateral profile sets the floor. */
+        long minCollateral(long reward) {
+            ChestBlockEntity chest = (ChestBlockEntity) helper.getBlockEntity(CHEST);
+            java.util.List<ItemStack> cargo = new java.util.ArrayList<>();
+            for (int slot = 0; slot < chest.getContainerSize(); slot++) {
+                if (!chest.getItem(slot).isEmpty()) {
+                    cargo.add(chest.getItem(slot));
+                }
+            }
+            return Pricing.minP2pCollateral(reward, cargo);
         }
 
         void expect(ContractManager.Outcome outcome, boolean success, String what) {

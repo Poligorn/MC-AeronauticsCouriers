@@ -5,7 +5,8 @@
     { "item": "minecraft:paper" },
     { "item": "minecraft:paper" },
     { "item": "minecraft:ink_sac" },
-    { "item": "create:copper_nugget" }
+    { "item": "minecraft:iron_nugget" },
+    { "tag": "minecraft:wooden_slabs" }
   ],
   "result": {
     "id": "aerocouriers:transport_waybill",

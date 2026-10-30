@@ -21,7 +21,7 @@
 | `contracts` | `p2p_min_collateral_ratio` | 0.5 | 0…10. Читается один раз при миграции на `economy.collateral_profile`, дальше не влияет |
 | `contracts` | `p2p_fee` | 0.05 | 0…1, доля награды (сжигается) |
 | `contracts` | `max_open_per_player` | 10 | 0…1000 |
-| `contracts` | `pause_on_logout_singleplayer` | true | true / false |
+| `contracts` | `pause_on_logout_singleplayer` | true | true / false. **Ключ зарезервирован: код не читает**, таймер оффлайн-курьера всегда идёт |
 | `contracts` | `late_window` | 0.25 | 0…10, доля срока, в которой доставка ещё зачитывается со штрафом |
 | `contracts.pricing` | `reward_distance_divisor` | 100 | 1…1 000 000 |
 | `contracts.pricing` | `reward_per_weight` | 0.04 | 0…1000 |

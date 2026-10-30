@@ -13,7 +13,6 @@ public final class PixelGlyphs {
     public static final String[] BOX = {"#########", "#...#...#", "#...#...#", "#########", "#...#...#", "#...#...#",
             "#########"};
     public static final String[] LOCK = {"..###..", ".#...#.", ".#...#.", "#######", "###.###", "###.###", "#######"};
-    public static final String[] GRID = BOX;
     /** 9×5 cell icon on the waybill «all cells» link. */
     public static final String[] SHEET_GRID = {
             "#########",
@@ -27,9 +26,6 @@ public final class PixelGlyphs {
     public static final String[] CROSS = {"#...#", ".#.#.", "..#..", ".#.#.", "#...#"};
     public static final String[] UP = {"...#...", "..###..", ".#####.", "...#...", "...#..."};
     public static final String[] CHEST = {"#########", "#.......#", "#########", "#...#...#", "#...#...#", "#########"};
-    public static final String[] DASH_ARROW_TIP = ARROW;
-    public static final String[] UP_DOWN = {"..#.....", ".###..#.", "..#...#.", "..#...#.", "..#...#.", "..#..###",
-            "..#...#."};
 
     private PixelGlyphs() {
     }

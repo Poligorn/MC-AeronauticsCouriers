@@ -161,7 +161,8 @@ public final class ContractManager extends SavedData {
         }
     }
 
-    static @Nullable ServerPlayer findPlayer(MinecraftServer server, UUID id) {
+    /** Online player, or a GameTest FakePlayer registered with {@link #registerTestPlayer}. */
+    public static @Nullable ServerPlayer findPlayer(MinecraftServer server, UUID id) {
         ServerPlayer player = server.getPlayerList().getPlayer(id);
         return player != null ? player : TEST_PLAYERS.get(id);
     }
@@ -1546,7 +1547,7 @@ public final class ContractManager extends SavedData {
 
     /** Sends the courier the zones of their active contracts for the particle outline (GDD §10.3). */
     public void syncZones(ServerPlayer courier) {
-        if (!courier.connection.hasChannel(ZoneSyncPayload.TYPE)) {
+        if (!dev.poligorn.aerocouriers.net.CouriersNetwork.canSend(courier, ZoneSyncPayload.TYPE)) {
             return;
         }
         StationAtlas atlas = StationAtlas.get(courier.server);

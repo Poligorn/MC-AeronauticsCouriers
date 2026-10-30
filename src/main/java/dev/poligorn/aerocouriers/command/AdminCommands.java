@@ -1,5 +1,6 @@
 package dev.poligorn.aerocouriers.command;
 
+import dev.poligorn.aerocouriers.net.BoardPackets;
 import com.mojang.brigadier.arguments.BoolArgumentType;
 import com.mojang.brigadier.arguments.DoubleArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
@@ -167,7 +168,7 @@ public final class AdminCommands {
         }
         source.sendSuccess(() -> Component.translatable("admin.aerocouriers.contract.list.header", active.size()), false);
         for (Contract c : active) {
-            String courier = c.courier().flatMap(id -> server.getProfileCache().get(id).map(p -> p.getName()))
+            String courier = c.courier().flatMap(id -> BoardPackets.playerName(server, id))
                     .orElse("—");
             source.sendSuccess(() -> Component.translatable("admin.aerocouriers.contract.list.line",
                     c.shortId(), c.state().getSerializedName(), c.size().name(), courier), false);

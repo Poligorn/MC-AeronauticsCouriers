@@ -13,7 +13,7 @@
 | §8.3 `item_values.json` (залог NPC) | **Готово** | `ItemValues`, `data/aerocouriers/item_values/default.json` |
 | Окно станции | **Готово** | `PostStationScreen`, `StationPackets` |
 | Уведомления (колокол, лог, звук) | **Готово** | `NotificationLog`, `CouriersNotifications` |
-| Доска: confirm accept, без «Подробнее» | **Готово** | `CourierBoardScreen`, `BoardAcceptConfirmScreen` |
+| Доска: confirm accept, без «Подробнее» | **Готово** | `CourierBoardScreen`, `BoardAcceptOverlay` |
 | Планшет: фон, рамка, вкладки Текущие/История | **Готово** | `TabletGui`, `CourierBoardScreen` |
 
 ## Остаётся

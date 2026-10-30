@@ -7,6 +7,7 @@ import dev.poligorn.aerocouriers.config.CouriersServerConfig;
 import dev.poligorn.aerocouriers.contract.Contract;
 import dev.poligorn.aerocouriers.contract.ContractManager;
 import dev.poligorn.aerocouriers.contract.ContractState;
+import dev.poligorn.aerocouriers.contract.CourierInbox;
 import dev.poligorn.aerocouriers.contract.Destination;
 import dev.poligorn.aerocouriers.contract.Escrow;
 import dev.poligorn.aerocouriers.contract.Mailbox;
@@ -15,7 +16,6 @@ import dev.poligorn.aerocouriers.economy.Economy;
 import dev.poligorn.aerocouriers.license.LicenseRank;
 import dev.poligorn.aerocouriers.license.Licenses;
 import dev.poligorn.aerocouriers.net.BoardPackets;
-import dev.poligorn.aerocouriers.registry.ModItems;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -41,7 +41,6 @@ import net.neoforged.neoforge.common.util.FakePlayerFactory;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 import org.joml.Vector3d;
-import top.theillusivec4.curios.api.CuriosApi;
 
 /** Iterations 2–3: the contract flow with money, escrow, mailbox, the lazy container and every way to fail. */
 @GameTestHolder(AeronauticsCouriers.MOD_ID)
@@ -54,6 +53,14 @@ public final class ContractGameTests {
      * "Body has been removed" from {@code SubLevelSerializer}.
      */
     private static final int SABLE_SETTLE_TICKS = 40;
+    /**
+     * Tests that call {@code ContractManager.tick} with a far-future time. The manager is server-wide, so that
+     * expires or fails the orders of every test still waiting in the same batch.
+     */
+    static final String CLOCK_BATCH = "aerocouriers.clock";
+    private static final long REWARD = 20;
+    /** Rank I caps collateral at 200 spurs = 25 emeralds (emerald backend, no Numismatics); stay a rank I order. */
+    private static final long COLLATERAL = 24;
 
     private ContractGameTests() {
     }
@@ -64,13 +71,13 @@ public final class ContractGameTests {
         f.economy.deposit(f.issuer.getUUID(), 100, "test");
         f.economy.deposit(f.courier.getUUID(), 50, "test");
 
-        Contract contract = f.create(20, 30);
+        Contract contract = f.create(REWARD, COLLATERAL);
         helper.assertValueEqual(f.economy.balance(f.issuer.getUUID()), 79L, "issuer after reward + 5% fee");
         helper.assertTrue(f.chest().isEmpty(), "Cargo must leave the chest");
         helper.assertValueEqual(contract.requiredRank(), LicenseRank.RANK1, "required rank");
 
         f.expect(f.manager.accept(f.courier, contract.id()), true, "accept");
-        helper.assertValueEqual(f.economy.balance(f.courier.getUUID()), 20L, "courier after collateral");
+        helper.assertValueEqual(f.economy.balance(f.courier.getUUID()), 50L - COLLATERAL, "courier after collateral");
         f.expect(f.manager.forceDeliver(f.server(), contract.id()), false, "deliver before the container appeared");
 
         f.spawn(contract);
@@ -105,12 +112,12 @@ public final class ContractGameTests {
         helper.succeed();
     }
 
-    @GameTest(template = CouriersGameTests.EMPTY)
+    @GameTest(template = CouriersGameTests.EMPTY, batch = CLOCK_BATCH)
     public static void timeoutReturnsCollateralAndCargoToIssuer(GameTestHelper helper) {
         Fixture f = new Fixture(helper);
         f.economy.deposit(f.issuer.getUUID(), 100, "test");
         f.economy.deposit(f.courier.getUUID(), 50, "test");
-        Contract contract = f.create(20, 30);
+        Contract contract = f.create(REWARD, COLLATERAL);
         f.expect(f.manager.accept(f.courier, contract.id()), true, "accept");
 
         long now = ContractManager.now(f.server());
@@ -118,14 +125,15 @@ public final class ContractGameTests {
         helper.assertValueEqual(f.state(contract), ContractState.ACCEPTED, "still inside the late window");
         f.manager.tick(f.server(), now + contract.timing().deadline() * 2);
         helper.assertValueEqual(f.state(contract), ContractState.FAILED, "state after the late window");
-        helper.assertValueEqual(f.economy.balance(f.issuer.getUUID()), 129L, "issuer: 79 + reward 20 + collateral 30");
-        helper.assertValueEqual(f.economy.balance(f.courier.getUUID()), 20L, "courier lost the collateral");
+        helper.assertValueEqual(f.economy.balance(f.issuer.getUUID()), 79L + REWARD + COLLATERAL,
+                "issuer: 79 + reward + collateral");
+        helper.assertValueEqual(f.economy.balance(f.courier.getUUID()), 50L - COLLATERAL, "courier lost the collateral");
         helper.assertValueEqual(Mailbox.get(f.server()).contents(f.issuer.getUUID()).size(), 2,
                 "cargo never picked up goes back to the issuer");
         helper.succeed();
     }
 
-    @GameTest(template = CouriersGameTests.EMPTY)
+    @GameTest(template = CouriersGameTests.EMPTY, batch = CLOCK_BATCH)
     public static void openContractExpiresAndCancelIsIssuerOnly(GameTestHelper helper) {
         Fixture f = new Fixture(helper);
         f.economy.deposit(f.issuer.getUUID(), 100, "test");
@@ -147,12 +155,12 @@ public final class ContractGameTests {
     public static void acceptAndCreateGuards(GameTestHelper helper) {
         Fixture f = new Fixture(helper);
         f.economy.deposit(f.issuer.getUUID(), 100, "test");
-        Contract contract = f.create(20, 30);
+        Contract contract = f.create(REWARD, COLLATERAL);
         f.expect(f.manager.accept(f.issuer, contract.id()), false, "own contract");
         f.expect(f.manager.accept(f.courier, contract.id()), false, "courier without money");
         helper.assertValueEqual(f.state(contract), ContractState.OPEN, "still open");
 
-        ServerPlayer unlicensed = FakePlayerFactory.get(helper.getLevel(), new GameProfile(UUID.randomUUID(), "no_license"));
+        ServerPlayer unlicensed = TestPlayers.player(helper, "no_license");
         f.economy.deposit(unlicensed.getUUID(), 100, "test");
         f.expect(f.manager.accept(unlicensed, contract.id()), false, "no license");
         helper.assertValueEqual(f.economy.balance(unlicensed.getUUID()), 100L, "nothing withdrawn");
@@ -174,10 +182,7 @@ public final class ContractGameTests {
     @GameTest(template = CouriersGameTests.EMPTY)
     public static void debugSelfAcceptRunsFullCycle(GameTestHelper helper) {
         Fixture f = new Fixture(helper);
-        var curios = CuriosApi.getCuriosInventory(f.issuer).orElseThrow();
-        curios.setEquippedCurio(Licenses.CURIOS_SLOT, 0, new ItemStack(ModItems.PILOT_LICENSE.get()));
-        Licenses.tickWorn(f.issuer, Licenses.findLicense(f.issuer).orElseThrow());
-        ContractManager.registerTestPlayer(f.issuer);
+        TestPlayers.license(f.issuer);
         f.economy.deposit(f.issuer.getUUID(), 200, "test");
 
         helper.assertFalse(CouriersServerConfig.ALLOW_SELF_ACCEPT.get(), "flag off by default");
@@ -189,7 +194,7 @@ public final class ContractGameTests {
             helper.assertTrue(BoardPackets.snapshot(f.issuer, 0, false, Optional.empty()).allowSelfAccept(),
                     "board snapshot exposes self-accept");
 
-            Contract first = f.create(20, 30);
+            Contract first = f.create(REWARD, COLLATERAL);
             helper.assertValueEqual(f.economy.balance(f.issuer.getUUID()), 179L, "after create: 200 − 21");
             ContractManager.Outcome accepted = f.manager.accept(f.issuer, first.id());
             f.expect(accepted, true, "self-accept");
@@ -197,7 +202,7 @@ public final class ContractGameTests {
             helper.assertTrue(acceptText.contains("debug.allow_self_accept") || acceptText.contains("Debug mode")
                             || acceptText.contains("отладочный"),
                     "debug warning in accept chat: " + acceptText);
-            helper.assertValueEqual(f.economy.balance(f.issuer.getUUID()), 149L, "after collateral: 179 − 30");
+            helper.assertValueEqual(f.economy.balance(f.issuer.getUUID()), 179L - COLLATERAL, "after collateral");
 
             f.spawn(first);
             Vector3d atTarget = f.world(TARGET);
@@ -207,36 +212,37 @@ public final class ContractGameTests {
                 f.check(first, atTarget, 0, ContractManager.Verdict.KEEP, "still " + i);
             }
             f.check(first, atTarget, 0, ContractManager.Verdict.REMOVE, "deliver");
-            helper.assertValueEqual(f.economy.balance(f.issuer.getUUID()), 199L, "after self-delivery: 149 + 20 + 30");
+            helper.assertValueEqual(f.economy.balance(f.issuer.getUUID()), 199L, "after self-delivery: reward and collateral back");
             helper.assertValueEqual(f.state(first), ContractState.DELIVERED, "delivered");
-            helper.assertValueEqual(Mailbox.get(f.server()).contents(f.issuer.getUUID()).size(), 2, "mailbox");
+            helper.assertValueEqual(Mailbox.get(f.server()).contents(f.issuer.getUUID()).size(), 0,
+                    "delivered cargo is placed at the destination, not mailed");
             helper.assertValueEqual(Licenses.profile(f.issuer).delivered(), 1, "delivered count");
             helper.assertValueEqual(Licenses.profile(f.issuer).xp(), 10, "first delivery XP, M_repeat = 1.0");
             helper.assertTrue(Escrow.get(f.server()).holding(first.id()).isEmpty(), "escrow empty after delivery");
 
             f.fillChest();
-            Contract second = f.create(20, 30);
+            Contract second = f.create(REWARD, COLLATERAL);
             helper.assertValueEqual(f.economy.balance(f.issuer.getUUID()), 178L, "199 − 21");
             f.expect(f.manager.accept(f.issuer, second.id()), true, "second self-accept");
-            helper.assertValueEqual(f.economy.balance(f.issuer.getUUID()), 148L, "178 − 30");
+            helper.assertValueEqual(f.economy.balance(f.issuer.getUUID()), 178L - COLLATERAL, "178 − collateral");
             f.spawn(second);
             for (int i = 0; i < checks - 1; i++) {
                 f.check(second, atTarget, 0, ContractManager.Verdict.KEEP, "still2 " + i);
             }
             f.check(second, atTarget, 0, ContractManager.Verdict.REMOVE, "deliver2");
-            helper.assertValueEqual(f.economy.balance(f.issuer.getUUID()), 198L, "148 + 50");
-            helper.assertValueEqual(Mailbox.get(f.server()).contents(f.issuer.getUUID()).size(), 4, "mail after two");
+            helper.assertValueEqual(f.economy.balance(f.issuer.getUUID()), 198L, "reward and collateral back");
+            helper.assertValueEqual(Mailbox.get(f.server()).contents(f.issuer.getUUID()).size(), 0, "mail after two");
             helper.assertValueEqual(Licenses.profile(f.issuer).xp(), 19, "10 + floor(base × 0.9) = 19");
 
             f.fillChest();
-            Contract failed = f.create(20, 30);
+            Contract failed = f.create(REWARD, COLLATERAL);
             helper.assertValueEqual(f.economy.balance(f.issuer.getUUID()), 177L, "198 − 21");
             f.expect(f.manager.accept(f.issuer, failed.id()), true, "accept before fail");
-            helper.assertValueEqual(f.economy.balance(f.issuer.getUUID()), 147L, "177 − 30");
+            helper.assertValueEqual(f.economy.balance(f.issuer.getUUID()), 177L - COLLATERAL, "177 − collateral");
             f.expect(f.manager.abandon(f.issuer, failed.id()), true, "self-abandon");
             helper.assertValueEqual(f.state(failed), ContractState.FAILED, "failed");
-            helper.assertValueEqual(f.economy.balance(f.issuer.getUUID()), 197L, "147 + collateral 30 + reward 20");
-            helper.assertValueEqual(Mailbox.get(f.server()).contents(f.issuer.getUUID()).size(), 6,
+            helper.assertValueEqual(f.economy.balance(f.issuer.getUUID()), 197L, "collateral and reward back");
+            helper.assertValueEqual(Mailbox.get(f.server()).contents(f.issuer.getUUID()).size(), 2,
                     "returned cargo mailed to the same player");
             helper.assertValueEqual(Licenses.profile(f.issuer).failed(), 1, "one failure");
             helper.assertValueEqual(Licenses.profile(f.issuer).xp(), 19, "fail does not change XP");
@@ -251,17 +257,14 @@ public final class ContractGameTests {
      * Rank I allows one active haul. Own OPEN orders (issuer == courier on self-accept) must not occupy
      * that slot; delivery / abandon / cancel / expire must free it. The refusal names the blocking id.
      */
-    @GameTest(template = CouriersGameTests.EMPTY)
+    @GameTest(template = CouriersGameTests.EMPTY, batch = CLOCK_BATCH)
     public static void activeLimitIgnoresOwnOpenAndFreesAfterTerminal(GameTestHelper helper) {
         Fixture f = new Fixture(helper);
-        var curios = CuriosApi.getCuriosInventory(f.issuer).orElseThrow();
-        curios.setEquippedCurio(Licenses.CURIOS_SLOT, 0, new ItemStack(ModItems.PILOT_LICENSE.get()));
-        Licenses.tickWorn(f.issuer, Licenses.findLicense(f.issuer).orElseThrow());
-        ContractManager.registerTestPlayer(f.issuer);
+        TestPlayers.license(f.issuer);
         f.economy.deposit(f.issuer.getUUID(), 400, "test");
         CouriersServerConfig.ALLOW_SELF_ACCEPT.set(true);
         try {
-            Contract first = f.create(20, 30);
+            Contract first = f.create(REWARD, COLLATERAL);
             helper.assertTrue(f.manager.activeJobs(f.issuer.getUUID()).isEmpty(),
                     "an OPEN order the player published is not an active haul");
             f.expect(f.manager.accept(f.issuer, first.id()), true, "self-accept of own open");
@@ -270,7 +273,7 @@ public final class ContractGameTests {
                     "courier", "self-accepted job is shown as a haul");
 
             f.fillChest();
-            Contract second = f.create(20, 30);
+            Contract second = f.create(REWARD, COLLATERAL);
             helper.assertValueEqual(f.manager.activeJobs(f.issuer.getUUID()).size(), 1,
                     "a second OPEN issued order still does not count as a haul");
             ContractManager.Outcome blocked = f.manager.accept(f.issuer, second.id());
@@ -285,7 +288,7 @@ public final class ContractGameTests {
 
             f.expect(f.manager.abandon(f.issuer, second.id()), true, "clear second");
             f.fillChest();
-            Contract toDeliver = f.create(20, 30);
+            Contract toDeliver = f.create(REWARD, COLLATERAL);
             f.expect(f.manager.accept(f.issuer, toDeliver.id()), true, "accept to deliver");
             f.spawn(toDeliver);
             Vector3d atTarget = f.world(TARGET);
@@ -299,7 +302,7 @@ public final class ContractGameTests {
             helper.assertTrue(f.manager.activeJobs(f.issuer.getUUID()).isEmpty(), "delivery frees the slot");
 
             f.fillChest();
-            Contract afterDelivery = f.create(20, 30);
+            Contract afterDelivery = f.create(REWARD, COLLATERAL);
             f.expect(f.manager.accept(f.issuer, afterDelivery.id()), true, "accept after delivery");
             f.expect(f.manager.abandon(f.issuer, afterDelivery.id()), true, "clear delivered-next");
 
@@ -315,7 +318,7 @@ public final class ContractGameTests {
             helper.assertValueEqual(f.state(expired), ContractState.EXPIRED, "expired");
             helper.assertTrue(f.manager.activeJobs(f.issuer.getUUID()).isEmpty(), "expire frees any haul slot");
             f.fillChest();
-            Contract afterExpire = f.create(20, 30);
+            Contract afterExpire = f.create(REWARD, COLLATERAL);
             f.expect(f.manager.accept(f.issuer, afterExpire.id()), true, "accept after expire");
         } finally {
             CouriersServerConfig.ALLOW_SELF_ACCEPT.set(false);
@@ -330,14 +333,11 @@ public final class ContractGameTests {
     @GameTest(template = CouriersGameTests.EMPTY)
     public static void selfAcceptDamageReturnsCargoToTheSamePlayer(GameTestHelper helper) {
         Fixture f = new Fixture(helper);
-        var curios = CuriosApi.getCuriosInventory(f.issuer).orElseThrow();
-        curios.setEquippedCurio(Licenses.CURIOS_SLOT, 0, new ItemStack(ModItems.PILOT_LICENSE.get()));
-        Licenses.tickWorn(f.issuer, Licenses.findLicense(f.issuer).orElseThrow());
-        ContractManager.registerTestPlayer(f.issuer);
+        TestPlayers.license(f.issuer);
         f.economy.deposit(f.issuer.getUUID(), 200, "test");
         CouriersServerConfig.ALLOW_SELF_ACCEPT.set(true);
         try {
-            Contract contract = f.create(20, 30);
+            Contract contract = f.create(REWARD, COLLATERAL);
             f.expect(f.manager.accept(f.issuer, contract.id()), true, "self-accept");
             f.spawn(contract);
             Vec3 site = Vec3.atCenterOf(helper.absolutePos(TARGET));
@@ -364,10 +364,7 @@ public final class ContractGameTests {
     @GameTest(template = CouriersGameTests.EMPTY)
     public static void removedStampExpiresAfterGraceAndMailsCargo(GameTestHelper helper) {
         Fixture f = new Fixture(helper);
-        var curios = CuriosApi.getCuriosInventory(f.issuer).orElseThrow();
-        curios.setEquippedCurio(Licenses.CURIOS_SLOT, 0, new ItemStack(ModItems.PILOT_LICENSE.get()));
-        Licenses.tickWorn(f.issuer, Licenses.findLicense(f.issuer).orElseThrow());
-        ContractManager.registerTestPlayer(f.issuer);
+        TestPlayers.license(f.issuer);
         f.economy.deposit(f.issuer.getUUID(), 100, "test");
         Contract contract = f.stamp(20, 20);
         long now = helper.getLevel().getGameTime();
@@ -387,14 +384,11 @@ public final class ContractGameTests {
     @GameTest(template = CouriersGameTests.EMPTY, timeoutTicks = 200)
     public static void stampSelfAcceptThenDeliverFreesTheSlot(GameTestHelper helper) {
         Fixture f = new Fixture(helper);
-        var curios = CuriosApi.getCuriosInventory(f.issuer).orElseThrow();
-        curios.setEquippedCurio(Licenses.CURIOS_SLOT, 0, new ItemStack(ModItems.PILOT_LICENSE.get()));
-        Licenses.tickWorn(f.issuer, Licenses.findLicense(f.issuer).orElseThrow());
-        ContractManager.registerTestPlayer(f.issuer);
+        TestPlayers.license(f.issuer);
         f.economy.deposit(f.issuer.getUUID(), 300, "test");
         CouriersServerConfig.ALLOW_SELF_ACCEPT.set(true);
         try {
-            Contract first = f.stamp(20, 30);
+            Contract first = f.stamp(REWARD, COLLATERAL);
             helper.assertTrue(first.preplaced(), "stamp is preplaced");
             helper.assertTrue(f.manager.activeJobs(f.issuer.getUUID()).isEmpty(),
                     "stamped OPEN is not an active haul");
@@ -404,7 +398,7 @@ public final class ContractGameTests {
             helper.assertValueEqual(f.manager.activeJobs(f.issuer.getUUID()).size(), 1, "one haul");
 
             f.chestAt(new BlockPos(2, 1, 1));
-            Contract second = f.stampAt(new BlockPos(2, 1, 1), 20, 30);
+            Contract second = f.stampAt(new BlockPos(2, 1, 1), REWARD, COLLATERAL);
             ContractManager.Outcome blocked = f.manager.accept(f.issuer, second.id());
             f.expect(blocked, false, "second stamp accept blocked");
             helper.assertTrue(blocked.message().getString().contains(first.shortId()),
@@ -434,7 +428,7 @@ public final class ContractGameTests {
     public static void contractCodecRoundTrip(GameTestHelper helper) {
         Fixture f = new Fixture(helper);
         f.economy.deposit(f.issuer.getUUID(), 100, "test");
-        Contract contract = f.create(20, 30);
+        Contract contract = f.create(REWARD, COLLATERAL);
         Tag encoded = Contract.CODEC.encodeStart(NbtOps.INSTANCE, contract).getOrThrow();
         helper.assertValueEqual(Contract.CODEC.parse(NbtOps.INSTANCE, encoded).getOrThrow(), contract, "contract");
         helper.succeed();
@@ -446,7 +440,7 @@ public final class ContractGameTests {
         Fixture f = new Fixture(helper);
         f.economy.deposit(f.issuer.getUUID(), 100, "test");
         f.economy.deposit(f.courier.getUUID(), 50, "test");
-        Contract contract = f.create(20, 30);
+        Contract contract = f.create(REWARD, COLLATERAL);
         f.expect(f.manager.accept(f.courier, contract.id()), true, "accept");
         HolderLookup.Provider registries = helper.getLevel().registryAccess();
 
@@ -458,14 +452,14 @@ public final class ContractGameTests {
         Escrow.Holding before = escrow.holding(contract.id());
         Escrow.Holding after = Escrow.load(escrow.save(new CompoundTag(), registries), registries).holding(contract.id());
         helper.assertValueEqual(after.reward(), 20L, "escrowed reward");
-        helper.assertValueEqual(after.collateral(), 30L, "escrowed collateral");
+        helper.assertValueEqual(after.collateral(), COLLATERAL, "escrowed collateral");
         helper.assertTrue(sameStacks(before.items(), after.items()), "escrowed items after reload");
 
-        Mailbox mailbox = Mailbox.get(f.server());
-        mailbox.post(f.courier.getUUID(), List.of(new ItemStack(Items.DIAMOND, 3)));
-        Mailbox mailReloaded = Mailbox.load(mailbox.save(new CompoundTag(), registries), registries);
-        helper.assertTrue(sameStacks(mailbox.contents(f.courier.getUUID()),
-                mailReloaded.contents(f.courier.getUUID())), "mailbox after reload");
+        Mailbox.get(f.server()).post(f.courier.getUUID(), List.of(new ItemStack(Items.DIAMOND, 3)));
+        CourierInbox inbox = CourierInbox.get(f.server());
+        CourierInbox inboxReloaded = CourierInbox.load(inbox.save(new CompoundTag(), registries), registries);
+        helper.assertTrue(sameStacks(inbox.allItemStacks(f.courier.getUUID()),
+                inboxReloaded.allItemStacks(f.courier.getUUID())), "inbox after reload");
         helper.succeed();
     }
 
@@ -474,7 +468,7 @@ public final class ContractGameTests {
         Fixture f = new Fixture(helper);
         f.economy.deposit(f.issuer.getUUID(), 100, "test");
         f.economy.deposit(f.courier.getUUID(), 50, "test");
-        Contract contract = f.create(20, 30);
+        Contract contract = f.create(REWARD, COLLATERAL);
         f.expect(f.manager.accept(f.courier, contract.id()), true, "accept");
         long dueAt = f.manager.byId(contract.id()).orElseThrow().timing().dueAt();
 
@@ -497,7 +491,7 @@ public final class ContractGameTests {
         Fixture f = new Fixture(helper);
         f.economy.deposit(f.issuer.getUUID(), 100, "test");
         f.economy.deposit(f.courier.getUUID(), 50, "test");
-        Contract contract = f.create(20, 30);
+        Contract contract = f.create(REWARD, COLLATERAL);
         f.expect(f.manager.accept(f.courier, contract.id()), true, "accept");
         f.spawn(contract);
 
@@ -508,8 +502,9 @@ public final class ContractGameTests {
         f.expect(f.manager.damage(contract.id(), new ContractManager.DropSite(helper.getLevel(), site, pirate)),
                 false, "second damage");
         helper.assertValueEqual(f.state(contract), ContractState.FAILED, "state");
-        helper.assertValueEqual(f.economy.balance(f.issuer.getUUID()), 129L, "issuer: 79 + reward 20 + collateral 30");
-        helper.assertValueEqual(f.economy.balance(f.courier.getUUID()), 20L, "courier lost the collateral");
+        helper.assertValueEqual(f.economy.balance(f.issuer.getUUID()), 79L + REWARD + COLLATERAL,
+                "issuer: 79 + reward + collateral");
+        helper.assertValueEqual(f.economy.balance(f.courier.getUUID()), 50L - COLLATERAL, "courier lost the collateral");
         helper.assertValueEqual(f.dropped(site, Items.COBBLESTONE), 16, "half of 32 cobblestone");
         helper.assertValueEqual(f.dropped(site, Items.IRON_INGOT), 2, "floor(5 × 0.5) iron");
         helper.assertTrue(Escrow.get(f.server()).holding(contract.id()).isEmpty(), "Escrow must be empty");
@@ -524,7 +519,7 @@ public final class ContractGameTests {
         Fixture f = new Fixture(helper);
         f.economy.deposit(f.issuer.getUUID(), 100, "test");
         f.economy.deposit(f.courier.getUUID(), 50, "test");
-        Contract contract = f.create(20, 30);
+        Contract contract = f.create(REWARD, COLLATERAL);
         f.expect(f.manager.accept(f.courier, contract.id()), true, "accept");
         f.spawn(contract);
 
@@ -532,7 +527,7 @@ public final class ContractGameTests {
         f.expect(f.manager.damage(contract.id(), new ContractManager.DropSite(helper.getLevel(), site, f.courier)),
                 true, "damage");
         helper.assertValueEqual(f.state(contract), ContractState.FAILED, "state");
-        helper.assertValueEqual(f.economy.balance(f.issuer.getUUID()), 129L, "issuer is paid anyway");
+        helper.assertValueEqual(f.economy.balance(f.issuer.getUUID()), 79L + REWARD + COLLATERAL, "issuer is paid anyway");
         helper.assertValueEqual(f.dropped(site, Items.COBBLESTONE) + f.dropped(site, Items.IRON_INGOT), 0, "drops");
         helper.succeed();
     }
@@ -543,7 +538,7 @@ public final class ContractGameTests {
         Fixture f = new Fixture(helper);
         f.economy.deposit(f.issuer.getUUID(), 100, "test");
         f.economy.deposit(f.courier.getUUID(), 50, "test");
-        Contract contract = f.create(20, 30);
+        Contract contract = f.create(REWARD, COLLATERAL);
         f.expect(f.manager.accept(f.courier, contract.id()), true, "accept");
         f.spawn(contract);
         ServerPlayer pirate = FakePlayerFactory.get(helper.getLevel(), new GameProfile(UUID.randomUUID(), "pirate"));
@@ -554,12 +549,16 @@ public final class ContractGameTests {
                 .thenExecute(() -> {
                     CargoTracker.Snapshot snapshot = CargoTracker.get(contract.id()).orElseThrow();
                     pirate.setPos(snapshot.position().x(), snapshot.position().y(), snapshot.position().z());
-                    helper.assertTrue(pirate.gameMode.destroyBlock(snapshot.plotPos()),
-                            "The pirate could not break the container at " + snapshot.plotPos());
+                    // CargoEvents always cancels the BreakEvent and dismantles the structure itself, so the
+                    // vanilla call reports false even when the container was damaged.
+                    pirate.gameMode.destroyBlock(snapshot.plotPos());
+                    helper.assertFalse(helper.getLevel().getBlockState(snapshot.plotPos()).getBlock()
+                            instanceof dev.poligorn.aerocouriers.cargo.CargoBlock,
+                            "The container is still in the plot at " + snapshot.plotPos());
                     helper.assertValueEqual(f.state(contract), ContractState.FAILED, "state");
                     Vec3 site = new Vec3(snapshot.position().x(), snapshot.position().y(), snapshot.position().z());
                     helper.assertValueEqual(f.dropped(site, Items.COBBLESTONE), 16, "cobblestone dropped in the world");
-                    helper.assertValueEqual(f.economy.balance(f.issuer.getUUID()), 129L, "issuer paid");
+                    helper.assertValueEqual(f.economy.balance(f.issuer.getUUID()), 79L + REWARD + COLLATERAL, "issuer paid");
                     f.clearDrops(site);
                 })
                 .thenIdle(SABLE_SETTLE_TICKS)
@@ -571,7 +570,7 @@ public final class ContractGameTests {
         Fixture f = new Fixture(helper);
         f.economy.deposit(f.issuer.getUUID(), 100, "test");
         f.economy.deposit(f.courier.getUUID(), 50, "test");
-        Contract contract = f.create(20, 30);
+        Contract contract = f.create(REWARD, COLLATERAL);
         f.expect(f.manager.accept(f.courier, contract.id()), true, "accept");
         f.spawn(contract);
 
@@ -586,7 +585,7 @@ public final class ContractGameTests {
                     helper.assertValueEqual(f.state(contract), ContractState.IN_TRANSIT, "grace period");
                     f.manager.tick(f.server(), now + ContractManager.MISSING_GRACE_TICKS);
                     helper.assertValueEqual(f.state(contract), ContractState.FAILED, "destroyed after the grace period");
-                    helper.assertValueEqual(f.economy.balance(f.issuer.getUUID()), 129L, "issuer paid");
+                    helper.assertValueEqual(f.economy.balance(f.issuer.getUUID()), 79L + REWARD + COLLATERAL, "issuer paid");
                     helper.assertTrue(Mailbox.get(f.server()).contents(f.issuer.getUUID()).isEmpty(), "Cargo is lost");
                     helper.assertTrue(Mailbox.get(f.server()).contents(f.courier.getUUID()).isEmpty(), "Cargo is lost");
                 })
@@ -599,7 +598,7 @@ public final class ContractGameTests {
         Fixture f = new Fixture(helper);
         f.economy.deposit(f.issuer.getUUID(), 200, "test");
         f.economy.deposit(f.courier.getUUID(), 100, "test");
-        Contract lost = f.create(20, 30);
+        Contract lost = f.create(REWARD, COLLATERAL);
         f.expect(f.manager.accept(f.courier, lost.id()), true, "accept");
         f.spawn(lost);
         Vector3d below = f.world(TARGET).sub(0, 1000, 0);
@@ -607,7 +606,7 @@ public final class ContractGameTests {
         helper.assertValueEqual(f.state(lost), ContractState.FAILED, "destroyed");
 
         f.fillChest();
-        Contract dropped = f.create(20, 30);
+        Contract dropped = f.create(REWARD, COLLATERAL);
         f.expect(f.manager.accept(f.courier, dropped.id()), true, "accept");
         f.spawn(dropped);
         f.expect(f.manager.abandon(f.courier, dropped.id()), true, "abandon");
@@ -648,15 +647,12 @@ public final class ContractGameTests {
 
         Fixture(GameTestHelper helper) {
             this.helper = helper;
-            this.issuer = FakePlayerFactory.get(helper.getLevel(), new GameProfile(UUID.randomUUID(), "issuer"));
-            this.courier = FakePlayerFactory.get(helper.getLevel(), new GameProfile(UUID.randomUUID(), "courier"));
+            this.issuer = TestPlayers.player(helper, "issuer");
+            this.courier = TestPlayers.courier(helper, "courier");
             this.manager = ContractManager.get(server());
             this.economy = Economies.get(server());
             issuer.setPos(Vec3.atCenterOf(helper.absolutePos(CHEST)));
-            var curios = CuriosApi.getCuriosInventory(courier).orElseThrow();
-            curios.setEquippedCurio(Licenses.CURIOS_SLOT, 0, new ItemStack(ModItems.PILOT_LICENSE.get()));
-            Licenses.tickWorn(courier, Licenses.findLicense(courier).orElseThrow());
-            ContractManager.registerTestPlayer(courier);
+            TestPlayers.giveWaybills(issuer, 4);
             for (int x = 0; x < 8; x++) {
                 for (int z = 0; z < 8; z++) {
                     helper.setBlock(new BlockPos(x, 0, z), Blocks.STONE);

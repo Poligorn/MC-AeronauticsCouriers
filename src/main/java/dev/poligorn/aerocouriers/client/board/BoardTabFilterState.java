@@ -17,6 +17,17 @@ public final class BoardTabFilterState {
     private BoardSortKey sortKey = BoardSortKey.REWARD;
     private boolean sortDescending = true;
 
+    /** Identity of the last {@code source} list; not {@link List#equals}, which deep-compares BoardEntry records. */
+    private List<BoardSnapshotPayload.BoardEntry> cachedSource;
+    private BoardSnapshotPayload.BoardProfile cachedProfile;
+    private int cachedHauls = Integer.MIN_VALUE;
+    private boolean cachedOnlyAvailable;
+    private BoardContractKind cachedKind;
+    private BoardSortKey cachedSort;
+    private boolean cachedDesc;
+    private EnumSet<CargoSize> cachedSizes;
+    private List<BoardSnapshotPayload.BoardEntry> cachedOut = List.of();
+
     public EnumSet<CargoSize> sizes() {
         return EnumSet.copyOf(sizes);
     }
@@ -98,6 +109,18 @@ public final class BoardTabFilterState {
             List<BoardSnapshotPayload.BoardEntry> source,
             BoardSnapshotPayload.BoardProfile profile,
             int activeHauls) {
+        BoardSortKey sort = sortKey();
+        if (source == cachedSource
+                && profile == cachedProfile
+                && activeHauls == cachedHauls
+                && onlyAvailable == cachedOnlyAvailable
+                && contractKind == cachedKind
+                && sort == cachedSort
+                && sortDescending == cachedDesc
+                && cachedSizes != null
+                && sizes.equals(cachedSizes)) {
+            return cachedOut;
+        }
         List<BoardSnapshotPayload.BoardEntry> out = new ArrayList<>();
         for (BoardSnapshotPayload.BoardEntry entry : source) {
             if (!matches(entry, profile, activeHauls)) {
@@ -107,8 +130,17 @@ public final class BoardTabFilterState {
         }
         Map<java.util.UUID, Integer> index = BoardSortKey.indexMap(source);
         Comparator<BoardSnapshotPayload.BoardEntry> cmp =
-                BoardSortKey.comparator(sortKey(), index);
+                BoardSortKey.comparator(sort, index);
         out.sort(sortDescending ? cmp.reversed() : cmp);
+        cachedSource = source;
+        cachedProfile = profile;
+        cachedHauls = activeHauls;
+        cachedOnlyAvailable = onlyAvailable;
+        cachedKind = contractKind;
+        cachedSort = sort;
+        cachedDesc = sortDescending;
+        cachedSizes = EnumSet.copyOf(sizes);
+        cachedOut = out;
         return out;
     }
 

@@ -21,6 +21,16 @@ public final class AdminOrdersFilterState {
     private BoardSortKey sortKey = BoardSortKey.REWARD;
     private boolean sortDescending = true;
 
+    /** Identity of the last {@code source} list; not {@link List#equals}. */
+    private List<BoardSnapshotPayload.AdminActiveEntry> cachedSource;
+    private boolean cachedOpen;
+    private boolean cachedInTransit;
+    private EnumSet<CargoSize> cachedSizes;
+    private AdminContractKind cachedKind;
+    private BoardSortKey cachedSort;
+    private boolean cachedDesc;
+    private List<BoardSnapshotPayload.AdminActiveEntry> cachedOut = List.of();
+
     public boolean statusOpen() {
         return statusOpen;
     }
@@ -109,6 +119,16 @@ public final class AdminOrdersFilterState {
     }
 
     public List<BoardSnapshotPayload.AdminActiveEntry> apply(List<BoardSnapshotPayload.AdminActiveEntry> source) {
+        if (source == cachedSource
+                && statusOpen == cachedOpen
+                && statusInTransit == cachedInTransit
+                && contractKind == cachedKind
+                && sortKey == cachedSort
+                && sortDescending == cachedDesc
+                && cachedSizes != null
+                && sizes.equals(cachedSizes)) {
+            return cachedOut;
+        }
         List<BoardSnapshotPayload.AdminActiveEntry> out = new ArrayList<>();
         for (BoardSnapshotPayload.AdminActiveEntry entry : source) {
             if (matches(entry)) {
@@ -121,6 +141,14 @@ public final class AdminOrdersFilterState {
         }
         Comparator<BoardSnapshotPayload.AdminActiveEntry> cmp = comparator(sortKey, index);
         out.sort(sortDescending ? cmp.reversed() : cmp);
+        cachedSource = source;
+        cachedOpen = statusOpen;
+        cachedInTransit = statusInTransit;
+        cachedKind = contractKind;
+        cachedSort = sortKey;
+        cachedDesc = sortDescending;
+        cachedSizes = EnumSet.copyOf(sizes);
+        cachedOut = out;
         return out;
     }
 

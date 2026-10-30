@@ -1,5 +1,6 @@
 package dev.poligorn.aerocouriers.contract;
 
+import dev.poligorn.aerocouriers.net.CouriersNetwork;
 import dev.poligorn.aerocouriers.net.NotificationAlertPayload;
 import dev.poligorn.aerocouriers.net.NotificationSyncPayload;
 import dev.poligorn.aerocouriers.task.TaskSync;
@@ -68,7 +69,7 @@ public final class CouriersNotifications {
     }
 
     public static void sync(ServerPlayer player) {
-        if (!player.connection.hasChannel(NotificationSyncPayload.TYPE)) {
+        if (!CouriersNetwork.canSend(player, NotificationSyncPayload.TYPE)) {
             return;
         }
         MinecraftServer server = player.server;
@@ -96,7 +97,7 @@ public final class CouriersNotifications {
         SESSIONS.put(player.getUUID(), new long[] {now, away});
         sync(player);
         int missed = away < 0 ? 0 : inbox.unreadSince(player.getUUID(), away);
-        if (missed > 0 && player.connection.hasChannel(NotificationAlertPayload.TYPE)) {
+        if (missed > 0 && CouriersNetwork.canSend(player, NotificationAlertPayload.TYPE)) {
             NotificationSyncPayload.Line summary = new NotificationSyncPayload.Line(0L, now,
                     Component.translatable("ui.aerocouriers.toast.away", missed), Optional.empty(), false, false, 0,
                     NoticeKind.Category.ORDERS.ordinal(), NoticeKind.Priority.NORMAL.ordinal());
@@ -120,7 +121,7 @@ public final class CouriersNotifications {
         if (line.priority() == NoticeKind.Priority.SILENT.ordinal()) {
             return;
         }
-        if (player.connection.hasChannel(NotificationAlertPayload.TYPE)) {
+        if (CouriersNetwork.canSend(player, NotificationAlertPayload.TYPE)) {
             PacketDistributor.sendToPlayer(player, new NotificationAlertPayload(line, awayCount));
         } else {
             player.displayClientMessage(Component.translatable("ui.aerocouriers.notification.toast",

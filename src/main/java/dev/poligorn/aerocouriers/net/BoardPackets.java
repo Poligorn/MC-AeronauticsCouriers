@@ -199,7 +199,7 @@ public final class BoardPackets {
     private static BoardSnapshotPayload.AdminActiveEntry adminEntry(Contract contract, StationAtlas atlas,
                                                                    MinecraftServer server) {
         String courier = contract.courier()
-                .flatMap(id -> server.getProfileCache().get(id).map(GameProfile::getName))
+                .flatMap(id -> playerName(server, id))
                 .orElse("—");
         long now = ContractManager.now(server);
         long ticksLeft = contract.state().isActive()
@@ -415,13 +415,14 @@ public final class BoardPackets {
         return action.run(player.server, payload.contractId().get());
     }
 
-    /** FakePlayers used by GameTests have a Connection whose Netty channel is null. */
+    /** Name from the server profile cache; the cache is absent on a GameTest server. */
+    public static Optional<String> playerName(MinecraftServer server, UUID id) {
+        var cache = server.getProfileCache();
+        return cache == null ? Optional.empty() : cache.get(id).map(GameProfile::getName);
+    }
+
     private static boolean canSendBoard(ServerPlayer player) {
-        try {
-            return player.connection != null && player.connection.hasChannel(BoardSnapshotPayload.TYPE);
-        } catch (RuntimeException ignored) {
-            return false;
-        }
+        return CouriersNetwork.canSend(player, BoardSnapshotPayload.TYPE);
     }
 
     static void denyTablet(ServerPlayer player) {
@@ -485,9 +486,7 @@ public final class BoardPackets {
         String customerName = service ? BoardSnapshotPayload.BoardEntry.COURIER_SERVICE
                 : villageCustomer
                 ? label(atlas, contract.origin())
-                : server.getProfileCache()
-                        .get(contract.issuer())
-                        .map(GameProfile::getName)
+                : playerName(server, contract.issuer())
                         .orElse(contract.issuer().toString().substring(0, 8));
         int customerStationReputation = villageCustomer ? atlas.reputation(contract.issuer()) : 0;
         int customerTier = villageCustomer ? StationReputation.tier(customerStationReputation) : 0;

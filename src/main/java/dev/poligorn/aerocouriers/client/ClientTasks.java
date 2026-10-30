@@ -18,6 +18,12 @@ public final class ClientTasks {
     private static boolean autoTrack = true;
     private static long serverTime;
     private static long clientTimeAtSync;
+    private static List<TaskView> liveSource;
+    private static List<TaskView> live = List.of();
+    private static List<TaskView> done = List.of();
+    private static List<TaskView> onScreenCache = List.of();
+    private static List<TaskView> activeCache = List.of();
+    private static long sortedAtSecond = Long.MIN_VALUE;
 
     private ClientTasks() {
     }
@@ -26,6 +32,7 @@ public final class ClientTasks {
         tasks = List.copyOf(payload.tasks());
         autoTrack = payload.autoTrack();
         serverTime = payload.worldTime();
+        liveSource = null;
         Minecraft mc = Minecraft.getInstance();
         clientTimeAtSync = mc.level != null ? mc.level.getGameTime() : 0L;
         if (mc.screen instanceof CourierBoardScreen screen) {
@@ -35,6 +42,7 @@ public final class ClientTasks {
 
     public static void clear() {
         tasks = List.of();
+        liveSource = null;
     }
 
     public static List<TaskView> all() {
@@ -70,12 +78,36 @@ public final class ClientTasks {
             .thenComparingLong(TaskView::createdAt);
 
     public static List<TaskView> active() {
-        return tasks.stream().filter(t -> !t.done()).sorted(ORDER).toList();
+        refreshDerived();
+        return activeCache;
+    }
+
+    /** Finished tasks in packet order. */
+    public static List<TaskView> done() {
+        refreshDerived();
+        return done;
     }
 
     /** Tracked, unfinished tasks in panel order: urgent, pinned, then by appearance. */
     public static List<TaskView> onScreen() {
-        return tasks.stream().filter(t -> t.tracked() && !t.done()).sorted(ORDER).toList();
+        refreshDerived();
+        return onScreenCache;
+    }
+
+    private static void refreshDerived() {
+        if (liveSource != tasks) {
+            live = tasks.stream().filter(t -> !t.done()).toList();
+            done = tasks.stream().filter(TaskView::done).toList();
+            liveSource = tasks;
+            sortedAtSecond = Long.MIN_VALUE;
+        }
+        long second = now() / 20;
+        if (second == sortedAtSecond) {
+            return;
+        }
+        sortedAtSecond = second;
+        activeCache = live.stream().sorted(ORDER).toList();
+        onScreenCache = activeCache.stream().filter(TaskView::tracked).toList();
     }
 
     public static Optional<ZoneSyncPayload.Zone> zone(TaskView task, int which) {
