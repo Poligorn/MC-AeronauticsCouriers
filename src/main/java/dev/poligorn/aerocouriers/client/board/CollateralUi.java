@@ -4,8 +4,8 @@ import dev.poligorn.aerocouriers.client.ClientBoard;
 import java.util.Arrays;
 
 /**
- * Player-side collateral visibility. Under the peace profile every zero collateral element disappears; an order taken
- * before the switch still shows the collateral it holds.
+ * Player-side collateral visibility. Under the peace profile a zero collateral element is hidden. Switching to peace
+ * also zeroes open and accepted orders, so a non-zero amount does not stay on the board.
  */
 public final class CollateralUi {
     private CollateralUi() {

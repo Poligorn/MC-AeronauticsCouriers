@@ -789,10 +789,13 @@ public final class WaybillCreateScreen extends Screen {
         int brRoom = Math.max(8, totX - 4 - (x0 + font.width(payLabel) + 6));
         WaybillCreateGui.textRight(g, font, MoneyText.trunc(font, br, brRoom), totX - 4, layout.payY + yOff,
                 WaybillPalette.INK, false);
-        String risk = profile.noCollateral()
-                ? tr("ui.aerocouriers.create.no_collateral", MoneyFormat.text(rewardValue))
-                : tr("ui.aerocouriers.create.risk_issuer",
-                        MoneyFormat.text(parseLong(collateral, 0)), MoneyFormat.text(rewardValue));
+        if (profile.noCollateral()) {
+            WaybillCreateGui.peacePlate(g, font, x0, layout.riskY + yOff,
+                    tr("ui.aerocouriers.create.no_collateral_plate"));
+            return;
+        }
+        String risk = tr("ui.aerocouriers.create.risk_issuer",
+                MoneyFormat.text(parseLong(collateral, 0)), MoneyFormat.text(rewardValue));
         String shown = TabletDraw.trunc(font, risk, Math.max(16, x1 - x0 - 22));
         WaybillCreateGui.riskBanner(g, font, x0, layout.riskY + yOff, x1, shown);
         if (!shown.equals(risk) && TabletDraw.inside(mouseX, mouseY, x0, layout.riskY + yOff, x1 - x0, 14)) {

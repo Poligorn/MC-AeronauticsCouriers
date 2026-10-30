@@ -42,7 +42,7 @@ public final class CollateralProfiles {
 
     /**
      * Admin switch: saves the config, regenerates open village orders under the new rules and, for peace, zeroes the
-     * collateral of open player orders. Accepted orders keep the collateral they were taken with.
+     * collateral of open and accepted orders (a deposit already paid is returned to the courier).
      */
     public static ContractManager.Outcome apply(MinecraftServer server, CollateralProfile next) {
         CollateralProfile previous = CollateralProfile.active();

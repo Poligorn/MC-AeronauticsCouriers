@@ -1493,13 +1493,23 @@ public final class ContractManager extends SavedData {
     }
 
     /**
-     * Peace profile: open orders drop their collateral so a courier never pays what the UI no longer shows. The
-     * issuer's own minimum rank survives; the collateral part of the requirement is recomputed.
+     * Peace profile: open and accepted orders drop their collateral so nothing non-zero stays on the board. A deposit
+     * already taken from the courier is returned. The issuer's own minimum rank survives; the collateral part of the
+     * requirement is recomputed.
      */
     public int clearOpenCollateral() {
         int changed = 0;
+        Economy economy = server == null ? null : Economies.get(server);
+        Escrow escrow = server == null ? null : Escrow.get(server);
         for (Contract c : List.copyOf(contracts.values())) {
-            if (c.state() != ContractState.OPEN || c.collateral() <= 0) {
+            if (c.state().isFinal() || (!c.state().isActive() && c.state() != ContractState.OPEN)) {
+                continue;
+            }
+            long held = escrow == null ? 0L : escrow.takeCollateral(c.id());
+            if (held > 0 && economy != null) {
+                c.courier().ifPresent(id -> economy.deposit(id, held, "peace_collateral_refund:" + c.id()));
+            }
+            if (c.collateral() <= 0 && held <= 0) {
                 continue;
             }
             LicenseRank byOld = ContractDistances.routeRequiredRank(c.collateral(), c.size(), c.origin(), c.destination());
