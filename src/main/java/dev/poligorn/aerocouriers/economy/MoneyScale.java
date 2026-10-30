@@ -8,11 +8,28 @@ import net.neoforged.fml.ModList;
  * {@code economy.emerald_value_spurs} (default 8): one emerald is worth that many spurs.
  */
 public final class MoneyScale {
+    /** Last backend the server reported to this client; {@code null} until the first board/waybill packet. */
+    private static volatile Boolean reportedNumismatics;
+
     private MoneyScale() {
+    }
+
+    /** Client side: the server's active backend wins over the local mod list and synced config. */
+    public static void reportBackend(boolean numismatics) {
+        reportedNumismatics = numismatics;
+    }
+
+    public static void clearReportedBackend() {
+        reportedNumismatics = null;
     }
 
     public static boolean numismaticsBackend() {
         boolean loaded = ModList.get().isLoaded("numismatics");
+        Boolean reported = reportedNumismatics;
+        if (reported != null && net.neoforged.fml.loading.FMLEnvironment.dist.isClient()
+                && net.neoforged.neoforge.server.ServerLifecycleHooks.getCurrentServer() == null) {
+            return reported && loaded;
+        }
         if (!CouriersServerConfig.SPEC.isLoaded()) {
             return loaded;
         }

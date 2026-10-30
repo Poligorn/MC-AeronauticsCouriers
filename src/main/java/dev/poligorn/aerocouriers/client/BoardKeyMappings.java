@@ -16,15 +16,28 @@ final class BoardKeyMappings {
             GLFW.GLFW_KEY_J,
             "key.categories.aerocouriers");
 
+    /** Unbound by default: packs already use most letters (K included). */
+    static final KeyMapping TASK_PANEL = new KeyMapping(
+            "key.aerocouriers.task_panel",
+            InputConstants.Type.KEYSYM,
+            InputConstants.UNKNOWN.getValue(),
+            "key.categories.aerocouriers");
+
     private BoardKeyMappings() {
     }
 
     static void register(RegisterKeyMappingsEvent event) {
         event.register(OPEN_BOARD);
+        event.register(TASK_PANEL);
     }
 
     static void onClientTick(ClientTickEvent.Post event) {
         Minecraft minecraft = Minecraft.getInstance();
+        while (TASK_PANEL.consumeClick()) {
+            if (minecraft.screen == null) {
+                TaskPanelHud.cycleMode();
+            }
+        }
         while (OPEN_BOARD.consumeClick()) {
             if (minecraft.screen instanceof CourierBoardScreen) {
                 minecraft.setScreen(null);

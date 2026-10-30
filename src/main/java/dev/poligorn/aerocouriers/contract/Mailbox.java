@@ -52,7 +52,8 @@ public final class Mailbox extends SavedData {
             return;
         }
         MinecraftServer server = requireServer();
-        CourierInbox.get(server).postItems(server, player, items, text);
+        CourierInbox.Message message = CourierInbox.get(server).postItems(server, player, items, text);
+        CouriersNotifications.cargoPosted(server, player, message);
     }
 
     /** "Забрать всё": moves what fits into the inventory, the rest stays in the mailbox. Returns stacks moved. */

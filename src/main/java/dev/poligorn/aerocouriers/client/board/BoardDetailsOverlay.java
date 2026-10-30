@@ -30,6 +30,11 @@ public final class BoardDetailsOverlay extends TabletOverlay {
     private static final int VALUE_X = LABEL_X + 66;
     private static final int RIGHT_EDGE = W - 12;
     private static final int BUTTONS_Y = H - 42;
+
+    /** Screen Y of the Accept / Show-on-map row, after {@link #layout}. */
+    public int buttonsScreenTop() {
+        return screenY(BUTTONS_Y);
+    }
     private static final int MAP_X = 10;
     private static final int MAP_W = 150;
     private static final int BACK_W = 70;
@@ -278,26 +283,17 @@ public final class BoardDetailsOverlay extends TabletOverlay {
                 VALUE_X, ry, TabletPalette.GOLD);
         ry += 13;
 
-        label(graphics, font, "ui.aerocouriers.details.collateral", ry);
-        long due = host.collateralDue(e);
-        boolean trainee = host.traineeFree(e);
-        int color = due > 0 ? TabletPalette.CORAL : TabletPalette.TEAL;
-        String amount = dev.poligorn.aerocouriers.economy.MoneyFormat.text(due);
-        TabletDraw.bold(graphics, font, amount, VALUE_X, ry, color);
-        String note = !e.state().equals(ContractState.OPEN)
-                ? Component.translatable("ui.aerocouriers.details.collateral_held").getString()
-                : trainee ? Component.translatable("ui.aerocouriers.details.collateral_trainee").getString()
-                : due <= 0 ? Component.translatable("ui.aerocouriers.card.collateral_none").getString()
-                : Component.translatable("ui.aerocouriers.details.collateral_note").getString();
-        int noteX = VALUE_X + TabletDraw.boldWidth(font, amount) + 5;
-        TabletDraw.text(graphics, font, TabletDraw.trunc(font, note, RIGHT_EDGE - noteX), noteX, ry, color);
-        ry += 13;
+        if (!CollateralUi.hidden(e.collateral())) {
+            ry = collateralRow(graphics, font, e, ry);
+        }
         ry = separator(graphics, ry);
 
         label(graphics, font, "ui.aerocouriers.details.deadline", ry);
-        String deadline = Component.translatable("ui.aerocouriers.details.minutes", e.deadlineMinutes()).getString();
+        String deadline = e.courierService()
+                ? Component.translatable("ui.aerocouriers.tutorial.no_deadline").getString()
+                : Component.translatable("ui.aerocouriers.details.minutes", e.deadlineMinutes()).getString();
         TabletDraw.text(graphics, font, deadline, VALUE_X, ry, TabletPalette.TXT);
-        if (e.state().isActive()) {
+        if (e.state().isActive() && !e.courierService()) {
             String left = "· " + Component.translatable("ui.aerocouriers.details.minutes_left", e.minutesLeft())
                     .getString();
             TabletDraw.text(graphics, font, left, VALUE_X + font.width(deadline) + 4, ry,
@@ -324,7 +320,8 @@ public final class BoardDetailsOverlay extends TabletOverlay {
         ry += 13;
 
         label(graphics, font, "ui.aerocouriers.details.type", ry);
-        String type = Component.translatable(e.villageCustomer()
+        String type = Component.translatable(e.courierService() ? "ui.aerocouriers.details.type.tutorial"
+                : e.villageCustomer()
                 ? "ui.aerocouriers.details.type.village" : "ui.aerocouriers.details.type.player").getString();
         if (e.originRevealed()) {
             type = Component.translatable(e.originStation()
@@ -349,6 +346,13 @@ public final class BoardDetailsOverlay extends TabletOverlay {
         customerY = ry - 1;
         customerW = 10 + font.width(name);
         boolean hover = TabletDraw.inside(mx, my, customerX, customerY, customerW, 11);
+        if (e.courierService()) {
+            PixelGlyphs.draw(graphics, VALUE_X, ry, PixelGlyphs.HOUSE, TabletPalette.TEAL);
+            TabletDraw.text(graphics, font, name, VALUE_X + 10, ry, TabletPalette.TEAL);
+            TabletDraw.text(graphics, font, "· " + Component.translatable("ui.aerocouriers.tutorial.system")
+                    .getString(), VALUE_X + 14 + font.width(name), ry, TabletPalette.SEC);
+            return;
+        }
         if (e.villageCustomer()) {
             PixelGlyphs.draw(graphics, VALUE_X, ry, PixelGlyphs.HOUSE, TabletPalette.TXT);
             TabletDraw.text(graphics, font, name, VALUE_X + 10, ry, TabletPalette.TXT);
@@ -483,8 +487,28 @@ public final class BoardDetailsOverlay extends TabletOverlay {
         }
     }
 
+    private int collateralRow(GuiGraphics graphics, Font font, BoardSnapshotPayload.BoardEntry e, int ry) {
+        label(graphics, font, "ui.aerocouriers.details.collateral", ry);
+        long due = host.collateralDue(e);
+        boolean trainee = host.traineeFree(e);
+        int color = due > 0 ? TabletPalette.CORAL : TabletPalette.TEAL;
+        String amount = dev.poligorn.aerocouriers.economy.MoneyFormat.text(due);
+        TabletDraw.bold(graphics, font, amount, VALUE_X, ry, color);
+        String note = !e.state().equals(ContractState.OPEN)
+                ? Component.translatable("ui.aerocouriers.details.collateral_held").getString()
+                : trainee ? Component.translatable("ui.aerocouriers.details.collateral_trainee").getString()
+                : due <= 0 ? Component.translatable("ui.aerocouriers.card.collateral_none").getString()
+                : Component.translatable("ui.aerocouriers.details.collateral_note").getString();
+        int noteX = VALUE_X + TabletDraw.boldWidth(font, amount) + 5;
+        TabletDraw.text(graphics, font, TabletDraw.trunc(font, note, RIGHT_EDGE - noteX), noteX, ry, color);
+        return ry + 13;
+    }
+
     private String acceptLabel(BoardSnapshotPayload.BoardEntry e) {
         long due = host.collateralDue(e);
+        if (CollateralUi.hidden(e.collateral())) {
+            return Component.translatable("ui.aerocouriers.details.accept_plain").getString();
+        }
         return due > 0
                 ? Component.translatable("ui.aerocouriers.details.accept",
                         dev.poligorn.aerocouriers.economy.MoneyFormat.text(due)).getString()

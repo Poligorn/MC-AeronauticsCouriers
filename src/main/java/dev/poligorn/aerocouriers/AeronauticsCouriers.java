@@ -5,7 +5,9 @@ import dev.poligorn.aerocouriers.cargo.CargoEvents;
 import dev.poligorn.aerocouriers.command.CouriersCommands;
 import dev.poligorn.aerocouriers.config.CouriersClientConfig;
 import dev.poligorn.aerocouriers.config.CouriersServerConfig;
+import dev.poligorn.aerocouriers.contract.CollateralProfiles;
 import dev.poligorn.aerocouriers.contract.ContractManager;
+import dev.poligorn.aerocouriers.contract.CouriersNotifications;
 import dev.poligorn.aerocouriers.contract.ItemValues;
 import dev.poligorn.aerocouriers.contract.ItemWeights;
 import dev.poligorn.aerocouriers.gametest.CouriersGameTests;
@@ -59,6 +61,11 @@ public final class AeronauticsCouriers {
         NeoForge.EVENT_BUS.addListener(LicenseMigration::onPlayerLoggedIn);
         NeoForge.EVENT_BUS.addListener(EconomyLoginMigration::onPlayerLoggedIn);
         NeoForge.EVENT_BUS.addListener(ContractManager::onPlayerLoggedIn);
+        NeoForge.EVENT_BUS.addListener(CouriersNotifications::onPlayerLoggedIn);
+        NeoForge.EVENT_BUS.addListener(CouriersNotifications::onPlayerLoggedOut);
+        NeoForge.EVENT_BUS.addListener(dev.poligorn.aerocouriers.task.TaskSync::onPlayerLoggedIn);
+        NeoForge.EVENT_BUS.addListener(dev.poligorn.aerocouriers.tutorial.Tutorials::onServerTick);
+        NeoForge.EVENT_BUS.addListener(dev.poligorn.aerocouriers.task.TaskSync::onServerTick);
         NeoForge.EVENT_BUS.addListener(ContractManager::onServerTick);
         NeoForge.EVENT_BUS.addListener(StationAtlas::onServerTick);
         NeoForge.EVENT_BUS.addListener(StationContractSource::onServerTick);
@@ -67,6 +74,7 @@ public final class AeronauticsCouriers {
         NeoForge.EVENT_BUS.addListener(ItemValues::onAddReloadListeners);
         NeoForge.EVENT_BUS.addListener(ItemWeights::onAddReloadListeners);
         NeoForge.EVENT_BUS.addListener(VillageStructures::onServerAboutToStart);
+        NeoForge.EVENT_BUS.addListener(CollateralProfiles::onServerStarted);
         CargoEvents.register();
         if (GameTestHooks.isGametestEnabled()) {
             NeoForge.EVENT_BUS.addListener(CouriersGameTests::createEmptyTemplate);

@@ -439,6 +439,13 @@ public final class WaybillCreateGui {
         text(g, font, shown, vx, y, WaybillPalette.INK);
     }
 
+    /** Short «no collateral» plate: width follows the label, unlike the full-width risk banner. */
+    public static void peacePlate(GuiGraphics g, Font font, int x, int y, String line) {
+        int w = font.width(line) + 12;
+        box(g, x, y, x + w, y + 13, WaybillPalette.PAPER2, WaybillPalette.RULE);
+        text(g, font, line, x + 6, y + 3, WaybillPalette.INK);
+    }
+
     public static void riskBanner(GuiGraphics g, Font font, int x0, int y, int x1, String line) {
         box(g, x0, y, x1, y + 13, WaybillPalette.RED_BG, WaybillPalette.RED);
         PixelGlyphs.draw(g, x0 + 5, y + 4, PixelGlyphs.WARN, WaybillPalette.RED);

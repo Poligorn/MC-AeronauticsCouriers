@@ -75,6 +75,8 @@ public final class WaybillCreateLayout {
     public final int zoneChipX;
     public final int zoneChipY;
     public final int durationChipX;
+    /** Collateral row and the cargo value line are left out and the rows below move up. */
+    public final boolean noCollateral;
 
     private WaybillCreateLayout(
             double scale, int ox, int oy, int screenW, int screenH,
@@ -87,7 +89,8 @@ public final class WaybillCreateLayout {
             int deadlineY, int rankY, int rankRaiseY, int section3Y, int routeY, int summaryY,
             int section4Y, int payY, int riskY, int footerRuleY, int buttonY,
             int cancelX, int cancelW, int submitX, int submitW,
-            int pickX, int pickY, int zoneChipX, int zoneChipY, int durationChipX) {
+            int pickX, int pickY, int zoneChipX, int zoneChipY, int durationChipX, boolean noCollateral) {
+        this.noCollateral = noCollateral;
         this.scale = scale;
         this.ox = ox;
         this.oy = oy;
@@ -174,19 +177,23 @@ public final class WaybillCreateLayout {
     }
 
     public static WaybillCreateLayout compute(int screenW, int screenH) {
+        return compute(screenW, screenH, false);
+    }
+
+    public static WaybillCreateLayout compute(int screenW, int screenH, boolean noCollateral) {
         double fit = Math.min(screenW / (double) DESIGN_W, screenH / (double) DESIGN_H);
         if (fit < 1.0) {
             double fitX = (screenW - DESIGN_W * fit) / 2.0;
             double fitY = (screenH - DESIGN_H * fit) / 2.0;
-            return fromScale(1.0, 0, 0, screenW, screenH, fit, fitX, fitY);
+            return fromScale(1.0, 0, 0, screenW, screenH, fit, fitX, fitY, noCollateral);
         }
         int ox = (int) Math.round((screenW - DESIGN_W * fit) / 2.0);
         int oy = (int) Math.round((screenH - DESIGN_H * fit) / 2.0);
-        return fromScale(fit, ox, oy, screenW, screenH, 1.0, 0.0, 0.0);
+        return fromScale(fit, ox, oy, screenW, screenH, 1.0, 0.0, 0.0, noCollateral);
     }
 
     private static WaybillCreateLayout fromScale(double s, int ox, int oy, int screenW, int screenH,
-                                                 double fitScale, double fitX, double fitY) {
+                                                 double fitScale, double fitX, double fitY, boolean noCollateral) {
         int bx0 = map(ox, s, 40);
         int by0 = map(oy, s, 36);
         int bx1 = map(ox, s, 599);
@@ -211,12 +218,12 @@ public final class WaybillCreateLayout {
         int rightColX0 = cx0 + Math.max(180, (int) Math.round(246 * s));
         int fieldX0 = rightColX0 + Math.max(80, (int) Math.round(112 * s));
         int rewardY = section1Y + 14;
-        int collateralY = rewardY + 18;
+        int collateralY = noCollateral ? rewardY : rewardY + 18;
         int collateralErrY = collateralY + 16;
-        int deadlineY = collateralY + 28;
+        int deadlineY = noCollateral ? rewardY + 20 : collateralY + 28;
         int rankY = deadlineY + 19;
         int rankRaiseY = rankY + 11;
-        int leftEnd = cargoMetaY + 33;
+        int leftEnd = cargoMetaY + (noCollateral ? 21 : 33);
         int rightEnd = rankRaiseY + 9;
         int section3Y = Math.max(leftEnd, rightEnd) + 6;
         int routeY = section3Y + 14;
@@ -242,7 +249,7 @@ public final class WaybillCreateLayout {
                 deadlineY, rankY, rankRaiseY, section3Y, routeY, summaryY,
                 section4Y, payY, riskY, footerRuleY, buttonY,
                 cx0, cancelW, cx1 - submitW + 1, submitW,
-                pickX, pickY, zoneChipX, routeY + 10, durationChipX);
+                pickX, pickY, zoneChipX, routeY + 10, durationChipX, noCollateral);
     }
 
     private static int map(int origin, double scale, int design) {
@@ -295,9 +302,11 @@ public final class WaybillCreateLayout {
             for (int scale : scales) {
                 int w = res[0] / scale;
                 int h = res[1] / scale;
-                WaybillCreateLayout layout = compute(w, h);
-                String id = res[0] + "x" + res[1] + "@s" + scale;
-                failures.addAll(layout.validate(id, w, h));
+                for (boolean peace : new boolean[] {false, true}) {
+                    WaybillCreateLayout layout = compute(w, h, peace);
+                    String id = res[0] + "x" + res[1] + "@s" + scale + (peace ? "/peace" : "");
+                    failures.addAll(layout.validate(id, w, h));
+                }
             }
         }
         return failures;
@@ -336,7 +345,7 @@ public final class WaybillCreateLayout {
         if (slotY + SLOT > occupiedY) {
             failures.add(id + ": slots overlap occupied line");
         }
-        if (rewardY + FIELD_H > collateralY) {
+        if (!noCollateral && rewardY + FIELD_H > collateralY) {
             failures.add(id + ": reward field overlaps collateral");
         }
         if (buttonY + BTN_H > paperY1 + 2) {

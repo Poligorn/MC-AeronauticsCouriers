@@ -121,7 +121,7 @@ public final class MineTabFilterState {
     }
 
     public BoardSortKey sortKey() {
-        return sortKey;
+        return CollateralUi.visibleSortKey(sortKey);
     }
 
     public boolean sortDescending() {
@@ -130,13 +130,13 @@ public final class MineTabFilterState {
 
     public void cycleSortKey(MineListSection section) {
         BoardSortKey[] values = section == MineListSection.HISTORY
-                ? new BoardSortKey[] {BoardSortKey.NEWEST, BoardSortKey.REWARD, BoardSortKey.DISTANCE,
-                BoardSortKey.DEADLINE, BoardSortKey.COLLATERAL}
-                : new BoardSortKey[] {BoardSortKey.DEADLINE, BoardSortKey.NEWEST, BoardSortKey.REWARD,
-                BoardSortKey.DISTANCE, BoardSortKey.COLLATERAL};
+                ? CollateralUi.playerSortKeys(BoardSortKey.NEWEST, BoardSortKey.REWARD, BoardSortKey.DISTANCE,
+                BoardSortKey.DEADLINE, BoardSortKey.COLLATERAL)
+                : CollateralUi.playerSortKeys(BoardSortKey.DEADLINE, BoardSortKey.NEWEST, BoardSortKey.REWARD,
+                BoardSortKey.DISTANCE, BoardSortKey.COLLATERAL);
         int idx = 0;
         for (int i = 0; i < values.length; i++) {
-            if (values[i] == sortKey) {
+            if (values[i] == sortKey()) {
                 idx = i;
                 break;
             }
@@ -189,7 +189,7 @@ public final class MineTabFilterState {
             out.add(entry);
         }
         Map<java.util.UUID, Integer> index = BoardSortKey.indexMap(sectionEntries);
-        Comparator<BoardSnapshotPayload.BoardEntry> cmp = BoardSortKey.comparator(sortKey, index);
+        Comparator<BoardSnapshotPayload.BoardEntry> cmp = BoardSortKey.comparator(sortKey(), index);
         out.sort(sortDescending ? cmp.reversed() : cmp);
         return out;
     }

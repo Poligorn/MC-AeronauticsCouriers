@@ -61,6 +61,11 @@ public final class InventoryBoardButton extends Button {
             graphics.fill(getX(), getY(), getX() + getWidth(), getY() + getHeight(), 0x99000000);
         }
         graphics.renderFakeItem(new ItemStack(ModItems.ORDER_TABLET.get()), getX() + 2, getY() + 2);
+        int unread = ClientNotifications.unreadCount();
+        if (unread > 0) {
+            TabletBadgeDecorator.drawBadge(graphics, Minecraft.getInstance().font, getX() + getWidth() + 2, getY() - 2,
+                    unread, ClientNotifications.unreadUrgent());
+        }
     }
 
     static int[] position(InventoryScreen screen) {

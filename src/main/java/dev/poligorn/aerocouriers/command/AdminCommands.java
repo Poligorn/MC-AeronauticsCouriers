@@ -130,6 +130,9 @@ public final class AdminCommands {
     private static LiteralArgumentBuilder<CommandSourceStack> serverBranch() {
         return Commands.literal("server")
                 .then(Commands.literal("regen").executes(AdminCommands::serverRegen))
+                .then(Commands.literal("tutorial")
+                        .then(Commands.literal("on").executes(ctx -> tutorialToggle(ctx, true)))
+                        .then(Commands.literal("off").executes(ctx -> tutorialToggle(ctx, false))))
                 .then(Commands.literal("config")
                         .then(Commands.literal("list").executes(AdminCommands::configList))
                         .then(Commands.literal("get").then(Commands.argument("key", StringArgumentType.greedyString())
@@ -144,6 +147,12 @@ public final class AdminCommands {
                                 .then(Commands.argument("value", BoolArgumentType.bool())
                                         .executes(ctx -> debugSet(ctx, "allow_self_accept",
                                                 BoolArgumentType.getBool(ctx, "value"))))));
+    }
+
+    private static int tutorialToggle(CommandContext<CommandSourceStack> ctx, boolean on) {
+        Component message = dev.poligorn.aerocouriers.tutorial.Tutorials.setEnabled(ctx.getSource().getServer(), on);
+        ctx.getSource().sendSuccess(() -> message, true);
+        return 1;
     }
 
     private static int contractList(CommandContext<CommandSourceStack> ctx) {

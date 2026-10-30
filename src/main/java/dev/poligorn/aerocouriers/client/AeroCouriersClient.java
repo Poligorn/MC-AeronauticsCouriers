@@ -37,6 +37,20 @@ public final class AeroCouriersClient {
         NeoForge.EVENT_BUS.addListener(ZoneParticles::onClientTick);
         NeoForge.EVENT_BUS.addListener(ZoneParticles::onLoggingOut);
         NeoForge.EVENT_BUS.addListener(NavRenderer::onRenderLevel);
+        NeoForge.EVENT_BUS.addListener(ClientToasts::onRenderGui);
+        NeoForge.EVENT_BUS.addListener(ClientToasts::onRenderScreen);
+        NeoForge.EVENT_BUS.addListener(TaskPanelHud::onRenderGui);
+        NeoForge.EVENT_BUS.addListener(AeroCouriersClient::onLoggingOut);
+        modBus.addListener(AeroCouriersClient::registerItemDecorations);
+    }
+
+    private static void onLoggingOut(net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent.LoggingOut event) {
+        ClientToasts.clear();
+        ClientTasks.clear();
+    }
+
+    private static void registerItemDecorations(net.neoforged.neoforge.client.event.RegisterItemDecorationsEvent event) {
+        event.register(ModItems.ORDER_TABLET.get(), new TabletBadgeDecorator());
     }
 
     private static void registerTooltips(RegisterClientTooltipComponentFactoriesEvent event) {

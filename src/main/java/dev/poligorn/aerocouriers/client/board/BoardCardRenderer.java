@@ -44,10 +44,12 @@ public final class BoardCardRenderer {
         if (style.hovered() && !style.selected()) {
             bg = TabletPalette.hoverBrighten(bg);
         }
+        boolean tutorial = entry.courierService();
         TabletDraw.box(graphics, x0, y, x1, y + CARD_H - 1, bg,
-                style.selected() ? TabletPalette.CARD_BORDER_SEL : TabletPalette.CARD_BORDER);
-        if (style.selected()) {
-            graphics.fill(x0, y, x0 + 3, y + CARD_H, TabletPalette.GOLD);
+                tutorial ? TabletPalette.TEAL
+                        : style.selected() ? TabletPalette.CARD_BORDER_SEL : TabletPalette.CARD_BORDER);
+        if (style.selected() || tutorial) {
+            graphics.fill(x0, y, x0 + 3, y + CARD_H, tutorial ? TabletPalette.TEAL : TabletPalette.GOLD);
         }
         int tc = style.locked() ? TabletPalette.LOCKC : TabletPalette.TXT;
         int sc = style.locked() ? TabletPalette.LOCKC : TabletPalette.SEC;
@@ -62,6 +64,8 @@ public final class BoardCardRenderer {
             PixelGlyphs.draw(graphics, xx - 10, y + 4, PixelGlyphs.LOCK, TabletPalette.LOCKC);
             TabletDraw.text(graphics, font, need, xx, y + 4, TabletPalette.LOCKC);
             line1RightLeft = xx - 10;
+        } else if (tutorial) {
+            line1RightLeft = TabletDraw.textRight(graphics, font, tutorialXp(), rx, y + 4, TabletPalette.TEAL, true);
         } else {
             line1RightLeft = TabletDraw.textRight(graphics, font,
                     "+" + dev.poligorn.aerocouriers.economy.MoneyFormat.text(entry.reward()), rx, y + 4,
@@ -84,7 +88,13 @@ public final class BoardCardRenderer {
         String toShown = TabletDraw.trunc(font, to, Math.max(16, Math.min(DEST_MAX_W, line1RightLeft - 8 - x - badgeW)));
         TabletDraw.text(graphics, font, toShown, x, y + 4, tc);
         x += font.width(toShown) + 6;
-        if (isNew(entry, style)) {
+        if (tutorial) {
+            String s = Component.translatable("ui.aerocouriers.tutorial.chip").getString();
+            int w = font.width(s) + 5;
+            TabletDraw.box(graphics, x, y + 2, x + w, y + 12, TabletPalette.NEW_BG, TabletPalette.TEAL);
+            TabletDraw.text(graphics, font, s, x + 3, y + 3, TabletPalette.TEAL);
+            x += w + 3;
+        } else if (isNew(entry, style)) {
             String s = "NEW";
             int w = font.width(s) + 5;
             TabletDraw.box(graphics, x, y + 2, x + w, y + 12, TabletPalette.NEW_BG, TabletPalette.TEAL);
@@ -99,7 +109,7 @@ public final class BoardCardRenderer {
             TabletDraw.text(graphics, font, s, x + 3, y + 3, color);
             x += w + 3;
         }
-        if (deadlineWarn(entry)) {
+        if (deadlineWarn(entry) && !tutorial) {
             String s = Component.translatable("ui.aerocouriers.card.deadline_warn").getString();
             TabletDraw.box(graphics, x, y + 2, x + font.width(s) + 13, y + 12, TabletPalette.WARN_BG,
                     TabletPalette.CORAL);
@@ -132,6 +142,9 @@ public final class BoardCardRenderer {
         if (MoneyText.width(font, depos) > deposRoom) {
             depos = MoneyText.trunc(font, depos, deposRoom);
         }
+        if (CollateralUi.hidden(entry.collateral())) {
+            depos = "";
+        }
         int deposW = MoneyText.width(font, depos);
         int deposX = rx - deposW;
         TabletDraw.text(graphics, font, depos, deposX, y2, deposColor);
@@ -139,10 +152,13 @@ public final class BoardCardRenderer {
         int leftStart = x0 + 18;
         int rateLimit = deposX - COL_GAP;
         boolean rateColumn = style.boardTab() || !"issuer".equals(entry.role());
-        String middleFull = rateColumn
+        String middleFull = tutorial
+                ? Component.translatable("ui.aerocouriers.tutorial.card_reward",
+                        dev.poligorn.aerocouriers.economy.MoneyFormat.text(0)).getString()
+                : rateColumn
                 ? dev.poligorn.aerocouriers.economy.MoneyFormat.text(entry.rewardPer1000Blocks()) + "/1000"
                 : Component.translatable("ui.aerocouriers.card.role_issuer").getString();
-        String middleCompact = rateColumn
+        String middleCompact = tutorial ? middleFull : rateColumn
                 ? dev.poligorn.aerocouriers.economy.MoneyFormat.compactText(entry.rewardPer1000Blocks()) + "/1000"
                 : middleFull;
         int reservedLeft = leftStart + MIN_LEFT + COL_GAP;
@@ -184,8 +200,9 @@ public final class BoardCardRenderer {
                                 int clockX = afterDot + 6;
                                 long minutes = entry.state() == ContractState.OPEN
                                         ? entry.deadlineMinutes() : entry.minutesLeft();
-                                String mins = Component.translatable("ui.aerocouriers.card.minutes", minutes)
-                                        .getString();
+                                String mins = tutorial
+                                        ? Component.translatable("ui.aerocouriers.tutorial.no_deadline").getString()
+                                        : Component.translatable("ui.aerocouriers.card.minutes", minutes).getString();
                                 int minsX = clockX + 11;
                                 if (minsX < leftLimit) {
                                     String minsShown = MoneyText.trunc(font, mins, leftLimit - minsX);
@@ -224,15 +241,23 @@ public final class BoardCardRenderer {
         return -1;
     }
 
+    private static String tutorialXp() {
+        return Component.translatable("ui.aerocouriers.tutorial.xp",
+                dev.poligorn.aerocouriers.client.ClientBoard.extras().tutorialXp()).getString();
+    }
+
     private static int badgeWidth(Font font, BoardSnapshotPayload.BoardEntry entry, Style style) {
         int w = 0;
+        if (entry.courierService()) {
+            w += font.width(Component.translatable("ui.aerocouriers.tutorial.chip").getString()) + 8;
+        }
         if (!style.boardTab()) {
             w += font.width(statusLabel(entry)) + 8;
         }
-        if (isNew(entry, style)) {
+        if (isNew(entry, style) && !entry.courierService()) {
             w += font.width("NEW") + 9;
         }
-        if (deadlineWarn(entry)) {
+        if (deadlineWarn(entry) && !entry.courierService()) {
             w += font.width(Component.translatable("ui.aerocouriers.card.deadline_warn").getString()) + 16;
         }
         return w;

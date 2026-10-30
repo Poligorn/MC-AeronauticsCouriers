@@ -87,6 +87,10 @@ public final class BoardActionConfirmOverlay extends BoardConfirmOverlay {
         if (!abandon()) {
             return Component.translatable("ui.aerocouriers.cancel_confirm.risk");
         }
+        if (CollateralUi.hidden(e.collateral())) {
+            return Component.translatable(e.villageCustomer() ? "ui.aerocouriers.abandon.risk.npc.no_collateral"
+                    : "ui.aerocouriers.abandon.risk.no_collateral");
+        }
         return Component.translatable(e.villageCustomer() ? "ui.aerocouriers.abandon.risk.npc"
                 : "ui.aerocouriers.abandon.risk",
                 dev.poligorn.aerocouriers.economy.MoneyFormat.text(e.collateral()),
@@ -141,6 +145,7 @@ public final class BoardActionConfirmOverlay extends BoardConfirmOverlay {
         ry += 12;
 
         if (abandon()) {
+            if (!CollateralUi.hidden(e.collateral())) {
             label(graphics, font, "ui.aerocouriers.details.collateral", ry);
             String amount = e.collateral() > 0
                     ? "-" + dev.poligorn.aerocouriers.economy.MoneyFormat.text(e.collateral()) : "0";
@@ -151,6 +156,7 @@ public final class BoardActionConfirmOverlay extends BoardConfirmOverlay {
             TabletDraw.text(graphics, font, TabletDraw.trunc(font, note, W - 10 - noteX), noteX, ry,
                     TabletPalette.CORAL);
             ry += 12;
+            }
             label(graphics, font, "ui.aerocouriers.details.deadline", ry);
             TabletDraw.text(graphics, font,
                     Component.translatable("ui.aerocouriers.details.minutes_left", e.minutesLeft()).getString(),

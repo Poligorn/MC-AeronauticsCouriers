@@ -74,6 +74,16 @@ public final class CouriersConfigEditor {
         return Optional.empty();
     }
 
+    public static void setCollateralProfile(dev.poligorn.aerocouriers.contract.CollateralProfile profile) {
+        CouriersServerConfig.COLLATERAL_PROFILE.set(profile.key());
+        saveServerConfig();
+    }
+
+    public static void setTutorialEnabled(boolean on) {
+        CouriersServerConfig.TUTORIAL_ENABLED.set(on);
+        saveServerConfig();
+    }
+
     public static void toggleDebugAllowSelfAccept() {
         boolean next = !CouriersServerConfig.ALLOW_SELF_ACCEPT.get();
         CouriersServerConfig.ALLOW_SELF_ACCEPT.set(next);
