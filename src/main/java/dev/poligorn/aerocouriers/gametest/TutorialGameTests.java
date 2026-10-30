@@ -126,6 +126,26 @@ public final class TutorialGameTests {
             }
         }
         helper.assertFalse(NoticeChannel.Row.TUTORIAL.defaultSound(), "tutorial is silent");
+        helper.assertValueEqual(NoticeKind.classify(Component.translatable(
+                "contract.aerocouriers.notify.far_container_behind", "ab", 70)), NoticeKind.URGENT,
+                "container left behind is urgent");
+        helper.succeed();
+    }
+
+    @GameTest(template = CouriersGameTests.EMPTY)
+    public static void legacyCollateralRatioMapsToNearestProfile(GameTestHelper helper) {
+        helper.assertValueEqual(dev.poligorn.aerocouriers.contract.CollateralProfile.fromLegacyRatio(0.0),
+                dev.poligorn.aerocouriers.contract.CollateralProfile.PEACEFUL, "0");
+        helper.assertValueEqual(dev.poligorn.aerocouriers.contract.CollateralProfile.fromLegacyRatio(0.25),
+                dev.poligorn.aerocouriers.contract.CollateralProfile.EASY, "0.25");
+        helper.assertValueEqual(dev.poligorn.aerocouriers.contract.CollateralProfile.fromLegacyRatio(0.5),
+                dev.poligorn.aerocouriers.contract.CollateralProfile.NORMAL, "0.5");
+        helper.assertValueEqual(dev.poligorn.aerocouriers.contract.CollateralProfile.fromLegacyRatio(0.75),
+                dev.poligorn.aerocouriers.contract.CollateralProfile.HARD, "0.75");
+        helper.assertValueEqual(dev.poligorn.aerocouriers.contract.CollateralProfile.fromLegacyRatio(0.05),
+                dev.poligorn.aerocouriers.contract.CollateralProfile.PEACEFUL, "closer to peace than easy");
+        helper.assertValueEqual(dev.poligorn.aerocouriers.contract.CollateralProfile.fromLegacyRatio(1.0),
+                dev.poligorn.aerocouriers.contract.CollateralProfile.HARD, "closer to hard");
         helper.succeed();
     }
 

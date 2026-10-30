@@ -80,13 +80,13 @@ public enum CollateralProfile {
         return byKey(CouriersServerConfig.COLLATERAL_PROFILE.get());
     }
 
-    /** Legacy {@code p2p_min_collateral_ratio} to the nearest profile (one-time migration). */
+    /**
+     * Legacy {@code p2p_min_collateral_ratio} to the nearest of peace / easy / normal / hard (one-time migration).
+     * A tie stays with the lower share. Custom is not a fixed ratio and is never chosen here.
+     */
     public static CollateralProfile fromLegacyRatio(double legacy) {
-        if (legacy <= 0.0) {
-            return PEACEFUL;
-        }
-        CollateralProfile best = NORMAL;
-        double bestGap = Double.MAX_VALUE;
+        CollateralProfile best = PEACEFUL;
+        double bestGap = Math.abs(legacy);
         for (CollateralProfile p : new CollateralProfile[] {EASY, NORMAL, HARD}) {
             double gap = Math.abs(p.ratio - legacy);
             if (gap < bestGap) {
