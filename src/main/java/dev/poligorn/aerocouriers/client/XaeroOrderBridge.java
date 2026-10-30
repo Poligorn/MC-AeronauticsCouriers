@@ -23,32 +23,48 @@ public final class XaeroOrderBridge {
     }
 
     public static boolean xaeroMinimapPresent() {
-        return XaeroOrderWaypoints.minimapLoaded();
+        // Must not touch XaeroOrderWaypoints: loading that class resolves Xaero types and crashes when the mod is absent.
+        return net.neoforged.fml.ModList.get().isLoaded(XaeroMapPicker.MINIMAP_ID);
     }
 
     public static boolean xaeroWorldMapPresent() {
-        return XaeroOrderWaypoints.worldMapLoaded();
+        return net.neoforged.fml.ModList.get().isLoaded(XaeroMapPicker.WORLDMAP_ID);
     }
 
     public static void onHoverDestination(UUID orderId, ResourceKey<Level> dimension, BlockPos pos, String label) {
+        if (!xaeroMinimapPresent()) {
+            return;
+        }
         XaeroOrderWaypoints.showPeek(orderId, dimension, pos, label);
     }
 
     public static void onLeaveDestination(UUID orderId) {
+        if (!xaeroMinimapPresent()) {
+            return;
+        }
         XaeroOrderWaypoints.hidePeek(orderId);
     }
 
     /** Map-pin click: temporary preview waypoint (at most one) plus optional world map. */
     public static void onPreviewDestination(UUID orderId, ResourceKey<Level> dimension, BlockPos pos, String label) {
+        if (!xaeroMinimapPresent()) {
+            return;
+        }
         XaeroOrderWaypoints.setPreview(orderId, dimension, pos, label);
     }
 
     /** @return whether the world map opened and camera centering succeeded */
     public static boolean openWorldMapAt(BlockPos pos) {
+        if (!xaeroWorldMapPresent()) {
+            return false;
+        }
         return XaeroOrderWaypoints.openWorldMapAt(pos);
     }
 
     public static void onBoardSnapshot(BoardSnapshotPayload payload) {
+        if (!xaeroMinimapPresent()) {
+            return;
+        }
         Set<UUID> relevant = new HashSet<>();
         for (BoardSnapshotPayload.BoardEntry entry : payload.board()) {
             if (!entry.state().isFinal()) {
@@ -84,6 +100,9 @@ public final class XaeroOrderBridge {
     public static void onLogout() {
         sawXaeroWhilePreview = false;
         trackedDimension = null;
+        if (!xaeroMinimapPresent()) {
+            return;
+        }
         XaeroOrderWaypoints.clearPreview();
         XaeroOrderWaypoints.clearAll();
     }
