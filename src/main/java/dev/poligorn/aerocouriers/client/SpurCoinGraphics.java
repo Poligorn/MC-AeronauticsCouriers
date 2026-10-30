@@ -1,13 +1,14 @@
 package dev.poligorn.aerocouriers.client;
 
 import dev.poligorn.aerocouriers.client.compat.numismatics.NumismaticsCoinRender;
+import dev.poligorn.aerocouriers.economy.MoneyScale;
 import dev.poligorn.aerocouriers.economy.SpurDenomination;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.neoforged.fml.ModList;
 
-/** Currency icons: Numismatics coin items when that mod is loaded, otherwise a vanilla emerald. */
+/** Currency icons: Numismatics coins while its backend is active, otherwise a vanilla emerald (balance included). */
 public final class SpurCoinGraphics {
     private static final String NUMISMATICS_ID = "numismatics";
     private static final ItemStack EMERALD = new ItemStack(Items.EMERALD);
@@ -16,7 +17,7 @@ public final class SpurCoinGraphics {
     }
 
     public static boolean useNumismaticsItems() {
-        return ModList.get().isLoaded(NUMISMATICS_ID);
+        return ModList.get().isLoaded(NUMISMATICS_ID) && MoneyScale.numismaticsBackend();
     }
 
     public static void drawGenericCoin(GuiGraphics graphics, int x, int y, int size) {

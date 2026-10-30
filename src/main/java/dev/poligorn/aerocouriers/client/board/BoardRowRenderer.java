@@ -146,8 +146,10 @@ public final class BoardRowRenderer {
         int statX = x;
         SpurAmountUi.draw(graphics, font, entry.reward(), statX, y, false, TabletGui.TEXT_MUTED);
         statX += SpurAmountUi.width(font, entry.reward(), false) + BoardRowMetrics.PAIR_GAP;
-        SpurAmountUi.draw(graphics, font, entry.collateral(), statX, y, true, TabletGui.TEXT_MUTED);
-        statX += SpurAmountUi.width(font, entry.collateral(), true) + BoardRowMetrics.PAIR_GAP;
+        if (!CollateralUi.hidden(entry.collateral())) {
+            SpurAmountUi.draw(graphics, font, entry.collateral(), statX, y, true, TabletGui.TEXT_MUTED);
+            statX += SpurAmountUi.width(font, entry.collateral(), true) + BoardRowMetrics.PAIR_GAP;
+        }
         String time = Component.translatable("ui.aerocouriers.row.time_compact", entry.minutesLeft()).getString();
         statX = drawStat(graphics, font, AerocouriersGuiSprites.ICON_CLOCK, time, statX, y);
         CargoSize cargoSize = CargoSize.valueOf(entry.size().toUpperCase(Locale.ROOT));
@@ -194,6 +196,9 @@ public final class BoardRowRenderer {
             return entry.reward();
         }
         statX += rewardW + BoardRowMetrics.PAIR_GAP;
+        if (CollateralUi.hidden(entry.collateral())) {
+            return null;
+        }
         int collW = SpurAmountUi.width(font, entry.collateral(), true);
         if (mouseX >= statX && mouseX < statX + collW) {
             return entry.collateral();

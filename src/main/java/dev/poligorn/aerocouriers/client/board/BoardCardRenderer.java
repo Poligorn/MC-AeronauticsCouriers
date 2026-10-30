@@ -132,6 +132,9 @@ public final class BoardCardRenderer {
         if (MoneyText.width(font, depos) > deposRoom) {
             depos = MoneyText.trunc(font, depos, deposRoom);
         }
+        if (CollateralUi.hidden(entry.collateral())) {
+            depos = "";
+        }
         int deposW = MoneyText.width(font, depos);
         int deposX = rx - deposW;
         TabletDraw.text(graphics, font, depos, deposX, y2, deposColor);

@@ -1571,6 +1571,11 @@ public final class CourierBoardScreen extends Screen {
                 return true;
             }
         }
+        if (snapshot != null && tab == Tab.ADMIN && adminUi.scrollEconomy(scrollY, snapshot,
+                adminUi.contentTop(adminUi.subToggleY(headingY(), font.lineHeight)))) {
+            refreshAdminContent();
+            return true;
+        }
         if (snapshot != null && (tab == Tab.BOARD || tab == Tab.MINE)) {
             List<BoardSnapshotPayload.BoardEntry> all = listEntries();
             int before = scroll;

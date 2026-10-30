@@ -184,13 +184,15 @@ public final class BoardAcceptConfirmScreen extends Screen {
                 entry.reward(), textX, y, textW, TabletGui.TEXT, TabletGui.TEXT);
         offerSpurTooltip(entry.reward(), rewardBounds, mouseX, mouseY);
         y += font.lineHeight + LINE_GAP;
-        long collateral = collateralDue();
-        SpurAmountUi.Bounds collateralBounds = SpurAmountUi.drawLabeled(
-                graphics, font,
-                Component.translatable("ui.aerocouriers.accept.confirm.collateral.label").getString(),
-                collateral, textX, y, textW, TabletGui.TEXT, TabletGui.TEXT);
-        offerSpurTooltip(collateral, collateralBounds, mouseX, mouseY);
-        y += font.lineHeight + LINE_GAP;
+        if (!dev.poligorn.aerocouriers.client.board.CollateralUi.hidden(entry.collateral())) {
+            long collateral = collateralDue();
+            SpurAmountUi.Bounds collateralBounds = SpurAmountUi.drawLabeled(
+                    graphics, font,
+                    Component.translatable("ui.aerocouriers.accept.confirm.collateral.label").getString(),
+                    collateral, textX, y, textW, TabletGui.TEXT, TabletGui.TEXT);
+            offerSpurTooltip(collateral, collateralBounds, mouseX, mouseY);
+            y += font.lineHeight + LINE_GAP;
+        }
         for (Component line : bodyLinesAfterMoney()) {
             y = drawWrapped(graphics, line, textX, y, textW, TabletGui.TEXT) + LINE_GAP;
         }
@@ -265,6 +267,10 @@ public final class BoardAcceptConfirmScreen extends Screen {
     }
 
     private Component riskLine() {
+        if (dev.poligorn.aerocouriers.client.board.CollateralUi.hidden(entry.collateral())) {
+            return Component.translatable(entry.villageCustomer() ? "contract.aerocouriers.risk.npc.no_collateral"
+                    : "contract.aerocouriers.risk.no_collateral");
+        }
         long due = collateralDue();
         return entry.villageCustomer()
                 ? Component.translatable("contract.aerocouriers.risk.npc",

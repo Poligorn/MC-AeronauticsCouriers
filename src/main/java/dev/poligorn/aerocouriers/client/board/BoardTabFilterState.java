@@ -53,7 +53,7 @@ public final class BoardTabFilterState {
     }
 
     public BoardSortKey sortKey() {
-        return sortKey;
+        return CollateralUi.visibleSortKey(sortKey);
     }
 
     public boolean sortDescending() {
@@ -61,8 +61,8 @@ public final class BoardTabFilterState {
     }
 
     public void cycleSortKey() {
-        BoardSortKey[] values = {BoardSortKey.REWARD, BoardSortKey.DISTANCE, BoardSortKey.DEADLINE,
-                BoardSortKey.COLLATERAL};
+        BoardSortKey[] values = CollateralUi.playerSortKeys(BoardSortKey.REWARD, BoardSortKey.DISTANCE,
+                BoardSortKey.DEADLINE, BoardSortKey.COLLATERAL);
         int idx = 0;
         for (int i = 0; i < values.length; i++) {
             if (values[i] == sortKey) {

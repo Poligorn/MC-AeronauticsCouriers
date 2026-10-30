@@ -24,6 +24,7 @@ import org.jetbrains.annotations.Nullable;
  */
 public final class ClientBoard {
     private static boolean requireTablet = true;
+    private static BoardSnapshotPayload.Extras extras = BoardSnapshotPayload.Extras.EMPTY;
     private static @Nullable java.util.UUID pendingContractFocus;
     private static MineListSection mineSection = MineListSection.CURRENT;
     private static final BoardTabFilterState boardFilters = new BoardTabFilterState();
@@ -94,8 +95,18 @@ public final class ClientBoard {
         return section == MineListSection.HISTORY ? mineHistoryFilters : mineCurrentFilters;
     }
 
+    public static BoardSnapshotPayload.Extras extras() {
+        return extras;
+    }
+
+    public static dev.poligorn.aerocouriers.contract.CollateralProfile collateralProfile() {
+        return extras.profile();
+    }
+
     public static void apply(BoardSnapshotPayload payload) {
         requireTablet = payload.requireTablet();
+        extras = payload.extras();
+        dev.poligorn.aerocouriers.economy.MoneyScale.reportBackend(payload.numismaticsEconomy());
         if (VillageRefreshUi.isEnabled(payload.nextVillageRefreshGameTime())) {
             VillageRefreshUi.applySnapshot(payload.nextVillageRefreshGameTime(), payload.snapshotOverworldGameTime());
         } else {
@@ -157,6 +168,7 @@ public final class ClientBoard {
     }
 
     public static void openWaybillCreate(OpenWaybillCreatePayload payload) {
+        dev.poligorn.aerocouriers.economy.MoneyScale.reportBackend(payload.numismaticsEconomy());
         Minecraft.getInstance().setScreen(new WaybillCreateScreen(payload));
     }
 }

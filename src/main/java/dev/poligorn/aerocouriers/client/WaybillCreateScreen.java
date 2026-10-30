@@ -6,6 +6,7 @@ import dev.poligorn.aerocouriers.client.board.BoardCardRenderer;
 import dev.poligorn.aerocouriers.client.board.PixelGlyphs;
 import dev.poligorn.aerocouriers.client.board.TabletDraw;
 import dev.poligorn.aerocouriers.economy.MoneyFormat;
+import dev.poligorn.aerocouriers.contract.CollateralProfile;
 import dev.poligorn.aerocouriers.contract.ContractDistances;
 import dev.poligorn.aerocouriers.contract.Destination;
 import dev.poligorn.aerocouriers.contract.ItemValues;
@@ -42,8 +43,14 @@ public final class WaybillCreateScreen extends Screen {
     private static final long SEAL_SETTLE_MS = 300L;
     private static final long SEAL_CLOSE_MS = 720L;
     private static final double AIRSHIP_BLOCKS_PER_SEC = 8.0;
+    private static final int[] QUICK_PERCENTS = {0, 25, 50, 75, 100};
 
     private final OpenWaybillCreatePayload preview;
+    private final CollateralProfile profile;
+    private final int[] quickX = new int[QUICK_PERCENTS.length];
+    private final int[] quickW = new int[QUICK_PERCENTS.length];
+    private int quickY;
+    private boolean quickVisible;
     private String reward = Long.toString(CreateContractPayload.DEFAULT_REWARD);
     private String collateral = Long.toString(CreateContractPayload.DEFAULT_COLLATERAL);
     private String minutes = "60";
@@ -92,6 +99,10 @@ public final class WaybillCreateScreen extends Screen {
     public WaybillCreateScreen(OpenWaybillCreatePayload preview) {
         super(Component.translatable("ui.aerocouriers.create.title"));
         this.preview = preview;
+        this.profile = preview.profile();
+        if (profile.noCollateral()) {
+            collateral = "0";
+        }
         this.picker = new WaybillDestinationPicker(this);
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.level != null) {
@@ -192,7 +203,7 @@ public final class WaybillCreateScreen extends Screen {
     @Override
     protected void init() {
         super.init();
-        layout = WaybillCreateLayout.compute(width, height);
+        layout = WaybillCreateLayout.compute(width, height, profile.noCollateral());
         picker.close();
         cargoOverlay.close();
         rewardBox = moneyBox(layout.fieldX0, layout.rewardY, layout.fieldRight(), reward, v -> {
@@ -275,7 +286,8 @@ public final class WaybillCreateScreen extends Screen {
         }
         if (collateralBox != null) {
             collateralBox.setValue(collateral);
-            collateralBox.active = live;
+            collateralBox.active = live && !profile.noCollateral();
+            collateralBox.visible = !profile.noCollateral();
             collateralBox.setX(layout.fieldX0 + 5);
             collateralBox.setY(layout.collateralY + 3);
         }
@@ -319,7 +331,7 @@ public final class WaybillCreateScreen extends Screen {
             rewardBox.active = live;
         }
         if (collateralBox != null) {
-            collateralBox.active = live;
+            collateralBox.active = live && !profile.noCollateral();
         }
         if (minutesBox != null) {
             minutesBox.active = live && minutesBox.visible;
@@ -337,12 +349,12 @@ public final class WaybillCreateScreen extends Screen {
             return;
         }
         long minReward = minRewardFor(to.get());
-        long minCollateral = Pricing.minP2pCollateral(parseLong(reward, minReward), preview.cargo());
+        long minCollateral;
         if (!rewardTouched || reward.isEmpty() || parseLong(reward, 0) == CreateContractPayload.DEFAULT_REWARD) {
             reward = Long.toString(minReward);
             rewardTouched = false;
         }
-        minCollateral = Pricing.minP2pCollateral(parseLong(reward, minReward), preview.cargo());
+        minCollateral = defaultCollateral(parseLong(reward, minReward));
         if (!collateralTouched || collateral.isEmpty()
                 || parseLong(collateral, 0) == CreateContractPayload.DEFAULT_COLLATERAL) {
             collateral = Long.toString(minCollateral);
@@ -528,6 +540,13 @@ public final class WaybillCreateScreen extends Screen {
                 : "ui.aerocouriers.create.container.by_weight", size.name());
         WaybillCreateGui.metaRow(g, font, x0, layout.leftColX1, layout.cargoMetaY + yOff,
                 tr("ui.aerocouriers.create.container"), sizeReason, null, 0);
+        BlockPos origin = preview.origin();
+        String from = origin.getX() + ", " + origin.getY() + ", " + origin.getZ();
+        if (profile.noCollateral()) {
+            WaybillCreateGui.metaRow(g, font, x0, layout.leftColX1, layout.cargoMetaY + 12 + yOff,
+                    tr("ui.aerocouriers.create.from_chest"), from, PixelGlyphs.CHEST, WaybillPalette.BROWN);
+            return;
+        }
         long value = ItemValues.of(cargo);
         String valueText = tr("ui.aerocouriers.create.cargo_value_amount", MoneyFormat.text(value));
         WaybillCreateGui.metaRow(g, font, x0, layout.leftColX1, layout.cargoMetaY + 12 + yOff,
@@ -538,8 +557,6 @@ public final class WaybillCreateScreen extends Screen {
         int valueX = layout.leftColX1 - MoneyText.width(font, valueShown) - 9;
         WaybillCreateGui.spur(g, valueX, valueY);
         offerMoneyTooltip(value, valueX, valueY, layout.leftColX1 - valueX, 10, mouseX, mouseY);
-        BlockPos origin = preview.origin();
-        String from = origin.getX() + ", " + origin.getY() + ", " + origin.getZ();
         WaybillCreateGui.metaRow(g, font, x0, layout.leftColX1, layout.cargoMetaY + 24 + yOff,
                 tr("ui.aerocouriers.create.from_chest"), from, PixelGlyphs.CHEST, WaybillPalette.BROWN);
     }
@@ -554,30 +571,107 @@ public final class WaybillCreateScreen extends Screen {
         offerMoneyTooltip(parseLong(reward, 0), layout.fieldX0, layout.rewardY + yOff,
                 x1 - layout.fieldX0, WaybillCreateLayout.FIELD_H, mouseX, mouseY);
 
+        quickVisible = false;
+        if (!profile.noCollateral()) {
+            drawCollateralTerms(g, mouseX, mouseY, yOff);
+        }
+
+        drawDeadlineAndRank(g, mouseX, mouseY, yOff);
+    }
+
+    private void drawCollateralTerms(GuiGraphics g, int mouseX, int mouseY, int yOff) {
+        int rx = layout.rightColX0;
+        int x1 = layout.contentX1;
         String collLabel = tr("ui.aerocouriers.create.courier_collateral");
         WaybillCreateGui.text(g, font, collLabel, rx, layout.collateralY + 3 + yOff, WaybillPalette.INK2);
         int helpX = rx + font.width(collLabel) + 5;
         int helpY = layout.collateralY + 2 + yOff;
         WaybillCreateGui.helpIcon(g, font, helpX, helpY);
         long minColl = minCollateralNow();
-        boolean bad = dest().isPresent() && parseLong(collateral, 0) < minColl;
+        long maxColl = maxCollateralNow();
+        long collValue = parseLong(collateral, 0);
+        boolean bad = dest().isPresent() && (collValue < minColl || collValue > maxColl);
         WaybillCreateGui.field(g, layout.fieldX0, layout.collateralY + yOff, x1, bad);
         drawUnit(g, x1, layout.collateralY + 3 + yOff, moneyUnit());
         offerMoneyTooltip(parseLong(collateral, 0), layout.fieldX0, layout.collateralY + yOff,
                 x1 - layout.fieldX0, WaybillCreateLayout.FIELD_H, mouseX, mouseY);
-        if (bad) {
+        long cargoValue = ItemValues.of(preview.cargo());
+        if (profile.freeCollateral()) {
+            drawQuickCollateral(g, mouseX, mouseY, yOff, maxColl, cargoValue, collValue, bad);
+        } else if (bad) {
             WaybillCreateGui.textRight(g, font, tr("ui.aerocouriers.create.collateral_low"), x1,
                     layout.collateralErrY + yOff, WaybillPalette.RED, false);
+        } else {
+            WaybillCreateGui.textRight(g, font, tr("ui.aerocouriers.create.collateral_min", MoneyFormat.text(minColl)),
+                    x1, layout.collateralErrY + yOff, WaybillPalette.INK2, false);
         }
         if (!picker.isOpen() && TabletDraw.inside(mouseX, mouseY, helpX, helpY, 9, 9)) {
-            hoverLines = new String[] {
-                    tr("ui.aerocouriers.create.collateral_hint.1", MoneyFormat.text(minColl)),
-                    tr("ui.aerocouriers.create.collateral_hint.2", MoneyFormat.text(ItemValues.of(preview.cargo()))),
-                    tr("ui.aerocouriers.create.collateral_hint.3")
-            };
+            hoverLines = profile.freeCollateral()
+                    ? new String[] {
+                            tr("ui.aerocouriers.create.collateral_hint.custom", MoneyFormat.text(maxColl)),
+                            tr("ui.aerocouriers.create.collateral_hint.2", MoneyFormat.text(cargoValue)),
+                            tr("ui.aerocouriers.create.collateral_hint.3")
+                    }
+                    : new String[] {
+                            tr("ui.aerocouriers.create.collateral_hint.1", MoneyFormat.text(minColl)),
+                            tr("ui.aerocouriers.create.collateral_hint.2", MoneyFormat.text(cargoValue)),
+                            tr("ui.aerocouriers.create.collateral_hint.3")
+                    };
             hoverTipX = helpX + 12;
             hoverTipY = helpY + 12;
         }
+    }
+
+    /** Custom profile: range caption on the left, 0/25/50/75/100 % of the cargo value as links on the right. */
+    private void drawQuickCollateral(GuiGraphics g, int mouseX, int mouseY, int yOff, long maxColl, long cargoValue,
+                                     long collValue, boolean bad) {
+        int rx = layout.rightColX0;
+        int x1 = layout.contentX1;
+        int y = layout.collateralErrY + yOff;
+        String caption;
+        int captionColor;
+        if (bad) {
+            caption = tr("ui.aerocouriers.create.collateral_range", MoneyFormat.text(maxColl));
+            captionColor = WaybillPalette.RED;
+        } else if (cargoValue > 0 && collValue < cargoValue) {
+            caption = tr("ui.aerocouriers.create.collateral_below_value");
+            captionColor = WaybillPalette.RED;
+        } else {
+            caption = tr("ui.aerocouriers.create.collateral_range", MoneyFormat.text(maxColl));
+            captionColor = WaybillPalette.INK2;
+        }
+        int x = x1;
+        for (int i = QUICK_PERCENTS.length - 1; i >= 0; i--) {
+            String label = QUICK_PERCENTS[i] + (i == QUICK_PERCENTS.length - 1 ? "%" : "");
+            int w = font.width(WaybillFonts.ink(label));
+            x -= w;
+            quickX[i] = x;
+            quickW[i] = w;
+            boolean selected = collValue == quickAmount(QUICK_PERCENTS[i], cargoValue);
+            int col = selected ? WaybillPalette.INK : WaybillPalette.BLUE;
+            WaybillCreateGui.text(g, font, label, x, y, col);
+            if (!selected) {
+                WaybillCreateGui.hline(g, x, x + w - 1, y + 8, col);
+            }
+            x -= 6;
+        }
+        quickY = y;
+        quickVisible = cargoValue > 0;
+        if (!quickVisible) {
+            WaybillCreateGui.textRight(g, font, caption, x1, y, captionColor, false);
+            return;
+        }
+        int room = Math.max(8, x - rx - 4);
+        WaybillCreateGui.text(g, font, MoneyText.trunc(font, caption, room), rx, y, captionColor);
+    }
+
+    private static long quickAmount(int percent, long cargoValue) {
+        return Math.round(cargoValue * percent / 100.0);
+    }
+
+    private void drawDeadlineAndRank(GuiGraphics g, int mouseX, int mouseY, int yOff) {
+        int rx = layout.rightColX0;
+        int x1 = layout.contentX1;
 
         WaybillCreateGui.text(g, font, tr("ui.aerocouriers.create.deadline"), rx, layout.deadlineY + 2 + yOff,
                 WaybillPalette.INK2);
@@ -695,8 +789,10 @@ public final class WaybillCreateScreen extends Screen {
         int brRoom = Math.max(8, totX - 4 - (x0 + font.width(payLabel) + 6));
         WaybillCreateGui.textRight(g, font, MoneyText.trunc(font, br, brRoom), totX - 4, layout.payY + yOff,
                 WaybillPalette.INK, false);
-        String risk = tr("ui.aerocouriers.create.risk_issuer",
-                MoneyFormat.text(parseLong(collateral, 0)), MoneyFormat.text(rewardValue));
+        String risk = profile.noCollateral()
+                ? tr("ui.aerocouriers.create.no_collateral", MoneyFormat.text(rewardValue))
+                : tr("ui.aerocouriers.create.risk_issuer",
+                        MoneyFormat.text(parseLong(collateral, 0)), MoneyFormat.text(rewardValue));
         String shown = TabletDraw.trunc(font, risk, Math.max(16, x1 - x0 - 22));
         WaybillCreateGui.riskBanner(g, font, x0, layout.riskY + yOff, x1, shown);
         if (!shown.equals(risk) && TabletDraw.inside(mouseX, mouseY, x0, layout.riskY + yOff, x1 - x0, 14)) {
@@ -839,6 +935,17 @@ public final class WaybillCreateScreen extends Screen {
         if (button != 0) {
             return super.mouseClicked(mouseX, mouseY, button);
         }
+        if (quickVisible) {
+            long cargoValue = ItemValues.of(preview.cargo());
+            for (int i = 0; i < QUICK_PERCENTS.length; i++) {
+                if (TabletDraw.inside(mouseX, mouseY, quickX[i] - 2, quickY - 1, quickW[i] + 4, 11)) {
+                    collateral = Long.toString(quickAmount(QUICK_PERCENTS[i], cargoValue));
+                    collateralTouched = true;
+                    syncBoxes();
+                    return true;
+                }
+            }
+        }
         int selectedDeadline = deadlineIndex();
         for (int i = 0; i < 5; i++) {
             if (TabletDraw.inside(mouseX, mouseY, layout.durationChipX(i), layout.deadlineY, 22,
@@ -967,7 +1074,7 @@ public final class WaybillCreateScreen extends Screen {
         PacketDistributor.sendToServer(new CreateContractPayload(
                 preview.origin(), to.get(), destinationDimension,
                 parseLong(reward, CreateContractPayload.DEFAULT_REWARD),
-                parseLong(collateral, CreateContractPayload.DEFAULT_COLLATERAL),
+                profile.noCollateral() ? 0L : parseLong(collateral, CreateContractPayload.DEFAULT_COLLATERAL),
                 (int) parseLong(minutes, 60),
                 (int) parseLong(radius, CreateContractPayload.DEFAULT_RADIUS),
                 rankFloorLevel));
@@ -987,10 +1094,14 @@ public final class WaybillCreateScreen extends Screen {
         if (rewardValue < minReward) {
             return tr("ui.aerocouriers.create.reward_need", MoneyFormat.text(minReward));
         }
-        long coll = parseLong(collateral, 0);
-        long minColl = Pricing.minP2pCollateral(rewardValue, preview.cargo());
+        long coll = profile.noCollateral() ? 0L : parseLong(collateral, 0);
+        long minColl = Pricing.minP2pCollateral(profile, rewardValue, preview.cargo());
         if (coll < minColl) {
             return tr("ui.aerocouriers.create.collateral_need", MoneyFormat.text(minColl));
+        }
+        long maxColl = Pricing.maxP2pCollateral(profile, rewardValue, preview.cargo());
+        if (coll > maxColl) {
+            return tr("ui.aerocouriers.create.collateral_max", MoneyFormat.text(maxColl));
         }
         long fee = Pricing.fee(rewardValue, cargoSize());
         if (preview.balance() < rewardValue + fee) {
@@ -1106,7 +1217,23 @@ public final class WaybillCreateScreen extends Screen {
 
     private long minCollateralNow() {
         long rewardValue = parseLong(reward, dest().map(this::minRewardFor).orElse(1L));
-        return Pricing.minP2pCollateral(rewardValue, preview.cargo());
+        return Pricing.minP2pCollateral(profile, rewardValue, preview.cargo());
+    }
+
+    private long maxCollateralNow() {
+        long rewardValue = parseLong(reward, dest().map(this::minRewardFor).orElse(1L));
+        return Pricing.maxP2pCollateral(profile, rewardValue, preview.cargo());
+    }
+
+    /** Pre-filled value: the minimum, or half the cargo value in the custom profile. */
+    private long defaultCollateral(long rewardValue) {
+        if (profile.noCollateral()) {
+            return 0L;
+        }
+        if (profile.freeCollateral()) {
+            return quickAmount(50, ItemValues.of(preview.cargo()));
+        }
+        return Pricing.minP2pCollateral(profile, rewardValue, preview.cargo());
     }
 
     private double distanceTo(BlockPos to) {
