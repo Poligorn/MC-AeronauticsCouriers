@@ -178,7 +178,7 @@ public final class StampGameTests {
     }
 
     @GameTest(template = CouriersGameTests.EMPTY)
-    public static void stampRequiresLicenseAndAccess(GameTestHelper helper) {
+    public static void stampDoesNotRequireLicense(GameTestHelper helper) {
         for (int x = 0; x < 8; x++) {
             for (int z = 0; z < 8; z++) {
                 helper.setBlock(new BlockPos(x, 0, z), Blocks.STONE);
@@ -188,14 +188,19 @@ public final class StampGameTests {
         ((ChestBlockEntity) helper.getBlockEntity(CHEST)).setItem(0, new ItemStack(Items.DIRT, 8));
         ServerPlayer stranger = FakePlayerFactory.get(helper.getLevel(), new GameProfile(UUID.randomUUID(), "no_lic"));
         stranger.setPos(Vec3.atCenterOf(helper.absolutePos(CHEST)));
+        stranger.getInventory().add(dev.poligorn.aerocouriers.item.Waybills.stack(1));
         Economies.get(helper.getLevel().getServer()).deposit(stranger.getUUID(), 100, "test");
-        ContractManager.Outcome denied = ContractManager.get(helper.getLevel().getServer())
-                .createFromWaybill(stranger, helper.absolutePos(CHEST),
-                        new Destination(helper.getLevel().dimension(), helper.absolutePos(TARGET), 8),
-                        20, 0, 60);
-        helper.assertFalse(denied.success(), "unlicensed stamp");
+        ServerPlayer remote = FakePlayerFactory.get(helper.getLevel(), new GameProfile(UUID.randomUUID(), "far"));
+        remote.setPos(Vec3.atCenterOf(helper.absolutePos(CHEST)).add(64, 0, 64));
+        remote.getInventory().add(dev.poligorn.aerocouriers.item.Waybills.stack(1));
+        Economies.get(helper.getLevel().getServer()).deposit(remote.getUUID(), 100, "test");
+        ContractManager manager = ContractManager.get(helper.getLevel().getServer());
+        Destination dest = new Destination(helper.getLevel().dimension(), helper.absolutePos(TARGET), 8);
+        ContractManager.Outcome denied = manager.createFromWaybill(remote, helper.absolutePos(CHEST), dest, 20, 20, 60);
+        helper.assertFalse(denied.success(), "stamp from out of reach");
         helper.assertTrue(helper.getBlockState(CHEST).is(Blocks.CHEST), "chest stays if stamp is refused");
-        helper.assertFalse(((ChestBlockEntity) helper.getBlockEntity(CHEST)).isEmpty(), "cargo stays");
+        ContractManager.Outcome created = manager.createFromWaybill(stranger, helper.absolutePos(CHEST), dest, 20, 20, 60);
+        helper.assertTrue(created.success(), "unlicensed waybill: " + created.message().getString());
         helper.succeed();
     }
 

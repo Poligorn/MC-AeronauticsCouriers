@@ -338,8 +338,8 @@ public final class ContractManager extends SavedData {
     }
 
     /**
-     * Player-facing create: transport waybill on a container. Same money/cargo checks as {@link #create}, plus a
-     * worn license and the right to open the block. The source is emptied without drops, then replaced in-place
+     * Player-facing create: transport waybill on a container. Same money/cargo checks as {@link #create}, plus the
+     * right to open the block. A license and the tutorial are not required. The source is emptied without drops, then replaced in-place
      * by a Sable cargo container that already stands at pickup while the order is {@code OPEN}. One waybill is
      * consumed on success (not in creative).
      */
@@ -350,9 +350,6 @@ public final class ContractManager extends SavedData {
 
     public Outcome createFromWaybill(ServerPlayer issuer, BlockPos sourcePos, Destination destination,
                                    long reward, long collateral, int deadlineMinutes, int minRankLevel) {
-        if (!Licenses.isLicensedCourier(issuer)) {
-            return Outcome.error("no_license");
-        }
         if (!issuer.isCreative() && !Waybills.hasOne(issuer)) {
             return Outcome.error("no_waybill");
         }
