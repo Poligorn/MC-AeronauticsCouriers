@@ -167,6 +167,34 @@ public final class ClientBoard {
         PacketDistributor.sendToServer(ClaimTraineeLicensePayload.INSTANCE);
     }
 
+    private static final java.util.Set<UUID> seenBoardOrders = new java.util.HashSet<>();
+    private static boolean boardSeenInitialized;
+
+    /** Dot on «Orders»: an open order appeared that the player has not had on screen yet. */
+    public static boolean hasUnseenBoardOrders(BoardSnapshotPayload payload) {
+        if (!boardSeenInitialized) {
+            markBoardSeen(payload);
+            return false;
+        }
+        for (BoardSnapshotPayload.BoardEntry entry : payload.board()) {
+            if (!"issuer".equals(entry.role()) && !seenBoardOrders.contains(entry.id())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public static void markBoardSeen(BoardSnapshotPayload payload) {
+        boardSeenInitialized = true;
+        for (BoardSnapshotPayload.BoardEntry entry : payload.board()) {
+            seenBoardOrders.add(entry.id());
+        }
+    }
+
+    public static void tutorial(dev.poligorn.aerocouriers.net.TutorialIntentPayload.Op op, int arg) {
+        PacketDistributor.sendToServer(new dev.poligorn.aerocouriers.net.TutorialIntentPayload(op, arg));
+    }
+
     public static void openWaybillCreate(OpenWaybillCreatePayload payload) {
         dev.poligorn.aerocouriers.economy.MoneyScale.reportBackend(payload.numismaticsEconomy());
         Minecraft.getInstance().setScreen(new WaybillCreateScreen(payload));

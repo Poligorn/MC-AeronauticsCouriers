@@ -13,6 +13,8 @@ import net.minecraft.resources.ResourceLocation;
 public final class TabletTabButton extends Button {
     private boolean selected;
     private int badge;
+    private boolean badgeUrgent;
+    private boolean dot;
     private final boolean tabletChrome;
 
     public TabletTabButton(int x, int y, int w, int h, Component label, Runnable onSelect) {
@@ -27,6 +29,17 @@ public final class TabletTabButton extends Button {
 
     public TabletTabButton badge(int unread) {
         this.badge = Math.max(0, unread);
+        return this;
+    }
+
+    public TabletTabButton badgeUrgent(boolean urgent) {
+        this.badgeUrgent = urgent;
+        return this;
+    }
+
+    /** Count-less marker (new orders on the board). */
+    public TabletTabButton dot(boolean dot) {
+        this.dot = dot;
         return this;
     }
 
@@ -60,10 +73,14 @@ public final class TabletTabButton extends Button {
             // Keep a 2-digit count inside the tab. Capping the inset at 10px pushed "21" onto the next tab.
             int bx = getX() + width - tw - 3;
             int by = getY() - 1;
-            int badgeBg = tabletChrome ? 0xFF431A0F : 0xFF4A2D31;
+            int badgeBg = badgeUrgent ? 0xFFB8483A : tabletChrome ? 0xFF1F4A66 : 0xFF4A2D31;
             int badgeText = tabletChrome ? TabletGui.TEXT_BRIGHT : 0xFFF8F8EC;
             graphics.fill(bx - 1, by - 1, bx + tw + 2, by + 9, badgeBg);
             graphics.drawString(font, label, bx, by, badgeText, false);
+        } else if (dot) {
+            int dx = getX() + width - 6;
+            int dy = getY() + 1;
+            graphics.fill(dx, dy, dx + 4, dy + 4, 0xFF6EC4B6);
         }
     }
 }

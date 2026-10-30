@@ -80,6 +80,55 @@ public final class ClientNotifications {
         return count;
     }
 
+    public enum MailFilter {
+        ALL, ORDERS, MONEY, CARGO, URGENT;
+
+        public String key() {
+            return "ui.aerocouriers.inbox.filter." + name().toLowerCase(java.util.Locale.ROOT);
+        }
+
+        boolean accepts(NotificationSyncPayload.Line line) {
+            NoticeChannel.Row row = NoticeChannel.Row.of(line.kind());
+            return switch (this) {
+                case ALL -> true;
+                case ORDERS -> row == NoticeChannel.Row.ORDERS || row == NoticeChannel.Row.TUTORIAL
+                        || row == NoticeChannel.Row.ADMIN || row == NoticeChannel.Row.BOARD;
+                case MONEY -> row == NoticeChannel.Row.MONEY;
+                case CARGO -> row == NoticeChannel.Row.CARGO || line.hasItems();
+                case URGENT -> row == NoticeChannel.Row.CRITICAL;
+            };
+        }
+    }
+
+    public enum MailGroup {
+        SESSION, AWAY, EARLIER
+    }
+
+    private static MailFilter mailFilter = MailFilter.ALL;
+
+    public static MailFilter mailFilter() {
+        return mailFilter;
+    }
+
+    public static void setMailFilter(MailFilter filter) {
+        mailFilter = filter;
+    }
+
+    public static List<NotificationSyncPayload.Line> filtered() {
+        if (mailFilter == MailFilter.ALL) {
+            return entries;
+        }
+        return entries.stream().filter(mailFilter::accepts).toList();
+    }
+
+    /** Current session on top (no header), then events from the offline window, then everything older. */
+    public static MailGroup group(NotificationSyncPayload.Line line) {
+        if (loginAt < 0 || line.at() >= loginAt) {
+            return MailGroup.SESSION;
+        }
+        return awaySince >= 0 && line.at() >= awaySince ? MailGroup.AWAY : MailGroup.EARLIER;
+    }
+
     public static boolean unreadUrgent() {
         for (NotificationSyncPayload.Line line : entries) {
             if (!line.read() && line.urgent()) {
