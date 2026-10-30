@@ -28,6 +28,15 @@ import top.theillusivec4.curios.api.client.ICurioRenderer;
  * MIT, same author); the rank now comes from the {@code aerocouriers:license_rank} component instead of the item id.
  */
 public class EpauletteRenderer implements ICurioRenderer {
+    /**
+     * Inner arm top is y=-2. {@code PlayerModel} sleeve overlay uses
+     * {@code CubeDeformation.extend(0.25)}, so its top face sits at y=-2.25.
+     * A plate on that exact plane z-fights with filled jacket/sleeve layers
+     * (blinking epaulettes on some skins). Extra model-pixels above the overlay
+     * clear the depth fight; 0.25 px matches the overlay inflate itself.
+     */
+    private static final float SLEEVE_OVERLAY_TOP = 2.25f;
+    private static final float OVERLAY_CLEARANCE = 0.25f;
     // Lifts the glow layer over the base one to avoid z-fighting (~0.016 px).
     private static final float GLOW_OFFSET = 0.001f;
 
@@ -67,14 +76,18 @@ public class EpauletteRenderer implements ICurioRenderer {
 
     private static void renderShoulder(PoseStack pose, VertexConsumer vc, ModelPart arm, int light,
                                        boolean right, boolean slim, float yOffset) {
+        if (!arm.visible || arm.skipDraw) {
+            return;
+        }
+
         pose.pushPose();
         arm.translateAndRotate(pose);
 
         float w = slim ? 3f : 4f;
         float x0 = (right ? (slim ? -2f : -3f) : -1f) / 16f;
         float x1 = x0 + w / 16f;
-        // Up is -Y in model space.
-        float y = (-2.25f / 16f) - yOffset;
+        // Up is -Y in model space. Sit above the sleeve overlay, not on it.
+        float y = (-(SLEEVE_OVERLAY_TOP + OVERLAY_CLEARANCE) / 16f) - yOffset;
         float z0 = -2f / 16f;
         float z1 = 2f / 16f;
 
