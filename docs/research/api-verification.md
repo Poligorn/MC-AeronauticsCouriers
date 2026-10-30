@@ -45,6 +45,7 @@
 | `ICuriosItemHandler.findFirstCurio(Item)` → `Optional<SlotResult>`; `getCurios()`, `getStacksHandler(id)`, `setEquippedCurio(id, index, stack)` | есть | ✅ |
 | `ICurioItem` на классе предмета | регистрируется автоматически (`Curios.java`: `it instanceof ICurioItem`) | ✅ |
 | `ICurioRenderer.render(...)`, `CuriosRendererRegistry.register(Item, Supplier<ICurioRenderer>)` | сигнатуры как в pilotwings | ✅ |
+| `PlayerModel.createMesh` (1.21.1) | рука `addBox(..., y=-2)`; оверлей рукава `cubeDeformation.extend(0.25F)` → верхняя грань на `y=-2.25`. Модель — `RenderType.entityTranslucent`. Slim/wide: 3×12×4 vs 4×12×4 | ✅ sources NeoForge 21.1.235 |
 | Слоты/сущности datapack | `data/<ns>/curios/slots/<id>.json`, `data/<ns>/curios/entities/<name>.json` (`CuriosSlotManager`, `CuriosEntityManager`) | ✅ |
 | Валидатор по умолчанию | `curios:tag` → тег `curios:<slot>` (`data/curios/tags/item/license.json`) | ✅ |
 | Синхронизация изменений стека | `CuriosEventHandler.tick` (сервер): `!ItemStack.matches(stack, prev)` → `SPacketSyncStack` всем отслеживающим → смена компонента ранга видна другим игрокам без своих пакетов | ✅ по коду, ⚠️ в игре |
