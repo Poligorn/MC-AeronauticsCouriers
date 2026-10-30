@@ -2,7 +2,6 @@ package dev.poligorn.aerocouriers.client;
 
 import dev.poligorn.aerocouriers.AeronauticsCouriers;
 import dev.poligorn.aerocouriers.client.board.BoardCargoTooltip;
-import dev.poligorn.aerocouriers.client.board.BoardRowDebug;
 import dev.poligorn.aerocouriers.client.board.BoardRowLayout;
 import dev.poligorn.aerocouriers.client.board.BoardRowMetrics;
 import dev.poligorn.aerocouriers.client.board.BoardAcceptOverlay;
