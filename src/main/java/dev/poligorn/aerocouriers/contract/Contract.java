@@ -1,11 +1,16 @@
 package dev.poligorn.aerocouriers.contract;
 
+import com.mojang.datafixers.util.Pair;
 import com.mojang.serialization.Codec;
+import com.mojang.serialization.MapCodec;
+import com.mojang.serialization.codecs.PairMapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import dev.poligorn.aerocouriers.cargo.CargoSize;
+import dev.poligorn.aerocouriers.cargo.WaybillFacing;
 import dev.poligorn.aerocouriers.license.LicenseRank;
 import java.util.Optional;
 import java.util.UUID;
+import net.minecraft.core.Direction;
 import net.minecraft.core.UUIDUtil;
 
 /**
@@ -17,13 +22,21 @@ import net.minecraft.core.UUIDUtil;
  * @param weight    total cargo weight (GDD §8.2), the {@code W} of the XP formula
  * @param preplaced {@code true} when the cargo container already stands at the pickup point (stamp orders)
  * @param originSnapshot block(s) that held the cargo at creation; restored at P2P delivery
+ * @param waybillFace world-horizontal side the paper waybill faces; frozen at publish, never recomputed
  */
 public record Contract(UUID id, ContractType type, UUID issuer, UUID recipient, Optional<UUID> courier,
                        Destination origin, Destination destination, CargoSize size, double weight,
                        long reward, long collateral, LicenseRank requiredRank, Timing timing, ContractState state,
-                       boolean preplaced, Optional<OriginContainerSnapshot> originSnapshot) {
+                       boolean preplaced, Optional<OriginContainerSnapshot> originSnapshot, Direction waybillFace) {
 
-    public static final Codec<Contract> CODEC = RecordCodecBuilder.create(instance -> instance.group(
+    public Contract {
+        if (waybillFace == null || !waybillFace.getAxis().isHorizontal()) {
+            waybillFace = WaybillFacing.DEFAULT_FACE;
+        }
+    }
+
+    /** DFU {@code group} maxes out at 16 fields; the sheet face is appended with {@link MapCodec#and}. */
+    private static final MapCodec<Contract> BASE_CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
             UUIDUtil.CODEC.fieldOf("id").forGetter(Contract::id),
             ContractType.CODEC.fieldOf("type").forGetter(Contract::type),
             UUIDUtil.CODEC.fieldOf("issuer").forGetter(Contract::issuer),
@@ -40,7 +53,22 @@ public record Contract(UUID id, ContractType type, UUID issuer, UUID recipient, 
             ContractState.CODEC.fieldOf("state").forGetter(Contract::state),
             Codec.BOOL.optionalFieldOf("preplaced", false).forGetter(Contract::preplaced),
             OriginContainerSnapshot.CODEC.optionalFieldOf("origin_snapshot").forGetter(Contract::originSnapshot)
-    ).apply(instance, Contract::new));
+    ).apply(instance, Contract::fromBase));
+
+    public static final Codec<Contract> CODEC = new PairMapCodec<>(
+                    BASE_CODEC, Direction.CODEC.optionalFieldOf("waybill_face", WaybillFacing.DEFAULT_FACE))
+            .xmap(pair -> pair.getFirst().withWaybillFace(pair.getSecond()),
+                    contract -> Pair.of(contract, contract.waybillFace()))
+            .codec();
+
+    private static Contract fromBase(UUID id, ContractType type, UUID issuer, UUID recipient, Optional<UUID> courier,
+                                     Destination origin, Destination destination, CargoSize size, double weight,
+                                     long reward, long collateral, LicenseRank requiredRank, Timing timing,
+                                     ContractState state, boolean preplaced,
+                                     Optional<OriginContainerSnapshot> originSnapshot) {
+        return new Contract(id, type, issuer, recipient, courier, origin, destination, size, weight, reward,
+                collateral, requiredRank, timing, state, preplaced, originSnapshot, WaybillFacing.DEFAULT_FACE);
+    }
 
     /**
      * @param deadline   time allowed after acceptance, ticks
@@ -104,38 +132,54 @@ public record Contract(UUID id, ContractType type, UUID issuer, UUID recipient, 
         return id.toString().substring(0, 8);
     }
 
+    /** Block {@code facing} that puts the paper on {@link #waybillFace()}. */
+    public Direction containerFacing() {
+        return WaybillFacing.toContainerFacing(waybillFace);
+    }
+
     Contract withState(ContractState next) {
         if (!state.canTransitionTo(next)) {
             throw new IllegalStateException("Contract " + id + ": " + state + " -> " + next);
         }
-        return new Contract(id, type, issuer, recipient, courier, origin, destination, size, weight, reward,
-                collateral, requiredRank, timing, next, preplaced, originSnapshot);
+        return copy(courier, timing, next);
     }
 
     Contract accepted(UUID courierId, long now) {
-        Contract next = withState(ContractState.ACCEPTED);
-        return new Contract(id, type, issuer, recipient, Optional.of(courierId), origin, destination, size, weight,
-                reward, collateral, requiredRank,
-                new Timing(timing.createdAt(), timing.expiresAt(), timing.deadline(), now, 0), next.state, preplaced,
-                originSnapshot);
+        if (!state.canTransitionTo(ContractState.ACCEPTED)) {
+            throw new IllegalStateException("Contract " + id + ": " + state + " -> " + ContractState.ACCEPTED);
+        }
+        return copy(Optional.of(courierId),
+                new Timing(timing.createdAt(), timing.expiresAt(), timing.deadline(), now, 0),
+                ContractState.ACCEPTED);
     }
 
     Contract withCollateral(long nextCollateral, LicenseRank nextRank) {
         return new Contract(id, type, issuer, recipient, courier, origin, destination, size, weight, reward,
-                nextCollateral, nextRank, timing, state, preplaced, originSnapshot);
+                nextCollateral, nextRank, timing, state, preplaced, originSnapshot, waybillFace);
     }
 
     /** Tutorial only: back to OPEN (abandon → reissue) or ACCEPTED (lost container → respawn at A). */
     Contract tutorialRewind(ContractState next, Optional<UUID> nextCourier, long acceptedAt) {
-        return new Contract(id, type, issuer, recipient, nextCourier, origin, destination, size, weight, reward,
-                collateral, requiredRank, new Timing(timing.createdAt(), timing.expiresAt(), timing.deadline(),
-                acceptedAt, 0), next, preplaced, originSnapshot);
+        return copy(nextCourier, new Timing(timing.createdAt(), timing.expiresAt(), timing.deadline(),
+                acceptedAt, 0), next);
     }
 
     Contract withPause(long extraTicks) {
+        return copy(courier, new Timing(timing.createdAt(), timing.expiresAt(), timing.deadline(),
+                timing.acceptedAt(), timing.paused() + extraTicks), state);
+    }
+
+    Contract withTiming(Timing next) {
+        return copy(courier, next, state);
+    }
+
+    Contract withWaybillFace(Direction nextFace) {
         return new Contract(id, type, issuer, recipient, courier, origin, destination, size, weight, reward,
-                collateral, requiredRank,
-                new Timing(timing.createdAt(), timing.expiresAt(), timing.deadline(), timing.acceptedAt(),
-                        timing.paused() + extraTicks), state, preplaced, originSnapshot);
+                collateral, requiredRank, timing, state, preplaced, originSnapshot, nextFace);
+    }
+
+    private Contract copy(Optional<UUID> nextCourier, Timing nextTiming, ContractState nextState) {
+        return new Contract(id, type, issuer, recipient, nextCourier, origin, destination, size, weight, reward,
+                collateral, requiredRank, nextTiming, nextState, preplaced, originSnapshot, waybillFace);
     }
 }

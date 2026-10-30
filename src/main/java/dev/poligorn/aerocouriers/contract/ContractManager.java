@@ -10,6 +10,7 @@ import dev.poligorn.aerocouriers.cargo.CargoSize;
 import dev.poligorn.aerocouriers.cargo.CargoSpawner;
 import dev.poligorn.aerocouriers.cargo.CargoTracker;
 import dev.poligorn.aerocouriers.cargo.SableBridge;
+import dev.poligorn.aerocouriers.cargo.WaybillFacing;
 import dev.poligorn.aerocouriers.config.CouriersServerConfig;
 import dev.poligorn.aerocouriers.item.Waybills;
 import dev.poligorn.aerocouriers.economy.Economies;
@@ -322,11 +323,12 @@ public final class ContractManager extends SavedData {
         source.setChanged();
 
         long deadline = deadlineMinutes * Pricing.TICKS_PER_MINUTE;
+        Direction waybillFace = WaybillFacing.choose(issuer, origin.dimension(), origin.pos(), size.get());
         Contract contract = new Contract(id, ContractType.PLAYER, issuer.getUUID(), issuer.getUUID(), Optional.empty(),
                 origin, destination, size.get(), weight, reward, collateral,
                 ContractDistances.routeRequiredRank(collateral, size.get(), origin, destination),
                 new Contract.Timing(now, now + deadline, deadline, -1, 0), ContractState.OPEN, false,
-                originSnapshot);
+                originSnapshot, waybillFace);
         Escrow.get(server).open(id, manifest, reward);
         put(contract);
         recordIssuerOrder(issuer, size.get(), reward, weight);
@@ -431,7 +433,6 @@ public final class ContractManager extends SavedData {
         }
 
         Optional<OriginContainerSnapshot> originSnapshot = OriginContainerSnapshot.capture(level, access);
-        Direction facing = CargoSpawner.facingFromReplacedBlock(level, sourcePos, issuer.getDirection().getOpposite());
         CargoContainers.clear(access);
         CargoContainers.removeWithoutDrop(level, access);
 
@@ -443,6 +444,8 @@ public final class ContractManager extends SavedData {
         }
         BlockPos pickup = anchor.get();
         origin = new Destination(level.dimension(), pickup, destination.radius());
+        Direction waybillFace = WaybillFacing.choose(issuer, origin.dimension(), pickup, size.get());
+        Direction facing = WaybillFacing.toContainerFacing(waybillFace);
 
         int fill = size.get().fillFor(weight);
         CargoSpawner.Result spawned = CargoSpawner.spawn(level, pickup, size.get(), fill, id, false, facing, true);
@@ -460,7 +463,7 @@ public final class ContractManager extends SavedData {
         Contract contract = new Contract(id, ContractType.PLAYER, issuer.getUUID(), issuer.getUUID(), Optional.empty(),
                 origin, destination, size.get(), weight, reward, collateral, required,
                 new Contract.Timing(now, now + deadline, deadline, -1, 0), ContractState.OPEN, true,
-                originSnapshot);
+                originSnapshot, waybillFace);
         Escrow.get(server).open(id, manifest, reward);
         put(contract);
         recordIssuerOrder(issuer, size.get(), reward, weight);
@@ -501,7 +504,7 @@ public final class ContractManager extends SavedData {
                 ContractDistances.routeRequiredRank(collateral, size, origin, destination),
                 new Contract.Timing(now, now + deadlineMinutes * Pricing.TICKS_PER_MINUTE,
                         deadlineMinutes * Pricing.TICKS_PER_MINUTE, -1, 0),
-                ContractState.OPEN, false, Optional.empty());
+                ContractState.OPEN, false, Optional.empty(), WaybillFacing.DEFAULT_FACE);
         Escrow.get(server).open(id, manifest, reward, villageRare);
         put(contract);
         AeronauticsCouriers.LOGGER.info(
@@ -525,7 +528,7 @@ public final class ContractManager extends SavedData {
                 origin, destination, size, Weights.of(manifest), reward, collateral,
                 ContractDistances.routeRequiredRank(collateral, size, origin, destination),
                 new Contract.Timing(created, created + deadline, deadline, -1, 0), ContractState.OPEN, false,
-                Optional.empty());
+                Optional.empty(), WaybillFacing.DEFAULT_FACE);
         Escrow.get(server).open(id, manifest, reward);
         put(contract);
         return contract;
@@ -544,7 +547,7 @@ public final class ContractManager extends SavedData {
                 dev.poligorn.aerocouriers.tutorial.Tutorials.SERVICE, player.getUUID(), Optional.empty(),
                 origin, destination, CargoSize.S, Weights.of(manifest), 0L, 0L, LicenseRank.RANK1,
                 new Contract.Timing(now, now + TUTORIAL_TICKS, TUTORIAL_TICKS, -1, 0), ContractState.OPEN, false,
-                Optional.empty());
+                Optional.empty(), WaybillFacing.DEFAULT_FACE);
         Escrow.get(server).open(id, manifest, 0L);
         put(contract);
         return contract;
@@ -762,7 +765,7 @@ public final class ContractManager extends SavedData {
         }
         int fill = contract.size().fillFor(contract.weight());
         CargoSpawner.Result result = CargoSpawner.spawn(level, spot.get(), contract.size(), fill, id, false,
-                Direction.NORTH);
+                contract.containerFacing());
         if (!(result instanceof CargoSpawner.Result.Spawned)) {
             return Outcome.error("spawn_failed");
         }
@@ -1057,10 +1060,7 @@ public final class ContractManager extends SavedData {
         } else {
             return Outcome.error("wrong_state", contract.state().displayName());
         }
-        Contract updated = new Contract(contract.id(), contract.type(), contract.issuer(), contract.recipient(),
-                contract.courier(), contract.origin(), contract.destination(), contract.size(), contract.weight(),
-                contract.reward(), contract.collateral(), contract.requiredRank(), next, contract.state(),
-                contract.preplaced(), contract.originSnapshot());
+        Contract updated = contract.withTiming(next);
         put(updated);
         return Outcome.ok(updated, Component.translatable("admin.aerocouriers.contract.extended", contract.shortId(),
                 minutes));
@@ -1073,7 +1073,7 @@ public final class ContractManager extends SavedData {
         return new Contract(contract.id(), contract.type(), contract.issuer(), contract.recipient(), contract.courier(),
                 contract.origin(), contract.destination(), contract.size(), contract.weight(), contract.reward(),
                 contract.collateral(), contract.requiredRank(), contract.timing(), ContractState.FAILED,
-                contract.preplaced(), contract.originSnapshot());
+                contract.preplaced(), contract.originSnapshot(), contract.waybillFace());
     }
 
     /**

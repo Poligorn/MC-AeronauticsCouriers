@@ -45,7 +45,7 @@ public class CargoContainerBlock extends BaseEntityBlock implements BlockSubLeve
     public static final IntegerProperty FILL = IntegerProperty.create("fill", 0, MAX_FILL);
     /** Door face; matches replaced chests and vanilla directional blocks. */
     public static final DirectionProperty FACING = HorizontalDirectionalBlock.FACING;
-    /** Paper waybill on the starboard side while a contract is bound (GDD §9). */
+    /** Paper waybill on {@code facing + 90°} clockwise while a contract is bound (GDD §9.1). */
     public static final BooleanProperty WAYBILL = BooleanProperty.create("waybill");
     /** While {@code true}, the container stays a world block (no Sable assembly) until a courier accepts. */
     public static final BooleanProperty LOCKED = BooleanProperty.create("locked");

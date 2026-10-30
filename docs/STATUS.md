@@ -2,9 +2,17 @@
 
 > Живой документ. Обновлять при каждом завершённом шаге итерации или изменении решения (см. `.cursor/rules/90-maintaining-docs.mdc`).
 
-**Обновлено:** 30.10.2026 · **Версия:** 0.2.0-beta · фикс моргания погон ([PR #66](https://github.com/Poligorn/MC-AeronauticsCouriers/pull/66), ветка `cursor/epaulette-z-fighting-0573`). Версия и `PROTOCOL_VERSION` `"3"` не менялись. `./gradlew build` SUCCESS, `runGameTestServer` **59/59**.
+**Обновлено:** 30.10.2026 · **Версия:** 0.2.0-beta · накладная к игроку-публикатору ([PR #67](https://github.com/Poligorn/MC-AeronauticsCouriers/pull/67), ветка `cursor/waybill-faces-player-1d77`). Версия и `PROTOCOL_VERSION` `"3"` не менялись.
 
 ## Сделано
+
+### Накладная смотрит на публикатора (30.10.2026)
+- Сторона бумаги (`waybill_face`) пишется в заказ при `create` / `createFromWaybill` и применяется один раз при появлении контейнера: `facing = waybillFace.counterClockWise` (модели: дверь `north`, накладная `east`). Не пересчитывается потом, в том числе на корабле Sable.
+- Правило: ближайшая горизонтальная ось от центра конструкции; диагональ (|dx|−|dz| < 0,25) и «вплотную» (< 1,5 бл) — взгляд игрока; дальше 64 бл / другое измерение / нет позиции / NPC / туториал — восток, как раньше (`facing=north`).
+- Площадка L/XL от `facing` не зависит. Новых текстур и blockstate нет. Старые контейнеры в мире не трогаем.
+- GameTest: `WaybillFacingGameTests` (формула, 4 стороны, диагональ, fallback, S/M/L/XL, штамп, ленивый спавн, codec без поля). `runGameTestServer` **68/68** (было 59; +9). `./gradlew build` SUCCESS. Версия `0.2.0-beta`, `PROTOCOL_VERSION` `"3"` — поле только в SavedData, по сети не уходит.
+- **В клиенте (Xvfb, NeoForge 21.1.235, 14 модов, GUI 3).** Кадры — `/opt/cursor/artifacts/waybill-facing/`: `s_south.png` / `s_north.png` / `s_west.png` / `s_east.png` — S, бумага на грани к камере; `m_south.png` — M 1×2, накладная на нижней южной грани; `l_south.png` — L 2×2×2, накладная в нижнем углу южной грани. Контейнеры поставлены с тем `facing`, который даёт `WaybillFacing.toContainerFacing` (как спавнер после публикации). GLFW на этой машине не принимает синтетические клики, кнопку «Опубликовать» в GUI накладной руками не нажимали — публикация и ленивый спавн закрыты GameTest'ами `stampPublishesSheetTowardPlayer` и `lazySpawnUsesStoredFace`.
+- **Не проверено в этом прогоне:** публикация из GUI накладной стоя с четырёх сторон; повторная публикация на стоящий ящик; отмена → `waybill=false` глазами; контейнер, встроенный в корабль Sable и повёрнутый вместе с корпусом; XL в клиенте (в GameTest площадка XL от `facing` не едет).
 
 ### Фикс моргания погон (30.10.2026, после 0.2.0-beta)
 - **Причина.** Пластина сидела в плоскости оверлея рукава: `PlayerModel` (NeoForge 21.1.235) рисует sleeve overlay с `CubeDeformation.extend(0.25)`, верхняя грань на `y=-2.25`. Рендер ставил квад на ровно `-2.25/16`. На скинах с непрозрачным вторым слоем (jacket/sleeve) это z-fighting с `entityTranslucent` модели игрока. На скинах с пустым оверлеем (alpha < 0.1, discard) мерцания нет — отсюда «на некоторых скинах». Slim/wide (3/4 px) и `RenderType.eyes` тут ни при чём. `Licenses.tickWorn` пишет ранг раз в секунду только при расхождении — не причина мигания.

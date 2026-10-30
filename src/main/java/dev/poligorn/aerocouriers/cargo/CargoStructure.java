@@ -10,6 +10,7 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
+import net.minecraft.world.phys.Vec3;
 
 /** Placement, clearance checks, and teardown for multi-block cargo containers. */
 public final class CargoStructure {
@@ -125,6 +126,15 @@ public final class CargoStructure {
             case L -> new Footprint(2, 2, 2);
             case XL -> new Footprint(2, 3, 2);
         };
+    }
+
+    /**
+     * Horizontal centre of the structure in world space. L/XL occupy +X/+Z from the controller regardless of
+     * {@code facing}: blockstate remaps models onto the same cells, so the footprint does not rotate.
+     */
+    public static Vec3 horizontalCenter(BlockPos anchor, CargoSize size) {
+        Footprint footprint = footprint(size);
+        return new Vec3(anchor.getX() + footprint.width / 2.0, 0.0, anchor.getZ() + footprint.depth / 2.0);
     }
 
     public static BlockState stateForPart(CargoSize size, int fill, Direction facing, boolean waybill, boolean locked,
