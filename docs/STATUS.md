@@ -2,7 +2,7 @@
 
 > Живой документ. Обновлять при каждом завершённом шаге итерации или изменении решения (см. `.cursor/rules/90-maintaining-docs.mdc`).
 
-**Обновлено:** 30.10.2026 · **Версия:** 0.2.0-beta · накладная к игроку-публикатору (ветка `cursor/waybill-faces-player-1d77`). Версия и `PROTOCOL_VERSION` `"3"` не менялись.
+**Обновлено:** 30.10.2026 · **Версия:** 0.2.0-beta · накладная к игроку-публикатору ([PR #67](https://github.com/Poligorn/MC-AeronauticsCouriers/pull/67), ветка `cursor/waybill-faces-player-1d77`). Версия и `PROTOCOL_VERSION` `"3"` не менялись.
 
 ## Сделано
 
