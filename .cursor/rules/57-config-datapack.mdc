@@ -49,6 +49,23 @@ allow_self_accept = false   # только для тестов: заказчик
 ## `aerocouriers-client.toml`
 `[button] position / custom_x / custom_y` — см. `55-client-ui-xaero.mdc`.
 `[zones] enabled / particle_density / render_distance` — контур зон частицами (§10.3).
+`[route]` — линия маршрута на картах Xaero (30.10.2026):
+```toml
+enabled = true            # всё вместе
+world_map = true
+minimap = true
+label = true              # подпись: дистанция, ETA, срок (World Map)
+erase_passed = true       # пройденная часть стирается
+waybill_preview = true    # кнопка «Показать на карте» в накладной
+other_orders = false      # остальные заказы тусклым пунктиром
+corridor = 32             # 16..96 блоков
+reroute_delay = 2.0       # 0.5..10 с вне коридора до перестроения
+thickness = "NORMAL"      # THIN | NORMAL | THICK
+contrast_colors = false   # оранжевый/белый вместо жёлтого/голубого
+eta_mode = "SHIP_SPEED"   # SHIP_SPEED | FIXED
+fixed_speed = 8.0         # 1..64 бл/с
+breadcrumb_step = 96      # 32..512, шаг точек запасного пути
+```
 
 ## Datapack
 | Путь | Назначение |

@@ -65,6 +65,20 @@ Data Components (`DeferredRegister.createDataComponents`), Data Attachments (`At
 | Y неизвестен | `isYIncluded()==false` или Y=`32767` (`SupportXaeroMinimap.createTempWaypoint`) | ✅ |
 | Maven | `chocolateminecraft.com/maven`, плюс `xaero.lib:xaerolib-neoforge-1.21.1:1.7.3` | ✅ |
 
+## Xaero: линия маршрута на картах (30.10.2026, только javap-сигнатуры)
+Подробно и с таблицей версий — [xaero.md](xaero.md#route-line-on-the-maps-2026-10-30-javap-signatures-only-no-decompilation).
+
+| Что | Факт | Статус |
+|---|---|---|
+| Свои элементы на World Map | `WorldMap.mapElementRenderHandler` (public static) `.add(ElementRenderer)`; базовые `MapElementRenderer/Reader/RenderProvider` (ими же рисуются вейпоинты и игроки) | ✅ javap 1.40.11–1.47.0, сигнатуры одинаковые |
+| Свои элементы внутри миникарты | `HudMod.INSTANCE.getMinimap().getMinimapFBORenderer()`, приватное поле типа `MinimapElementMapRendererHandler` (ищем по типу) `.add(MinimapElementRenderer)` | ✅ javap 25.3.13–26.6.0; ⚠️ единственное место рефлексии |
+| Публичное преобразование «мир → экран» | нет | ✅ нет — обход «пробами» (4 невидимых элемента, матрица позы) |
+| Стандартный тип «линия» | нет; Drawings — функция игрока без API | ✅ нет |
+| Как рисует XaeroPlus | миксины `@WrapOperation` + `@Local(name)` в `GuiMap.render` и `MinimapFBORenderer.renderChunksToFBO` | ✅ исходник; у нас миксинов нет |
+| Смысл `partialX/partialY` и позы при `renderElement` | выводится пробами в рантайме | ⚠️ визуально не проверено |
+| Порядок/состояние рендера внутри батча Xaero (blend, depth, шейдер) | ставим своё и восстанавливаем | ⚠️ в игре не проверено |
+| Запасной путь (цепочка точек) | `ThirdPartyWaypoints`, origin `aerocouriers:route` | ✅ javap, только Minimap ≥ 26.2.0 |
+
 ## Create 6.0.10 GUI (стиль окон, 25.10.2026)
 | Что | Факт | Статус |
 |---|---|---|
@@ -94,6 +108,6 @@ Data Components (`DeferredRegister.createDataComponents`), Data Attachments (`At
 | GDD §14.5 | Старые имена совпадают по смыслу; пакет `dev.ithundxr.createnumismatics.*`, не Create addon namespace | ✅ |
 
 ## Что ещё не проверено
-- Xaero: fair-play mod ID; выбор точки на карте **в игре** (код есть).
+- Xaero: fair-play mod ID; выбор точки на карте **в игре** (код есть); линия маршрута на World Map и миникарте **в игре** (код есть).
 - FFItemWeight: API для веса предметов.
 - Aeronautics: можно ли зацепить верёвку/лебёдку за наш блок (только в игре).

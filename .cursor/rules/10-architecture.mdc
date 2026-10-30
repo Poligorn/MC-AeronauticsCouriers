@@ -20,7 +20,8 @@ alwaysApply: false
 | `economy` | `Economy` → `NumismaticsEconomy` (мост) / `InternalEconomy` |
 | `item` | `CourierStampItem` — единственный игрокский способ создать P2P-заказ |
 | `net` | C2S: OpenBoard, ContractIntent, CreateContract (только со штампа), Claim, OperatorBoard; S2C: BoardSnapshot (по 20), OpenStamp, ZoneSync |
-| `client` | Экран, вкладки, кнопка инвентаря, клавиши, `CreateGui` / `CreateGuiTextures` / `CreateStyleButton` (стиль Create по ResourceLocation), NavRenderer (луч погрузки/доставки), `XaeroMapPicker` / `XaeroMinimapAccess` / `XaeroWorldMapAccess`, `XaeroBridge`, `EpauletteRenderer` |
+| `client` | Экран, вкладки, кнопка инвентаря, клавиши, `CreateGui` / `CreateGuiTextures` / `CreateStyleButton` (стиль Create по ResourceLocation), NavRenderer (луч погрузки/доставки), `XaeroMapPicker` / `XaeroMinimapAccess` / `XaeroWorldMapAccess`, `XaeroBridge`, `EpauletteRenderer`; маршрут на картах — `XaeroRouteHooks` (без типов Xaero), `XaeroRouteWorldMapLayer` / `XaeroRouteMinimapLayer` / `XaeroRouteBreadcrumbs` (типы Xaero), `RouteSettingsScreen` |
+| `client.route` | Чистая логика маршрута без типов Xaero: `RoutePlan`, `RouteTracker`, `RoutePreview`, `RouteProbes`, `RouteCanvas`, `RouteStyle`, `RouteScene` |
 | `compat` | `JadeProvider`, `ClaimsBridge` и прочие мосты к опциональным модам |
 
 ## Правила
