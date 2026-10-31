@@ -34,7 +34,7 @@ public final class TooltipDraw {
         List<Component> text = new ArrayList<>();
         if (lines != null) {
             for (Component line : lines) {
-                if (line != null) {
+                if (line != null && !line.getString().isBlank()) {
                     text.add(line);
                 }
             }

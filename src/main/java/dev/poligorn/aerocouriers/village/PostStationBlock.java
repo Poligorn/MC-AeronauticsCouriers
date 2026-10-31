@@ -196,7 +196,11 @@ public class PostStationBlock extends BaseEntityBlock {
         }
         BlockPos controller = controllerPos(state, pos);
         if (player instanceof ServerPlayer serverPlayer && level instanceof ServerLevel serverLevel) {
-            StationPackets.open(serverPlayer, serverLevel, controller);
+            if (serverPlayer.isShiftKeyDown()) {
+                StationPackets.openAdmin(serverPlayer, serverLevel, controller);
+            } else {
+                StationPackets.open(serverPlayer, serverLevel, controller);
+            }
         }
         return InteractionResult.CONSUME;
     }

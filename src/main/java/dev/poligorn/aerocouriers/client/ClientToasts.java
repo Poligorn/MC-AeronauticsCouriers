@@ -1,5 +1,6 @@
 package dev.poligorn.aerocouriers.client;
 
+import dev.poligorn.aerocouriers.client.station.CorkHudGuard;
 import dev.poligorn.aerocouriers.config.CouriersClientConfig;
 import dev.poligorn.aerocouriers.config.NoticeChannel;
 import java.util.ArrayDeque;
@@ -142,7 +143,7 @@ public final class ClientToasts {
     public static boolean hidden() {
         Minecraft mc = Minecraft.getInstance();
         return mc.options.hideGui || mc.getDebugOverlay().showDebugScreen() || mc.screen instanceof ChatScreen
-                || mc.isPaused() || mc.player == null;
+                || mc.isPaused() || mc.player == null || CorkHudGuard.stationUiOpen();
     }
 
     public static void onRenderGui(RenderGuiEvent.Post event) {

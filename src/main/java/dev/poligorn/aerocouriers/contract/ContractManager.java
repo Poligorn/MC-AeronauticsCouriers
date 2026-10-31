@@ -513,6 +513,28 @@ public final class ContractManager extends SavedData {
         return Optional.of(contract);
     }
 
+    /** Dev/QA: mark an OPEN village note as accepted so the in-progress stamp can be screenshotted. */
+    public void qaAccept(MinecraftServer server, UUID id, UUID courierId) {
+        Contract contract = contracts.get(id);
+        if (contract == null || contract.state() != ContractState.OPEN) {
+            return;
+        }
+        put(contract.accepted(courierId, now(server)));
+    }
+
+    /** Dev/QA: pin remaining time so the cork-board expiry style can be screenshotted. */
+    public void qaSetRemaining(MinecraftServer server, UUID id, int minutesLeft, int deadlineMinutes) {
+        Contract contract = contracts.get(id);
+        if (contract == null) {
+            return;
+        }
+        long now = now(server);
+        long deadline = (long) deadlineMinutes * Pricing.TICKS_PER_MINUTE;
+        long expires = now + (long) Math.max(0, minutesLeft) * Pricing.TICKS_PER_MINUTE;
+        put(contract.withTiming(new Contract.Timing(expires - deadline, expires, deadline,
+                contract.timing().acceptedAt(), contract.timing().paused())));
+    }
+
     /**
      * Dev seed only ({@code /couriers dev seed}, not registered in production): a player order from an arbitrary
      * issuer without charging the issuer or emptying a container. {@code ageMinutes} back-dates the creation time.
@@ -945,6 +967,7 @@ public final class ContractManager extends SavedData {
             StationAtlas atlas = StationAtlas.get(server);
             atlas.adjustReputation(contract.issuer(), StationReputation.DELIVERY_DELTA);
             atlas.adjustReputation(contract.recipient(), StationReputation.DELIVERY_DELTA);
+            atlas.recordDelivery(contract.issuer());
             int originRep = atlas.reputation(contract.issuer());
             int destRep = atlas.reputation(contract.recipient());
             paid = Math.max(1, Math.round(paid * StationReputation.rewardMultiplier(originRep, destRep)));

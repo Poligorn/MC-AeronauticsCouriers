@@ -43,8 +43,15 @@ public final class StationAtlas extends SavedData {
             ResourceKey<Level> dimension,
             BlockPos pos,
             Set<UUID> discoveredBy,
-            int reputation
+            int reputation,
+            VillageBoardPolicy policy,
+            int completed
     ) {
+        public Station(UUID id, String name, ResourceKey<Level> dimension, BlockPos pos,
+                Set<UUID> discoveredBy, int reputation) {
+            this(id, name, dimension, pos, discoveredBy, reputation, VillageBoardPolicy.DEFAULT, 0);
+        }
+
         static final Codec<Station> CODEC = RecordCodecBuilder.create(instance -> instance.group(
                 UUIDUtil.STRING_CODEC.fieldOf("id").forGetter(Station::id),
                 Codec.STRING.fieldOf("name").forGetter(Station::name),
@@ -52,11 +59,35 @@ public final class StationAtlas extends SavedData {
                 BlockPos.CODEC.fieldOf("pos").forGetter(Station::pos),
                 UUIDUtil.STRING_CODEC.listOf().xmap(Set::copyOf, List::copyOf)
                         .optionalFieldOf("discovered_by", Set.of()).forGetter(Station::discoveredBy),
-                Codec.INT.optionalFieldOf("reputation", 0).forGetter(Station::reputation)
+                Codec.INT.optionalFieldOf("reputation", 0).forGetter(Station::reputation),
+                VillageBoardPolicy.CODEC.optionalFieldOf("board_policy", VillageBoardPolicy.DEFAULT)
+                        .forGetter(Station::policy),
+                Codec.INT.optionalFieldOf("completed", 0).forGetter(Station::completed)
         ).apply(instance, Station::new));
 
         public boolean discoveredBy(UUID player) {
             return discoveredBy.contains(player);
+        }
+
+        public Station withName(String name) {
+            return new Station(id, name, dimension, pos, discoveredBy, reputation, policy, completed);
+        }
+
+        public Station withDiscovered(Set<UUID> discoveredBy) {
+            return new Station(id, name, dimension, pos, Set.copyOf(discoveredBy), reputation, policy, completed);
+        }
+
+        public Station withReputation(int reputation) {
+            return new Station(id, name, dimension, pos, discoveredBy,
+                    VillageBoardPolicy.clampReputation(reputation), policy, completed);
+        }
+
+        public Station withPolicy(VillageBoardPolicy policy) {
+            return new Station(id, name, dimension, pos, discoveredBy, reputation, policy, completed);
+        }
+
+        public Station withCompleted(int completed) {
+            return new Station(id, name, dimension, pos, discoveredBy, reputation, policy, Math.max(0, completed));
         }
     }
 
@@ -95,7 +126,9 @@ public final class StationAtlas extends SavedData {
         Station old = stations.get(id);
         Set<UUID> discovered = old == null ? Set.of() : old.discoveredBy();
         int reputation = old == null ? 0 : old.reputation();
-        Station updated = new Station(id, name, dimension, pos.immutable(), discovered, reputation);
+        VillageBoardPolicy policy = old == null ? VillageBoardPolicy.DEFAULT : old.policy();
+        int completed = old == null ? 0 : old.completed();
+        Station updated = new Station(id, name, dimension, pos.immutable(), discovered, reputation, policy, completed);
         if (!updated.equals(old)) {
             stations.put(id, updated);
             setDirty();
@@ -132,7 +165,7 @@ public final class StationAtlas extends SavedData {
         }
         Set<UUID> discovered = new HashSet<>(s.discoveredBy());
         discovered.add(player);
-        stations.put(station, new Station(s.id(), s.name(), s.dimension(), s.pos(), Set.copyOf(discovered), s.reputation()));
+        stations.put(station, s.withDiscovered(discovered));
         setDirty();
         return true;
     }
@@ -147,8 +180,7 @@ public final class StationAtlas extends SavedData {
         if (s == null || delta == 0) {
             return;
         }
-        stations.put(stationId, new Station(s.id(), s.name(), s.dimension(), s.pos(), s.discoveredBy(),
-                s.reputation() + delta));
+        stations.put(stationId, s.withReputation(s.reputation() + delta));
         setDirty();
     }
 
@@ -157,7 +189,39 @@ public final class StationAtlas extends SavedData {
         if (s == null) {
             return;
         }
-        stations.put(stationId, new Station(s.id(), s.name(), s.dimension(), s.pos(), s.discoveredBy(), value));
+        stations.put(stationId, s.withReputation(value));
+        setDirty();
+    }
+
+    public void rename(UUID stationId, String name) {
+        Station s = stations.get(stationId);
+        if (s == null) {
+            return;
+        }
+        stations.put(stationId, s.withName(name));
+        setDirty();
+    }
+
+    public void setPolicy(UUID stationId, VillageBoardPolicy policy) {
+        Station s = stations.get(stationId);
+        if (s == null) {
+            return;
+        }
+        stations.put(stationId, s.withPolicy(policy));
+        setDirty();
+    }
+
+    public VillageBoardPolicy policy(UUID stationId) {
+        Station s = stations.get(stationId);
+        return s == null ? VillageBoardPolicy.DEFAULT : s.policy();
+    }
+
+    public void recordDelivery(UUID stationId) {
+        Station s = stations.get(stationId);
+        if (s == null) {
+            return;
+        }
+        stations.put(stationId, s.withCompleted(s.completed() + 1));
         setDirty();
     }
 

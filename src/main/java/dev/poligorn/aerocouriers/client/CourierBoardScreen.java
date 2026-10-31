@@ -11,6 +11,7 @@ import dev.poligorn.aerocouriers.client.board.BoardAcceptUi;
 import dev.poligorn.aerocouriers.client.board.BoardCardRenderer;
 import dev.poligorn.aerocouriers.net.TutorialIntentPayload;
 import dev.poligorn.aerocouriers.client.board.BoardDetailsOverlay;
+import dev.poligorn.aerocouriers.client.board.BoardFocus;
 import dev.poligorn.aerocouriers.client.board.BoardOverlayHost;
 import dev.poligorn.aerocouriers.client.board.TabletDraw;
 import dev.poligorn.aerocouriers.client.board.TabletPalette;
@@ -129,6 +130,10 @@ public final class CourierBoardScreen extends Screen {
     private Tab tab = Tab.BOARD;
     private int scroll;
     private @Nullable UUID selected;
+    /** Station-board row kept when the tablet page omitted the focused village contract. */
+    private @Nullable BoardSnapshotPayload.BoardEntry focusedEntry;
+    /** Village rows from the station cork board, kept when the tablet snapshot omitted them. */
+    private List<BoardSnapshotPayload.BoardEntry> stationExtras = List.of();
     private @Nullable Component hoverTip;
     private @Nullable List<Component> hoverTipLines;
     private @Nullable BoardCargoTooltip hoverCargoComponent;
@@ -153,32 +158,19 @@ public final class CourierBoardScreen extends Screen {
     public CourierBoardScreen(@Nullable BoardSnapshotPayload snapshot) {
         super(Component.translatable("ui.aerocouriers.board.title"));
         applySnapshot(snapshot);
+        if (snapshot != null) {
+            applyPendingFocus(snapshot);
+        }
         tasksUi.onOpenMail(() -> selectTab(Tab.MAIL));
     }
 
     void apply(BoardSnapshotPayload payload) {
         BoardSnapshotPayload previous = snapshot;
         applySnapshot(payload);
-        UUID focus = ClientBoard.takePendingContractFocus();
-        if (focus != null && payload.find(focus).isPresent()) {
-            selected = focus;
-            Optional<BoardSnapshotPayload.BoardEntry> mineHit = payload.mine().stream()
-                    .filter(e -> e.id().equals(focus))
-                    .findFirst();
-            if (mineHit.isPresent()) {
-                tab = Tab.MINE;
-                ClientBoard.setMineSection(MineListSection.forState(mineHit.get().state()));
-            } else {
-                tab = Tab.BOARD;
-            }
-            syncMainTabSelection();
-            scroll = 0;
-            listRowButtonKey = null;
-            refreshBoardContent();
-            focusScrollToSelected();
-        }
-        if (selected != null && payload.find(selected).isEmpty()) {
+        applyPendingFocus(payload);
+        if (selected != null && resolveEntry(selected).isEmpty()) {
             selected = null;
+            focusedEntry = null;
         }
         if (previous == null || previous.operator() != payload.operator()) {
             rebuildMainTabs();
@@ -196,6 +188,45 @@ public final class CourierBoardScreen extends Screen {
             removeTabletButtons();
             initProfileButtons();
         }
+    }
+
+    private void applyPendingFocus(BoardSnapshotPayload payload) {
+        UUID focus = ClientBoard.peekPendingContractFocus();
+        if (focus == null) {
+            return;
+        }
+        BoardSnapshotPayload.BoardEntry extra = ClientBoard.peekPendingFocusEntry();
+        List<BoardSnapshotPayload.BoardEntry> extras = ClientBoard.peekPendingStationEntries();
+        if (!extras.isEmpty()) {
+            stationExtras = extras;
+        }
+        Optional<BoardSnapshotPayload.BoardEntry> found = BoardFocus.resolve(payload, focus, extra, extras);
+        if (found.isEmpty()) {
+            return;
+        }
+        focusedEntry = found.get();
+        selected = focus;
+        Optional<BoardSnapshotPayload.BoardEntry> mineHit = payload.mine().stream()
+                .filter(e -> e.id().equals(focus))
+                .findFirst();
+        if (mineHit.isPresent()) {
+            tab = Tab.MINE;
+            ClientBoard.setMineSection(MineListSection.forState(mineHit.get().state()));
+        } else {
+            tab = Tab.BOARD;
+        }
+        ClientBoard.boardFilters().reset();
+        ClientBoard.clearPendingContractFocus();
+        syncMainTabSelection();
+        scroll = 0;
+        listRowButtonKey = null;
+        refreshBoardContent();
+        focusScrollToSelected();
+        openDetails(focus);
+    }
+
+    private Optional<BoardSnapshotPayload.BoardEntry> resolveEntry(UUID id) {
+        return BoardFocus.resolve(snapshot, id, focusedEntry, stationExtras);
     }
 
     private boolean needsContentWidgetRefresh(@Nullable BoardSnapshotPayload previous, BoardSnapshotPayload payload) {
@@ -595,7 +626,7 @@ public final class CourierBoardScreen extends Screen {
     }
 
     private void openDetails(UUID orderId) {
-        if (snapshot == null || snapshot.find(orderId).isEmpty()) {
+        if (resolveEntry(orderId).isEmpty()) {
             return;
         }
         selected = orderId;
@@ -905,14 +936,10 @@ public final class CourierBoardScreen extends Screen {
     }
 
     private void syncOverlays() {
-        if (snapshot == null) {
-            closeOverlays();
-            return;
-        }
-        if (confirmOverlay != null && snapshot.find(confirmOverlay.orderId()).isEmpty()) {
+        if (confirmOverlay != null && resolveEntry(confirmOverlay.orderId()).isEmpty()) {
             confirmOverlay = null;
         }
-        if (detailsOverlay != null && snapshot.find(detailsOverlay.orderId()).isEmpty()) {
+        if (detailsOverlay != null && resolveEntry(detailsOverlay.orderId()).isEmpty()) {
             detailsOverlay = null;
         }
     }
@@ -2015,7 +2042,7 @@ public final class CourierBoardScreen extends Screen {
 
     private List<BoardSnapshotPayload.BoardEntry> rawListEntriesForTab(BoardSnapshotPayload payload) {
         if (tab == Tab.BOARD) {
-            return payload.board();
+            return BoardFocus.mergeMissing(payload.board(), stationExtras);
         }
         if (tab == Tab.MINE) {
             return MineListSection.entries(payload.mine(), ClientBoard.mineSection());
@@ -2027,7 +2054,9 @@ public final class CourierBoardScreen extends Screen {
         List<BoardSnapshotPayload.BoardEntry> raw = rawListEntriesForTab(payload);
         if (tab == Tab.BOARD) {
             int activeHauls = BoardAcceptUi.countActiveHauls(payload.mine());
-            return ClientBoard.boardFilters().apply(raw, payload.profile(), activeHauls);
+            List<BoardSnapshotPayload.BoardEntry> filtered =
+                    ClientBoard.boardFilters().apply(raw, payload.profile(), activeHauls);
+            return BoardFocus.ensureVisible(filtered, selected, focusedEntry);
         }
         if (tab == Tab.MINE) {
             return ClientBoard.mineFilters(ClientBoard.mineSection()).apply(raw, ClientBoard.mineSection());
@@ -2353,7 +2382,7 @@ public final class CourierBoardScreen extends Screen {
 
         @Override
         public Optional<BoardSnapshotPayload.BoardEntry> entry(UUID id) {
-            return snapshot == null ? Optional.empty() : snapshot.find(id);
+            return resolveEntry(id);
         }
 
         @Override

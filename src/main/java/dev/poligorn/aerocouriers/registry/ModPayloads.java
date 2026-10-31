@@ -25,6 +25,7 @@ import dev.poligorn.aerocouriers.net.OperatorBoardPayload;
 import dev.poligorn.aerocouriers.net.RenameStationPayload;
 import dev.poligorn.aerocouriers.net.StationPackets;
 import dev.poligorn.aerocouriers.net.StationSnapshotPayload;
+import dev.poligorn.aerocouriers.net.VillageAdminPayload;
 import dev.poligorn.aerocouriers.net.ZoneSyncPayload;
 import dev.poligorn.aerocouriers.net.TaskPrefPayload;
 import dev.poligorn.aerocouriers.net.TaskSyncPayload;
@@ -130,6 +131,12 @@ public final class ModPayloads {
                 (payload, context) -> context.enqueueWork(() -> {
                     if (context.player() instanceof ServerPlayer player) {
                         StationPackets.handleRename(player, payload);
+                    }
+                }));
+        registrar.playToServer(VillageAdminPayload.TYPE, VillageAdminPayload.STREAM_CODEC,
+                (payload, context) -> context.enqueueWork(() -> {
+                    if (context.player() instanceof ServerPlayer player) {
+                        StationPackets.handleAdmin(player, payload);
                     }
                 }));
         registrar.playToServer(RequestPlayerProfilePayload.TYPE, RequestPlayerProfilePayload.STREAM_CODEC,

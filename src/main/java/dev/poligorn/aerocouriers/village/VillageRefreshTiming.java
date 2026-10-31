@@ -11,7 +11,16 @@ public final class VillageRefreshTiming {
 
     /** Absolute overworld {@link net.minecraft.world.level.Level#getGameTime()} of the next generation tick. */
     public static OptionalLong nextRefreshGameTime(MinecraftServer server) {
-        int intervalTicks = generationIntervalTicks();
+        return nextRefreshGameTime(server, generationIntervalTicks());
+    }
+
+    public static OptionalLong nextRefreshGameTime(MinecraftServer server, StationAtlas.Station station) {
+        int minutes = station.policy().refreshIntervalMin();
+        int intervalTicks = minutes > 0 ? minutes * 60 * 20 : generationIntervalTicks();
+        return nextRefreshGameTime(server, intervalTicks);
+    }
+
+    private static OptionalLong nextRefreshGameTime(MinecraftServer server, int intervalTicks) {
         if (intervalTicks <= 0) {
             return OptionalLong.empty();
         }

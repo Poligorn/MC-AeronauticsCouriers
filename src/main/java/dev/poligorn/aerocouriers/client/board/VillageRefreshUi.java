@@ -79,6 +79,31 @@ public final class VillageRefreshUi {
         return Component.translatable("ui.aerocouriers.village_refresh.in", formatDuration(remainingTicks));
     }
 
+    /**
+     * Chip text that stays inside {@code maxTextWidth}: full sentence first, time only
+     * when the sentence truly does not fit.
+     */
+    public static String chipText(int remainingTicks, int maxTextWidth, java.util.function.ToIntFunction<String> widthOf) {
+        if (remainingTicks < 0 || maxTextWidth <= 0) {
+            return "";
+        }
+        String full = countdownLabel(remainingTicks).getString();
+        if (widthOf.applyAsInt(full) <= maxTextWidth) {
+            return full;
+        }
+        return remainingTicks <= SOON_TICKS
+                ? Component.translatable("ui.aerocouriers.village_refresh.soon").getString()
+                : formatDuration(remainingTicks);
+    }
+
+    /**
+     * Label for a chip of {@code chipWidth} (19 px icon + pad). Prefers
+     * «Новые заказы через …» / «New orders in …».
+     */
+    public static String chipLabel(int remainingTicks, int chipWidth, java.util.function.ToIntFunction<String> widthOf) {
+        return chipText(remainingTicks, Math.max(8, chipWidth - 15), widthOf);
+    }
+
     /** Right-aligned clock icon + countdown in the list header band. */
     public static void renderHeader(GuiGraphics graphics, Font font, int contentLeft, int contentRight, int y,
                                     int remainingTicks) {

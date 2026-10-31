@@ -12,6 +12,7 @@ import dev.poligorn.aerocouriers.net.OpenBoardPayload;
 import dev.poligorn.aerocouriers.net.OpenWaybillCreatePayload;
 import dev.poligorn.aerocouriers.net.PlayerProfilePayload;
 import dev.poligorn.aerocouriers.net.RequestPlayerProfilePayload;
+import java.util.List;
 import java.util.UUID;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
@@ -28,6 +29,8 @@ public final class ClientBoard {
     private static boolean pilotLicenseHeld;
     private static BoardSnapshotPayload.Extras extras = BoardSnapshotPayload.Extras.EMPTY;
     private static @Nullable java.util.UUID pendingContractFocus;
+    private static @Nullable BoardSnapshotPayload.BoardEntry pendingFocusEntry;
+    private static List<BoardSnapshotPayload.BoardEntry> pendingStationEntries = List.of();
     private static MineListSection mineSection = MineListSection.CURRENT;
     private static final BoardTabFilterState boardFilters = new BoardTabFilterState();
     private static final AdminOrdersFilterState adminOrderFilters = new AdminOrdersFilterState();
@@ -67,14 +70,56 @@ public final class ClientBoard {
     }
 
     public static void focusContract(UUID contractId) {
+        focusContract(contractId, null);
+    }
+
+    /** Open the tablet on this contract. {@code entry} is the station-board row (may be absent from the tablet page). */
+    public static void focusContract(UUID contractId, @Nullable BoardSnapshotPayload.BoardEntry entry) {
+        focusContract(contractId, entry, entry == null ? List.of() : List.of(entry));
+    }
+
+    /**
+     * Open the tablet on this contract and keep the station's village rows on the client
+     * so the focused order is visible even when the tablet page omitted it.
+     */
+    public static void focusContract(
+            UUID contractId,
+            @Nullable BoardSnapshotPayload.BoardEntry entry,
+            List<BoardSnapshotPayload.BoardEntry> stationOrders
+    ) {
         pendingContractFocus = contractId;
+        pendingFocusEntry = entry;
+        pendingStationEntries = stationOrders == null || stationOrders.isEmpty()
+                ? List.of()
+                : List.copyOf(stationOrders);
+        boardFilters.reset();
         requestOpen(0);
+    }
+
+    public static @Nullable UUID peekPendingContractFocus() {
+        return pendingContractFocus;
+    }
+
+    public static @Nullable BoardSnapshotPayload.BoardEntry peekPendingFocusEntry() {
+        return pendingFocusEntry;
+    }
+
+    public static List<BoardSnapshotPayload.BoardEntry> peekPendingStationEntries() {
+        return pendingStationEntries;
     }
 
     public static @Nullable UUID takePendingContractFocus() {
         UUID id = pendingContractFocus;
         pendingContractFocus = null;
+        pendingFocusEntry = null;
+        pendingStationEntries = List.of();
         return id;
+    }
+
+    public static void clearPendingContractFocus() {
+        pendingContractFocus = null;
+        pendingFocusEntry = null;
+        pendingStationEntries = List.of();
     }
 
     public static MineListSection mineSection() {

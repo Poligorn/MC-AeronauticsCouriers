@@ -82,6 +82,14 @@ neoForge {
                 programArgument '--quickPlaySingleplayer'
                 programArgument 'jadeqa'
             }
+            if (project.findProperty('corkqa') == 'true') {
+                programArgument '--quickPlaySingleplayer'
+                programArgument 'corkqa'
+                programArgument '--width'
+                programArgument '1920'
+                programArgument '--height'
+                programArgument '1080'
+            }
         }
         server {
             server()
@@ -96,6 +104,9 @@ neoForge {
             systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
             if (project.findProperty('jadeqa') == 'true') {
                 systemProperty 'aerocouriers.jadeqa', 'true'
+            }
+            if (project.findProperty('corkqa') == 'true') {
+                systemProperty 'aerocouriers.corkqa', 'true'
             }
             logLevel = org.slf4j.event.Level.INFO
         }
