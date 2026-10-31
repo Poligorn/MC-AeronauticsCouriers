@@ -79,6 +79,8 @@ public class PostStationBlockEntity extends BlockEntity implements Nameable {
                 setChanged();
             }
             atlas.register(stationId, name, serverLevel.dimension(), worldPosition);
+            // Old 1-block worlds: grow the upper half without touching this BE.
+            PostStationBlock.tryPlaceUpperHalf(serverLevel, worldPosition);
             return;
         }
         if (pendingDedup) {
@@ -113,6 +115,7 @@ public class PostStationBlockEntity extends BlockEntity implements Nameable {
         if (village) {
             VillageStationDedup.claim(serverLevel, pos);
         }
+        PostStationBlock.tryPlaceUpperHalf(serverLevel, pos);
     }
 
     static boolean isDuplicateVillageStation(ServerLevel level, StationAtlas atlas, BlockPos pos) {

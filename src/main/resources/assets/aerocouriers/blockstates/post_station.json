@@ -1,8 +1,12 @@
 {
   "variants": {
-    "facing=north": { "model": "aerocouriers:block/post_station" },
-    "facing=east": { "model": "aerocouriers:block/post_station", "y": 90 },
-    "facing=south": { "model": "aerocouriers:block/post_station", "y": 180 },
-    "facing=west": { "model": "aerocouriers:block/post_station", "y": 270 }
+    "facing=north,half=lower": { "model": "aerocouriers:block/post_station_lower" },
+    "facing=east,half=lower":  { "model": "aerocouriers:block/post_station_lower", "y": 90 },
+    "facing=south,half=lower": { "model": "aerocouriers:block/post_station_lower", "y": 180 },
+    "facing=west,half=lower":  { "model": "aerocouriers:block/post_station_lower", "y": 270 },
+    "facing=north,half=upper": { "model": "aerocouriers:block/post_station_upper" },
+    "facing=east,half=upper":  { "model": "aerocouriers:block/post_station_upper", "y": 90 },
+    "facing=south,half=upper": { "model": "aerocouriers:block/post_station_upper", "y": 180 },
+    "facing=west,half=upper":  { "model": "aerocouriers:block/post_station_upper", "y": 270 }
   }
 }

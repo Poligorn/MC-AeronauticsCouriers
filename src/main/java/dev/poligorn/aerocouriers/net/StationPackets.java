@@ -2,6 +2,7 @@ package dev.poligorn.aerocouriers.net;
 
 import dev.poligorn.aerocouriers.contract.ContractManager;
 import dev.poligorn.aerocouriers.contract.ContractType;
+import dev.poligorn.aerocouriers.village.PostStationBlock;
 import dev.poligorn.aerocouriers.village.PostStationBlockEntity;
 import dev.poligorn.aerocouriers.village.StationAtlas;
 import dev.poligorn.aerocouriers.village.StationReputation;
@@ -23,10 +24,12 @@ public final class StationPackets {
     }
 
     public static void open(ServerPlayer player, ServerLevel level, BlockPos pos) {
-        if (!(level.getBlockEntity(pos) instanceof PostStationBlockEntity station) || station.stationId() == null) {
+        PostStationBlockEntity station = PostStationBlock.stationEntity(level, pos);
+        if (station == null || station.stationId() == null) {
             player.sendSystemMessage(Component.translatable("station.aerocouriers.error.not_station", pos.toShortString()));
             return;
         }
+        BlockPos controller = station.getBlockPos().immutable();
         UUID stationId = station.stationId();
         StationAtlas atlas = StationAtlas.get(player.server);
         int reputation = atlas.reputation(stationId);
@@ -43,7 +46,7 @@ public final class StationPackets {
         long overworldGameTime = player.server.overworld().getGameTime();
         long nextVillageRefresh = VillageRefreshTiming.nextRefreshGameTime(player.server).orElse(0L);
         CouriersNetwork.sendRegistryPayload(player, new StationSnapshotPayload(
-                pos.immutable(),
+                controller.immutable(),
                 station.name(),
                 reputation,
                 bonus,
@@ -72,8 +75,13 @@ public final class StationPackets {
             player.sendSystemMessage(Component.translatable("station.aerocouriers.error.name", MAX_NAME_LENGTH));
             return;
         }
-        if (!(player.level() instanceof ServerLevel level)
-                || !(level.getBlockEntity(payload.pos()) instanceof PostStationBlockEntity station)) {
+        if (!(player.level() instanceof ServerLevel level)) {
+            player.sendSystemMessage(Component.translatable("station.aerocouriers.error.not_station",
+                    payload.pos().toShortString()));
+            return;
+        }
+        PostStationBlockEntity station = PostStationBlock.stationEntity(level, payload.pos());
+        if (station == null) {
             player.sendSystemMessage(Component.translatable("station.aerocouriers.error.not_station",
                     payload.pos().toShortString()));
             return;

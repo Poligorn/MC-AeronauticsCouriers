@@ -67,6 +67,11 @@ public final class VillageStationDedup {
         }
     }
 
+    /** True if this exact controller cell was claimed during the current server session. */
+    public static boolean isClaimed(BlockPos pos) {
+        return CLAIMED_STATIONS.contains(pos);
+    }
+
     /**
      * Worldgen: the original is the first station claimed for this village start, or the first claimed
      * block within a village-sized fallback when the start is not in the structure manager yet.
@@ -104,6 +109,11 @@ public final class VillageStationDedup {
      * loading on the same tick do not all turn into cartography tables.
      */
     public static boolean isDuplicateAtLoad(LevelReader level, BlockPos pos, @Nullable StationAtlas atlas) {
+        // The processor claims the kept controller before its BE runs finishFirstLoad.
+        // That village start is already in CLAIMED_VILLAGE_STARTS — do not convert the original.
+        if (CLAIMED_STATIONS.contains(pos)) {
+            return false;
+        }
         BlockPos start = villageStart(level, pos);
         if (start != null && CLAIMED_VILLAGE_STARTS.contains(start)) {
             return true;

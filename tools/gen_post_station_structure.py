@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Generates data/aerocouriers/structure/village/post_station.nbt (GDD §6.0).
 
-A 3×3×3 village "house": a floor, the post station facing the street and two lanterns on fences. The jigsaw at
+A 3×3×3 village "house": a floor, the 1×1×2 post station (concept A «Стойка») facing the street
+and two lanterns on fences. Lower half at (1,1,1) holds the BE; upper half at (1,2,1). The antenna
+is model-only into the cell above the piece (Minecraft allows one block of model overflow). The jigsaw at
 (0, 0, 1) faces west and is named minecraft:building_entrance, which is what village street jigsaws target, so the
 piece attaches to streets like vanilla houses. Run from the repository root: python3 tools/gen_post_station_structure.py
 """
@@ -85,8 +87,13 @@ for x in range(3):
 for y in (1, 2):
     for x in range(3):
         for z in range(3):
-            if (x, y, z) == (1, 1, 1):
-                put(x, y, z, "aerocouriers:post_station", {"facing": "west"}, {"id": "aerocouriers:post_station", "village": True})
+            if (x, z) == (1, 1):
+                if y == 1:
+                    put(x, y, z, "aerocouriers:post_station", {"facing": "west", "half": "lower"},
+                        {"id": "aerocouriers:post_station", "village": True})
+                else:
+                    # Dummy half: no BE nbt. Antenna is model-only into the cell above the piece.
+                    put(x, y, z, "aerocouriers:post_station", {"facing": "west", "half": "upper"})
             elif x == 2 and z in (0, 2):
                 if y == 1:
                     put(x, y, z, "minecraft:spruce_fence", {"north": "false", "south": "false", "east": "false",
