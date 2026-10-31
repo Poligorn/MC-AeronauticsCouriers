@@ -219,6 +219,9 @@ public final class VillageAdminGameTests {
                 "overflowing chip falls back to icon+time");
         helper.assertTrue(VillageRefreshUi.chipText(11_560, 80, String::length).contains(time),
                 "wide chip keeps the countdown");
+        String full = VillageRefreshUi.countdownLabel(11_560).getString();
+        helper.assertValueEqual(VillageRefreshUi.chipText(11_560, full.length(), String::length), full,
+                "full «new orders in» stays when the chip is wide enough");
         helper.succeed();
     }
 
@@ -265,6 +268,10 @@ public final class VillageAdminGameTests {
                 CorkNoteStyle.of(extra, 1, ""), true);
         helper.assertTrue(locked.stream().anyMatch(c -> !c.getString().isBlank()),
                 "read-only hover still has a tablet hint");
+        CorkBoardLayout.Rect note = new CorkBoardLayout.Rect(20, 80, 136, 108);
+        CorkBoardLayout.Rect tip = CorkNoteTooltip.place(480, 270, note, 160, 72);
+        helper.assertFalse(CorkNoteTooltip.overlaps(note, tip), "tooltip sits beside the note");
+        helper.assertTrue(tip.x() >= 4 && tip.y() >= 4, "tooltip stays on screen");
         helper.succeed();
     }
 

@@ -4,7 +4,6 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import dev.poligorn.aerocouriers.cargo.CargoSize;
 import dev.poligorn.aerocouriers.client.ClientBoard;
 import dev.poligorn.aerocouriers.client.ClientCouriersSounds;
-import dev.poligorn.aerocouriers.client.TooltipDraw;
 import dev.poligorn.aerocouriers.client.board.VillageRefreshUi;
 import dev.poligorn.aerocouriers.license.LicenseRank;
 import dev.poligorn.aerocouriers.net.BoardSnapshotPayload;
@@ -26,9 +25,8 @@ public final class CorkBoardScreen extends Screen {
     private CorkBoardLayout layout;
     private int scroll;
     private @Nullable List<Component> hoverTipLines;
+    private @Nullable CorkBoardLayout.Rect hoverNote;
     private int qaHoverIndex = -1;
-    private int qaTipX;
-    private int qaTipY;
 
     public CorkBoardScreen(StationSnapshotPayload snapshot) {
         super(Component.translatable("ui.aerocouriers.cork.title", snapshot.name()));
@@ -97,6 +95,7 @@ public final class CorkBoardScreen extends Screen {
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         layout = CorkBoardLayout.of(width, height);
         hoverTipLines = null;
+        hoverNote = null;
         renderBackground(graphics, mouseX, mouseY, partialTick);
         CorkBoardGui.fullBright();
         CorkBoardGui.boardWindow(graphics, layout);
@@ -119,9 +118,12 @@ public final class CorkBoardScreen extends Screen {
         CorkBoardGui.scrollBar(graphics, layout.scroll, scroll, layout.maxScrollRows(orders.size()),
                 layout.visibleRows, layout.totalRows(orders.size()));
         if (hoverTipLines != null && !hoverTipLines.isEmpty()) {
-            int tipX = qaHoverIndex >= 0 ? qaTipX : mouseX;
-            int tipY = qaHoverIndex >= 0 ? qaTipY : mouseY;
-            TooltipDraw.render(graphics, font, hoverTipLines, java.util.Optional.empty(), tipX, tipY);
+            int[] box = CorkNoteTooltip.size(font, hoverTipLines);
+            CorkBoardLayout.Rect note = hoverNote != null
+                    ? hoverNote
+                    : new CorkBoardLayout.Rect(mouseX, mouseY, 1, 1);
+            CorkBoardLayout.Rect tip = CorkNoteTooltip.place(width, height, note, box[0], box[1]);
+            CorkNoteTooltip.render(graphics, font, hoverTipLines, tip.x(), tip.y());
         }
     }
 
@@ -135,24 +137,27 @@ public final class CorkBoardScreen extends Screen {
         CorkBoardGui.blitTint(graphics, CorkSprites.ICON_HOUSE, layout.houseX, layout.houseY, 7, 7,
                 CorkPalette.HEADER_TITLE);
         String title = Component.translatable("ui.aerocouriers.cork.station", snapshot.name()).getString();
-        int titleMax = Math.max(24, layout.timerChip.x() - layout.titleX - 8);
+        int headerRight = layout.headerPlank.x() + layout.headerPlank.w() - 8;
+        int chipLeftMin = layout.nameplate.x() + layout.nameplate.w() + 8;
+        int chipAvail = Math.max(layout.timerChip.w(), headerRight - chipLeftMin);
+        int timer = VillageRefreshUi.remainingTicks(minecraft);
+        String chip = timer < 0 ? "" : VillageRefreshUi.chipText(timer, Math.max(8, chipAvail - 19), font::width);
+        int chipW = chip.isBlank()
+                ? layout.timerChip.w()
+                : Math.min(chipAvail, Math.max(layout.timerChip.w(), 19 + font.width(chip)));
+        int chipX = headerRight - chipW;
+        int chipY = layout.timerChip.y();
+        int titleMax = Math.max(24, chipX - layout.titleX - 8);
         CorkBoardGui.bold(graphics, font, font.width(title) <= titleMax ? title
                         : CorkBoardGui.ellipsize(font, title, titleMax),
                 layout.titleX, layout.titleY, CorkPalette.HEADER_TITLE);
         CorkBoardGui.text(graphics, font, Component.translatable("ui.aerocouriers.cork.subtitle"),
                 layout.subtitleX, layout.subtitleY, CorkPalette.HEADER_SUBTITLE);
 
-        CorkBoardGui.blit(graphics, CorkSprites.CHIP_DARK, layout.timerChip);
-        int timer = VillageRefreshUi.remainingTicks(minecraft);
-        if (timer >= 0) {
-            int textMax = Math.max(8, layout.timerChip.w() - 19);
-            String chip = VillageRefreshUi.chipText(timer, textMax, font::width);
-            if (!chip.isBlank()) {
-                CorkBoardGui.blitTint(graphics, CorkSprites.ICON_CLOCK, layout.timerChip.x() + 4,
-                        layout.timerChip.y() + 2, 9, 8, CorkPalette.TIMER);
-                CorkBoardGui.text(graphics, font, CorkBoardGui.ellipsize(font, chip, textMax),
-                        layout.timerChip.x() + 15, layout.timerChip.y() + 3, CorkPalette.TIMER);
-            }
+        if (!chip.isBlank()) {
+            CorkBoardGui.blit(graphics, CorkSprites.CHIP_DARK, chipX, chipY, chipW, layout.timerChip.h());
+            CorkBoardGui.blitTint(graphics, CorkSprites.ICON_CLOCK, chipX + 4, chipY + 2, 9, 8, CorkPalette.TIMER);
+            CorkBoardGui.text(graphics, font, chip, chipX + 15, chipY + 3, CorkPalette.TIMER);
         }
 
         String repLabel = Component.translatable(layout.narrow
@@ -164,7 +169,6 @@ public final class CorkBoardScreen extends Screen {
                 : LicenseRank.byLevel(snapshot.view().playerRankLevel());
         String rankText = Component.translatable("ui.aerocouriers.cork.rank", rank.displayName()).getString();
         String repValue = Integer.toString(snapshot.reputation());
-        int headerRight = layout.headerPlank.x() + layout.headerPlank.w() - 8;
         int labelW = font.width(repLabel);
         int valueW = font.width(repValue);
         int rankW = font.width(rankText);
@@ -241,10 +245,7 @@ public final class CorkBoardScreen extends Screen {
                     hover, false);
             if (hover) {
                 hoverTipLines = CorkNoteTooltip.lines(entry, noteStyle, readOnly());
-                if (qaHoverIndex == i) {
-                    qaTipX = nx + layout.noteW / 2;
-                    qaTipY = ny + 12;
-                }
+                hoverNote = new CorkBoardLayout.Rect(nx, ny, layout.noteW, layout.noteH);
             }
         }
     }
