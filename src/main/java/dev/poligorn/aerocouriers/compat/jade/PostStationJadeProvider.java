@@ -23,7 +23,8 @@ public enum PostStationJadeProvider implements IBlockComponentProvider, IServerD
 
     @Override
     public void appendServerData(CompoundTag tag, BlockAccessor accessor) {
-        if (!(accessor.getLevel() instanceof ServerLevel level)) {
+        ServerLevel level = CargoContainerJadeProvider.serverLevel(accessor);
+        if (level == null) {
             return;
         }
         JadeTooltipData.stationAt(level, accessor.getPosition()).ifPresent(snapshot -> snapshot.write(tag));

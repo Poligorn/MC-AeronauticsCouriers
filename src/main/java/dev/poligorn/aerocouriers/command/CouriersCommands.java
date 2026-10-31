@@ -50,6 +50,14 @@ public final class CouriersCommands {
         register(event.getDispatcher());
     }
 
+    public static void onJadeQaServerStarted(net.neoforged.neoforge.event.server.ServerStartedEvent event) {
+        DevSeedCommands.onServerStarted(event);
+    }
+
+    public static void onJadeQaServerTick(net.neoforged.neoforge.event.tick.ServerTickEvent.Post event) {
+        DevSeedCommands.pollLookFile(event.getServer());
+    }
+
     private static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         LiteralArgumentBuilder<CommandSourceStack> root = Commands.literal("couriers");
 

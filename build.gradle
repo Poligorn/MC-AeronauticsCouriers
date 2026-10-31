@@ -78,6 +78,10 @@ neoForge {
     runs {
         client {
             client()
+            if (project.findProperty('jadeqa') == 'true') {
+                programArgument '--quickPlaySingleplayer'
+                programArgument 'jadeqa'
+            }
         }
         server {
             server()
@@ -90,6 +94,9 @@ neoForge {
         }
         configureEach {
             systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
+            if (project.findProperty('jadeqa') == 'true') {
+                systemProperty 'aerocouriers.jadeqa', 'true'
+            }
             logLevel = org.slf4j.event.Level.INFO
         }
     }

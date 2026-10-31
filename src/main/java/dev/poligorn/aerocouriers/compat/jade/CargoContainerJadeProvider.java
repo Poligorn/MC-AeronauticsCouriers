@@ -35,10 +35,20 @@ public enum CargoContainerJadeProvider implements IBlockComponentProvider, IServ
 
     @Override
     public void appendServerData(CompoundTag tag, BlockAccessor accessor) {
-        if (!(accessor.getLevel() instanceof ServerLevel level)) {
+        ServerLevel level = serverLevel(accessor);
+        if (level == null) {
             return;
         }
         JadeTooltipData.cargoAt(level, accessor.getPosition()).ifPresent(snapshot -> snapshot.write(tag));
+    }
+
+    /** Jade 15 may hand a client level on the integrated server; contract data lives on the server. */
+    static ServerLevel serverLevel(BlockAccessor accessor) {
+        if (accessor.getLevel() instanceof ServerLevel serverLevel) {
+            return serverLevel;
+        }
+        var server = accessor.getLevel().getServer();
+        return server == null ? null : server.getLevel(accessor.getLevel().dimension());
     }
 
     @Override
