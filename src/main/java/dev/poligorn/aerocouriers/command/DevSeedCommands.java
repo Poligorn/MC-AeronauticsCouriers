@@ -461,6 +461,7 @@ final class DevSeedCommands {
                 StationPackets.open(player, player.serverLevel(), corkStationPos);
             }
             case "board-op" -> {
+                server.getPlayerList().op(player.getGameProfile());
                 preparePlayer(player, true, LicenseRank.RANK3);
                 player.setGameMode(GameType.CREATIVE);
                 StationPackets.open(player, player.serverLevel(), corkStationPos);

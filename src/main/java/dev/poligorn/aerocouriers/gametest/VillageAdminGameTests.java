@@ -14,11 +14,15 @@ import dev.poligorn.aerocouriers.registry.ModBlocks;
 import dev.poligorn.aerocouriers.village.PostStationBlockEntity;
 import dev.poligorn.aerocouriers.village.StationAtlas;
 import dev.poligorn.aerocouriers.village.StationContractSource;
+import dev.poligorn.aerocouriers.client.board.BoardFocus;
 import dev.poligorn.aerocouriers.client.station.CorkBoardLayout;
+import dev.poligorn.aerocouriers.license.LicenseRank;
+import dev.poligorn.aerocouriers.net.BoardSnapshotPayload;
 import dev.poligorn.aerocouriers.village.VillageAdmin;
 import dev.poligorn.aerocouriers.village.VillageBoardPolicy;
 import io.netty.buffer.Unpooled;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTest;
@@ -27,6 +31,7 @@ import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.GameType;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.neoforged.neoforge.common.util.FakePlayerFactory;
 import net.neoforged.neoforge.gametest.GameTestHolder;
@@ -179,6 +184,95 @@ public final class VillageAdminGameTests {
         helper.assertValueEqual(wide.cols, 4, "960 still max 4 columns");
         helper.assertValueEqual(wide.winW, CorkBoardLayout.LARGE_W, "frame stays 640 when the screen is larger");
         helper.succeed();
+    }
+
+    @GameTest(template = CouriersGameTests.EMPTY, batch = "aerocouriers.village.admin")
+    public static void corkBoardHeaderDoesNotOverlap(GameTestHelper helper) {
+        CorkBoardLayout narrow = CorkBoardLayout.of(480, 270);
+        helper.assertTrue(narrow.narrow, "480 is narrow chrome");
+        helper.assertTrue(narrow.titleY + 8 <= narrow.subtitleY, "title vs subtitle");
+        helper.assertTrue(narrow.subtitleY + 8 <= narrow.repLabelY, "subtitle vs reputation");
+        helper.assertTrue(narrow.rankY >= narrow.repLabelY + 9, "rank below reputation");
+        helper.assertTrue(narrow.nameplate.h() >= 22, "nameplate fits title+subtitle");
+        helper.assertTrue(narrow.titleY >= narrow.nameplate.y(), "title inside nameplate");
+        helper.assertTrue(narrow.subtitleY + 8 <= narrow.nameplate.y() + narrow.nameplate.h(),
+                "subtitle inside nameplate");
+        helper.assertTrue(narrow.filterBar.y() >= narrow.rankY + 8, "filter below rank");
+
+        CorkBoardLayout large = CorkBoardLayout.of(640, 360);
+        helper.assertFalse(large.narrow, "640 is large chrome");
+        helper.assertTrue(large.titleY + 8 <= large.subtitleY, "large title vs subtitle");
+        helper.assertTrue(large.subtitleY + 8 <= large.repLabelY, "large subtitle vs reputation");
+        helper.assertValueEqual(large.rankY, large.repLabelY, "large rank on reputation row");
+        helper.assertTrue(large.nameplate.h() >= 22, "large nameplate");
+        helper.assertTrue(large.subtitleY + 8 <= large.nameplate.y() + large.nameplate.h(),
+                "large subtitle inside nameplate");
+        helper.assertTrue(large.filterBar.y() >= large.headerPlank.y() + large.headerPlank.h(),
+                "large filter below header plank");
+        helper.succeed();
+    }
+
+    @GameTest(template = CouriersGameTests.EMPTY, batch = "aerocouriers.village.admin")
+    public static void boardFocusKeepsStationContractVisible(GameTestHelper helper) {
+        UUID id = UUID.fromString("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
+        BoardSnapshotPayload.BoardEntry extra = focusSample(id, "Речной Берег", 90L);
+        helper.assertTrue(BoardFocus.ensureVisible(List.of(), id, extra).getFirst().id().equals(id),
+                "ensureVisible prepends the station row");
+        helper.assertValueEqual(BoardFocus.ensureVisible(List.of(extra), id, extra).size(), 1,
+                "ensureVisible does not duplicate");
+        helper.assertTrue(BoardFocus.resolve(null, id, extra).isPresent(),
+                "resolve uses the station extra when the tablet snapshot omitted it");
+        helper.assertTrue(BoardFocus.resolve(null, id, null, List.of(extra)).isPresent(),
+                "resolve finds the station extras list");
+        UUID other = UUID.fromString("11111111-2222-3333-4444-555555555555");
+        helper.assertTrue(BoardFocus.ensureVisible(List.of(), other, extra).isEmpty(),
+                "ensureVisible ignores a mismatched extra");
+        helper.assertValueEqual(BoardFocus.mergeMissing(List.of(), List.of(extra)).size(), 1,
+                "mergeMissing injects omitted village rows");
+        helper.assertValueEqual(BoardFocus.mergeMissing(List.of(extra), List.of(extra)).size(), 1,
+                "mergeMissing skips an already-listed row");
+        helper.succeed();
+    }
+
+    private static BoardSnapshotPayload.BoardEntry focusSample(UUID id, String dest, long reward) {
+        return new BoardSnapshotPayload.BoardEntry(
+                id,
+                "abc123",
+                ContractState.OPEN,
+                "issuer",
+                "Ясная Поляна",
+                dest,
+                100,
+                "S",
+                "4.0 / 64",
+                reward,
+                10L,
+                LicenseRank.RANK1,
+                60L,
+                55L,
+                List.of(),
+                Optional.empty(),
+                "Ясная Поляна",
+                true,
+                Level.OVERWORLD,
+                BlockPos.ZERO,
+                Level.OVERWORLD,
+                new BlockPos(10, 64, 10),
+                List.of(),
+                27,
+                false,
+                0,
+                -1,
+                30,
+                true,
+                false,
+                true,
+                true,
+                9,
+                64,
+                4.0,
+                3L,
+                false);
     }
 
     @GameTest(template = CouriersGameTests.EMPTY, batch = "aerocouriers.village.admin")

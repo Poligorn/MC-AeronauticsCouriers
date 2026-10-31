@@ -58,7 +58,7 @@ public final class CorkBoardScreen extends Screen {
             ClientCouriersSounds.playOrderDeny();
             return;
         }
-        ClientBoard.focusContract(entry.id());
+        ClientBoard.focusContract(entry.id(), entry, snapshot.orders());
     }
 
     private void syncRefresh() {
@@ -110,7 +110,7 @@ public final class CorkBoardScreen extends Screen {
         drawFooter(graphics, mouseX, mouseY);
         CorkBoardGui.scrollBar(graphics, layout.scroll, scroll, layout.maxScrollRows(orders.size()),
                 layout.visibleRows, layout.totalRows(orders.size()));
-        if (hoverTip != null) {
+        if (hoverTip != null && !hoverTip.getString().isBlank()) {
             TooltipDraw.render(graphics, font, List.of(hoverTip), java.util.Optional.empty(), mouseX, mouseY);
         }
     }
@@ -142,7 +142,9 @@ public final class CorkBoardScreen extends Screen {
                     CorkPalette.TIMER);
         }
 
-        String repLabel = Component.translatable("ui.aerocouriers.cork.reputation_label").getString();
+        String repLabel = Component.translatable(layout.narrow
+                ? "ui.aerocouriers.cork.reputation_label_short"
+                : "ui.aerocouriers.cork.reputation_label").getString();
         String bonus = Component.translatable("ui.aerocouriers.cork.bonus", snapshot.bonusPercent()).getString();
         LicenseRank rank = snapshot.view().playerRankLevel() <= 0
                 ? LicenseRank.ADMIN
@@ -152,17 +154,13 @@ public final class CorkBoardScreen extends Screen {
         int headerRight = layout.headerPlank.x() + layout.headerPlank.w() - 8;
         int labelW = font.width(repLabel);
         int valueW = font.width(repValue);
-        int bonusW = font.width(bonus);
         int rankW = font.width(rankText);
         int barW = layout.narrow ? 80 : 150;
-        int first = labelW + 6 + barW + 6 + valueW + 6 + bonusW + 8 + rankW;
-        boolean rankBelow = first > headerRight - layout.repLabelX || layout.narrow;
-        if (rankBelow) {
-            int withoutRank = labelW + 6 + barW + 6 + valueW + 6 + bonusW;
-            int overflow = withoutRank - (headerRight - layout.repLabelX);
-            if (overflow > 0) {
-                barW = Math.max(48, barW - overflow);
-            }
+        int rankDrawX = layout.narrow ? layout.rankX : headerRight - rankW;
+        int rowRight = layout.narrow ? headerRight : rankDrawX - 8;
+        int overflow = (layout.repLabelX + labelW + 6 + barW + 6 + valueW + 6) - rowRight;
+        if (overflow > 0) {
+            barW = Math.max(40, barW - overflow);
         }
         CorkBoardGui.text(graphics, font, repLabel, layout.repLabelX, layout.repLabelY, CorkPalette.HEADER_MUTED);
         int barX = layout.repLabelX + labelW + 6;
@@ -170,21 +168,15 @@ public final class CorkBoardScreen extends Screen {
         int valueX = barX + barW + 6;
         CorkBoardGui.bold(graphics, font, repValue, valueX, layout.repLabelY, CorkPalette.REPUTATION);
         int bonusX = valueX + valueW + 6;
-        int bonusMax = Math.max(16, (rankBelow ? headerRight : headerRight - rankW - 8) - bonusX);
-        if (font.width(bonus) > bonusMax) {
-            bonus = Component.translatable("ui.aerocouriers.cork.bonus_short", snapshot.bonusPercent()).getString();
+        int bonusMax = Math.max(0, rowRight - bonusX);
+        if (bonusMax >= 12) {
+            if (font.width(bonus) > bonusMax) {
+                bonus = Component.translatable("ui.aerocouriers.cork.bonus_short", snapshot.bonusPercent()).getString();
+            }
+            CorkBoardGui.text(graphics, font, CorkBoardGui.ellipsize(font, bonus, bonusMax),
+                    bonusX, layout.repLabelY, CorkPalette.REPUTATION);
         }
-        if (font.width(bonus) > bonusMax) {
-            CorkBoardGui.wrap2(graphics, font, bonus, bonusX, layout.repLabelY, bonusMax, CorkPalette.REPUTATION);
-        } else {
-            CorkBoardGui.text(graphics, font, bonus, bonusX, layout.repLabelY, CorkPalette.REPUTATION);
-        }
-        if (rankBelow) {
-            CorkBoardGui.text(graphics, font, rankText, layout.repLabelX, layout.repLabelY + 9,
-                    CorkPalette.HEADER_MUTED);
-        } else {
-            CorkBoardGui.text(graphics, font, rankText, headerRight - rankW, layout.repLabelY, CorkPalette.HEADER_MUTED);
-        }
+        CorkBoardGui.text(graphics, font, rankText, rankDrawX, layout.rankY, CorkPalette.HEADER_MUTED);
 
         if (readOnly()) {
             CorkBoardGui.blit(graphics, CorkSprites.BANNER, layout.filterBar);
@@ -232,10 +224,8 @@ public final class CorkBoardScreen extends Screen {
                     && mouseY >= ny && mouseY < ny + layout.noteH;
             CorkNoteRenderer.render(graphics, font, entry, style(entry), nx, ny, layout.noteW, layout.noteH,
                     hover, false);
-            if (hover) {
-                hoverTip = readOnly()
-                        ? Component.translatable("ui.aerocouriers.cork.need_tablet")
-                        : Component.translatable("ui.aerocouriers.cork.hint");
+            if (hover && readOnly()) {
+                hoverTip = Component.translatable("ui.aerocouriers.cork.need_tablet");
             }
         }
     }

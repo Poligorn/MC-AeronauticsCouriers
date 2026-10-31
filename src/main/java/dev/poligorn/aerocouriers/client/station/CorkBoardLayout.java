@@ -65,6 +65,8 @@ public final class CorkBoardLayout {
     public final int houseY;
     public final int repLabelX;
     public final int repLabelY;
+    public final int rankX;
+    public final int rankY;
     public final int footerCountX;
     public final int footerCountY;
     public final int footerHintX;
@@ -96,20 +98,20 @@ public final class CorkBoardLayout {
         pitchX = PITCH_X;
         pitchY = PITCH_Y;
         if (narrow) {
-            headerPlank = new Rect(o + 11, p + 11, winW - 22, 40);
-            filterBar = new Rect(o + 11, p + 51, winW - 22, 16);
-            cork = new Rect(o + 11, p + 67, winW - 22, Math.max(118, winH - 67 - 22));
+            headerPlank = new Rect(o + 11, p + 11, winW - 22, 54);
+            filterBar = new Rect(o + 11, p + 66, winW - 22, 16);
+            cork = new Rect(o + 11, p + 82, winW - 22, Math.max(118, winH - 82 - 22));
             footerPlank = new Rect(o + 11, p + winH - 22, winW - 22, 18);
-            nameplate = new Rect(o + 15, p + 14, Math.min(200, winW - 180), 15);
+            nameplate = new Rect(o + 15, p + 14, Math.min(220, winW - 170), 23);
             timerChip = new Rect(o + winW - 157, p + 15, 142, 13);
-            scroll = new Rect(o + winW - 19, p + 70, 6, Math.max(24, cork.h() - 8));
+            scroll = new Rect(o + winW - 19, p + 85, 6, Math.max(24, cork.h() - 8));
             tabletBtn = new Rect(o + winW - 192, p + winH - 20, 176, 13);
             chips = new Rect[] {
-                    new Rect(o + 15, p + 53, 92, 12),
-                    new Rect(o + 110, p + 53, 104, 12),
-                    new Rect(o + 217, p + 53, 76, 12)
+                    new Rect(o + 15, p + 68, 92, 12),
+                    new Rect(o + 110, p + 68, 104, 12),
+                    new Rect(o + 217, p + 68, 76, 12)
             };
-            adminBtn = new Rect(o + winW - 80, p + 53, 56, 12);
+            adminBtn = new Rect(o + winW - 80, p + 68, 56, 12);
             houseX = o + 21;
             houseY = p + 18;
             titleX = o + 35;
@@ -117,7 +119,9 @@ public final class CorkBoardLayout {
             subtitleX = o + 35;
             subtitleY = p + 26;
             repLabelX = o + 17;
-            repLabelY = p + 36;
+            repLabelY = p + 40;
+            rankX = o + 17;
+            rankY = p + 50;
             footerCountX = o + 17;
             footerCountY = p + winH - 17;
             footerHintX = o + 17;
@@ -145,6 +149,8 @@ public final class CorkBoardLayout {
             subtitleY = p + 34;
             repLabelX = o + 26;
             repLabelY = p + 47;
+            rankX = o + 26;
+            rankY = p + 47;
             footerCountX = o + 26;
             footerCountY = p + 323;
             footerHintX = o + 26;
