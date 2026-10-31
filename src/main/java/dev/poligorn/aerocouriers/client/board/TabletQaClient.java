@@ -93,9 +93,27 @@ public final class TabletQaClient {
         String name = pendingShot;
         pendingShot = null;
         Minecraft minecraft = Minecraft.getInstance();
+        writeTooltipRect(minecraft);
         RenderTarget target = minecraft.getMainRenderTarget();
         Screenshot.grab(minecraft.gameDirectory, name, target, message ->
                 AeronauticsCouriers.LOGGER.info("[tabletsqa] {}", message.getString()));
+    }
+
+    private static void writeTooltipRect(Minecraft minecraft) {
+        try {
+            int scale = (int) minecraft.getWindow().getGuiScale();
+            int x = dev.poligorn.aerocouriers.client.TooltipDraw.lastX();
+            int y = dev.poligorn.aerocouriers.client.TooltipDraw.lastY();
+            int w = dev.poligorn.aerocouriers.client.TooltipDraw.lastW();
+            int h = dev.poligorn.aerocouriers.client.TooltipDraw.lastH();
+            String line = "gui=" + x + "," + y + "," + w + "," + h
+                    + "\nscale=" + scale
+                    + "\nwindow=" + (x * scale) + "," + (y * scale) + "," + (w * scale) + "," + (h * scale)
+                    + "\n";
+            Files.writeString(minecraft.gameDirectory.toPath().resolve("tabletsqa-tooltip-rect.txt"), line);
+        } catch (Exception e) {
+            AeronauticsCouriers.LOGGER.warn("[tabletsqa] tooltip rect: {}", e.toString());
+        }
     }
 
     private static void applyBoard(CourierBoardScreen board, String cmd) {

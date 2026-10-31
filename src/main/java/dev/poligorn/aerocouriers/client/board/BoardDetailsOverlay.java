@@ -133,19 +133,26 @@ public final class BoardDetailsOverlay extends TabletOverlay {
             TabletDraw.text(graphics, font, status, chipX + 3, 3, color);
             routeRight = chipX - 8;
         }
-        int flagsW = headerFlagsWidth(font, e);
+        int flagsW = headerFlagsWidth(e);
         if (flagsW > 0) {
             routeRight -= flagsW + 8;
         }
         int routeEnd = drawRoute(graphics, font, e, 10, 4, Math.max(20, routeRight - 10), TabletPalette.TXT);
         int hx = routeEnd + 10;
         if (e.villageRare()) {
-            hx += drawHeaderChip(graphics, font, hx, 0, rareHeader(), TabletPalette.RARE_BG,
-                    TabletPalette.RARE_BORDER, TabletPalette.RARE_TEXT) + 3;
+            BoardCardRenderer.drawFlagChip(graphics, hx, 0, PixelGlyphs.DIAMOND, TabletPalette.RARE_BG,
+                    TabletPalette.RARE_BORDER, TabletPalette.RARE_TEXT);
+            if (TabletDraw.inside(mx, my, hx, 2, BoardCardRenderer.FLAG_CHIP, 11)) {
+                hoverLines = List.of(Component.translatable("ui.aerocouriers.row.rare_cargo"));
+            }
+            hx += BoardCardRenderer.FLAG_CHIP + 3;
         }
         if (e.expensive()) {
-            drawHeaderChip(graphics, font, hx, 0, expensiveHeader(), TabletPalette.EXP_BG,
+            BoardCardRenderer.drawFlagChip(graphics, hx, 0, PixelGlyphs.DIAMOND, TabletPalette.EXP_BG,
                     TabletPalette.EXP_BORDER, TabletPalette.EXP_TEXT);
+            if (TabletDraw.inside(mx, my, hx, 2, BoardCardRenderer.FLAG_CHIP, 11)) {
+                hoverLines = List.of(Component.translatable("ui.aerocouriers.card.expensive"));
+            }
         }
     }
 
@@ -608,34 +615,14 @@ public final class BoardDetailsOverlay extends TabletOverlay {
         return true;
     }
 
-    private static String rareHeader() {
-        return "◆ " + Component.translatable("ui.aerocouriers.cork.note.rare").getString();
-    }
-
-    private static String expensiveHeader() {
-        return "★ " + Component.translatable("ui.aerocouriers.cork.note.expensive").getString();
-    }
-
-    private static int headerChipWidth(Font font, String label) {
-        return font.width(label) + 5;
-    }
-
-    private static int headerFlagsWidth(Font font, BoardSnapshotPayload.BoardEntry e) {
+    private static int headerFlagsWidth(BoardSnapshotPayload.BoardEntry e) {
         int w = 0;
         if (e.villageRare()) {
-            w += headerChipWidth(font, rareHeader()) + 3;
+            w += BoardCardRenderer.FLAG_CHIP + 3;
         }
         if (e.expensive()) {
-            w += headerChipWidth(font, expensiveHeader()) + 3;
+            w += BoardCardRenderer.FLAG_CHIP + 3;
         }
-        return w;
-    }
-
-    private static int drawHeaderChip(GuiGraphics graphics, Font font, int x, int y, String label, int bg, int border,
-                                      int fg) {
-        int w = headerChipWidth(font, label);
-        TabletDraw.box(graphics, x, y + 2, x + w, y + 12, bg, border);
-        TabletDraw.text(graphics, font, label, x + 3, y + 3, fg);
         return w;
     }
 

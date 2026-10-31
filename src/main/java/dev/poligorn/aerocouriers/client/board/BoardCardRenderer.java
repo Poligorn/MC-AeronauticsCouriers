@@ -118,7 +118,7 @@ public final class BoardCardRenderer {
             x += FLAG_CHIP + 3;
         }
         if (showExpensive(entry)) {
-            drawFlagChip(graphics, x, y, PixelGlyphs.STAR, TabletPalette.EXP_BG, TabletPalette.EXP_BORDER,
+            drawFlagChip(graphics, x, y, PixelGlyphs.DIAMOND, TabletPalette.EXP_BG, TabletPalette.EXP_BORDER,
                     TabletPalette.EXP_TEXT);
             x += FLAG_CHIP + 3;
         }
@@ -302,7 +302,7 @@ public final class BoardCardRenderer {
         return entry.expensive() && !entry.courierService();
     }
 
-    private static void drawFlagChip(GuiGraphics graphics, int x, int y, String[] glyph, int bg, int border, int fg) {
+    public static void drawFlagChip(GuiGraphics graphics, int x, int y, String[] glyph, int bg, int border, int fg) {
         TabletDraw.box(graphics, x, y + 2, x + FLAG_CHIP_BOX, y + 12, bg, border);
         int gw = PixelGlyphs.width(glyph);
         int gx = x + 1 + Math.max(0, (FLAG_CHIP_BOX - 1 - gw) / 2);
