@@ -3,14 +3,12 @@ package dev.poligorn.aerocouriers.client.station;
 import com.mojang.blaze3d.systems.RenderSystem;
 import dev.poligorn.aerocouriers.cargo.CargoSize;
 import dev.poligorn.aerocouriers.client.ClientBoard;
-import dev.poligorn.aerocouriers.client.InGamePauseBackground;
 import dev.poligorn.aerocouriers.client.TooltipDraw;
 import dev.poligorn.aerocouriers.client.board.VillageRefreshUi;
 import dev.poligorn.aerocouriers.license.LicenseRank;
 import dev.poligorn.aerocouriers.net.BoardSnapshotPayload;
 import dev.poligorn.aerocouriers.net.StationSnapshotPayload;
 import dev.poligorn.aerocouriers.net.VillageAdminPayload;
-import dev.poligorn.aerocouriers.village.VillageBoardPolicy;
 import java.util.List;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
@@ -19,7 +17,7 @@ import net.minecraft.util.Mth;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.jetbrains.annotations.Nullable;
 
-/** Village post-station cork board: pinned notes, scroll by rows, no accept on the station. */
+/** Village post-station cork board. World stays visible around the frame; no accept on the station. */
 public final class CorkBoardScreen extends Screen {
     private StationSnapshotPayload snapshot;
     private final CorkBoardFilters filters = new CorkBoardFilters();
@@ -81,7 +79,7 @@ public final class CorkBoardScreen extends Screen {
 
     @Override
     public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        InGamePauseBackground.render(this, graphics, mouseX, mouseY, partialTick);
+        // World stays visible. No dim and no full-screen mask — HUD is skipped by CorkHudGuard.
         RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
     }
 
@@ -95,19 +93,26 @@ public final class CorkBoardScreen extends Screen {
         hoverTip = null;
         renderBackground(graphics, mouseX, mouseY, partialTick);
         CorkBoardGui.fullBright();
-        CorkBoardGui.frame(graphics, layout.winX, layout.winY, layout.winW, layout.winH);
-        CorkBoardGui.headerBand(graphics, layout.innerX, layout.innerY, layout.innerW, layout.headerH);
-        CorkBoardGui.cork(graphics, layout.corkX, layout.corkY, layout.corkW, layout.corkH);
+        CorkBoardGui.boardWindow(graphics, layout);
         drawHeader(graphics, mouseX, mouseY);
         List<BoardSnapshotPayload.BoardEntry> orders = filters.apply(snapshot.orders());
         scroll = Mth.clamp(scroll, 0, layout.maxScrollRows(orders.size()));
+        graphics.enableScissor(layout.cork.x(), layout.cork.y(),
+                layout.cork.x() + layout.cork.w(), layout.cork.y() + layout.cork.h());
         drawNotes(graphics, orders, mouseX, mouseY);
+        graphics.disableScissor();
+        if (readOnly()) {
+            if (!layout.compact) {
+                CorkBoardGui.blit(graphics, CorkSprites.GLASS, layout.cork.x(), layout.cork.y(), 604, 243);
+            } else {
+                graphics.fill(layout.cork.x(), layout.cork.y(),
+                        layout.cork.x() + layout.cork.w(), layout.cork.y() + layout.cork.h(), 0x24001840);
+            }
+        }
         drawFooter(graphics, mouseX, mouseY);
-        CorkBoardGui.scrollBar(graphics, layout.scrollX, layout.scrollY, CorkBoardLayout.SCROLL_W, layout.scrollH,
-                scroll, layout.maxScrollRows(orders.size()));
+        CorkBoardGui.scrollBar(graphics, layout.scroll, scroll, layout.maxScrollRows(orders.size()),
+                layout.visibleRows, layout.totalRows(orders.size()));
         if (waybill != null) {
-            graphics.fill(layout.innerX, layout.innerY, layout.innerX + layout.innerW,
-                    layout.innerY + layout.innerH, 0x66000000);
             waybill.layout(layout);
             waybill.render(graphics, font, mouseX, mouseY);
             Component hint = waybill.hint();
@@ -120,59 +125,96 @@ public final class CorkBoardScreen extends Screen {
         }
     }
 
+    private boolean readOnly() {
+        return snapshot.view().requireTablet() && !snapshot.view().hasTablet();
+    }
+
     private void drawHeader(GuiGraphics graphics, int mouseX, int mouseY) {
-        int x = layout.innerX + 8;
-        int y = layout.innerY + 5;
-        graphics.drawString(font, Component.translatable("ui.aerocouriers.cork.station", snapshot.name()),
-                x, y, CorkBoardGui.HEADER, false);
+        CorkBoardGui.blit(graphics, CorkSprites.NAMEPLATE, layout.nameplate);
+        CorkBoardGui.blit(graphics, CorkSprites.HOUSE_BOX, layout.houseX - 4, layout.houseY - 3, 17, 13);
+        CorkBoardGui.blitTint(graphics, CorkSprites.ICON_HOUSE, layout.houseX, layout.houseY, 7, 7,
+                CorkPalette.HEADER_TITLE);
+        String title = Component.translatable("ui.aerocouriers.cork.station", snapshot.name()).getString();
+        int titleMax = Math.max(24, layout.timerChip.x() - layout.titleX - 8);
+        CorkBoardGui.bold(graphics, font, CorkBoardGui.ellipsize(font, title, titleMax),
+                layout.titleX, layout.titleY, CorkPalette.HEADER_TITLE);
+        if (!layout.compact) {
+            CorkBoardGui.text(graphics, font, Component.translatable("ui.aerocouriers.cork.subtitle"),
+                    layout.subtitleX, layout.subtitleY, CorkPalette.HEADER_SUBTITLE);
+        }
+
+        CorkBoardGui.blit(graphics, CorkSprites.CHIP_DARK, layout.timerChip);
         int timer = VillageRefreshUi.remainingTicks(minecraft);
         Component timerLabel = timer < 0 ? Component.empty() : VillageRefreshUi.countdownLabel(timer);
         if (!timerLabel.getString().isEmpty()) {
-            graphics.drawString(font, timerLabel,
-                    layout.innerX + layout.innerW - 8 - font.width(timerLabel), y, CorkBoardGui.HEADER, false);
+            CorkBoardGui.blitTint(graphics, CorkSprites.ICON_CLOCK, layout.timerChip.x() + 4,
+                    layout.timerChip.y() + 2, 9, 8, CorkPalette.TIMER);
+            CorkBoardGui.text(graphics, font, timerLabel, layout.timerChip.x() + 15, layout.timerChip.y() + 3,
+                    CorkPalette.TIMER);
         }
-        y += 12;
-        CorkBoardGui.reputationBar(graphics, x, y, Math.min(220, layout.innerW / 2), 7,
-                snapshot.reputation(), VillageBoardPolicy.REPUTATION_MAX);
-        graphics.drawString(font, Component.translatable("ui.aerocouriers.cork.reputation",
-                        snapshot.reputation(), VillageBoardPolicy.REPUTATION_MAX,
-                        snapshot.bonusPercent()),
-                x + Math.min(220, layout.innerW / 2) + 6, y, CorkBoardGui.HEADER, false);
-        LicenseRank rank = snapshot.view().playerRankLevel() <= 0
-                ? LicenseRank.ADMIN
-                : LicenseRank.byLevel(snapshot.view().playerRankLevel());
-        Component rankLabel = rank.displayName();
-        graphics.drawString(font, rankLabel,
-                layout.innerX + layout.innerW - 8 - font.width(rankLabel), y, CorkBoardGui.HEADER, false);
 
-        y = layout.innerY + layout.headerH - 20;
-        int chipX = x;
-        chipX = drawChip(graphics, chipX, y, filters.sizeLabel(), mouseX, mouseY);
-        chipX = drawChip(graphics, chipX, y, filters.rarityLabel(), mouseX, mouseY);
-        drawChip(graphics, chipX, y, filters.sortLabel(), mouseX, mouseY);
+        CorkBoardGui.text(graphics, font, Component.translatable(layout.compact
+                        ? "ui.aerocouriers.cork.reputation_label_short"
+                        : "ui.aerocouriers.cork.reputation_label"),
+                layout.repLabelX, layout.repLabelY, CorkPalette.HEADER_MUTED);
+        CorkBoardGui.reputationBar(graphics, layout.repBarX, layout.repBarY, layout.repBarW, 7,
+                snapshot.reputation(), 50);
+        CorkBoardGui.bold(graphics, font, Integer.toString(snapshot.reputation()),
+                layout.repValueX, layout.repValueY, CorkPalette.REPUTATION);
+        Component bonus = Component.translatable(layout.compact
+                        ? "ui.aerocouriers.cork.bonus_short"
+                        : "ui.aerocouriers.cork.bonus",
+                snapshot.bonusPercent());
+        int bonusX = layout.repValueX + font.width(Integer.toString(snapshot.reputation())) + 4;
+        int bonusMax = (layout.compact ? layout.headerPlank.x() + layout.headerPlank.w() : layout.rankX) - bonusX - 8;
+        CorkBoardGui.text(graphics, font, CorkBoardGui.ellipsize(font, bonus.getString(), Math.max(16, bonusMax)),
+                bonusX, layout.repValueY, CorkPalette.REPUTATION);
+        if (!layout.compact) {
+            LicenseRank rank = snapshot.view().playerRankLevel() <= 0
+                    ? LicenseRank.ADMIN
+                    : LicenseRank.byLevel(snapshot.view().playerRankLevel());
+            String rankText = Component.translatable("ui.aerocouriers.cork.rank",
+                    rank.displayName()).getString();
+            CorkBoardGui.text(graphics, font, CorkBoardGui.ellipsize(font, rankText,
+                            Math.max(24, layout.headerPlank.x() + layout.headerPlank.w() - layout.rankX - 8)),
+                    layout.rankX, layout.rankY, CorkPalette.HEADER_MUTED);
+        }
 
+        if (readOnly()) {
+            CorkBoardGui.blit(graphics, CorkSprites.BANNER, layout.filterBar);
+            CorkBoardGui.blitTint(graphics, CorkSprites.ICON_WARN, layout.filterBar.x() + 8,
+                    layout.filterBar.y() + 4, 7, 6, CorkPalette.BANNER_ICON);
+            CorkBoardGui.text(graphics, font, CorkBoardGui.ellipsize(font,
+                            Component.translatable("ui.aerocouriers.cork.readonly.banner").getString(),
+                            layout.filterBar.w() - 28),
+                    layout.filterBar.x() + 20, layout.filterBar.y() + 5, CorkPalette.BANNER);
+        } else {
+            CorkBoardGui.chip(graphics, font, layout.chips[0], filters.sizeLabel(),
+                    CorkSprites.ICON_BOX, 9, 7, !filters.allSizes(), over(mouseX, mouseY, layout.chips[0]));
+            CorkBoardGui.chip(graphics, font, layout.chips[1], filters.rarityLabel(),
+                    CorkSprites.ICON_GEM, 7, 6, filters.rareOnly(), over(mouseX, mouseY, layout.chips[1]));
+            CorkBoardGui.chip(graphics, font, layout.chips[2], filters.sortLabel(),
+                    CorkSprites.ICON_SORT, 5, 8, true, over(mouseX, mouseY, layout.chips[2]));
+        }
         if (snapshot.view().canAdmin()) {
-            Component admin = Component.translatable("ui.aerocouriers.cork.admin");
-            int aw = CorkBoardGui.chipW(font, admin);
-            int ax = layout.innerX + layout.innerW - 8 - aw;
-            boolean hover = mouseX >= ax && mouseX < ax + aw && mouseY >= y && mouseY < y + 14;
-            CorkBoardGui.chip(graphics, font, ax, y, aw, 14, admin, false, hover);
+            CorkBoardGui.button(graphics, font, layout.adminBtn.x(), layout.adminBtn.y(),
+                    layout.adminBtn.w(), layout.adminBtn.h(),
+                    Component.translatable("ui.aerocouriers.cork.admin"),
+                    over(mouseX, mouseY, layout.adminBtn), true, CorkBoardGui.ButtonStyle.DANGER);
         }
-    }
-
-    private int drawChip(GuiGraphics graphics, int x, int y, Component label, int mouseX, int mouseY) {
-        int w = CorkBoardGui.chipW(font, label);
-        boolean hover = mouseX >= x && mouseX < x + w && mouseY >= y && mouseY < y + 14;
-        CorkBoardGui.chip(graphics, font, x, y, w, 14, label, false, hover);
-        return x + w + 4;
     }
 
     private void drawNotes(GuiGraphics graphics, List<BoardSnapshotPayload.BoardEntry> orders, int mouseX, int mouseY) {
         if (orders.isEmpty()) {
+            if (!layout.compact) {
+                CorkBoardGui.blit(graphics, CorkSprites.EMPTY_PAPER,
+                        layout.cork.x() + (layout.cork.w() - 280) / 2,
+                        layout.cork.y() + (layout.cork.h() - 118) / 2, 280, 118);
+            }
             Component empty = Component.translatable("ui.aerocouriers.cork.empty");
-            graphics.drawString(font, empty,
-                    layout.corkX + (layout.corkW - font.width(empty)) / 2,
-                    layout.corkY + layout.corkH / 2 - 4, CorkBoardGui.INK_MUTED, false);
+            CorkBoardGui.bold(graphics, font, empty,
+                    layout.cork.x() + (layout.cork.w() - font.width(empty)) / 2,
+                    layout.cork.y() + layout.cork.h() / 2 - 4, CorkPalette.NOTE_INK);
             return;
         }
         int start = scroll * layout.cols;
@@ -181,9 +223,8 @@ public final class CorkBoardScreen extends Screen {
             int local = i - start;
             int col = local % layout.cols;
             int row = local / layout.cols;
-            int seed = orders.get(i).id().hashCode();
-            int nx = layout.noteX(col, layout.jitter(seed, 0));
-            int ny = layout.noteY(row, layout.jitter(seed, 1));
+            int nx = layout.noteX(col, i);
+            int ny = layout.noteY(row, i);
             BoardSnapshotPayload.BoardEntry entry = orders.get(i);
             boolean hover = waybill == null && mouseX >= nx && mouseX < nx + layout.noteW
                     && mouseY >= ny && mouseY < ny + layout.noteH;
@@ -193,20 +234,24 @@ public final class CorkBoardScreen extends Screen {
     }
 
     private void drawFooter(GuiGraphics graphics, int mouseX, int mouseY) {
-        int y = layout.innerY + layout.innerH - layout.footerH + 8;
-        graphics.drawString(font, Component.translatable("ui.aerocouriers.cork.orders_count",
-                        snapshot.orders().size(), snapshot.view().boardMax()),
-                layout.innerX + 8, y, CorkBoardGui.HEADER, false);
+        CorkBoardGui.text(graphics, font, Component.translatable("ui.aerocouriers.cork.orders_count",
+                        snapshot.orders().size()),
+                layout.footerCountX, layout.footerCountY, CorkPalette.FOOTER);
         if (!layout.compact) {
-            graphics.drawString(font, Component.translatable("ui.aerocouriers.cork.hint"),
-                    layout.innerX + 8, y + 10, CorkBoardGui.INK_MUTED, false);
+            Component hint = Component.translatable(readOnly()
+                    ? "ui.aerocouriers.cork.readonly.hint"
+                    : "ui.aerocouriers.cork.hint");
+            CorkBoardGui.text(graphics, font, CorkBoardGui.ellipsize(font, hint.getString(),
+                            Math.max(24, layout.tabletBtn.x() - layout.footerHintX - 8)),
+                    layout.footerHintX, layout.footerHintY, CorkPalette.FOOTER_HINT);
         }
-        Component tablet = Component.translatable("ui.aerocouriers.cork.open_tablet");
-        int bw = Math.max(120, font.width(tablet) + 16);
-        int bx = layout.innerX + layout.innerW - 8 - bw;
-        int by = y - 2;
-        boolean hover = mouseX >= bx && mouseX < bx + bw && mouseY >= by && mouseY < by + 16;
-        CorkBoardGui.button(graphics, font, bx, by, bw, 16, tablet, hover, true, false);
+        boolean tabletOk = !readOnly();
+        Component tablet = Component.translatable(tabletOk
+                ? "ui.aerocouriers.cork.open_tablet"
+                : "ui.aerocouriers.cork.readonly.tablet");
+        CorkBoardGui.button(graphics, font, layout.tabletBtn.x(), layout.tabletBtn.y(),
+                layout.tabletBtn.w(), layout.tabletBtn.h(), tablet,
+                tabletOk && over(mouseX, mouseY, layout.tabletBtn), tabletOk, CorkBoardGui.ButtonStyle.GOLD);
     }
 
     @Override
@@ -221,36 +266,23 @@ public final class CorkBoardScreen extends Screen {
             }
             return waybill.mouseClicked(mouseX, mouseY);
         }
-        int y = layout.innerY + layout.headerH - 20;
-        int chipX = layout.innerX + 8;
-        if (clickChip(mouseX, mouseY, chipX, y, filters.sizeLabel())) {
+        if (!readOnly() && over(mouseX, mouseY, layout.chips[0])) {
             cycleSize();
             return true;
         }
-        chipX += CorkBoardGui.chipW(font, filters.sizeLabel()) + 4;
-        if (clickChip(mouseX, mouseY, chipX, y, filters.rarityLabel())) {
+        if (!readOnly() && over(mouseX, mouseY, layout.chips[1])) {
             filters.cycleRarity();
             return true;
         }
-        chipX += CorkBoardGui.chipW(font, filters.rarityLabel()) + 4;
-        if (clickChip(mouseX, mouseY, chipX, y, filters.sortLabel())) {
+        if (!readOnly() && over(mouseX, mouseY, layout.chips[2])) {
             filters.cycleSort();
             return true;
         }
-        if (snapshot.view().canAdmin()) {
-            Component admin = Component.translatable("ui.aerocouriers.cork.admin");
-            int aw = CorkBoardGui.chipW(font, admin);
-            int ax = layout.innerX + layout.innerW - 8 - aw;
-            if (clickChip(mouseX, mouseY, ax, y, admin)) {
-                PacketDistributor.sendToServer(VillageAdminPayload.open(snapshot.stationPos()));
-                return true;
-            }
+        if (snapshot.view().canAdmin() && over(mouseX, mouseY, layout.adminBtn)) {
+            PacketDistributor.sendToServer(VillageAdminPayload.open(snapshot.stationPos()));
+            return true;
         }
-        Component tablet = Component.translatable("ui.aerocouriers.cork.open_tablet");
-        int bw = Math.max(120, font.width(tablet) + 16);
-        int bx = layout.innerX + layout.innerW - 8 - bw;
-        int by = layout.innerY + layout.innerH - layout.footerH + 6;
-        if (mouseX >= bx && mouseX < bx + bw && mouseY >= by && mouseY < by + 16) {
+        if (!readOnly() && over(mouseX, mouseY, layout.tabletBtn)) {
             onClose();
             ClientBoard.requestOpen(0);
             return true;
@@ -262,21 +294,14 @@ public final class CorkBoardScreen extends Screen {
             int local = i - start;
             int col = local % layout.cols;
             int row = local / layout.cols;
-            int seed = orders.get(i).id().hashCode();
-            int nx = layout.noteX(col, layout.jitter(seed, 0));
-            int ny = layout.noteY(row, layout.jitter(seed, 1));
+            int nx = layout.noteX(col, i);
+            int ny = layout.noteY(row, i);
             if (mouseX >= nx && mouseX < nx + layout.noteW && mouseY >= ny && mouseY < ny + layout.noteH) {
-                BoardSnapshotPayload.BoardEntry entry = orders.get(i);
-                waybill = new StationWaybillOverlay(snapshot, entry, style(entry));
+                waybill = new StationWaybillOverlay(snapshot, orders.get(i), style(orders.get(i)));
                 return true;
             }
         }
         return super.mouseClicked(mouseX, mouseY, button);
-    }
-
-    private boolean clickChip(double mouseX, double mouseY, int x, int y, Component label) {
-        int w = CorkBoardGui.chipW(font, label);
-        return mouseX >= x && mouseX < x + w && mouseY >= y && mouseY < y + 14;
     }
 
     private void cycleSize() {
@@ -307,11 +332,7 @@ public final class CorkBoardScreen extends Screen {
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
         int max = layout.maxScrollRows(filters.apply(snapshot.orders()).size());
-        int next = Mth.clamp(scroll - (int) Math.signum(scrollY), 0, max);
-        if (next != scroll) {
-            scroll = next;
-            return true;
-        }
+        scroll = Mth.clamp(scroll - (int) Math.signum(scrollY), 0, max);
         return true;
     }
 
@@ -341,5 +362,9 @@ public final class CorkBoardScreen extends Screen {
             }
         }
         return null;
+    }
+
+    private static boolean over(double mx, double my, CorkBoardLayout.Rect r) {
+        return r.contains(mx, my);
     }
 }

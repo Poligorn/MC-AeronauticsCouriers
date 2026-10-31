@@ -7,96 +7,182 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
 
+/** Note anatomy from layout.json (std 136×108 / compact 136×84). No graph-paper overlay. */
 public final class CorkNoteRenderer {
     private CorkNoteRenderer() {
     }
 
-    public static void render(GuiGraphics graphics, Font font, BoardSnapshotPayload.BoardEntry entry,
+    public static void render(GuiGraphics g, Font font, BoardSnapshotPayload.BoardEntry entry,
                               CorkNoteStyle style, int x, int y, int w, int h, boolean hover, boolean compact) {
-        CorkBoardGui.paper(graphics, x, y, w, h, style.paperSprite());
+        int drawY = hover && !style.locked() ? y - 3 : y;
         if (hover && !style.locked()) {
-            graphics.fill(x + 1, y + 1, x + w - 1, y + h - 1, 0x22FFFFFF);
+            CorkBoardGui.blit(g, CorkSprites.SHADOW, x + 5, drawY + 9, w, h);
+            g.fill(x + 5, drawY + 9, x + 5 + w, drawY + 9 + h, CorkPalette.SHADOW_HOVER);
+            g.fill(x + 7, drawY + 11, x + 7 + w, drawY + 11 + h, CorkPalette.SHADOW_FAR);
+        } else {
+            g.fill(x + 2, y + 3, x + 2 + w, y + 3 + h, CorkPalette.SHADOW);
         }
-        graphics.fill(x, y, x + w, y + 1, style.border());
-        graphics.fill(x, y + h - 1, x + w, y + h, style.border());
-        graphics.fill(x, y, x + 1, y + h, style.border());
-        graphics.fill(x + w - 1, y, x + w, y + h, style.border());
-        CorkBoardGui.pin(graphics, x + w / 2, y + 3, entry.id().hashCode());
+        CorkBoardGui.blit(g, style.paperSprite(compact), x, drawY, w, h);
+        if (style.expiring()) {
+            CorkBoardGui.blit(g, CorkSprites.BORDER_EXPIRE, x, drawY, w, h);
+        }
+        if (style.inProgress()) {
+            CorkBoardGui.blit(g, CorkSprites.BORDER_DOING, x, drawY, w, h);
+        }
+        if (hover && !style.locked()) {
+            CorkBoardGui.blit(g, CorkSprites.HOVER, x - 1, drawY - 1, w + 2, h + 2);
+        }
 
-        int pad = compact ? 4 : 6;
-        int tx = x + pad;
-        int ty = y + 8;
-        String size = entry.size().toUpperCase();
-        CorkBoardGui.sizeStamp(graphics, font, tx, ty, size, style.largeCargo());
-        int badgeX = tx + (style.largeCargo() ? 18 : 15);
-        if (style.expensive()) {
-            Component expensive = Component.translatable("ui.aerocouriers.cork.note.expensive");
-            CorkBoardGui.badge(graphics, font, badgeX, ty, expensive, 0x33C4A020, CorkBoardGui.GOLD);
-            badgeX += font.width(expensive) + 10;
+        int ink = CorkPalette.ink(style);
+        int muted = CorkPalette.muted(style);
+        CorkBoardGui.blit(g, CorkSprites.pin(style), x + w / 2 - 3, drawY + 1, 7, 7);
+        if (style.largeCargo()) {
+            CorkBoardGui.blit(g, CorkSprites.pin(style), x + 4, drawY + 2, 7, 7);
+            CorkBoardGui.blit(g, CorkSprites.pin(style), x + w - 11, drawY + 2, 7, 7);
         }
-        if (style.rare()) {
-            Component rare = Component.translatable("ui.aerocouriers.cork.note.rare");
-            CorkBoardGui.badge(graphics, font, badgeX, ty, rare, 0x33C070A0, 0xFFC04070);
+
+        int stampY = compact ? 9 : 10;
+        CorkBoardGui.blitTint(g, CorkSprites.stamp(entry.size(), style.largeCargo()),
+                x + 8, drawY + stampY, 17, 15, ink);
+
+        int badgeY = compact ? 11 : 12;
+        int badgeX = 29;
+        if (style.expensive() && style.rare()) {
+            CorkBoardGui.blit(g, CorkSprites.BADGE_EXP_ICON, x + badgeX, drawY + badgeY, 15, 11);
+            badgeX += 18;
+            CorkBoardGui.blit(g, CorkSprites.BADGE_RARE_ICON, x + badgeX, drawY + badgeY, 15, 11);
+        } else if (style.expensive()) {
+            badgeX += drawBadge(g, font, x + badgeX, drawY + badgeY,
+                    Component.translatable("ui.aerocouriers.cork.note.expensive"),
+                    CorkSprites.BADGE_EXP, CorkSprites.ICON_STAR, 9, 9, CorkPalette.BADGE_EXP);
+        } else if (style.rare()) {
+            badgeX += drawBadge(g, font, x + badgeX, drawY + badgeY,
+                    Component.translatable("ui.aerocouriers.cork.note.rare"),
+                    CorkSprites.BADGE_RARE, CorkSprites.ICON_GEM, 7, 6, CorkPalette.BADGE_RARE);
         }
         if (style.expiring()) {
             Component soon = Component.translatable("ui.aerocouriers.cork.note.expiring");
-            CorkBoardGui.badge(graphics, font, x + w - pad - font.width(soon) - 8, ty, soon, 0x33C04030,
-                    CorkBoardGui.RED);
+            int bw = font.width(soon) + 16;
+            drawBadge(g, font, x + w - 8 - bw, drawY + badgeY, soon,
+                    CorkSprites.BADGE_EXPIRE, CorkSprites.ICON_WARN, 7, 6, CorkPalette.BADGE_EXPIRE);
         }
 
-        ty += compact ? 14 : 16;
+        if (style.rare()) {
+            CorkBoardGui.blit(g, CorkSprites.RIBBON, x + w - 18, drawY - 2, 11, 26);
+        }
+
+        int destY = compact ? 27 : 31;
+        int destIconY = compact ? 28 : 32;
+        CorkBoardGui.blitTint(g, CorkSprites.ICON_ARROW, x + 8, drawY + destIconY, 7, 5, muted);
         String dest = BoardCardRenderer.destinationName(entry);
-        graphics.drawString(font, "→ " + CorkBoardGui.ellipsize(font, dest, w - pad * 2 - 8), tx, ty,
-                CorkBoardGui.INK, false);
-        ty += 10;
-        graphics.drawString(font, entry.distance() + " " + Component.translatable("ui.aerocouriers.cork.blocks")
-                .getString(), tx, ty, CorkBoardGui.INK_MUTED, false);
-        ty += 10;
-        int timeColor = style.expiring() ? CorkBoardGui.RED : CorkBoardGui.INK_MUTED;
-        graphics.drawString(font, size + "  " + entry.weight(), tx, ty, CorkBoardGui.INK_MUTED, false);
+        CorkBoardGui.bold(g, font, CorkBoardGui.ellipsize(font, dest, w - 28), x + 18, drawY + destY, ink);
+
+        if (!compact) {
+            CorkBoardGui.text(g, font, grouped(entry.distance()) + " "
+                    + Component.translatable("ui.aerocouriers.cork.blocks").getString(),
+                    x + 18, drawY + 43, muted);
+            dotted(g, x + 8, drawY + 55, x + w - 9, muted);
+        }
+
+        int cargoY = compact ? 38 : 60;
+        CorkBoardGui.blitTint(g, CorkSprites.ICON_BOX, x + 8, drawY + cargoY, 9, 7, muted);
+        String cargo = entry.size().toUpperCase() + " " + weight(entry);
+        CorkBoardGui.text(g, font, cargo, x + 19, drawY + cargoY, ink);
         String clock = clock(entry);
-        graphics.drawString(font, clock, x + w - pad - font.width(clock), ty, timeColor, false);
-        ty += compact ? 11 : 13;
+        int clockColor = style.expiring() ? CorkPalette.EXPIRE_TIMER : ink;
+        int clockTextW = font.width(clock);
+        CorkBoardGui.text(g, font, clock, x + w - 9 - clockTextW, drawY + cargoY, clockColor);
+        CorkBoardGui.blitTint(g, CorkSprites.ICON_CLOCK, x + w - 9 - clockTextW - 11, drawY + cargoY, 9, 8,
+                style.expiring() ? CorkPalette.EXPIRE_TIMER : muted);
+
+        if (compact) {
+            CorkBoardGui.text(g, font, grouped(entry.distance()) + " "
+                    + Component.translatable("ui.aerocouriers.cork.blocks").getString(),
+                    x + 18, drawY + 48, muted);
+        }
 
         if (style.locked()) {
-            CorkBoardGui.lock(graphics, tx, ty);
-            graphics.drawString(font, Component.translatable("ui.aerocouriers.cork.note.rank_needed",
-                    BoardCardRenderer.roman(entry.requiredRank())), tx + 12, ty, CorkBoardGui.INK_MUTED, false);
-            ty += 10;
-            graphics.drawString(font, Component.translatable("ui.aerocouriers.cork.note.your_rank",
-                    BoardCardRenderer.roman(style.playerRank())), tx + 12, ty, CorkBoardGui.INK_MUTED, false);
+            int lockY = compact ? 58 : 78;
+            CorkBoardGui.blitTint(g, CorkSprites.ICON_LOCK, x + 8, drawY + lockY, 7, 7, muted);
+            CorkBoardGui.text(g, font, Component.translatable("ui.aerocouriers.cork.note.rank_needed",
+                    BoardCardRenderer.roman(entry.requiredRank())), x + 18, drawY + lockY, muted);
+            return;
+        }
+
+        int rewardY = style.inProgress() ? (compact ? 58 : 72) : (compact ? 58 : 78);
+        if (!style.hideReward()) {
+            CorkBoardGui.bold(g, font, MoneyFormat.text(entry.reward()), x + 8, drawY + rewardY,
+                    CorkPalette.reward(style));
+        }
+
+        if (style.inProgress()) {
+            int stampX = x + 8;
+            int stampW = w - 16;
+            int stampH = 22;
+            int stampTop = drawY + h - 25;
+            CorkBoardGui.blit(g, CorkSprites.DOING_STAMP, stampX, stampTop, stampW, stampH);
+            Component title = Component.translatable("ui.aerocouriers.cork.note.in_progress");
+            CorkBoardGui.bold(g, font, title, stampX + (stampW - font.width(title)) / 2, stampTop + 4,
+                    CorkPalette.DOING_TITLE);
+            String nick = style.courierName().isBlank() ? "—" : style.courierName();
+            int nickW = font.width(nick);
+            int nx = stampX + (stampW - nickW - 10) / 2;
+            CorkBoardGui.blitTint(g, CorkSprites.ICON_FACE, nx, stampTop + 12, 7, 7, CorkPalette.DOING_NICK);
+            CorkBoardGui.text(g, font, nick, nx + 10, stampTop + 12, CorkPalette.DOING_NICK);
             return;
         }
 
         if (!style.hideReward()) {
-            String reward = MoneyFormat.text(entry.reward());
-            graphics.drawString(font, reward, tx, ty, CorkBoardGui.GOLD, false);
-            ty += 10;
-            if (!style.inProgress()) {
-                graphics.drawString(font, Component.translatable("ui.aerocouriers.cork.note.deposit",
-                        MoneyFormat.text(entry.collateral())), tx, ty, CorkBoardGui.INK_MUTED, false);
-            }
+            int depY = compact ? 71 : 91;
+            Component deposit = Component.translatable("ui.aerocouriers.cork.note.deposit",
+                    MoneyFormat.text(entry.collateral()));
+            CorkBoardGui.text(g, font, deposit, x + 8, drawY + depY, CorkPalette.deposit(style));
         }
-
         if (style.expensive()) {
-            CorkBoardGui.waxSeal(graphics, x + w - 18, y + h - 18);
+            CorkBoardGui.blit(g, CorkSprites.WAX, x + w - 23, drawY + h - 24, 17, 17);
         }
-        if (style.rare()) {
-            CorkBoardGui.ribbon(graphics, x + w - 14, y);
+        if (style.expiring()) {
+            g.fill(x + 4, drawY + h - 6, x + w - 4, drawY + h - 3, CorkPalette.EXPIRE_TRACK);
+            int fill = Math.max(4, (w - 9) / 8);
+            g.fill(x + 4, drawY + h - 6, x + 4 + fill, drawY + h - 3, CorkPalette.EXPIRE_BAR);
         }
-        if (style.inProgress()) {
-            int stampW = Math.min(w - pad * 2, Math.max(48, font.width(Component.translatable(
-                    "ui.aerocouriers.cork.note.in_progress")) + 16));
-            String nick = style.courierName().isBlank() ? "—" : style.courierName();
-            CorkBoardGui.progressStamp(graphics, font, x + pad, y + h - 26, stampW,
-                    Component.translatable("ui.aerocouriers.cork.note.in_progress"),
-                    Component.literal(CorkBoardGui.ellipsize(font, nick, stampW - 8)));
+    }
+
+    private static int drawBadge(GuiGraphics g, Font font, int x, int y, Component label,
+                                 net.minecraft.resources.ResourceLocation bg,
+                                 net.minecraft.resources.ResourceLocation icon, int iw, int ih, int color) {
+        int w = 4 + iw + 3 + font.width(label) + 4;
+        CorkBoardGui.blit(g, bg, x, y, w, 11);
+        CorkBoardGui.blitTint(g, icon, x + 4, y + (11 - ih) / 2, iw, ih, color);
+        CorkBoardGui.text(g, font, label, x + 4 + iw + 3, y + 2, color);
+        return w + 3;
+    }
+
+    private static void dotted(GuiGraphics g, int x0, int y, int x1, int color) {
+        int faded = (color & 0x00FFFFFF) | 0x66000000;
+        for (int x = x0; x < x1; x += 2) {
+            g.fill(x, y, x + 1, y + 1, faded);
         }
     }
 
     private static String clock(BoardSnapshotPayload.BoardEntry entry) {
         long minutes = Math.max(0, entry.minutesLeft());
-        return String.valueOf(minutes);
+        if (minutes >= 60) {
+            return (minutes / 60) + Component.translatable("ui.aerocouriers.cork.hours").getString();
+        }
+        return minutes + Component.translatable("ui.aerocouriers.cork.minutes_short").getString();
     }
 
+    private static String weight(BoardSnapshotPayload.BoardEntry entry) {
+        String raw = entry.weight();
+        if (raw == null || raw.isBlank()) {
+            return grouped((int) Math.round(entry.weightValue()))
+                    + Component.translatable("ui.aerocouriers.cork.kg").getString();
+        }
+        return raw.replace(" ", "");
+    }
+
+    private static String grouped(int value) {
+        return MoneyFormat.grouped(value);
+    }
 }

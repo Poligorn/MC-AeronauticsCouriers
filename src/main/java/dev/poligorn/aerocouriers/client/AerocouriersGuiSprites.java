@@ -19,33 +19,6 @@ public final class AerocouriersGuiSprites {
     /** Flat gray control. Inactive route settings use this instead of the brass "pressed" disabled sprite. */
     public static final ResourceLocation TABLET_BUTTON_INACTIVE = id("tablet_button_inactive");
 
-    public static final ResourceLocation CORK_FRAME = id("cork/frame");
-    public static final ResourceLocation CORK_HEADER = id("cork/header");
-    public static final ResourceLocation CORK_TILE = id("cork/tile");
-    public static final ResourceLocation CORK_INTERIOR = id("cork/interior");
-    public static final ResourceLocation CORK_PAPER = id("cork/paper");
-    public static final ResourceLocation CORK_PAPER_GOLD = id("cork/paper_gold");
-    public static final ResourceLocation CORK_PAPER_PINK = id("cork/paper_pink");
-    public static final ResourceLocation CORK_PAPER_BLEND = id("cork/paper_blend");
-    public static final ResourceLocation CORK_PAPER_LOCKED = id("cork/paper_locked");
-    public static final ResourceLocation CORK_PIN_RED = id("cork/pin_red");
-    public static final ResourceLocation CORK_PIN_TEAL = id("cork/pin_teal");
-    public static final ResourceLocation CORK_PIN_BRASS = id("cork/pin_brass");
-    public static final ResourceLocation CORK_PIN_PINK = id("cork/pin_pink");
-    public static final ResourceLocation CORK_WAX = id("cork/wax");
-    public static final ResourceLocation CORK_RIBBON = id("cork/ribbon");
-    public static final ResourceLocation CORK_LOCK = id("cork/lock");
-    public static final ResourceLocation CORK_STAMP = id("cork/stamp");
-    public static final ResourceLocation CORK_PROGRESS = id("cork/progress");
-    public static final ResourceLocation CORK_PANEL = id("cork/panel");
-    public static final ResourceLocation CORK_CHIP = id("cork/chip");
-    public static final ResourceLocation CORK_BUTTON = id("cork/button");
-    public static final ResourceLocation CORK_BUTTON_HOVER = id("cork/button_hover");
-    public static final ResourceLocation CORK_BUTTON_DANGER = id("cork/button_danger");
-    public static final ResourceLocation CORK_BUTTON_DANGER_HOVER = id("cork/button_danger_hover");
-    public static final ResourceLocation CORK_SWITCH_ON = id("cork/switch_on");
-    public static final ResourceLocation CORK_SWITCH_OFF = id("cork/switch_off");
-
     private static final WidgetSprites VANILLA_BUTTON = new WidgetSprites(
             vanilla("button"),
             vanilla("button_disabled"),

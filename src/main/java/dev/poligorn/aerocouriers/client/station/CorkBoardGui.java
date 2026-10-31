@@ -1,44 +1,21 @@
 package dev.poligorn.aerocouriers.client.station;
 
 import com.mojang.blaze3d.systems.RenderSystem;
-import dev.poligorn.aerocouriers.client.AerocouriersGuiSprites;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 
-/** Original pixel chrome for the cork board and village admin panel. */
+/** Pixel chrome: sprites at native / 9-slice size, text at layout.json cell-top (baseline = y+7). */
 public final class CorkBoardGui {
-    public static final int WOOD = 0xFF8A582C;
-    public static final int WOOD_DARK = 0xFF4E2C12;
-    public static final int WOOD_LIGHT = 0xFFB4743C;
-    public static final int WOOD_LINE = 0xFFD4A84A;
-    public static final int CORK = 0xFFE2B86E;
-    public static final int CORK_DARK = 0xFFB88848;
-    public static final int CORK_SPECK = 0xFF8E6428;
-    public static final int INK = 0xFF3A2814;
-    public static final int INK_MUTED = 0xFF7A6040;
-    public static final int CREAM = 0xFFF7EAC8;
-    public static final int GOLD_PAPER = 0xFFF4D478;
-    public static final int PINK_PAPER = 0xFFF4D4E6;
-    public static final int LOCK_PAPER = 0xFFD4D0C6;
-    public static final int TEAL = 0xFF2A9A94;
-    public static final int TEAL_DARK = 0xFF1A6460;
-    public static final int RED = 0xFFC03828;
-    public static final int GOLD = 0xFFE0C048;
-    public static final int HEADER = 0xFFF5E6C8;
-    public static final int PANEL = 0xFF4A2E16;
-    public static final int PANEL_LINE = 0xFF2A180A;
-    public static final int BAR_BG = 0xFF2A1A0C;
-    public static final int BAR_FILL = 0xFF3AA8A0;
-
-    private static final ResourceLocation[] PINS = {
-            AerocouriersGuiSprites.CORK_PIN_RED,
-            AerocouriersGuiSprites.CORK_PIN_TEAL,
-            AerocouriersGuiSprites.CORK_PIN_BRASS,
-            AerocouriersGuiSprites.CORK_PIN_PINK
-    };
+    public static final int HEADER = CorkPalette.HEADER_TEXT;
+    public static final int INK = CorkPalette.NOTE_INK;
+    public static final int INK_MUTED = CorkPalette.NOTE_MUTED;
+    public static final int GOLD = CorkPalette.GOLD;
+    public static final int TEAL = CorkPalette.TEAL;
+    public static final int RED = CorkPalette.ADMIN_ERROR;
+    public static final int PANEL = 0xFF241309;
 
     private CorkBoardGui() {
     }
@@ -48,185 +25,188 @@ public final class CorkBoardGui {
         RenderSystem.enableBlend();
     }
 
-    public static void frame(GuiGraphics graphics, int x, int y, int w, int h) {
+    public static void blit(GuiGraphics g, ResourceLocation sprite, int x, int y, int w, int h) {
         fullBright();
-        graphics.blitSprite(AerocouriersGuiSprites.CORK_FRAME, x, y, w, h);
+        g.blitSprite(sprite, x, y, w, h);
     }
 
-    public static void cork(GuiGraphics graphics, int x, int y, int w, int h) {
-        fullBright();
-        graphics.blitSprite(AerocouriersGuiSprites.CORK_TILE, x, y, w, h);
+    public static void blit(GuiGraphics g, ResourceLocation sprite, CorkBoardLayout.Rect r) {
+        blit(g, sprite, r.x(), r.y(), r.w(), r.h());
     }
 
-    public static void headerBand(GuiGraphics graphics, int x, int y, int w, int h) {
-        fullBright();
-        graphics.blitSprite(AerocouriersGuiSprites.CORK_HEADER, x, y, w, h);
-    }
-
-    public static void interior(GuiGraphics graphics, int x, int y, int w, int h) {
-        fullBright();
-        graphics.blitSprite(AerocouriersGuiSprites.CORK_INTERIOR, x, y, w, h);
-    }
-
-    public static void panel(GuiGraphics graphics, int x, int y, int w, int h) {
-        fullBright();
-        graphics.blitSprite(AerocouriersGuiSprites.CORK_PANEL, x, y, w, h);
-    }
-
-    public static void paper(GuiGraphics graphics, int x, int y, int w, int h, int fill, int border) {
-        if (fill == PANEL) {
-            panel(graphics, x, y, w, h);
-            return;
+    public static void blitTint(GuiGraphics g, ResourceLocation sprite, int x, int y, int w, int h, int argb) {
+        float a = ((argb >>> 24) & 0xFF) / 255.0F;
+        if (a <= 0.001F) {
+            a = 1.0F;
         }
-        paper(graphics, x, y, w, h, paperSprite(fill));
+        g.setColor(((argb >> 16) & 0xFF) / 255.0F, ((argb >> 8) & 0xFF) / 255.0F, (argb & 0xFF) / 255.0F, a);
+        g.blitSprite(sprite, x, y, w, h);
+        g.setColor(1.0F, 1.0F, 1.0F, 1.0F);
     }
 
-    public static void paper(GuiGraphics graphics, int x, int y, int w, int h, ResourceLocation sprite) {
+    /** layout.json y is the 8 px glyph-cell top; vanilla {@code drawString} uses the same origin. */
+    public static void text(GuiGraphics g, Font font, String s, int x, int y, int color) {
+        g.drawString(font, s, x, y, color, false);
+    }
+
+    public static void text(GuiGraphics g, Font font, Component s, int x, int y, int color) {
+        g.drawString(font, s, x, y, color, false);
+    }
+
+    public static void bold(GuiGraphics g, Font font, String s, int x, int y, int color) {
+        g.drawString(font, s, x, y, color, false);
+        g.drawString(font, s, x + 1, y, color, false);
+    }
+
+    public static void bold(GuiGraphics g, Font font, Component s, int x, int y, int color) {
+        g.drawString(font, s, x, y, color, false);
+        g.drawString(font, s, x + 1, y, color, false);
+    }
+
+    public static void boardWindow(GuiGraphics g, CorkBoardLayout layout) {
         fullBright();
-        graphics.blitSprite(sprite, x, y, w, h);
-    }
-
-    public static ResourceLocation paperSprite(int fill) {
-        if (fill == LOCK_PAPER) {
-            return AerocouriersGuiSprites.CORK_PAPER_LOCKED;
+        blit(g, CorkSprites.WOOD_DARK_H, layout.headerPlank);
+        blit(g, CorkSprites.WOOD_MID_H, layout.filterBar);
+        blit(g, CorkSprites.WOOD_DARK_H, layout.footerPlank);
+        if (layout.compact) {
+            blit(g, CorkSprites.CORK_AREA_COMPACT, layout.cork.x(), layout.cork.y(), 458, 180);
+        } else {
+            blit(g, CorkSprites.CORK_AREA, layout.cork.x(), layout.cork.y(), 604, 243);
         }
-        if (fill == GOLD_PAPER) {
-            return AerocouriersGuiSprites.CORK_PAPER_GOLD;
+        if (layout.exactFrame) {
+            if (layout.compact) {
+                blit(g, CorkSprites.FRAME_COMPACT, layout.winX, layout.winY, 480, 270);
+            } else {
+                blit(g, CorkSprites.FRAME_FULL, layout.winX, layout.winY, 640, 360);
+            }
+        } else {
+            blit(g, layout.compact ? CorkSprites.FRAME_9_COMPACT : CorkSprites.FRAME_9,
+                    layout.winX, layout.winY, layout.winW, layout.winH);
         }
-        if (fill == PINK_PAPER) {
-            return AerocouriersGuiSprites.CORK_PAPER_PINK;
+    }
+
+    public static void adminWindow(GuiGraphics g, CorkBoardLayout layout) {
+        fullBright();
+        blit(g, CorkSprites.WOOD_DARK_H, layout.headerPlank);
+        blit(g, CorkSprites.ADMIN_BG, layout.winX + (layout.compact ? 11 : 18),
+                layout.winY + (layout.compact ? 45 : 58),
+                layout.compact ? 458 : 604, layout.compact ? 196 : 262);
+        blit(g, CorkSprites.WOOD_DARK_H, layout.footerPlank);
+        if (layout.exactFrame) {
+            if (layout.compact) {
+                blit(g, CorkSprites.FRAME_COMPACT, layout.winX, layout.winY, 480, 270);
+            } else {
+                blit(g, CorkSprites.FRAME_FULL, layout.winX, layout.winY, 640, 360);
+            }
+        } else {
+            blit(g, layout.compact ? CorkSprites.FRAME_9_COMPACT : CorkSprites.FRAME_9,
+                    layout.winX, layout.winY, layout.winW, layout.winH);
         }
-        if (fill == 0xFFF4D8B0) {
-            return AerocouriersGuiSprites.CORK_PAPER_BLEND;
-        }
-        return AerocouriersGuiSprites.CORK_PAPER;
     }
 
-    public static void pin(GuiGraphics graphics, int cx, int cy) {
-        pin(graphics, cx, cy, 0);
+    public static void section(GuiGraphics g, Font font, int x, int y, int w, int h, Component title) {
+        blit(g, CorkSprites.ADMIN_SECTION, x, y, w, h);
+        bold(g, font, title, x + 6, y + 3, CorkPalette.ADMIN_TITLE);
     }
 
-    public static void pin(GuiGraphics graphics, int cx, int cy, int variant) {
-        fullBright();
-        ResourceLocation sprite = PINS[Math.floorMod(variant, PINS.length)];
-        graphics.blitSprite(sprite, cx - 4, cy - 3, 9, 9);
+    public static void dialog(GuiGraphics g, int x, int y, int w, int h) {
+        blit(g, CorkSprites.DIALOG, x, y, w, h);
     }
 
-    public static void waxSeal(GuiGraphics graphics, int x, int y) {
-        fullBright();
-        graphics.blitSprite(AerocouriersGuiSprites.CORK_WAX, x, y, 14, 14);
-    }
-
-    public static void ribbon(GuiGraphics graphics, int x, int y) {
-        fullBright();
-        graphics.blitSprite(AerocouriersGuiSprites.CORK_RIBBON, x, y, 12, 16);
-    }
-
-    public static void lock(GuiGraphics graphics, int x, int y) {
-        fullBright();
-        graphics.blitSprite(AerocouriersGuiSprites.CORK_LOCK, x, y, 10, 12);
-    }
-
-    public static void sizeStamp(GuiGraphics graphics, Font font, int x, int y, String size, boolean large) {
-        int w = large ? 18 : 16;
-        int h = 13;
-        fullBright();
-        graphics.blitSprite(AerocouriersGuiSprites.CORK_STAMP, x, y, w, h);
-        graphics.drawString(font, size, x + (w - font.width(size)) / 2, y + 3, INK, false);
-    }
-
-    public static void badge(GuiGraphics graphics, Font font, int x, int y, Component text, int bg, int fg) {
-        int w = font.width(text) + 8;
-        graphics.fill(x, y, x + w, y + 11, bg);
-        graphics.drawString(font, text, x + 4, y + 2, fg, false);
-    }
-
-    public static void progressStamp(GuiGraphics graphics, Font font, int x, int y, int w, Component title,
-                                     Component nick) {
-        int h = 22;
-        fullBright();
-        graphics.blitSprite(AerocouriersGuiSprites.CORK_PROGRESS, x, y, Math.max(48, w), h);
-        graphics.drawString(font, title, x + 4, y + 2, TEAL_DARK, false);
-        graphics.drawString(font, nick, x + 4, y + 11, TEAL, false);
-    }
-
-    public static void reputationBar(GuiGraphics graphics, int x, int y, int w, int h, int value, int max) {
-        graphics.fill(x, y, x + w, y + h, BAR_BG);
-        int fill = max <= 0 ? 0 : Mth.clamp(w * value / max, 0, w);
+    public static void reputationBar(GuiGraphics g, int x, int y, int w, int h, int value, int max) {
+        blit(g, CorkSprites.REP_TRACK, x, y, w, h);
+        int fill = max <= 0 ? 0 : Mth.clamp((w - 2) * value / max, 0, w - 2);
         if (fill > 0) {
-            graphics.fill(x, y, x + fill, y + h, BAR_FILL);
+            g.fill(x + 1, y + 1, x + 1 + fill, y + h - 1, CorkPalette.TEAL);
+            g.fill(x + 1, y + 1, x + 1 + fill, y + 2, CorkPalette.TEAL_HI);
         }
-        mark(graphics, x, w, y, h, 10, max);
-        mark(graphics, x, w, y, h, 25, max);
-        mark(graphics, x, w, y, h, 50, max);
+        tick(g, x, y, w, h, 10, max);
+        tick(g, x, y, w, h, 25, max);
+        tick(g, x, y, w, h, 50, max);
     }
 
-    private static void mark(GuiGraphics graphics, int x, int w, int y, int h, int at, int max) {
+    private static void tick(GuiGraphics g, int x, int y, int w, int h, int at, int max) {
         if (at > max) {
             return;
         }
         int px = x + w * at / max;
-        graphics.fill(px, y - 1, px + 1, y + h + 1, 0x66FFFFFF);
+        g.fill(px, y - 2, px + 1, y + h + 1, CorkPalette.BAR_TICK);
     }
 
-    public static void scrollBar(GuiGraphics graphics, int x, int y, int w, int h, int scroll, int maxScroll) {
-        graphics.fill(x, y, x + w, y + h, 0x662A1A0C);
-        if (maxScroll <= 0) {
+    public static void scrollBar(GuiGraphics g, CorkBoardLayout.Rect rail, int scroll, int maxScroll, int visible,
+                                int total) {
+        blit(g, CorkSprites.SCROLL_TRACK, rail);
+        if (maxScroll <= 0 || total <= 0) {
             return;
         }
-        int thumbH = Math.max(16, h / (maxScroll + 1));
-        int thumbY = y + (h - thumbH) * scroll / maxScroll;
-        graphics.fill(x, thumbY, x + w, thumbY + thumbH, WOOD_LIGHT);
-        graphics.fill(x + 1, thumbY + 1, x + w - 1, thumbY + thumbH - 1, WOOD);
+        int innerH = Math.max(8, rail.h() - 2);
+        int thumbH = Math.max(12, innerH * visible / Math.max(visible, total));
+        int thumbY = rail.y() + 1 + (innerH - thumbH) * scroll / Math.max(1, maxScroll);
+        blit(g, CorkSprites.SCROLL_THUMB, rail.x() + 1, thumbY, 4, thumbH);
     }
 
-    public static void button(GuiGraphics graphics, Font font, int x, int y, int w, int h, Component label,
-                              boolean hover, boolean enabled, boolean danger) {
-        fullBright();
+    public static void button(GuiGraphics g, Font font, int x, int y, int w, int h, Component label,
+                              boolean hover, boolean enabled, ButtonStyle style) {
         ResourceLocation sprite;
+        int color;
         if (!enabled) {
-            sprite = AerocouriersGuiSprites.CORK_BUTTON;
-        } else if (danger) {
-            sprite = hover
-                    ? AerocouriersGuiSprites.CORK_BUTTON_DANGER_HOVER
-                    : AerocouriersGuiSprites.CORK_BUTTON_DANGER;
+            sprite = CorkSprites.BTN_OFF;
+            color = CorkPalette.BUTTON_DISABLED;
+        } else if (style == ButtonStyle.DANGER) {
+            sprite = CorkSprites.BTN_DANGER;
+            color = CorkPalette.BUTTON_DANGER;
+        } else if (style == ButtonStyle.GOLD) {
+            sprite = hover ? CorkSprites.BTN_HOVER : CorkSprites.BTN_GOLD;
+            color = CorkPalette.BUTTON_GOLD;
+        } else if (style == ButtonStyle.TEAL) {
+            sprite = CorkSprites.BTN_TEAL;
+            color = CorkPalette.BUTTON_TEAL;
+        } else if (style == ButtonStyle.SELECTED) {
+            sprite = CorkSprites.BTN_SEL;
+            color = CorkPalette.FILTER_ACTIVE;
         } else {
-            sprite = hover ? AerocouriersGuiSprites.CORK_BUTTON_HOVER : AerocouriersGuiSprites.CORK_BUTTON;
+            sprite = hover ? CorkSprites.BTN_HOVER : CorkSprites.BTN;
+            color = CorkPalette.BUTTON;
         }
-        graphics.blitSprite(sprite, x, y, w, h);
-        int text = !enabled ? 0xFF8A7A60 : HEADER;
-        graphics.drawString(font, label, x + (w - font.width(label)) / 2, y + (h - 8) / 2, text, false);
-    }
-
-    public static void chip(GuiGraphics graphics, Font font, int x, int y, int w, int h, Component label,
-                            boolean on, boolean hover) {
-        fullBright();
-        graphics.blitSprite(AerocouriersGuiSprites.CORK_CHIP, x, y, w, h);
-        if (on) {
-            graphics.fill(x + 1, y + 1, x + w - 1, y + h - 1, 0x668A5A30);
-        } else if (hover) {
-            graphics.fill(x + 1, y + 1, x + w - 1, y + h - 1, 0x335A3A20);
+        blit(g, sprite, x, y, w, h);
+        String fitted = ellipsize(font, label.getString(), Math.max(8, w - 8));
+        int tx = x + (w - font.width(fitted)) / 2;
+        int ty = y + Math.max(0, (h - 8) / 2);
+        if (style == ButtonStyle.GOLD || style == ButtonStyle.TEAL) {
+            bold(g, font, fitted, tx, ty, color);
+        } else {
+            text(g, font, fitted, tx, ty, color);
         }
-        graphics.drawString(font, label, x + 5, y + (h - 8) / 2, HEADER, false);
     }
 
-    public static void toggle(GuiGraphics graphics, Font font, int x, int y, Component label, boolean on) {
-        fullBright();
-        graphics.blitSprite(on ? AerocouriersGuiSprites.CORK_SWITCH_ON : AerocouriersGuiSprites.CORK_SWITCH_OFF,
-                x, y, 22, 12);
-        graphics.drawString(font, label, x + 26, y + 2, HEADER, false);
+    public static void button(GuiGraphics g, Font font, int x, int y, int w, int h, Component label,
+                              boolean hover, boolean enabled, boolean danger) {
+        button(g, font, x, y, w, h, label, hover, enabled, danger ? ButtonStyle.DANGER : ButtonStyle.NORMAL);
     }
 
-    public static int toggleW(Font font, Component label) {
-        return 26 + font.width(label);
+    public static void chip(GuiGraphics g, Font font, CorkBoardLayout.Rect r, Component label,
+                            ResourceLocation icon, int iconW, int iconH, boolean active, boolean hover) {
+        blit(g, active || hover ? CorkSprites.CHIP_ON : CorkSprites.CHIP, r);
+        int tint = active ? CorkPalette.FILTER_ACTIVE : CorkPalette.FILTER;
+        int ix = r.x() + 5;
+        int iy = r.y() + Math.max(0, (r.h() - iconH) / 2);
+        blitTint(g, icon, ix, iy, iconW, iconH, tint);
+        int textX = ix + iconW + 3;
+        int maxW = Math.max(8, r.x() + r.w() - 4 - textX);
+        text(g, font, ellipsize(font, label.getString(), maxW),
+                textX, r.y() + Math.max(0, (r.h() - 8) / 2), tint);
     }
 
-    public static void checkbox(GuiGraphics graphics, Font font, int x, int y, Component label, boolean on) {
-        toggle(graphics, font, x, y, label, on);
+    public static void toggle(GuiGraphics g, int x, int y, boolean on) {
+        blit(g, on ? CorkSprites.TOGGLE_ON : CorkSprites.TOGGLE_OFF, x, y, 18, 9);
     }
 
-    public static int chipW(Font font, Component label) {
-        return font.width(label) + 12;
+    public static void checkbox(GuiGraphics g, int x, int y, boolean on) {
+        blit(g, on ? CorkSprites.CHECK_ON : CorkSprites.CHECK_OFF, x, y, 9, 9);
+    }
+
+    public static void input(GuiGraphics g, int x, int y, int w, int h, boolean focus, boolean error) {
+        blit(g, error ? CorkSprites.INPUT_ERR : focus ? CorkSprites.INPUT_FOCUS : CorkSprites.INPUT, x, y, w, h);
     }
 
     public static String ellipsize(Font font, String text, int maxW) {
@@ -238,5 +218,9 @@ public final class CorkBoardGui {
             cut = cut.substring(0, cut.length() - 1);
         }
         return cut + "…";
+    }
+
+    public enum ButtonStyle {
+        NORMAL, GOLD, TEAL, DANGER, SELECTED
     }
 }

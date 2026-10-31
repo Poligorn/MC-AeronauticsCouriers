@@ -1,7 +1,6 @@
 package dev.poligorn.aerocouriers.client.station;
 
 import dev.poligorn.aerocouriers.cargo.CargoSize;
-import dev.poligorn.aerocouriers.client.AerocouriersGuiSprites;
 import dev.poligorn.aerocouriers.client.board.BoardAcceptUi;
 import dev.poligorn.aerocouriers.client.board.BoardCardRenderer;
 import dev.poligorn.aerocouriers.license.LicenseRank;
@@ -38,55 +37,8 @@ public record CorkNoteStyle(
                 courierName == null ? "" : courierName);
     }
 
-    public int paper() {
-        if (locked) {
-            return CorkBoardGui.LOCK_PAPER;
-        }
-        if (expensive && rare) {
-            return 0xFFF4D8B0;
-        }
-        if (expensive) {
-            return CorkBoardGui.GOLD_PAPER;
-        }
-        if (rare) {
-            return CorkBoardGui.PINK_PAPER;
-        }
-        return CorkBoardGui.CREAM;
-    }
-
-    public ResourceLocation paperSprite() {
-        if (locked) {
-            return AerocouriersGuiSprites.CORK_PAPER_LOCKED;
-        }
-        if (expensive && rare) {
-            return AerocouriersGuiSprites.CORK_PAPER_BLEND;
-        }
-        if (expensive) {
-            return AerocouriersGuiSprites.CORK_PAPER_GOLD;
-        }
-        if (rare) {
-            return AerocouriersGuiSprites.CORK_PAPER_PINK;
-        }
-        return AerocouriersGuiSprites.CORK_PAPER;
-    }
-
-    public int border() {
-        if (inProgress) {
-            return CorkBoardGui.TEAL;
-        }
-        if (expiring) {
-            return CorkBoardGui.RED;
-        }
-        if (locked) {
-            return 0xFF8A8680;
-        }
-        if (expensive) {
-            return 0xFFC4A020;
-        }
-        if (rare) {
-            return 0xFFC070A0;
-        }
-        return 0xFFB0A070;
+    public ResourceLocation paperSprite(boolean compact) {
+        return CorkSprites.paper(this, compact);
     }
 
     public boolean hideReward() {

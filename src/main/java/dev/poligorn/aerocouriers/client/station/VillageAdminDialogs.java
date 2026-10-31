@@ -23,8 +23,8 @@ public abstract class VillageAdminDialogs {
     }
 
     public void layout(int screenW, int screenH) {
-        w = Math.min(320, screenW - 24);
-        h = 150;
+        w = 288;
+        h = 168;
         x = (screenW - w) / 2;
         y = (screenH - h) / 2;
     }
@@ -48,42 +48,46 @@ public abstract class VillageAdminDialogs {
 
         @Override
         public void layout(int screenW, int screenH) {
-            w = Math.min(300, screenW - 24);
-            h = 148;
+            w = 288;
+            h = 168;
             x = (screenW - w) / 2;
             y = (screenH - h) / 2;
         }
 
         @Override
         public void init(VillageAdminScreen screen) {
-            field = new EditBox(screen.getFont(), x + 12, y + 36, w - 24, 16,
+            field = new EditBox(screen.getFont(), x + 10, y + 33, 268, 16,
                     Component.translatable("ui.aerocouriers.village_admin.dialog.rename.field"));
             field.setMaxLength(VillageBoardPolicy.NAME_MAX);
+            field.setBordered(false);
+            field.setTextColor(CorkPalette.INPUT);
             field.setValue(snapshot.name());
             screen.addDialogWidget(field);
         }
 
         @Override
         public void render(GuiGraphics graphics, Font font, int mouseX, int mouseY) {
-            CorkBoardGui.paper(graphics, x, y, w, h, CorkBoardGui.PANEL, CorkBoardGui.WOOD_LINE);
-            graphics.drawString(font, Component.translatable("ui.aerocouriers.village_admin.dialog.rename.title"),
-                    x + 12, y + 8, CorkBoardGui.HEADER, false);
+            CorkBoardGui.dialog(graphics, x, y, w, h);
+            CorkBoardGui.bold(graphics, font,
+                    Component.translatable("ui.aerocouriers.village_admin.dialog.rename.title"),
+                    x + 9, y + 6, CorkPalette.ADMIN_TITLE);
             String value = field == null ? snapshot.name() : field.getValue();
             int len = value.strip().length();
-            graphics.drawString(font, len + "/" + VillageBoardPolicy.NAME_MAX,
-                    x + w - 12 - font.width(len + "/" + VillageBoardPolicy.NAME_MAX), y + 22, CorkBoardGui.HEADER, false);
+            CorkBoardGui.text(graphics, font, len + "/" + VillageBoardPolicy.NAME_MAX,
+                    x + w - 12 - font.width(len + "/" + VillageBoardPolicy.NAME_MAX), y + 22, CorkPalette.ADMIN_VALUE);
+            CorkBoardGui.input(graphics, x + 10, y + 33, 268, 16, field != null && field.isFocused(),
+                    snapshot.view().nameTaken(value) && !value.strip().equals(snapshot.name()));
             boolean taken = snapshot.view().nameTaken(value) || value.strip().isEmpty()
                     || value.strip().length() > VillageBoardPolicy.NAME_MAX;
             boolean same = value.strip().equals(snapshot.name());
             Component status = taken && !same
                     ? Component.translatable("ui.aerocouriers.village_admin.dialog.rename.taken", value.strip())
                     : Component.translatable("ui.aerocouriers.village_admin.dialog.rename.free");
-            graphics.drawString(font, status, x + 12, y + 58,
-                    taken && !same ? CorkBoardGui.RED : CorkBoardGui.TEAL, false);
-            graphics.drawString(font, Component.translatable("ui.aerocouriers.village_admin.dialog.rename.hint",
-                    snapshot.name()), x + 12, y + 70, CorkBoardGui.INK_MUTED, false);
-            boolean canSave = !taken && !same;
-            drawButtons(graphics, font, mouseX, mouseY, canSave,
+            CorkBoardGui.text(graphics, font, status, x + 12, y + 58,
+                    taken && !same ? CorkPalette.ADMIN_ERROR : CorkPalette.ADMIN_OK);
+            CorkBoardGui.text(graphics, font, Component.translatable("ui.aerocouriers.village_admin.dialog.rename.hint",
+                    snapshot.name()), x + 12, y + 72, CorkPalette.ADMIN_HINT);
+            drawButtons(graphics, font, mouseX, mouseY, !taken && !same,
                     Component.translatable("ui.aerocouriers.village_admin.dialog.rename.save"));
         }
 
@@ -113,44 +117,48 @@ public abstract class VillageAdminDialogs {
 
         @Override
         public void layout(int screenW, int screenH) {
-            w = Math.min(340, screenW - 24);
-            h = 168;
+            w = 400;
+            h = 236;
             x = (screenW - w) / 2;
             y = (screenH - h) / 2;
         }
 
         @Override
         public void init(VillageAdminScreen screen) {
-            field = new EditBox(screen.getFont(), x + 80, y + 40, 48, 16,
+            field = new EditBox(screen.getFont(), x + 66, y + 38, 50, 15,
                     Component.translatable("ui.aerocouriers.village_admin.dialog.rep.amount"));
             field.setMaxLength(3);
+            field.setBordered(false);
+            field.setTextColor(CorkPalette.INPUT);
             field.setValue(Integer.toString(snapshot.reputation()));
             screen.addDialogWidget(field);
         }
 
         @Override
         public void render(GuiGraphics graphics, Font font, int mouseX, int mouseY) {
-            CorkBoardGui.paper(graphics, x, y, w, h, CorkBoardGui.PANEL, CorkBoardGui.WOOD_LINE);
-            graphics.drawString(font, Component.translatable("ui.aerocouriers.village_admin.dialog.rep.title",
-                    snapshot.name()), x + 12, y + 8, CorkBoardGui.HEADER, false);
+            CorkBoardGui.dialog(graphics, x, y, w, h);
+            CorkBoardGui.bold(graphics, font, Component.translatable("ui.aerocouriers.village_admin.dialog.rep.title",
+                    snapshot.name()), x + 9, y + 6, CorkPalette.ADMIN_TITLE);
             int mx = x + 12;
             int my = y + 22;
             for (Mode m : Mode.values()) {
                 Component label = Component.translatable(m.key);
-                int cw = CorkBoardGui.chipW(font, label);
-                CorkBoardGui.chip(graphics, font, mx, my, cw, 14, label, mode == m, false);
+                int cw = font.width(label) + 12;
+                CorkBoardGui.button(graphics, font, mx, my, cw, 14, label, false, true,
+                        mode == m ? CorkBoardGui.ButtonStyle.SELECTED : CorkBoardGui.ButtonStyle.NORMAL);
                 mx += cw + 4;
             }
-            graphics.drawString(font, Component.translatable("ui.aerocouriers.village_admin.dialog.rep.amount"),
-                    x + 12, y + 44, CorkBoardGui.HEADER, false);
+            CorkBoardGui.text(graphics, font, Component.translatable("ui.aerocouriers.village_admin.dialog.rep.amount"),
+                    x + 12, y + 40, CorkPalette.ADMIN_VALUE);
+            CorkBoardGui.input(graphics, x + 66, y + 38, 50, 15, field != null && field.isFocused(), false);
             int next = preview();
             CorkBoardGui.reputationBar(graphics, x + 12, y + 64, w - 24, 7, snapshot.reputation(),
                     VillageBoardPolicy.REPUTATION_MAX);
             CorkBoardGui.reputationBar(graphics, x + 12, y + 78, w - 24, 7, next, VillageBoardPolicy.REPUTATION_MAX);
-            graphics.drawString(font, Component.translatable("ui.aerocouriers.village_admin.dialog.rep.preview",
-                    snapshot.reputation(), next), x + 12, y + 90, CorkBoardGui.HEADER, false);
-            graphics.drawString(font, Component.translatable("ui.aerocouriers.village_admin.dialog.rep.warn"),
-                    x + 12, y + 104, CorkBoardGui.GOLD, false);
+            CorkBoardGui.text(graphics, font, Component.translatable("ui.aerocouriers.village_admin.dialog.rep.preview",
+                    snapshot.reputation(), next), x + 12, y + 92, CorkPalette.ADMIN_VALUE);
+            CorkBoardGui.text(graphics, font, Component.translatable("ui.aerocouriers.village_admin.dialog.rep.warn"),
+                    x + 12, y + 108, CorkPalette.ADMIN_HINT);
             drawButtons(graphics, font, mouseX, mouseY, true,
                     Component.translatable("ui.aerocouriers.village_admin.dialog.rep.apply",
                             snapshot.reputation(), next));
@@ -163,7 +171,7 @@ public abstract class VillageAdminDialogs {
             Font font = Minecraft.getInstance().font;
             for (Mode m : Mode.values()) {
                 Component label = Component.translatable(m.key);
-                int cw = CorkBoardGui.chipW(font, label);
+                int cw = font.width(label) + 12;
                 if (mouseX >= mx && mouseX < mx + cw && mouseY >= my && mouseY < my + 14) {
                     mode = m;
                     if (m == Mode.SET && field != null) {
@@ -226,7 +234,7 @@ public abstract class VillageAdminDialogs {
 
         @Override
         public void layout(int screenW, int screenH) {
-            w = Math.min(280, screenW - 24);
+            w = 280;
             h = 110;
             x = (screenW - w) / 2;
             y = (screenH - h) / 2;
@@ -238,11 +246,11 @@ public abstract class VillageAdminDialogs {
 
         @Override
         public void render(GuiGraphics graphics, Font font, int mouseX, int mouseY) {
-            CorkBoardGui.paper(graphics, x, y, w, h, CorkBoardGui.PANEL, CorkBoardGui.WOOD_LINE);
-            graphics.drawString(font, title, x + 12, y + 10, CorkBoardGui.HEADER, false);
+            CorkBoardGui.dialog(graphics, x, y, w, h);
+            CorkBoardGui.bold(graphics, font, title, x + 9, y + 6, CorkPalette.ADMIN_TITLE);
             int ty = y + 28;
             for (var line : font.split(body, w - 24)) {
-                graphics.drawString(font, line, x + 12, ty, CorkBoardGui.INK_MUTED, false);
+                graphics.drawString(font, line, x + 12, ty, CorkPalette.ADMIN_HINT, false);
                 ty += 10;
             }
             drawButtons(graphics, font, mouseX, mouseY, true,
@@ -277,12 +285,11 @@ public abstract class VillageAdminDialogs {
                                Component ok) {
         int bw = (w - 36) / 2;
         int by = y + h - 26;
-        boolean cancelHover = overCancel(mouseX, mouseY);
-        boolean okHover = okEnabled && overOk(mouseX, mouseY);
         CorkBoardGui.button(graphics, font, x + 12, by, bw, 16,
                 Component.translatable("ui.aerocouriers.village_admin.dialog.cancel"),
-                cancelHover, true, false);
-        CorkBoardGui.button(graphics, font, x + w - 12 - bw, by, bw, 16, ok, okHover, okEnabled, false);
+                overCancel(mouseX, mouseY), true, CorkBoardGui.ButtonStyle.NORMAL);
+        CorkBoardGui.button(graphics, font, x + w - 12 - bw, by, bw, 16, ok,
+                okEnabled && overOk(mouseX, mouseY), okEnabled, CorkBoardGui.ButtonStyle.TEAL);
     }
 
     protected boolean overCancel(double mouseX, double mouseY) {

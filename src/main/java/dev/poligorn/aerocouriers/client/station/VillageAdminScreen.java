@@ -2,7 +2,6 @@ package dev.poligorn.aerocouriers.client.station;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import dev.poligorn.aerocouriers.cargo.CargoSize;
-import dev.poligorn.aerocouriers.client.InGamePauseBackground;
 import dev.poligorn.aerocouriers.client.board.VillageRefreshUi;
 import dev.poligorn.aerocouriers.economy.MoneyFormat;
 import dev.poligorn.aerocouriers.net.BoardSnapshotPayload;
@@ -21,32 +20,12 @@ import net.minecraft.util.Mth;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.jetbrains.annotations.Nullable;
 
-/** Operator-only village admin panel. Permission is re-checked on the server. */
+/** Operator village admin. Rects from layout.json screen 07 (640×360). */
 public final class VillageAdminScreen extends Screen {
     private StationSnapshotPayload snapshot;
-    private int winX;
-    private int winY;
-    private int winW;
-    private int winH;
-    private int left;
-    private int right;
-    private int colW;
-    private int nameY;
-    private int nameH;
-    private int repY;
-    private int repH;
-    private int ordY;
-    private int ordH;
-    private int statY;
-    private int statH;
-    private int polY;
-    private int polH;
-    private int cmdY;
-    private int cmdH;
-    private int intervalMinusX;
-    private int intervalPlusX;
-    private int intervalApplyX;
-    private int intervalRowY;
+    private CorkBoardLayout layout;
+    private int ox;
+    private int oy;
     private @Nullable VillageAdminDialogs dialog;
     private @Nullable EditBox intervalField;
     private @Nullable EditBox exactRepField;
@@ -81,46 +60,26 @@ public final class VillageAdminScreen extends Screen {
         rebuild();
     }
 
-    private void layoutChrome() {
-        winW = Math.min(width - 8, width < 640 ? CorkBoardLayout.SMALL_W : CorkBoardLayout.LARGE_W);
-        winH = Math.min(height - 8, height < 360 ? CorkBoardLayout.SMALL_H : CorkBoardLayout.LARGE_H);
-        winX = (width - winW) / 2;
-        winY = (height - winH) / 2;
-        left = winX + 16;
-        right = winX + winW / 2 + 4;
-        colW = (winW - 40) / 2;
-        boolean compact = winH < 340;
-        int gap = compact ? 4 : 6;
-        nameH = compact ? 30 : 36;
-        repH = compact ? 62 : 72;
-        ordH = compact ? 78 : 88;
-        statH = compact ? 70 : 82;
-        polH = compact ? 56 : 68;
-        cmdH = compact ? 36 : 46;
-        nameY = winY + (compact ? 42 : 50);
-        repY = nameY + nameH + gap;
-        ordY = repY + repH + gap;
-        statY = nameY;
-        polY = statY + statH + gap;
-        cmdY = polY + polH + gap;
+    private void origin() {
+        layout = CorkBoardLayout.of(width, height);
+        ox = layout.winX;
+        oy = layout.winY;
     }
 
     private void rebuild() {
         clearWidgets();
-        layoutChrome();
-        intervalRowY = ordY + 36;
-        Component intervalLabel = Component.translatable("ui.aerocouriers.village_admin.interval");
-        int fieldX = left + 8 + font.width(intervalLabel) + 4;
-        intervalField = new EditBox(font, fieldX, intervalRowY, 28, 14, intervalLabel);
+        origin();
+        intervalField = new EditBox(font, ox + 146, oy + 261, 28, 13,
+                Component.translatable("ui.aerocouriers.village_admin.interval"));
         intervalField.setMaxLength(4);
+        intervalField.setBordered(false);
+        intervalField.setTextColor(CorkPalette.INPUT);
         intervalField.setValue(Integer.toString(snapshot.view().refreshIntervalMin()));
-        intervalMinusX = fieldX + 28 + 4 + font.width(Component.translatable(
-                "ui.aerocouriers.village_admin.interval.unit")) + 4;
-        intervalPlusX = intervalMinusX + 16;
-        intervalApplyX = intervalPlusX + 18;
-        exactRepField = new EditBox(font, left + 6, repY + 50, 28, 14,
+        exactRepField = new EditBox(font, ox + 82, oy + 190, 44, 14,
                 Component.translatable("ui.aerocouriers.village_admin.rep.exact"));
         exactRepField.setMaxLength(3);
+        exactRepField.setBordered(false);
+        exactRepField.setTextColor(CorkPalette.INPUT);
         exactRepField.setValue(Integer.toString(snapshot.reputation()));
         if (dialog == null) {
             addRenderableWidget(intervalField);
@@ -133,7 +92,6 @@ public final class VillageAdminScreen extends Screen {
 
     @Override
     public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        InGamePauseBackground.render(this, graphics, mouseX, mouseY, partialTick);
         RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
     }
 
@@ -143,36 +101,52 @@ public final class VillageAdminScreen extends Screen {
 
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        layoutChrome();
+        origin();
         renderBackground(graphics, mouseX, mouseY, partialTick);
         CorkBoardGui.fullBright();
-        CorkBoardGui.frame(graphics, winX, winY, winW, winH);
-        CorkBoardGui.headerBand(graphics, winX + CorkBoardLayout.FRAME, winY + CorkBoardLayout.FRAME,
-                winW - CorkBoardLayout.FRAME * 2, 26);
-        CorkBoardGui.interior(graphics, winX + CorkBoardLayout.FRAME, winY + CorkBoardLayout.FRAME + 26,
-                winW - CorkBoardLayout.FRAME * 2, winH - CorkBoardLayout.FRAME * 2 - 26);
-        graphics.drawString(font, Component.translatable("ui.aerocouriers.village_admin.title", snapshot.name()),
-                winX + 16, winY + 12, CorkBoardGui.HEADER, false);
-        graphics.drawString(font, Component.translatable("ui.aerocouriers.village_admin.op"),
-                winX + winW - 16 - font.width(Component.translatable("ui.aerocouriers.village_admin.op")),
-                winY + 12, CorkBoardGui.GOLD, false);
-        graphics.drawString(font, Component.translatable("ui.aerocouriers.village_admin.subtitle"),
-                winX + 16, winY + 36, CorkBoardGui.INK_MUTED, false);
+        CorkBoardGui.adminWindow(graphics, layout);
+        CorkBoardGui.blit(graphics, CorkSprites.HOUSE_BOX, ox + 29, oy + 26, 17, 13);
+        CorkBoardGui.blitTint(graphics, CorkSprites.ICON_HOUSE, ox + 33, oy + 29, 7, 7, CorkPalette.HEADER_TITLE);
+        String title = Component.translatable("ui.aerocouriers.cork.station", snapshot.name()).getString();
+        CorkBoardGui.bold(graphics, font, CorkBoardGui.ellipsize(font, title, 400),
+                ox + 50, oy + 25, CorkPalette.HEADER_TITLE);
+        CorkBoardGui.text(graphics, font, Component.translatable("ui.aerocouriers.village_admin.panel"),
+                ox + 50, oy + 34, CorkPalette.ADMIN_OP);
+        CorkBoardGui.blitTint(graphics, CorkSprites.ICON_GEAR, ox + 470, oy + 26, 7, 7, CorkPalette.ADMIN_OP);
+        CorkBoardGui.text(graphics, font, Component.translatable("ui.aerocouriers.village_admin.op"),
+                ox + 481, oy + 27, CorkPalette.ADMIN_OP);
+        CorkBoardGui.text(graphics, font, CorkBoardGui.ellipsize(font,
+                        Component.translatable("ui.aerocouriers.village_admin.subtitle").getString(), 590),
+                ox + 26, oy + 47, CorkPalette.HEADER_MUTED);
 
-        drawName(graphics, left, nameY, colW, mouseX, mouseY);
-        drawReputation(graphics, left, repY, colW, mouseX, mouseY);
-        drawOrders(graphics, left, ordY, colW, mouseX, mouseY);
-        drawStats(graphics, right, statY, colW);
-        drawPolicy(graphics, right, polY, colW, mouseX, mouseY);
-        drawCommands(graphics, right, cmdY, colW);
-        drawFooter(graphics, mouseX, mouseY);
+        drawName(graphics, mouseX, mouseY);
+        drawReputation(graphics, mouseX, mouseY);
+        drawOrders(graphics, mouseX, mouseY);
+        drawStats(graphics);
+        drawPolicy(graphics, mouseX, mouseY);
+        drawCommands(graphics);
+        CorkBoardGui.text(graphics, font, Component.translatable("ui.aerocouriers.village_admin.persist.line1"),
+                ox + 26, oy + 323, CorkPalette.ADMIN_HINT);
+        CorkBoardGui.text(graphics, font, Component.translatable("ui.aerocouriers.village_admin.persist.line2"),
+                ox + 26, oy + 332, CorkPalette.ADMIN_HINT);
+        CorkBoardGui.button(graphics, font, ox + 541, oy + 323, 76, 16,
+                Component.translatable("ui.aerocouriers.village_admin.close"),
+                hover(mouseX, mouseY, 541, 323, 76, 16), true, CorkBoardGui.ButtonStyle.NORMAL);
 
         if (dialog == null) {
+            if (exactRepField != null) {
+                CorkBoardGui.input(graphics, exactRepField.getX(), exactRepField.getY(),
+                        exactRepField.getWidth(), exactRepField.getHeight(), exactRepField.isFocused(), false);
+            }
+            if (intervalField != null) {
+                CorkBoardGui.input(graphics, intervalField.getX(), intervalField.getY(),
+                        intervalField.getWidth(), intervalField.getHeight(), intervalField.isFocused(), false);
+            }
             for (var widget : renderables) {
                 widget.render(graphics, mouseX, mouseY, partialTick);
             }
         } else {
-            graphics.fill(winX, winY, winX + winW, winY + winH, 0x88000000);
+            graphics.fill(ox + 18, oy + 18, ox + 622, oy + 342, 0x88000000);
             dialog.layout(width, height);
             dialog.render(graphics, font, mouseX, mouseY);
             for (var widget : renderables) {
@@ -205,152 +179,151 @@ public final class VillageAdminScreen extends Screen {
         return n;
     }
 
-    private void drawName(GuiGraphics graphics, int x, int y, int w, int mouseX, int mouseY) {
-        section(graphics, x, y, w, nameH, "ui.aerocouriers.village_admin.name");
-        graphics.drawString(font, snapshot.name() + "  " + snapshot.name().length() + "/" + VillageBoardPolicy.NAME_MAX,
-                x + 6, y + 16, CorkBoardGui.HEADER, false);
-        Component rename = Component.translatable("ui.aerocouriers.village_admin.rename");
-        int bw = font.width(rename) + 12;
-        CorkBoardGui.button(graphics, font, x + w - bw - 6, y + 14, bw, 14, rename,
-                hover(mouseX, mouseY, x + w - bw - 6, y + 14, bw, 14), true, false);
+    private void drawName(GuiGraphics g, int mx, int my) {
+        CorkBoardGui.section(g, font, ox + 26, oy + 66, 296, 44,
+                Component.translatable("ui.aerocouriers.village_admin.name"));
+        CorkBoardGui.input(g, ox + 32, oy + 83, 170, 14, false, false);
+        CorkBoardGui.text(g, font, snapshot.name(), ox + 37, oy + 86, CorkPalette.ADMIN_VALUE);
+        String counter = snapshot.name().length() + "/" + VillageBoardPolicy.NAME_MAX;
+        CorkBoardGui.text(g, font, counter, ox + 196 - font.width(counter), oy + 86, CorkPalette.ADMIN_HINT);
+        CorkBoardGui.button(g, font, ox + 208, oy + 83, 108, 14,
+                Component.translatable("ui.aerocouriers.village_admin.rename"),
+                hover(mx, my, 208, 83, 108, 14), true, CorkBoardGui.ButtonStyle.GOLD);
+        CorkBoardGui.text(g, font, Component.translatable("ui.aerocouriers.village_admin.name.hint"),
+                ox + 32, oy + 100, CorkPalette.ADMIN_LABEL);
     }
 
-    private void drawReputation(GuiGraphics graphics, int x, int y, int w, int mouseX, int mouseY) {
-        section(graphics, x, y, w, repH, "ui.aerocouriers.village_admin.rep");
-        graphics.drawString(font, snapshot.reputation() + " / " + VillageBoardPolicy.REPUTATION_MAX,
-                x + w - 50, y + 4, CorkBoardGui.HEADER, false);
-        CorkBoardGui.reputationBar(graphics, x + 6, y + 16, w - 12, 7, snapshot.reputation(),
+    private void drawReputation(GuiGraphics g, int mx, int my) {
+        CorkBoardGui.section(g, font, ox + 26, oy + 114, 296, 102,
+                Component.translatable("ui.aerocouriers.village_admin.rep"));
+        CorkBoardGui.reputationBar(g, ox + 32, oy + 133, 200, 7, snapshot.reputation(),
                 VillageBoardPolicy.REPUTATION_MAX);
-        int bx = x + 6;
-        int by = y + 28;
-        bx = quickRep(graphics, bx, by, mouseX, mouseY, -10);
-        bx = quickRep(graphics, bx, by, mouseX, mouseY, -1);
-        bx = quickRep(graphics, bx, by, mouseX, mouseY, 1);
-        quickRep(graphics, bx, by, mouseX, mouseY, 10);
-        Component set = Component.translatable("ui.aerocouriers.village_admin.rep.set");
-        Component adjust = Component.translatable("ui.aerocouriers.village_admin.rep.adjust");
-        CorkBoardGui.button(graphics, font, x + 38, y + 50, 52, 14, set,
-                hover(mouseX, mouseY, x + 38, y + 50, 52, 14), true, false);
-        CorkBoardGui.button(graphics, font, x + 94, y + 50, font.width(adjust) + 12, 14, adjust,
-                hover(mouseX, mouseY, x + 94, y + 50, font.width(adjust) + 12, 14), true, false);
+        CorkBoardGui.bold(g, font, Integer.toString(snapshot.reputation()), ox + 244, oy + 133, CorkPalette.REPUTATION);
+        CorkBoardGui.text(g, font, Component.translatable("ui.aerocouriers.village_admin.rep.of",
+                VillageBoardPolicy.REPUTATION_MAX), ox + 260, oy + 134, CorkPalette.ADMIN_LABEL);
+        CorkBoardGui.text(g, font, "10", ox + 68, oy + 145, CorkPalette.ADMIN_LABEL);
+        CorkBoardGui.text(g, font, "25", ox + 128, oy + 145, CorkPalette.ADMIN_LABEL);
+        CorkBoardGui.text(g, font, "50", ox + 226, oy + 145, CorkPalette.ADMIN_LABEL);
+        CorkBoardGui.text(g, font, Component.translatable("ui.aerocouriers.village_admin.rep.thresholds"),
+                ox + 34, oy + 157, CorkPalette.ADMIN_LABEL);
+        CorkBoardGui.text(g, font, Component.translatable("ui.aerocouriers.village_admin.rep.quick"),
+                ox + 34, oy + 173, CorkPalette.ADMIN_LABEL);
+        int[] deltas = {-10, -1, 1, 10};
+        int[] xs = {82, 116, 150, 184};
+        for (int i = 0; i < deltas.length; i++) {
+            Component label = Component.literal((deltas[i] > 0 ? "+" : "") + deltas[i]);
+            CorkBoardGui.ButtonStyle st = deltas[i] < 0
+                    ? CorkBoardGui.ButtonStyle.DANGER : CorkBoardGui.ButtonStyle.NORMAL;
+            CorkBoardGui.button(g, font, ox + xs[i], oy + 170, 30, 14, label,
+                    hover(mx, my, xs[i], 170, 30, 14), true, st);
+        }
+        CorkBoardGui.text(g, font, Component.translatable("ui.aerocouriers.village_admin.rep.exact_label"),
+                ox + 34, oy + 193, CorkPalette.ADMIN_LABEL);
+        CorkBoardGui.button(g, font, ox + 130, oy + 190, 62, 14,
+                Component.translatable("ui.aerocouriers.village_admin.rep.set"),
+                hover(mx, my, 130, 190, 62, 14), true, CorkBoardGui.ButtonStyle.GOLD);
+        CorkBoardGui.button(g, font, ox + 198, oy + 190, 112, 14,
+                Component.translatable("ui.aerocouriers.village_admin.rep.adjust"),
+                hover(mx, my, 198, 190, 112, 14), true, CorkBoardGui.ButtonStyle.NORMAL);
     }
 
-    private int quickRep(GuiGraphics graphics, int x, int y, int mouseX, int mouseY, int delta) {
-        Component label = Component.literal((delta > 0 ? "+" : "") + delta);
-        int w = 28;
-        CorkBoardGui.button(graphics, font, x, y, w, 14, label, hover(mouseX, mouseY, x, y, w, 14), true, false);
-        return x + w + 3;
-    }
-
-    private void drawOrders(GuiGraphics graphics, int x, int y, int w, int mouseX, int mouseY) {
-        section(graphics, x, y, w, ordH, "ui.aerocouriers.village_admin.orders");
-        StationSnapshotPayload.View v = snapshot.view();
-        graphics.drawString(font, Component.translatable("ui.aerocouriers.village_admin.orders.summary",
-                pinned(), v.boardMax(), expensivePinned(), rarePinned()),
-                x + 6, y + 14, CorkBoardGui.HEADER, false);
+    private void drawOrders(GuiGraphics g, int mx, int my) {
+        CorkBoardGui.section(g, font, ox + 26, oy + 220, 296, 98,
+                Component.translatable("ui.aerocouriers.village_admin.orders"));
+        CorkBoardGui.text(g, font, Component.translatable("ui.aerocouriers.village_admin.orders.summary",
+                        pinned(), snapshot.view().boardMax(), expensivePinned(), rarePinned()),
+                ox + 32, oy + 237, CorkPalette.ADMIN_VALUE);
         int ticks = VillageRefreshUi.remainingTicks(minecraft);
-        Component timer = ticks < 0 ? Component.empty() : VillageRefreshUi.countdownLabel(ticks);
-        graphics.drawString(font, timer, x + 6, y + 24, CorkBoardGui.INK_MUTED, false);
-        Component interval = Component.translatable("ui.aerocouriers.village_admin.interval");
-        graphics.drawString(font, interval, x + 6, intervalRowY + 3, CorkBoardGui.HEADER, false);
-        Component unit = Component.translatable("ui.aerocouriers.village_admin.interval.unit");
-        int unitX = (intervalField == null ? x + 80 : intervalField.getX() + intervalField.getWidth()) + 4;
-        graphics.drawString(font, unit, unitX, intervalRowY + 3, CorkBoardGui.HEADER, false);
-        CorkBoardGui.button(graphics, font, intervalMinusX, intervalRowY, 14, 14,
+        if (ticks >= 0) {
+            CorkBoardGui.text(g, font, VillageRefreshUi.countdownLabel(ticks), ox + 32, oy + 248, CorkPalette.ADMIN_LABEL);
+        }
+        CorkBoardGui.text(g, font, Component.translatable("ui.aerocouriers.village_admin.interval"),
+                ox + 32, oy + 264, CorkPalette.ADMIN_VALUE);
+        CorkBoardGui.text(g, font, Component.translatable("ui.aerocouriers.village_admin.interval.unit"),
+                ox + 178, oy + 264, CorkPalette.ADMIN_VALUE);
+        CorkBoardGui.button(g, font, ox + 202, oy + 261, 14, 13,
                 Component.translatable("ui.aerocouriers.village_admin.minus"),
-                hover(mouseX, mouseY, intervalMinusX, intervalRowY, 14, 14), true, false);
-        CorkBoardGui.button(graphics, font, intervalPlusX, intervalRowY, 14, 14,
+                hover(mx, my, 202, 261, 14, 13), true, CorkBoardGui.ButtonStyle.NORMAL);
+        CorkBoardGui.button(g, font, ox + 218, oy + 261, 14, 13,
                 Component.translatable("ui.aerocouriers.village_admin.plus"),
-                hover(mouseX, mouseY, intervalPlusX, intervalRowY, 14, 14), true, false);
-        Component apply = Component.translatable("ui.aerocouriers.village_admin.apply");
-        int applyW = Math.max(48, font.width(apply) + 10);
-        CorkBoardGui.button(graphics, font, intervalApplyX, intervalRowY, applyW, 14, apply,
-                hover(mouseX, mouseY, intervalApplyX, intervalRowY, applyW, 14), true, false);
-        Component refresh = Component.translatable("ui.aerocouriers.village_admin.orders.refresh");
-        Component regen = Component.translatable("ui.aerocouriers.village_admin.orders.regen");
-        Component clear = Component.translatable("ui.aerocouriers.village_admin.orders.clear");
-        int half = (w - 18) / 2;
-        CorkBoardGui.button(graphics, font, x + 6, y + 54, half, 14, refresh,
-                hover(mouseX, mouseY, x + 6, y + 54, half, 14), true, false);
-        CorkBoardGui.button(graphics, font, x + 10 + half, y + 54, half, 14, regen,
-                hover(mouseX, mouseY, x + 10 + half, y + 54, half, 14), true, false);
-        CorkBoardGui.button(graphics, font, x + 6, y + 70, w - 12, 14, clear,
-                hover(mouseX, mouseY, x + 6, y + 70, w - 12, 14), true, true);
+                hover(mx, my, 218, 261, 14, 13), true, CorkBoardGui.ButtonStyle.NORMAL);
+        CorkBoardGui.button(g, font, ox + 236, oy + 261, 74, 13,
+                Component.translatable("ui.aerocouriers.village_admin.apply"),
+                hover(mx, my, 236, 261, 74, 13), true, CorkBoardGui.ButtonStyle.GOLD);
+        CorkBoardGui.button(g, font, ox + 32, oy + 280, 134, 14,
+                Component.translatable("ui.aerocouriers.village_admin.orders.refresh"),
+                hover(mx, my, 32, 280, 134, 14), true, CorkBoardGui.ButtonStyle.NORMAL);
+        CorkBoardGui.button(g, font, ox + 170, oy + 280, 140, 14,
+                Component.translatable("ui.aerocouriers.village_admin.orders.regen"),
+                hover(mx, my, 170, 280, 140, 14), true, CorkBoardGui.ButtonStyle.NORMAL);
+        CorkBoardGui.button(g, font, ox + 32, oy + 298, 278, 14,
+                Component.translatable("ui.aerocouriers.village_admin.orders.clear"),
+                hover(mx, my, 32, 298, 278, 14), true, CorkBoardGui.ButtonStyle.DANGER);
     }
 
-    private void drawStats(GuiGraphics graphics, int x, int y, int w) {
-        section(graphics, x, y, w, statH, "ui.aerocouriers.village_admin.stats");
+    private void drawStats(GuiGraphics g) {
+        CorkBoardGui.section(g, font, ox + 330, oy + 66, 284, 112,
+                Component.translatable("ui.aerocouriers.village_admin.stats"));
         StationSnapshotPayload.View v = snapshot.view();
-        int ty = y + 14;
-        line(graphics, x + 6, ty, Component.translatable("ui.aerocouriers.village_admin.stats.rank",
-                snapshot.reputationTier(), StationReputation.tier(VillageBoardPolicy.REPUTATION_MAX)));
-        ty += 10;
-        line(graphics, x + 6, ty, Component.translatable("ui.aerocouriers.village_admin.stats.rep",
-                snapshot.reputation(), VillageBoardPolicy.REPUTATION_MAX));
-        ty += 10;
-        line(graphics, x + 6, ty, Component.translatable("ui.aerocouriers.village_admin.stats.done", v.completed()));
-        ty += 10;
-        line(graphics, x + 6, ty, Component.translatable("ui.aerocouriers.village_admin.stats.open", v.onBoard()));
-        ty += 10;
-        line(graphics, x + 6, ty, Component.translatable("ui.aerocouriers.village_admin.stats.active", v.active()));
-        ty += 10;
-        line(graphics, x + 6, ty, Component.translatable("ui.aerocouriers.village_admin.stats.board",
-                pinned(), v.boardMax()));
-        ty += 10;
-        line(graphics, x + 6, ty, Component.translatable("ui.aerocouriers.village_admin.stats.special",
-                expensivePinned(), rarePinned()));
+        int maxTier = StationReputation.tier(VillageBoardPolicy.REPUTATION_MAX);
+        stat(g, 84, "ui.aerocouriers.village_admin.stats.rank_label",
+                snapshot.reputationTier() + " "
+                        + Component.translatable("ui.aerocouriers.village_admin.stats.of_tier", maxTier).getString());
+        int next = snapshot.reputationNextThreshold();
+        String repValue = next > snapshot.reputation()
+                ? snapshot.reputation() + " "
+                + Component.translatable("ui.aerocouriers.village_admin.stats.rep_next",
+                VillageBoardPolicy.REPUTATION_MAX, next - snapshot.reputation()).getString()
+                : snapshot.reputation() + " / " + VillageBoardPolicy.REPUTATION_MAX;
+        stat(g, 97, "ui.aerocouriers.village_admin.stats.rep_label", repValue);
+        stat(g, 110, "ui.aerocouriers.village_admin.stats.done_label", Integer.toString(v.completed()));
+        stat(g, 123, "ui.aerocouriers.village_admin.stats.active_label",
+                v.active() + " " + Component.translatable("ui.aerocouriers.village_admin.stats.in_transit").getString());
+        stat(g, 136, "ui.aerocouriers.village_admin.stats.board_label",
+                Component.translatable("ui.aerocouriers.village_admin.stats.board_value",
+                        pinned(), v.boardMax()).getString());
+        stat(g, 149, "ui.aerocouriers.village_admin.stats.special_label",
+                expensivePinned() + " / " + rarePinned());
     }
 
-    private void drawPolicy(GuiGraphics graphics, int x, int y, int w, int mouseX, int mouseY) {
-        section(graphics, x, y, w, polH, "ui.aerocouriers.village_admin.policy");
+    private void stat(GuiGraphics g, int y, String labelKey, String value) {
+        CorkBoardGui.text(g, font, Component.translatable(labelKey), ox + 338, oy + y, CorkPalette.ADMIN_LABEL);
+        CorkBoardGui.text(g, font, value, ox + 440, oy + y, CorkPalette.ADMIN_VALUE);
+    }
+
+    private void drawPolicy(GuiGraphics g, int mx, int my) {
+        CorkBoardGui.section(g, font, ox + 330, oy + 182, 284, 66,
+                Component.translatable("ui.aerocouriers.village_admin.policy"));
         StationSnapshotPayload.View v = snapshot.view();
-        Component expensive = Component.translatable("ui.aerocouriers.village_admin.expensive",
-                MoneyFormat.component(VillageBoardPolicy.EXPENSIVE_REWARD));
-        Component rare = Component.translatable("ui.aerocouriers.village_admin.rare");
-        CorkBoardGui.toggle(graphics, font, x + 6, y + 16, expensive, v.allowExpensive());
-        CorkBoardGui.toggle(graphics, font, x + 6, y + 30, rare, v.allowRare());
-        int sx = x + 6;
-        int sy = y + 46;
-        graphics.drawString(font, Component.translatable("ui.aerocouriers.village_admin.sizes"),
-                sx, sy, CorkBoardGui.HEADER, false);
-        sx += 70;
-        for (CargoSize size : CargoSize.values()) {
-            boolean on = (v.allowedSizesMask() & VillageBoardPolicy.maskOf(size)) != 0;
-            Component label = Component.literal(size.name());
-            int cw = CorkBoardGui.chipW(font, label);
-            CorkBoardGui.chip(graphics, font, sx, sy - 2, cw, 14, label, on,
-                    hover(mouseX, mouseY, sx, sy - 2, cw, 14));
-            sx += cw + 3;
+        CorkBoardGui.toggle(g, ox + 338, oy + 200, v.allowExpensive());
+        CorkBoardGui.text(g, font, Component.translatable("ui.aerocouriers.village_admin.expensive",
+                        MoneyFormat.component(VillageBoardPolicy.EXPENSIVE_REWARD)),
+                ox + 362, oy + 200, CorkPalette.ADMIN_VALUE);
+        CorkBoardGui.toggle(g, ox + 338, oy + 213, v.allowRare());
+        CorkBoardGui.text(g, font, Component.translatable("ui.aerocouriers.village_admin.rare"),
+                ox + 362, oy + 213, CorkPalette.ADMIN_VALUE);
+        CorkBoardGui.text(g, font, Component.translatable("ui.aerocouriers.village_admin.sizes"),
+                ox + 338, oy + 228, CorkPalette.ADMIN_LABEL);
+        int[] xs = {390, 422, 454, 486};
+        CargoSize[] sizes = CargoSize.values();
+        for (int i = 0; i < sizes.length; i++) {
+            boolean on = (v.allowedSizesMask() & VillageBoardPolicy.maskOf(sizes[i])) != 0;
+            CorkBoardGui.checkbox(g, ox + xs[i], oy + 228, on);
+            CorkBoardGui.text(g, font, sizes[i].name(), ox + xs[i] + 12, oy + 228, CorkPalette.ADMIN_VALUE);
         }
     }
 
-    private void drawCommands(GuiGraphics graphics, int x, int y, int w) {
-        section(graphics, x, y, w, cmdH, "ui.aerocouriers.village_admin.commands");
-        graphics.drawString(font, "/couriers admin village rename <name>", x + 6, y + 14,
-                CorkBoardGui.INK_MUTED, false);
-        graphics.drawString(font, "/couriers admin village here rep add 10", x + 6, y + 24,
-                CorkBoardGui.INK_MUTED, false);
-        graphics.drawString(font, "/couriers admin village here refresh", x + 6, y + 34,
-                CorkBoardGui.INK_MUTED, false);
-    }
-
-    private void drawFooter(GuiGraphics graphics, int mouseX, int mouseY) {
-        graphics.drawString(font, Component.translatable("ui.aerocouriers.village_admin.persist"),
-                winX + 16, winY + winH - 22, CorkBoardGui.INK_MUTED, false);
-        Component close = Component.translatable("ui.aerocouriers.village_admin.close");
-        int bw = font.width(close) + 16;
-        int bx = winX + winW - 16 - bw;
-        int by = winY + winH - 26;
-        CorkBoardGui.button(graphics, font, bx, by, bw, 16, close, hover(mouseX, mouseY, bx, by, bw, 16), true, false);
-    }
-
-    private void section(GuiGraphics graphics, int x, int y, int w, int h, String key) {
-        CorkBoardGui.panel(graphics, x, y, w, h);
-        graphics.drawString(font, Component.translatable(key), x + 6, y + 3, CorkBoardGui.GOLD, false);
-    }
-
-    private void line(GuiGraphics graphics, int x, int y, Component text) {
-        graphics.drawString(font, text, x, y, CorkBoardGui.HEADER, false);
+    private void drawCommands(GuiGraphics g) {
+        CorkBoardGui.section(g, font, ox + 330, oy + 252, 284, 66,
+                Component.translatable("ui.aerocouriers.village_admin.commands"));
+        CorkBoardGui.text(g, font, "/couriers admin village rename <имя>", ox + 338, oy + 270,
+                CorkPalette.ADMIN_COMMAND);
+        CorkBoardGui.text(g, font, "/couriers admin village rep add 10", ox + 338, oy + 281,
+                CorkPalette.ADMIN_COMMAND);
+        CorkBoardGui.text(g, font, "/couriers admin village orders refresh", ox + 338, oy + 292,
+                CorkPalette.ADMIN_COMMAND);
+        CorkBoardGui.text(g, font, Component.translatable("ui.aerocouriers.village_admin.commands.readme"),
+                ox + 338, oy + 304, CorkPalette.ADMIN_HINT);
     }
 
     @Override
@@ -362,25 +335,21 @@ public final class VillageAdminScreen extends Screen {
             }
             return true;
         }
-        layoutChrome();
-        Component rename = Component.translatable("ui.aerocouriers.village_admin.rename");
-        int bw = font.width(rename) + 12;
-        if (hover(mouseX, mouseY, left + colW - bw - 6, nameY + 14, bw, 14)) {
+        origin();
+        if (hover(mouseX, mouseY, 208, 83, 108, 14)) {
             openDialog(new VillageAdminDialogs.Rename(snapshot));
             return true;
         }
-        int qx = left + 6;
-        int qy = repY + 28;
         int[] deltas = {-10, -1, 1, 10};
-        for (int delta : deltas) {
-            if (hover(mouseX, mouseY, qx, qy, 28, 14)) {
+        int[] xs = {82, 116, 150, 184};
+        for (int i = 0; i < deltas.length; i++) {
+            if (hover(mouseX, mouseY, xs[i], 170, 30, 14)) {
                 PacketDistributor.sendToServer(VillageAdminPayload.amount(snapshot.stationPos(),
-                        VillageAdminPayload.Action.REP_ADD, delta));
+                        VillageAdminPayload.Action.REP_ADD, deltas[i]));
                 return true;
             }
-            qx += 31;
         }
-        if (hover(mouseX, mouseY, left + 38, repY + 50, 52, 14) && exactRepField != null) {
+        if (hover(mouseX, mouseY, 130, 190, 62, 14) && exactRepField != null) {
             try {
                 int value = Integer.parseInt(exactRepField.getValue().strip());
                 PacketDistributor.sendToServer(VillageAdminPayload.amount(snapshot.stationPos(),
@@ -389,22 +358,19 @@ public final class VillageAdminScreen extends Screen {
             }
             return true;
         }
-        Component adjust = Component.translatable("ui.aerocouriers.village_admin.rep.adjust");
-        if (hover(mouseX, mouseY, left + 94, repY + 50, font.width(adjust) + 12, 14)) {
+        if (hover(mouseX, mouseY, 198, 190, 112, 14)) {
             openDialog(new VillageAdminDialogs.Reputation(snapshot));
             return true;
         }
-        if (hover(mouseX, mouseY, intervalMinusX, intervalRowY, 14, 14)) {
+        if (hover(mouseX, mouseY, 202, 261, 14, 13)) {
             nudgeInterval(-1);
             return true;
         }
-        if (hover(mouseX, mouseY, intervalPlusX, intervalRowY, 14, 14)) {
+        if (hover(mouseX, mouseY, 218, 261, 14, 13)) {
             nudgeInterval(1);
             return true;
         }
-        Component apply = Component.translatable("ui.aerocouriers.village_admin.apply");
-        int applyW = Math.max(48, font.width(apply) + 10);
-        if (hover(mouseX, mouseY, intervalApplyX, intervalRowY, applyW, 14) && intervalField != null) {
+        if (hover(mouseX, mouseY, 236, 261, 74, 13) && intervalField != null) {
             try {
                 int minutes = Integer.parseInt(intervalField.getValue().strip());
                 PacketDistributor.sendToServer(VillageAdminPayload.amount(snapshot.stationPos(),
@@ -413,54 +379,45 @@ public final class VillageAdminScreen extends Screen {
             }
             return true;
         }
-        int half = (colW - 18) / 2;
-        if (hover(mouseX, mouseY, left + 6, ordY + 54, half, 14)) {
+        if (hover(mouseX, mouseY, 32, 280, 134, 14)) {
             PacketDistributor.sendToServer(VillageAdminPayload.of(snapshot.stationPos(),
                     VillageAdminPayload.Action.REFRESH));
             return true;
         }
-        if (hover(mouseX, mouseY, left + 10 + half, ordY + 54, half, 14)) {
+        if (hover(mouseX, mouseY, 170, 280, 140, 14)) {
             openDialog(new VillageAdminDialogs.Confirm(snapshot,
                     Component.translatable("ui.aerocouriers.village_admin.orders.regen"),
                     Component.translatable("ui.aerocouriers.village_admin.confirm.regen"),
                     VillageAdminPayload.Action.REGENERATE));
             return true;
         }
-        if (hover(mouseX, mouseY, left + 6, ordY + 70, colW - 12, 14)) {
+        if (hover(mouseX, mouseY, 32, 298, 278, 14)) {
             openDialog(new VillageAdminDialogs.Confirm(snapshot,
                     Component.translatable("ui.aerocouriers.village_admin.orders.clear"),
                     Component.translatable("ui.aerocouriers.village_admin.confirm.clear"),
                     VillageAdminPayload.Action.CLEAR));
             return true;
         }
-        Component expensive = Component.translatable("ui.aerocouriers.village_admin.expensive",
-                MoneyFormat.component(VillageBoardPolicy.EXPENSIVE_REWARD));
-        if (hover(mouseX, mouseY, right + 6, polY + 16, CorkBoardGui.toggleW(font, expensive), 12)) {
+        if (hover(mouseX, mouseY, 338, 200, 160, 12)) {
             PacketDistributor.sendToServer(VillageAdminPayload.flag(snapshot.stationPos(),
                     VillageAdminPayload.Action.TOGGLE_EXPENSIVE, !snapshot.view().allowExpensive()));
             return true;
         }
-        Component rare = Component.translatable("ui.aerocouriers.village_admin.rare");
-        if (hover(mouseX, mouseY, right + 6, polY + 30, CorkBoardGui.toggleW(font, rare), 12)) {
+        if (hover(mouseX, mouseY, 338, 213, 160, 12)) {
             PacketDistributor.sendToServer(VillageAdminPayload.flag(snapshot.stationPos(),
                     VillageAdminPayload.Action.TOGGLE_RARE, !snapshot.view().allowRare()));
             return true;
         }
-        int sx = right + 76;
-        int sy = polY + 44;
-        for (CargoSize size : CargoSize.values()) {
-            Component label = Component.literal(size.name());
-            int cw = CorkBoardGui.chipW(font, label);
-            if (hover(mouseX, mouseY, sx, sy, cw, 14)) {
-                boolean on = (snapshot.view().allowedSizesMask() & VillageBoardPolicy.maskOf(size)) != 0;
-                PacketDistributor.sendToServer(VillageAdminPayload.size(snapshot.stationPos(), size.ordinal(), !on));
+        int[] sizeX = {390, 422, 454, 486};
+        CargoSize[] sizes = CargoSize.values();
+        for (int i = 0; i < sizes.length; i++) {
+            if (hover(mouseX, mouseY, sizeX[i], 228, 28, 12)) {
+                boolean on = (snapshot.view().allowedSizesMask() & VillageBoardPolicy.maskOf(sizes[i])) != 0;
+                PacketDistributor.sendToServer(VillageAdminPayload.size(snapshot.stationPos(), sizes[i].ordinal(), !on));
                 return true;
             }
-            sx += cw + 3;
         }
-        Component close = Component.translatable("ui.aerocouriers.village_admin.close");
-        int cbw = font.width(close) + 16;
-        if (hover(mouseX, mouseY, winX + winW - 16 - cbw, winY + winH - 26, cbw, 16)) {
+        if (hover(mouseX, mouseY, 541, 323, 76, 16)) {
             PacketDistributor.sendToServer(new OpenStationPayload(snapshot.stationPos()));
             return true;
         }
@@ -509,8 +466,8 @@ public final class VillageAdminScreen extends Screen {
         rebuild();
     }
 
-    private static boolean hover(double mouseX, double mouseY, int x, int y, int w, int h) {
-        return mouseX >= x && mouseX < x + w && mouseY >= y && mouseY < y + h;
+    private boolean hover(double mx, double my, int x, int y, int w, int h) {
+        return mx >= ox + x && mx < ox + x + w && my >= oy + y && my < oy + y + h;
     }
 
     @Override
