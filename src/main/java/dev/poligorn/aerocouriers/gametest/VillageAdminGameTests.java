@@ -48,11 +48,11 @@ public final class VillageAdminGameTests {
         helper.succeed();
     }
 
-    @GameTest(template = CouriersGameTests.EMPTY, batch = "aerocouriers.village.admin")
+    @GameTest(template = CouriersGameTests.EMPTY, batch = "aerocouriers.village.admin.packet")
     public static void adminPacketDeniedForNonOperator(GameTestHelper helper) {
         Fixture f = new Fixture(helper);
         helper.startSequence()
-                .thenIdle(2)
+                .thenWaitUntil(f::ready)
                 .thenExecute(() -> {
                     StationAtlas.Station station = f.station(A);
                     helper.assertFalse(VillageAdmin.canManageVillage(f.courier), "test courier is not an operator");
@@ -66,11 +66,11 @@ public final class VillageAdminGameTests {
                 .thenSucceed();
     }
 
-    @GameTest(template = CouriersGameTests.EMPTY, batch = "aerocouriers.village.admin")
+    @GameTest(template = CouriersGameTests.EMPTY, batch = "aerocouriers.village.admin.rename")
     public static void renameChecksLengthAndUniqueness(GameTestHelper helper) {
         Fixture f = new Fixture(helper);
         helper.startSequence()
-                .thenIdle(2)
+                .thenWaitUntil(f::ready)
                 .thenExecute(() -> {
                     StationAtlas.Station first = f.station(A);
                     StationAtlas.Station second = f.station(B);
@@ -92,11 +92,11 @@ public final class VillageAdminGameTests {
                 .thenSucceed();
     }
 
-    @GameTest(template = CouriersGameTests.EMPTY, batch = "aerocouriers.village.admin")
+    @GameTest(template = CouriersGameTests.EMPTY, batch = "aerocouriers.village.admin.rep")
     public static void reputationClampsAndAdds(GameTestHelper helper) {
         Fixture f = new Fixture(helper);
         helper.startSequence()
-                .thenIdle(2)
+                .thenWaitUntil(f::ready)
                 .thenExecute(() -> {
                     StationAtlas.Station station = f.station(A);
                     VillageAdmin.setReputation(f.server(), station, 99);
@@ -117,11 +117,11 @@ public final class VillageAdminGameTests {
                 .thenSucceed();
     }
 
-    @GameTest(template = CouriersGameTests.EMPTY, batch = "aerocouriers.village.admin")
+    @GameTest(template = CouriersGameTests.EMPTY, batch = "aerocouriers.village.admin.progress")
     public static void inProgressNoteStaysUntilDelivered(GameTestHelper helper) {
         Fixture f = new Fixture(helper);
         helper.startSequence()
-                .thenIdle(2)
+                .thenWaitUntil(f::ready)
                 .thenExecute(() -> {
                     StationAtlas.Station from = f.station(A);
                     StationAtlas.Station to = f.station(B);
@@ -165,11 +165,11 @@ public final class VillageAdminGameTests {
         helper.succeed();
     }
 
-    @GameTest(template = CouriersGameTests.EMPTY, batch = "aerocouriers.village.admin")
+    @GameTest(template = CouriersGameTests.EMPTY, batch = "aerocouriers.village.admin.policy")
     public static void policyPersistsOnAtlas(GameTestHelper helper) {
         Fixture f = new Fixture(helper);
         helper.startSequence()
-                .thenIdle(2)
+                .thenWaitUntil(f::ready)
                 .thenExecute(() -> {
                     StationAtlas.Station station = f.station(A);
                     VillageAdmin.setExpensive(f.server(), station, false);
@@ -219,6 +219,7 @@ public final class VillageAdminGameTests {
     private static final class Fixture {
         final GameTestHelper helper;
         final ServerPlayer courier;
+        final java.util.Set<UUID> owned = new java.util.HashSet<>();
 
         Fixture(GameTestHelper helper) {
             this.helper = helper;
@@ -233,6 +234,11 @@ public final class VillageAdminGameTests {
             helper.setBlock(B, ModBlocks.POST_STATION.get());
         }
 
+        void ready() {
+            station(A);
+            station(B);
+        }
+
         net.minecraft.server.MinecraftServer server() {
             return helper.getLevel().getServer();
         }
@@ -243,6 +249,7 @@ public final class VillageAdminGameTests {
                     .orElse(null);
             helper.assertTrue(found != null, "station at " + abs);
             StationAtlas.get(server()).discover(found.id(), courier.getUUID());
+            owned.add(found.id());
             return found;
         }
 
@@ -253,7 +260,7 @@ public final class VillageAdminGameTests {
 
         void cleanup() {
             StationAtlas atlas = StationAtlas.get(server());
-            atlas.removeNear(helper.getLevel().dimension(), helper.absolutePos(BlockPos.ZERO), 32);
+            owned.forEach(atlas::remove);
             if (helper.getBlockEntity(A) instanceof PostStationBlockEntity) {
                 helper.setBlock(A, Blocks.AIR);
             }
