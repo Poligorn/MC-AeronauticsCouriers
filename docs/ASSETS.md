@@ -36,10 +36,12 @@
 
 | Размер | Текстуры | Модель |
 |---|---|---|
-| S | `textures/block/cargo_container_*.png` без суффикса | `cargo_container_s` |
-| M | `cargo_container_m_*` | нижняя и верхняя половины |
-| L | `cargo_container_l_*` | сегменты `cargo_container_l_seg*` |
-| XL | отдельных PNG нет | blockstate собирается из сегментов L |
+| S | `textures/block/cargo_container_{side,top,bottom,side_waybill}.png` 16×16 | куб, все грани `side`; накладная на `east` |
+| M | `cargo_container_m_{side_upper,side_lower,side_lower_waybill,top,bottom}` 16×16 | две половины 1×2 |
+| L | `cargo_container_l_{side,side_waybill,top,bottom}` 32×32 | сегменты `cargo_container_l_seg*` (2×2×2) |
+| XL | `cargo_container_xl_{side,side_waybill}` 32×48, `{top,bottom}` 32×32 | сегменты `cargo_container_xl_seg*` (2×2×3, 12 клеток) |
+
+Макет E2 (31.10.2026): металл, гофра, приглушённые S синий / M зелёный / L охра / XL бордовый. Дверей, табличек и букв нет. Единственная наклейка — накладная-клипборд 10×12 с тенью (`*_waybill`). Спрайты пробковой доски `gui/sprites/cork/crate_*` не трогали.
 
 Контейнер — физический объект Sable. Текстуры блока перечислены выше. Папки `world/` в выгрузке нет.
 
