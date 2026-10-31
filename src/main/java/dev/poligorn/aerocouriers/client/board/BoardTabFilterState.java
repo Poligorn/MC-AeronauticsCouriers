@@ -63,6 +63,10 @@ public final class BoardTabFilterState {
         contractKind = values[(contractKind.ordinal() + 1) % values.length];
     }
 
+    public void setContractKind(BoardContractKind kind) {
+        contractKind = kind == null ? BoardContractKind.ALL : kind;
+    }
+
     public BoardSortKey sortKey() {
         return CollateralUi.visibleSortKey(sortKey);
     }

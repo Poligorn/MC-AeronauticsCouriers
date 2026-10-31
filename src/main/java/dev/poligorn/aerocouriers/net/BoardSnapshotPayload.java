@@ -350,6 +350,10 @@ public record BoardSnapshotPayload(
             List<ItemStack> cargoStacks,
             int customerStationReputation,
             boolean villageRare,
+            /** NPC order whose reward is at least {@code VillageBoardPolicy.EXPENSIVE_REWARD}. */
+            boolean expensive,
+            /** Manifest index of the rare stack, or -1 when this order is not rare. */
+            int rareItemIndex,
             int customerReputationTier,
             int customerReputationNext,
             int customerReputationBonusPercent,
@@ -413,6 +417,8 @@ public record BoardSnapshotPayload(
                     .encode(buf, PayloadLimits.cap(e.cargoStacks, CARGO_STACK_LIMIT));
             ByteBufCodecs.VAR_INT.encode(buf, e.customerStationReputation);
             buf.writeBoolean(e.villageRare);
+            buf.writeBoolean(e.expensive);
+            ByteBufCodecs.VAR_INT.encode(buf, e.rareItemIndex);
             ByteBufCodecs.VAR_INT.encode(buf, e.customerReputationTier);
             ByteBufCodecs.VAR_INT.encode(buf, e.customerReputationNext);
             ByteBufCodecs.VAR_INT.encode(buf, e.customerReputationBonusPercent);
@@ -454,6 +460,8 @@ public record BoardSnapshotPayload(
                     ItemStack.STREAM_CODEC.apply(ByteBufCodecs.list(PayloadLimits.WIRE_ITEM_STACK_LIST)).decode(buf),
                     ByteBufCodecs.VAR_INT.decode(buf),
                     buf.readBoolean(),
+                    buf.readBoolean(),
+                    ByteBufCodecs.VAR_INT.decode(buf),
                     ByteBufCodecs.VAR_INT.decode(buf),
                     ByteBufCodecs.VAR_INT.decode(buf),
                     ByteBufCodecs.VAR_INT.decode(buf),

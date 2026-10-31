@@ -81,6 +81,66 @@ public final class PayloadCodecGameTests {
     }
 
     @GameTest(template = CouriersGameTests.EMPTY)
+    public static void boardEntryEncodesRareExpensiveFlags(GameTestHelper helper) {
+        RegistryFriendlyByteBuf buf = new RegistryFriendlyByteBuf(Unpooled.buffer(), helper.getLevel().registryAccess());
+        List<ItemStack> stacks = List.of(
+                new ItemStack(Items.WHEAT, 16),
+                new ItemStack(Items.ENCHANTED_BOOK, 1),
+                new ItemStack(Items.BREAD, 8));
+        List<BoardSnapshotPayload.CargoLine> manifest = stacks.stream()
+                .map(BoardSnapshotPayload.CargoLine::of)
+                .toList();
+        BoardSnapshotPayload.BoardEntry entry = new BoardSnapshotPayload.BoardEntry(
+                UUID.randomUUID(),
+                "rare01",
+                ContractState.OPEN,
+                "viewer",
+                "Origin",
+                "Dest",
+                2148,
+                "M",
+                "18.0 / 32",
+                1450L,
+                200L,
+                LicenseRank.RANK2,
+                85L,
+                80L,
+                manifest,
+                Optional.empty(),
+                "station",
+                true,
+                Level.OVERWORLD,
+                BlockPos.ZERO,
+                Level.OVERWORLD,
+                new BlockPos(10, 64, 10),
+                stacks,
+                27,
+                true,
+                true,
+                1,
+                1,
+                20,
+                30,
+                true,
+                false,
+                true,
+                true,
+                27,
+                32,
+                18.0,
+                2L,
+                false);
+        BoardSnapshotPayload.BoardEntry.STREAM_CODEC.encode(buf, entry);
+        buf.readerIndex(0);
+        BoardSnapshotPayload.BoardEntry decoded = BoardSnapshotPayload.BoardEntry.STREAM_CODEC.decode(buf);
+        helper.assertTrue(decoded.villageRare(), "villageRare");
+        helper.assertTrue(decoded.expensive(), "expensive");
+        helper.assertValueEqual(decoded.rareItemIndex(), 1, "rare item index");
+        helper.assertValueEqual(decoded.reward(), 1450L, "reward");
+        helper.succeed();
+    }
+
+    @GameTest(template = CouriersGameTests.EMPTY)
     public static void boardProfileEncodesIssuerXlStats(GameTestHelper helper) {
         RegistryFriendlyByteBuf buf = new RegistryFriendlyByteBuf(Unpooled.buffer(), helper.getLevel().registryAccess());
         BoardSnapshotPayload.BoardProfile profile = new BoardSnapshotPayload.BoardProfile(
@@ -160,6 +220,8 @@ public final class PayloadCodecGameTests {
                 stacks,
                 0,
                 false,
+                false,
+                -1,
                 0,
                 -1,
                 0,

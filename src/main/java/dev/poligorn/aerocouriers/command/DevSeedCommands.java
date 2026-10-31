@@ -5,6 +5,7 @@ import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import dev.poligorn.aerocouriers.AeronauticsCouriers;
+import dev.poligorn.aerocouriers.access.OrderTablets;
 import dev.poligorn.aerocouriers.cargo.CargoSize;
 import dev.poligorn.aerocouriers.cargo.CargoSpawner;
 import dev.poligorn.aerocouriers.cargo.CargoTracker;
@@ -38,7 +39,11 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.TickTask;
@@ -46,6 +51,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.enchantment.ItemEnchantments;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Blocks;
 import net.neoforged.neoforge.common.util.FakePlayerFactory;
@@ -69,6 +75,7 @@ final class DevSeedCommands {
     private static UUID sableContractId;
     private static BlockPos corkStationPos;
     private static UUID corkInProgressId;
+    private static boolean tabletAutoSeeded;
 
     /** QA hook: {@code -Daerocouriers.jadeqa=true} / {@code -Daerocouriers.corkqa=true}. */
     public static void onServerStarted(ServerStartedEvent event) {
@@ -80,6 +87,28 @@ final class DevSeedCommands {
         if (Boolean.getBoolean("aerocouriers.corkqa")) {
             server.tell(new TickTask(server.getTickCount() + 20, () ->
                     corkQa(server.createCommandSourceStack().withPermission(4))));
+        }
+        if (Boolean.getBoolean("aerocouriers.tabletsqa")) {
+            server.tell(new TickTask(server.getTickCount() + 40, () -> seedWhenPlayerReady(server, 0)));
+        }
+    }
+
+    private static void seedWhenPlayerReady(MinecraftServer server, int attempt) {
+        if (tabletAutoSeeded) {
+            return;
+        }
+        if (server.getPlayerList().getPlayers().isEmpty()) {
+            if (attempt < 200) {
+                server.tell(new TickTask(server.getTickCount() + 20, () -> seedWhenPlayerReady(server, attempt + 1)));
+            }
+            return;
+        }
+        tabletAutoSeeded = true;
+        try {
+            seed(server.getPlayerList().getPlayers().getFirst().createCommandSourceStack().withPermission(4), 989);
+        } catch (CommandSyntaxException e) {
+            tabletAutoSeeded = false;
+            AeronauticsCouriers.LOGGER.warn("[tabletsqa] seed: {}", e.toString());
         }
     }
 
@@ -95,6 +124,7 @@ final class DevSeedCommands {
             });
         }
         pollFile(server, Path.of("corkqa-cmd.txt"), DevSeedCommands::runCorkCommand);
+        pollFile(server, Path.of("tabletsqa-cmd.txt"), DevSeedCommands::runTabletCommand);
     }
 
     private static void pollFile(MinecraftServer server, Path path,
@@ -126,6 +156,7 @@ final class DevSeedCommands {
                                         com.mojang.brigadier.arguments.LongArgumentType.getLong(ctx, "balance")))))
                 .then(Commands.literal("jadeqa").executes(ctx -> jadeQa(ctx.getSource())))
                 .then(Commands.literal("corkqa").executes(ctx -> corkQa(ctx.getSource())))
+                .then(Commands.literal("tabletsqa").executes(ctx -> seed(ctx.getSource(), 989)))
                 .then(Commands.literal("look")
                         .then(Commands.argument("scene", StringArgumentType.word())
                                 .executes(ctx -> look(ctx.getSource(), StringArgumentType.getString(ctx, "scene")))));
@@ -144,22 +175,31 @@ final class DevSeedCommands {
         StationAtlas.Station dunes = station(atlas, player, "Гавань Дюн", base.offset(4_200, 0, 1_000));
         StationAtlas.Station north = station(atlas, player, "Станция Север", base.offset(300, 0, -900));
 
+        CouriersServerConfig.TUTORIAL_ENABLED.set(false);
+        if (!OrderTablets.hasTablet(player)) {
+            if (!player.getInventory().add(new ItemStack(ModItems.ORDER_TABLET.get()))) {
+                player.drop(new ItemStack(ModItems.ORDER_TABLET.get()), false);
+            }
+        }
+        AdminActions.grantLicense(player, LicenseRank.RANK3);
+
         ContractManager manager = ContractManager.get(server);
-        manager.publishVillage(level, riverbend, pine,
-                List.of(new ItemStack(Items.IRON_INGOT, 32), new ItemStack(Items.BREAD, 16),
-                        new ItemStack(Items.OAK_LOG, 24), new ItemStack(Items.TORCH, 48),
-                        new ItemStack(Items.WHEAT, 20), new ItemStack(Items.LEATHER, 6)),
-                CargoSize.M, 24.0, 512, 600, 15, false);
-        manager.publishVillage(level, pine, riverbend,
-                List.of(new ItemStack(Items.APPLE, 8), new ItemStack(Items.PAPER, 12)),
-                CargoSize.S, 2.0, 64, 0, 20, false);
-        manager.publishVillage(level, riverbend, dunes,
-                List.of(new ItemStack(Items.COPPER_INGOT, 64), new ItemStack(Items.COPPER_INGOT, 64),
-                        new ItemStack(Items.GOLD_INGOT, 16), new ItemStack(Items.BRICKS, 48)),
-                CargoSize.L, 96.0, 1_900, 1_200, 40, true);
-        manager.publishVillage(level, north, riverbend,
-                List.of(new ItemStack(Items.COAL, 40), new ItemStack(Items.STRING, 12)),
-                CargoSize.M, 12.0, 256, 300, 10, false);
+        ItemStack rareBook = rareBook(level);
+        Contract rareOnly = manager.publishVillage(level, riverbend, pine,
+                List.of(new ItemStack(Items.WHEAT, 64), new ItemStack(Items.CARROT, 32),
+                        new ItemStack(Items.POTATO, 48), new ItemStack(Items.BREAD, 16), rareBook.copy()),
+                CargoSize.S, 3.0, 420, 80, 90, true).orElse(null);
+        Contract expensiveOnly = manager.publishVillage(level, pine, riverbend,
+                List.of(new ItemStack(Items.GOLD_INGOT, 12)),
+                CargoSize.S, 6.0, 1_200, 150, 70, false).orElse(null);
+        Contract both = manager.publishVillage(level, riverbend, dunes,
+                List.of(new ItemStack(Items.WHEAT, 64), new ItemStack(Items.CARROT, 32),
+                        new ItemStack(Items.POTATO, 48), new ItemStack(Items.BREAD, 16), rareBook.copy()),
+                CargoSize.M, 18.0, 1_450, 200, 85, true).orElse(null);
+        Contract plain = manager.publishVillage(level, north, riverbend,
+                List.of(new ItemStack(Items.OAK_LOG, 64), new ItemStack(Items.IRON_INGOT, 32)),
+                CargoSize.L, 90.0, 800, 400, 120, false).orElse(null);
+        writeTabletIds(rareOnly, expensiveOnly, both, plain);
 
         Destination home = new Destination(level.dimension(), base.offset(-60, 0, 30),
                 StationContractSource.ZONE_RADIUS);
@@ -189,11 +229,55 @@ final class DevSeedCommands {
         return 1;
     }
 
+    private static void runTabletCommand(ServerPlayer player, String raw) {
+        String cmd = raw.strip().toLowerCase(java.util.Locale.ROOT);
+        try {
+            if ("seed".equals(cmd) || "tabletsqa".equals(cmd) || "board".equals(cmd)) {
+                seed(player.createCommandSourceStack().withPermission(4), 989);
+            } else {
+                AeronauticsCouriers.LOGGER.warn("[tabletsqa] unknown cmd {}", cmd);
+            }
+        } catch (CommandSyntaxException e) {
+            AeronauticsCouriers.LOGGER.warn("[tabletsqa] cmd {}: {}", cmd, e.toString());
+        }
+    }
+
+    private static void writeTabletIds(Contract rare, Contract expensive, Contract both, Contract plain) {
+        try {
+            String line = "rare=" + idOrEmpty(rare)
+                    + "\nexpensive=" + idOrEmpty(expensive)
+                    + "\nboth=" + idOrEmpty(both)
+                    + "\nplain=" + idOrEmpty(plain)
+                    + "\n";
+            Files.writeString(Path.of("tabletsqa-ids.txt"), line);
+            AeronauticsCouriers.LOGGER.info("[tabletsqa] ids {}", line.replace('\n', ' '));
+        } catch (Exception e) {
+            AeronauticsCouriers.LOGGER.warn("[tabletsqa] ids: {}", e.toString());
+        }
+    }
+
+    private static String idOrEmpty(Contract contract) {
+        return contract == null ? "" : contract.id().toString();
+    }
+
     private static StationAtlas.Station station(StationAtlas atlas, ServerPlayer player, String name, BlockPos pos) {
         UUID id = UUID.nameUUIDFromBytes(("aerocouriers-dev-station:" + name).getBytes(StandardCharsets.UTF_8));
         atlas.register(id, name, player.level().dimension(), pos);
         atlas.discover(id, player.getUUID());
         return atlas.byId(id).orElseThrow();
+    }
+
+    private static ItemStack rareBook(ServerLevel level) {
+        ItemStack book = new ItemStack(Items.ENCHANTED_BOOK);
+        level.registryAccess().lookup(Registries.ENCHANTMENT)
+                .flatMap(reg -> reg.get(ResourceKey.create(Registries.ENCHANTMENT,
+                        ResourceLocation.withDefaultNamespace("unbreaking"))))
+                .ifPresent(holder -> {
+                    ItemEnchantments.Mutable mutable = new ItemEnchantments.Mutable(ItemEnchantments.EMPTY);
+                    mutable.set(holder, 2);
+                    book.set(DataComponents.STORED_ENCHANTMENTS, mutable.toImmutable());
+                });
+        return book;
     }
 
     private static Destination point(StationAtlas.Station station) {
@@ -410,10 +494,13 @@ final class DevSeedCommands {
                 List.of(new ItemStack(Items.BREAD, 16), new ItemStack(Items.APPLE, 8)));
         publish(level, from, dunes, CargoSize.S, 6.0, 1_200, 150, 70, false,
                 List.of(new ItemStack(Items.GOLD_INGOT, 12)));
+        ItemStack rareBook = rareBook(level);
         publish(level, from, pine, CargoSize.S, 3.0, 420, 80, 90, true,
-                List.of(new ItemStack(Items.AMETHYST_SHARD, 8)));
+                List.of(new ItemStack(Items.WHEAT, 64), new ItemStack(Items.CARROT, 32),
+                        new ItemStack(Items.POTATO, 48), new ItemStack(Items.BREAD, 16), rareBook.copy()));
         publish(level, from, pine, CargoSize.M, 18.0, 1_450, 200, 85, true,
-                List.of(new ItemStack(Items.DIAMOND, 2), new ItemStack(Items.EMERALD, 6)));
+                List.of(new ItemStack(Items.WHEAT, 64), new ItemStack(Items.CARROT, 32),
+                        new ItemStack(Items.POTATO, 48), new ItemStack(Items.BREAD, 16), rareBook.copy()));
         publish(level, from, dunes, CargoSize.L, 90.0, 800, 400, 120, false,
                 List.of(new ItemStack(Items.OAK_LOG, 64), new ItemStack(Items.IRON_INGOT, 32)));
         publish(level, from, dunes, CargoSize.XL, 180.0, 2_400, 900, 150, false,

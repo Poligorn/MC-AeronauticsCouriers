@@ -167,7 +167,7 @@ public final class VillageAdminScreen extends Screen {
     private int expensivePinned() {
         int n = 0;
         for (BoardSnapshotPayload.BoardEntry entry : snapshot.orders()) {
-            if (entry.reward() >= VillageBoardPolicy.EXPENSIVE_REWARD) {
+            if (entry.expensive()) {
                 n++;
             }
         }

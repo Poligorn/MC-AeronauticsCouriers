@@ -8,9 +8,11 @@ import dev.poligorn.aerocouriers.AeronauticsCouriers;
 import dev.poligorn.aerocouriers.config.CouriersServerConfig;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import net.minecraft.core.Holder;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -95,6 +97,7 @@ public final class VillageCargo extends SimpleJsonResourceReloadListener {
 
     private static volatile Map<String, Table> tables = Map.of();
     private static volatile List<RareEntry> rareEntries = List.of();
+    private static volatile Set<Item> rareItems = Set.of();
 
     private VillageCargo() {
         super(new Gson(), "village_cargo");
@@ -121,6 +124,13 @@ public final class VillageCargo extends SimpleJsonResourceReloadListener {
         });
         tables = Map.copyOf(loaded);
         rareEntries = List.copyOf(rare);
+        Set<Item> items = new HashSet<>();
+        for (RareEntry entry : rare) {
+            if (entry instanceof RareItemEntry item) {
+                items.add(item.offer().item());
+            }
+        }
+        rareItems = Set.copyOf(items);
         AeronauticsCouriers.LOGGER.info("Loaded {} village cargo tables, {} rare entries", tables.size(), rareEntries.size());
     }
 
@@ -157,6 +167,35 @@ public final class VillageCargo extends SimpleJsonResourceReloadListener {
         }
         boolean rare = tryInjectRare(originReputation, enchantments, random, manifest);
         return new ManifestRoll(List.copyOf(manifest), rare);
+    }
+
+    /**
+     * Index of the rare stack in a village-rare manifest, or -1. Enchanted books first, then items from
+     * {@code village_cargo/rare}, then the first non-empty stack.
+     */
+    public static int rareStackIndex(List<ItemStack> stacks) {
+        if (stacks == null || stacks.isEmpty()) {
+            return -1;
+        }
+        for (int i = 0; i < stacks.size(); i++) {
+            ItemStack stack = stacks.get(i);
+            if (!stack.isEmpty() && stack.is(Items.ENCHANTED_BOOK)) {
+                return i;
+            }
+        }
+        Set<Item> rare = rareItems;
+        for (int i = 0; i < stacks.size(); i++) {
+            ItemStack stack = stacks.get(i);
+            if (!stack.isEmpty() && rare.contains(stack.getItem())) {
+                return i;
+            }
+        }
+        for (int i = 0; i < stacks.size(); i++) {
+            if (!stacks.get(i).isEmpty()) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     static boolean tryInjectRare(int originReputation, HolderLookup.RegistryLookup<Enchantment> enchantments,

@@ -7,6 +7,7 @@ import dev.poligorn.aerocouriers.net.BoardSnapshotPayload;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
+import org.jetbrains.annotations.Nullable;
 
 /** Two-line order card from the approved board mockup ({@code card()} in build.py). */
 public final class BoardCardRenderer {
@@ -23,6 +24,9 @@ public final class BoardCardRenderer {
     private static final int MIN_LEFT = 28;
     private static final int DEST_MAX_W = 110;
     private static final int NEW_AGE_MINUTES = 10;
+    /** Icon-only rare/expensive chips: 11×11 inclusive, same height as NEW. */
+    public static final int FLAG_CHIP = 11;
+    private static final int FLAG_CHIP_BOX = 10;
 
     public record Style(
             boolean boardTab,
@@ -50,6 +54,13 @@ public final class BoardCardRenderer {
                         : style.selected() ? TabletPalette.CARD_BORDER_SEL : TabletPalette.CARD_BORDER);
         if (style.selected() || tutorial) {
             graphics.fill(x0, y, x0 + 3, y + CARD_H, tutorial ? TabletPalette.TEAL : TabletPalette.GOLD);
+        }
+        if (showRare(entry) && !tutorial) {
+            if (style.selected()) {
+                graphics.fill(x0 + 3, y + 1, x0 + 4, y + CARD_H - 1, TabletPalette.RARE_STRIPE);
+            } else {
+                graphics.fill(x0, y, x0 + 2, y + CARD_H, TabletPalette.RARE_STRIPE);
+            }
         }
         int tc = style.locked() ? TabletPalette.LOCKC : TabletPalette.TXT;
         int sc = style.locked() ? TabletPalette.LOCKC : TabletPalette.SEC;
@@ -100,6 +111,16 @@ public final class BoardCardRenderer {
             TabletDraw.box(graphics, x, y + 2, x + w, y + 12, TabletPalette.NEW_BG, TabletPalette.TEAL);
             TabletDraw.text(graphics, font, s, x + 3, y + 3, TabletPalette.TEAL);
             x += w + 3;
+        }
+        if (showRare(entry)) {
+            drawFlagChip(graphics, x, y, PixelGlyphs.DIAMOND, TabletPalette.RARE_BG, TabletPalette.RARE_BORDER,
+                    TabletPalette.RARE_TEXT);
+            x += FLAG_CHIP + 3;
+        }
+        if (showExpensive(entry)) {
+            drawFlagChip(graphics, x, y, PixelGlyphs.STAR, TabletPalette.EXP_BG, TabletPalette.EXP_BORDER,
+                    TabletPalette.EXP_TEXT);
+            x += FLAG_CHIP + 3;
         }
         if (!style.boardTab()) {
             String s = statusLabel(entry);
@@ -257,6 +278,12 @@ public final class BoardCardRenderer {
         if (isNew(entry, style) && !entry.courierService()) {
             w += font.width("NEW") + 9;
         }
+        if (showRare(entry)) {
+            w += FLAG_CHIP + 3;
+        }
+        if (showExpensive(entry)) {
+            w += FLAG_CHIP + 3;
+        }
         if (deadlineWarn(entry) && !entry.courierService()) {
             w += font.width(Component.translatable("ui.aerocouriers.card.deadline_warn").getString()) + 16;
         }
@@ -265,6 +292,90 @@ public final class BoardCardRenderer {
 
     public static boolean isNew(BoardSnapshotPayload.BoardEntry entry, Style style) {
         return style.boardTab() && entry.state() == ContractState.OPEN && entry.ageMinutes() < NEW_AGE_MINUTES;
+    }
+
+    public static boolean showRare(BoardSnapshotPayload.BoardEntry entry) {
+        return entry.villageRare() && !entry.courierService();
+    }
+
+    public static boolean showExpensive(BoardSnapshotPayload.BoardEntry entry) {
+        return entry.expensive() && !entry.courierService();
+    }
+
+    private static void drawFlagChip(GuiGraphics graphics, int x, int y, String[] glyph, int bg, int border, int fg) {
+        TabletDraw.box(graphics, x, y + 2, x + FLAG_CHIP_BOX, y + 12, bg, border);
+        int gw = PixelGlyphs.width(glyph);
+        int gx = x + 1 + Math.max(0, (FLAG_CHIP_BOX - 1 - gw) / 2);
+        PixelGlyphs.draw(graphics, gx, y + 3, glyph, fg);
+    }
+
+    /** Inclusive box of the rare (true) or expensive (false) chip, or {@code null}. */
+    public static int @Nullable [] flagChipBox(Font font, BoardSnapshotPayload.BoardEntry entry, int x0, int x1, int y,
+                                              Style style, boolean rare) {
+        int x = flagChipsX(font, entry, x0, x1, style);
+        if (rare) {
+            return showRare(entry) ? new int[] {x, y + 2, FLAG_CHIP_BOX, 10} : null;
+        }
+        if (showRare(entry)) {
+            x += FLAG_CHIP + 3;
+        }
+        return showExpensive(entry) ? new int[] {x, y + 2, FLAG_CHIP_BOX, 10} : null;
+    }
+
+    /**
+     * Hover over the icon-only rare/expensive chips. Chips stay full-colour on locked rows, so this
+     * is checked before the lock tooltip.
+     */
+    public static @Nullable Component hitFlagChip(Font font, BoardSnapshotPayload.BoardEntry entry, int x0, int x1,
+                                                 int y, Style style, int mx, int my) {
+        if (my < y + 2 || my > y + 12) {
+            return null;
+        }
+        int x = flagChipsX(font, entry, x0, x1, style);
+        if (showRare(entry)) {
+            if (mx >= x && mx <= x + FLAG_CHIP_BOX) {
+                return Component.translatable("ui.aerocouriers.row.rare_cargo");
+            }
+            x += FLAG_CHIP + 3;
+        }
+        if (showExpensive(entry)) {
+            if (mx >= x && mx <= x + FLAG_CHIP_BOX) {
+                return Component.translatable("ui.aerocouriers.card.expensive");
+            }
+        }
+        return null;
+    }
+
+    /** X of the first rare/expensive chip, after NEW / tutorial. */
+    private static int flagChipsX(Font font, BoardSnapshotPayload.BoardEntry entry, int x0, int x1, Style style) {
+        int rx = x1 - RIGHT_PAD;
+        int line1RightLeft;
+        if (style.locked()) {
+            String need = Component.translatable("ui.aerocouriers.card.rank_needed", roman(entry.requiredRank()))
+                    .getString();
+            line1RightLeft = rx - font.width(need) - 10;
+        } else if (entry.courierService()) {
+            line1RightLeft = rx - TabletDraw.boldWidth(font, tutorialXp());
+        } else {
+            line1RightLeft = rx - TabletDraw.boldWidth(font,
+                    "+" + dev.poligorn.aerocouriers.economy.MoneyFormat.text(entry.reward()));
+        }
+        int x = x0 + 8 + 10;
+        int badgeW = badgeWidth(font, entry, style);
+        int routeRoom = Math.max(40, line1RightLeft - 8 - x - badgeW);
+        String from = originName(entry);
+        String to = destinationName(entry);
+        int fromMax = Math.max(24, routeRoom - 14 - Math.min(font.width(to), DEST_MAX_W));
+        String fromShown = TabletDraw.trunc(font, from, fromMax);
+        x += font.width(fromShown) + 4 + 10;
+        String toShown = TabletDraw.trunc(font, to, Math.max(16, Math.min(DEST_MAX_W, line1RightLeft - 8 - x - badgeW)));
+        x += font.width(toShown) + 6;
+        if (entry.courierService()) {
+            x += font.width(Component.translatable("ui.aerocouriers.tutorial.chip").getString()) + 8;
+        } else if (isNew(entry, style)) {
+            x += font.width("NEW") + 8;
+        }
+        return x;
     }
 
     /** Less than 20% of the time window left (board: until the order expires; active haul: until due). */

@@ -326,6 +326,8 @@ public final class VillageAdminGameTests {
                 List.of(),
                 27,
                 false,
+                reward >= VillageBoardPolicy.EXPENSIVE_REWARD,
+                -1,
                 0,
                 -1,
                 30,

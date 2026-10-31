@@ -65,4 +65,12 @@ public final class ScreenFit {
     public int localYi(double screenY) {
         return (int) Math.floor(localY(screenY));
     }
+
+    public int windowXi(int localX) {
+        return shrinking() ? (int) Math.round(fitX + localX * scale) : localX;
+    }
+
+    public int windowYi(int localY) {
+        return shrinking() ? (int) Math.round(fitY + localY * scale) : localY;
+    }
 }
