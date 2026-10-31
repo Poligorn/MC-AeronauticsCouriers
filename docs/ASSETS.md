@@ -117,15 +117,11 @@
 | Файл | Размер | Откуда |
 |---|---|---|
 | `textures/block/cargo_container_bottom.png` | 16×16 | texture:textures/block/cargo_container_bottom.png |
-| `textures/block/cargo_container_door.png` | 16×16 | texture:textures/block/cargo_container_door.png |
 | `textures/block/cargo_container_l_bottom.png` | 32×32 | texture:textures/block/cargo_container_l_bottom.png |
-| `textures/block/cargo_container_l_door.png` | 32×32 | texture:textures/block/cargo_container_l_door.png |
 | `textures/block/cargo_container_l_side.png` | 32×32 | texture:textures/block/cargo_container_l_side.png |
 | `textures/block/cargo_container_l_side_waybill.png` | 32×32 | texture:textures/block/cargo_container_l_side_waybill.png |
 | `textures/block/cargo_container_l_top.png` | 32×32 | texture:textures/block/cargo_container_l_top.png |
 | `textures/block/cargo_container_m_bottom.png` | 16×16 | texture:textures/block/cargo_container_m_bottom.png |
-| `textures/block/cargo_container_m_door_lower.png` | 16×16 | texture:textures/block/cargo_container_m_door_lower.png |
-| `textures/block/cargo_container_m_door_upper.png` | 16×16 | texture:textures/block/cargo_container_m_door_upper.png |
 | `textures/block/cargo_container_m_side_lower.png` | 16×16 | texture:textures/block/cargo_container_m_side_lower.png |
 | `textures/block/cargo_container_m_side_lower_waybill.png` | 16×16 | texture:textures/block/cargo_container_m_side_lower_waybill.png |
 | `textures/block/cargo_container_m_side_upper.png` | 16×16 | texture:textures/block/cargo_container_m_side_upper.png |
@@ -133,6 +129,10 @@
 | `textures/block/cargo_container_side.png` | 16×16 | texture:textures/block/cargo_container_side.png |
 | `textures/block/cargo_container_side_waybill.png` | 16×16 | texture:textures/block/cargo_container_side_waybill.png |
 | `textures/block/cargo_container_top.png` | 16×16 | texture:textures/block/cargo_container_top.png |
+| `textures/block/cargo_container_xl_bottom.png` | 32×32 | texture:textures/block/cargo_container_xl_bottom.png |
+| `textures/block/cargo_container_xl_side.png` | 32×48 | texture:textures/block/cargo_container_xl_side.png |
+| `textures/block/cargo_container_xl_side_waybill.png` | 32×48 | texture:textures/block/cargo_container_xl_side_waybill.png |
+| `textures/block/cargo_container_xl_top.png` | 32×32 | texture:textures/block/cargo_container_xl_top.png |
 
 ## Текстуры предметов
 | Файл | Размер | Откуда |

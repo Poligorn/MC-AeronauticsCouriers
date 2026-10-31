@@ -46,7 +46,6 @@ def face_sheet() -> Image.Image:
         "cargo_container_top.png",
         "cargo_container_bottom.png",
         "cargo_container_side.png",
-        "cargo_container_door.png",
         "cargo_container_side_waybill.png",
     ]
     s = SCALE
@@ -61,13 +60,12 @@ def main() -> None:
     top = load("cargo_container_top.png")
     bottom = load("cargo_container_bottom.png")
     side = load("cargo_container_side.png")
-    door = load("cargo_container_door.png")
     side_wb = load("cargo_container_side_waybill.png")
 
-    plain = compose_cube(top, bottom, door, side, side, side)
+    plain = compose_cube(top, bottom, side, side, side, side)
     plain.save(ART / "container_preview_plain.png")
 
-    with_wb = compose_cube(top, bottom, door, side, side_wb, side)
+    with_wb = compose_cube(top, bottom, side, side, side_wb, side)
     with_wb.save(ART / "container_preview_waybill.png")
 
     face_sheet().save(ART / "container_face_sheet.png")
