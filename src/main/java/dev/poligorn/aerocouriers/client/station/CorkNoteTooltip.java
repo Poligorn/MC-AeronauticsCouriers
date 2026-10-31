@@ -12,17 +12,42 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
 
 /**
- * Hover lines for a cork-board note. Drawn with the 9-slice tooltip sprite and header
- * palette — vanilla {@code renderTooltip} puts the purple fill at z=400 and left the
- * text underneath, so the box looked empty.
+ * Hover lines for a cork-board note. Vanilla {@code renderTooltip} paints the purple
+ * fill at z=400 and submits text into {@code bufferSource} at the same z — the fill
+ * wins the depth test, so the box looks empty. We blit our 9-slice at z=400 and draw
+ * cream strings at z=410 after a flush.
  */
 public final class CorkNoteTooltip {
     public static final int PAD_X = 6;
     public static final int PAD_Y = 5;
     public static final int LINE = 10;
     private static final int GAP = 8;
+    private static final int BG_Z = 400;
+    private static final int TEXT_Z = 410;
+
+    /** Last GUI-space box, for corkqa PIL crops. */
+    private static int lastX;
+    private static int lastY;
+    private static int lastW;
+    private static int lastH;
 
     private CorkNoteTooltip() {
+    }
+
+    public static int lastX() {
+        return lastX;
+    }
+
+    public static int lastY() {
+        return lastY;
+    }
+
+    public static int lastW() {
+        return lastW;
+    }
+
+    public static int lastH() {
+        return lastH;
     }
 
     public static List<Component> lines(
@@ -61,14 +86,14 @@ public final class CorkNoteTooltip {
     public static int[] size(Font font, List<Component> lines) {
         int textW = 0;
         for (Component line : lines) {
-            textW = Math.max(textW, font.width(line));
+            textW = Math.max(textW, font.width(line.getString()));
         }
-        return new int[] {textW + PAD_X * 2, lines.size() * LINE + PAD_Y * 2};
+        return new int[] {Math.max(24, textW + PAD_X * 2), Math.max(LINE + PAD_Y * 2, lines.size() * LINE + PAD_Y * 2)};
     }
 
     /**
-     * Sit beside the note (right, then left, then below/above). Never overlap the note
-     * when the screen is large enough for both.
+     * Sit beside the note (right, then left, then below, then above). Prefer a
+     * candidate that does not overlap the note.
      */
     public static CorkBoardLayout.Rect place(
             int screenW,
@@ -77,21 +102,27 @@ public final class CorkNoteTooltip {
             int boxW,
             int boxH
     ) {
-        int x = note.x() + note.w() + GAP;
-        int y = note.y();
-        if (x + boxW > screenW - 4) {
-            x = note.x() - GAP - boxW;
-        }
-        if (x < 4) {
-            x = Mth.clamp(note.x(), 4, Math.max(4, screenW - boxW - 4));
-            y = note.y() + note.h() + GAP;
-            if (y + boxH > screenH - 4) {
-                y = note.y() - GAP - boxH;
+        int[][] candidates = {
+                {note.x() + note.w() + GAP, note.y()},
+                {note.x() - GAP - boxW, note.y()},
+                {note.x(), note.y() + note.h() + GAP},
+                {note.x(), note.y() - GAP - boxH}
+        };
+        CorkBoardLayout.Rect fallback = clamp(candidates[0][0], candidates[0][1], boxW, boxH, screenW, screenH);
+        for (int[] xy : candidates) {
+            CorkBoardLayout.Rect tip = clamp(xy[0], xy[1], boxW, boxH, screenW, screenH);
+            if (!overlaps(tip, note)) {
+                return tip;
             }
+            fallback = tip;
         }
-        x = Mth.clamp(x, 4, Math.max(4, screenW - boxW - 4));
-        y = Mth.clamp(y, 4, Math.max(4, screenH - boxH - 4));
-        return new CorkBoardLayout.Rect(x, y, boxW, boxH);
+        return fallback;
+    }
+
+    private static CorkBoardLayout.Rect clamp(int x, int y, int boxW, int boxH, int screenW, int screenH) {
+        int cx = Mth.clamp(x, 4, Math.max(4, screenW - boxW - 4));
+        int cy = Mth.clamp(y, 4, Math.max(4, screenH - boxH - 4));
+        return new CorkBoardLayout.Rect(cx, cy, boxW, boxH);
     }
 
     public static boolean overlaps(CorkBoardLayout.Rect a, CorkBoardLayout.Rect b) {
@@ -99,24 +130,35 @@ public final class CorkNoteTooltip {
                 && a.y() < b.y() + b.h() && a.y() + a.h() > b.y();
     }
 
-    /** Background first at z=400, then cream text on top. */
+    /** 9-slice at z=400, then cream text at z=410 so it cannot lose the depth test. */
     public static void render(GuiGraphics graphics, Font font, List<Component> lines, int x, int y) {
         if (lines == null || lines.isEmpty()) {
+            lastW = 0;
+            lastH = 0;
             return;
         }
         int[] box = size(font, lines);
-        RenderSystem.disableDepthTest();
-        graphics.pose().pushPose();
-        graphics.pose().translate(0.0F, 0.0F, 400.0F);
+        lastX = x;
+        lastY = y;
+        lastW = box[0];
+        lastH = box[1];
         CorkBoardGui.fullBright();
-        CorkBoardGui.blit(graphics, CorkSprites.TOOLTIP, x, y, box[0], box[1]);
+        graphics.setColor(1.0F, 1.0F, 1.0F, 1.0F);
+        RenderSystem.disableDepthTest();
+        graphics.flush();
+        graphics.blitSprite(CorkSprites.TOOLTIP, x, y, BG_Z, box[0], box[1]);
+        graphics.pose().pushPose();
+        graphics.pose().translate(0.0F, 0.0F, TEXT_Z);
+        RenderSystem.disableDepthTest();
+        CorkBoardGui.fullBright();
         int ty = y + PAD_Y;
         int last = lines.size() - 1;
         for (int i = 0; i < lines.size(); i++) {
             int color = i == last ? CorkPalette.HEADER_MUTED : CorkPalette.HEADER_TEXT;
-            CorkBoardGui.text(graphics, font, lines.get(i), x + PAD_X, ty, color);
+            graphics.drawString(font, lines.get(i).getString(), x + PAD_X, ty, color, false);
             ty += LINE;
         }
+        graphics.flush();
         graphics.pose().popPose();
     }
 

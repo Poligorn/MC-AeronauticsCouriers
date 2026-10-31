@@ -222,6 +222,8 @@ public final class VillageAdminGameTests {
         String full = VillageRefreshUi.countdownLabel(11_560).getString();
         helper.assertValueEqual(VillageRefreshUi.chipText(11_560, full.length(), String::length), full,
                 "full «new orders in» stays when the chip is wide enough");
+        helper.assertValueEqual(VillageRefreshUi.chipLabel(11_560, 15 + full.length() + 4, String::length), full,
+                "chipLabel keeps the sentence when the chip is wide enough");
         helper.succeed();
     }
 
@@ -272,6 +274,9 @@ public final class VillageAdminGameTests {
         CorkBoardLayout.Rect tip = CorkNoteTooltip.place(480, 270, note, 160, 72);
         helper.assertFalse(CorkNoteTooltip.overlaps(note, tip), "tooltip sits beside the note");
         helper.assertTrue(tip.x() >= 4 && tip.y() >= 4, "tooltip stays on screen");
+        CorkBoardLayout.Rect cramped = CorkNoteTooltip.place(220, 160,
+                new CorkBoardLayout.Rect(40, 20, 136, 108), 160, 72);
+        helper.assertTrue(cramped.x() >= 4 && cramped.y() >= 4, "cramped tooltip stays on screen");
         helper.succeed();
     }
 

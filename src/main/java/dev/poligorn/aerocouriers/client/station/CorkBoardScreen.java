@@ -139,12 +139,18 @@ public final class CorkBoardScreen extends Screen {
         String title = Component.translatable("ui.aerocouriers.cork.station", snapshot.name()).getString();
         int headerRight = layout.headerPlank.x() + layout.headerPlank.w() - 8;
         int chipLeftMin = layout.nameplate.x() + layout.nameplate.w() + 8;
-        int chipAvail = Math.max(layout.timerChip.w(), headerRight - chipLeftMin);
+        int chipAvail = Math.max(8, headerRight - chipLeftMin);
         int timer = VillageRefreshUi.remainingTicks(minecraft);
-        String chip = timer < 0 ? "" : VillageRefreshUi.chipText(timer, Math.max(8, chipAvail - 19), font::width);
-        int chipW = chip.isBlank()
-                ? layout.timerChip.w()
-                : Math.min(chipAvail, Math.max(layout.timerChip.w(), 19 + font.width(chip)));
+        String fullChip = timer < 0 ? "" : VillageRefreshUi.countdownLabel(timer).getString();
+        String chip;
+        if (fullChip.isBlank()) {
+            chip = "";
+        } else if (15 + font.width(fullChip) <= chipAvail) {
+            chip = fullChip;
+        } else {
+            chip = VillageRefreshUi.chipLabel(timer, chipAvail, font::width);
+        }
+        int chipW = chip.isBlank() ? 0 : Math.min(chipAvail, 15 + font.width(chip) + 4);
         int chipX = headerRight - chipW;
         int chipY = layout.timerChip.y();
         int titleMax = Math.max(24, chipX - layout.titleX - 8);

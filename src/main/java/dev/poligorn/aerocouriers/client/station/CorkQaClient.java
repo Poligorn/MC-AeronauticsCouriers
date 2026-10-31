@@ -96,9 +96,28 @@ public final class CorkQaClient {
         String name = pendingShot;
         pendingShot = null;
         Minecraft minecraft = Minecraft.getInstance();
+        writeTooltipRect(minecraft);
         RenderTarget target = minecraft.getMainRenderTarget();
         Screenshot.grab(minecraft.gameDirectory, name, target, message ->
                 AeronauticsCouriers.LOGGER.info("[corkqa] {}", message.getString()));
+    }
+
+    private static void writeTooltipRect(Minecraft minecraft) {
+        try {
+            int scale = (int) minecraft.getWindow().getGuiScale();
+            int x = CorkNoteTooltip.lastX();
+            int y = CorkNoteTooltip.lastY();
+            int w = CorkNoteTooltip.lastW();
+            int h = CorkNoteTooltip.lastH();
+            String line = "gui=" + x + "," + y + "," + w + "," + h
+                    + "\nscale=" + scale
+                    + "\nwindow=" + (x * scale) + "," + (y * scale) + "," + (w * scale) + "," + (h * scale)
+                    + "\n";
+            Files.writeString(minecraft.gameDirectory.toPath().resolve("corkqa-tooltip-rect.txt"), line);
+            AeronauticsCouriers.LOGGER.info("[corkqa] tooltip rect {}", line.replace('\n', ' '));
+        } catch (Exception e) {
+            AeronauticsCouriers.LOGGER.warn("[corkqa] tooltip rect: {}", e.toString());
+        }
     }
 
     private static void applyBoard(CorkBoardScreen board, String cmd) {
