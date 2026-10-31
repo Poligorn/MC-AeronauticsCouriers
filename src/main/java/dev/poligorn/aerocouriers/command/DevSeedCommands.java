@@ -9,15 +9,20 @@ import dev.poligorn.aerocouriers.cargo.CargoSize;
 import dev.poligorn.aerocouriers.cargo.CargoSpawner;
 import dev.poligorn.aerocouriers.cargo.CargoTracker;
 import dev.poligorn.aerocouriers.config.CouriersServerConfig;
+import dev.poligorn.aerocouriers.admin.AdminActions;
 import dev.poligorn.aerocouriers.contract.Contract;
 import dev.poligorn.aerocouriers.contract.ContractManager;
+import dev.poligorn.aerocouriers.contract.ContractState;
 import dev.poligorn.aerocouriers.contract.Destination;
 import dev.poligorn.aerocouriers.economy.Economies;
 import dev.poligorn.aerocouriers.economy.Economy;
 import dev.poligorn.aerocouriers.license.Licenses;
+import dev.poligorn.aerocouriers.license.LicenseRank;
 import dev.poligorn.aerocouriers.net.BoardPackets;
+import dev.poligorn.aerocouriers.net.StationPackets;
 import dev.poligorn.aerocouriers.registry.ModBlocks;
 import dev.poligorn.aerocouriers.registry.ModItems;
+import dev.poligorn.aerocouriers.village.PostStationBlock;
 import dev.poligorn.aerocouriers.village.PostStationBlockEntity;
 import dev.poligorn.aerocouriers.village.StationAtlas;
 import dev.poligorn.aerocouriers.village.StationContractSource;
@@ -40,6 +45,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Blocks;
 import net.neoforged.neoforge.common.util.FakePlayerFactory;
 import net.neoforged.neoforge.event.server.ServerStartedEvent;
@@ -60,37 +66,52 @@ final class DevSeedCommands {
     /** Look-at cells for {@code /couriers dev look}. Rebuilt by {@link #jadeQa}. */
     private static final Map<String, BlockPos> LOOK = new LinkedHashMap<>();
     private static UUID sableContractId;
+    private static BlockPos corkStationPos;
+    private static UUID corkInProgressId;
 
-    /** QA hook: {@code -Daerocouriers.jadeqa=true} places the pad after the server starts. */
+    /** QA hook: {@code -Daerocouriers.jadeqa=true} / {@code -Daerocouriers.corkqa=true}. */
     public static void onServerStarted(ServerStartedEvent event) {
-        if (!Boolean.getBoolean("aerocouriers.jadeqa")) {
-            return;
-        }
         MinecraftServer server = event.getServer();
-        server.tell(new TickTask(server.getTickCount() + 20, () ->
-                jadeQa(server.createCommandSourceStack().withPermission(4))));
+        if (Boolean.getBoolean("aerocouriers.jadeqa")) {
+            server.tell(new TickTask(server.getTickCount() + 20, () ->
+                    jadeQa(server.createCommandSourceStack().withPermission(4))));
+        }
+        if (Boolean.getBoolean("aerocouriers.corkqa")) {
+            server.tell(new TickTask(server.getTickCount() + 20, () ->
+                    corkQa(server.createCommandSourceStack().withPermission(4))));
+        }
     }
 
-    /** Drop {@code jadeqa-scene.txt} in the game dir (one scene id) to aim every player at that prop. */
+    /** Drop {@code jadeqa-scene.txt} / {@code corkqa-cmd.txt} in the game dir. */
     public static void pollLookFile(MinecraftServer server) {
-        if (!Boolean.getBoolean("aerocouriers.jadeqa")) {
-            return;
+        if (Boolean.getBoolean("aerocouriers.jadeqa")) {
+            pollFile(server, Path.of("jadeqa-scene.txt"), (player, scene) -> {
+                try {
+                    look(player.createCommandSourceStack().withPermission(4), scene);
+                } catch (CommandSyntaxException e) {
+                    AeronauticsCouriers.LOGGER.warn("[jadeqa] look: {}", e.toString());
+                }
+            });
         }
-        Path path = Path.of("jadeqa-scene.txt");
+        pollFile(server, Path.of("corkqa-cmd.txt"), DevSeedCommands::runCorkCommand);
+    }
+
+    private static void pollFile(MinecraftServer server, Path path,
+                                 java.util.function.BiConsumer<ServerPlayer, String> action) {
         if (!Files.isRegularFile(path)) {
             return;
         }
         try {
-            String scene = Files.readString(path).strip();
+            String value = Files.readString(path).strip();
             Files.deleteIfExists(path);
-            if (scene.isEmpty()) {
+            if (value.isEmpty()) {
                 return;
             }
             for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-                look(player.createCommandSourceStack().withPermission(4), scene);
+                action.accept(player, value);
             }
         } catch (Exception e) {
-            AeronauticsCouriers.LOGGER.warn("[jadeqa] look file: {}", e.toString());
+            AeronauticsCouriers.LOGGER.warn("[qa] {}: {}", path, e.toString());
         }
     }
 
@@ -103,6 +124,7 @@ final class DevSeedCommands {
                                 .executes(ctx -> seed(ctx.getSource(),
                                         com.mojang.brigadier.arguments.LongArgumentType.getLong(ctx, "balance")))))
                 .then(Commands.literal("jadeqa").executes(ctx -> jadeQa(ctx.getSource())))
+                .then(Commands.literal("corkqa").executes(ctx -> corkQa(ctx.getSource())))
                 .then(Commands.literal("look")
                         .then(Commands.argument("scene", StringArgumentType.word())
                                 .executes(ctx -> look(ctx.getSource(), StringArgumentType.getString(ctx, "scene")))));
@@ -346,5 +368,199 @@ final class DevSeedCommands {
                 inv.setEquippedCurio(Licenses.CURIOS_SLOT, 0, new ItemStack(ModItems.PILOT_LICENSE.get())));
         Licenses.findLicense(player).ifPresent(stack -> Licenses.tickWorn(player, stack));
         return player;
+    }
+
+    private static int corkQa(CommandSourceStack source) {
+        MinecraftServer server = source.getServer();
+        ServerLevel level = server.overworld();
+        BlockPos spawn = level.getSharedSpawnPos();
+        BlockPos origin = new BlockPos(spawn.getX() + 8, spawn.getY() + 4, spawn.getZ());
+        CouriersServerConfig.TUTORIAL_ENABLED.set(false);
+        CouriersServerConfig.REQUIRE_TABLET.set(true);
+        CouriersServerConfig.VILLAGE_BOARD_MAX.set(16);
+        level.setDayTime(6000);
+        flattenCork(level, origin);
+
+        BlockPos stationPos = origin.offset(4, 0, 4);
+        BlockPos far = origin.offset(80, 0, 240);
+        corkStationPos = stationPos;
+        UUID fromId = UUID.nameUUIDFromBytes("aerocouriers-corkqa:from".getBytes(StandardCharsets.UTF_8));
+        UUID toNear = UUID.nameUUIDFromBytes("aerocouriers-corkqa:near".getBytes(StandardCharsets.UTF_8));
+        UUID toFar = UUID.nameUUIDFromBytes("aerocouriers-corkqa:far".getBytes(StandardCharsets.UTF_8));
+        UUID toRare = UUID.nameUUIDFromBytes("aerocouriers-corkqa:rare".getBytes(StandardCharsets.UTF_8));
+        StationAtlas atlas = StationAtlas.get(server);
+        atlas.register(fromId, "Ясная Поляна", level.dimension(), stationPos);
+        atlas.register(toNear, "Речной Берег", level.dimension(), origin.offset(48, 0, 12));
+        atlas.register(toFar, "Гавань Дюн", level.dimension(), far);
+        atlas.register(toRare, "Порт Сосны", level.dimension(), origin.offset(2_000, 0, 800));
+        atlas.setReputation(fromId, 27);
+        atlas.discover(fromId, FAKE_ISSUER);
+        placeStation(level, stationPos, fromId, "Ясная Поляна");
+        PostStationBlock.tryPlaceUpperHalf(level, stationPos);
+
+        StationAtlas.Station from = atlas.byId(fromId).orElseThrow();
+        StationAtlas.Station near = atlas.byId(toNear).orElseThrow();
+        StationAtlas.Station dunes = atlas.byId(toFar).orElseThrow();
+        StationAtlas.Station pine = atlas.byId(toRare).orElseThrow();
+        ContractManager manager = ContractManager.get(server);
+
+        publish(level, from, near, CargoSize.S, 4.0, 180, 90, 80, false,
+                List.of(new ItemStack(Items.BREAD, 16), new ItemStack(Items.APPLE, 8)));
+        publish(level, from, dunes, CargoSize.S, 6.0, 1_200, 150, 70, false,
+                List.of(new ItemStack(Items.GOLD_INGOT, 12)));
+        publish(level, from, pine, CargoSize.S, 3.0, 420, 80, 90, true,
+                List.of(new ItemStack(Items.AMETHYST_SHARD, 8)));
+        publish(level, from, pine, CargoSize.M, 18.0, 1_450, 200, 85, true,
+                List.of(new ItemStack(Items.DIAMOND, 2), new ItemStack(Items.EMERALD, 6)));
+        publish(level, from, dunes, CargoSize.L, 90.0, 800, 400, 120, false,
+                List.of(new ItemStack(Items.OAK_LOG, 64), new ItemStack(Items.IRON_INGOT, 32)));
+        publish(level, from, dunes, CargoSize.XL, 180.0, 2_400, 900, 150, false,
+                List.of(new ItemStack(Items.COPPER_INGOT, 64), new ItemStack(Items.GOLD_INGOT, 16)));
+        Contract expiring = publish(level, from, near, CargoSize.S, 2.5, 220, 70, 100, false,
+                List.of(new ItemStack(Items.PAPER, 12)));
+        if (expiring != null) {
+            manager.qaSetRemaining(server, expiring.id(), 8, 80);
+        }
+        Contract progress = publish(level, from, near, CargoSize.M, 12.0, 360, 120, 90, false,
+                List.of(new ItemStack(Items.LEATHER, 8), new ItemStack(Items.STRING, 16)));
+        corkInProgressId = progress == null ? null : progress.id();
+        if (progress != null) {
+            acceptAsMira(server, level, progress.id());
+        }
+        for (int i = 0; i < 6; i++) {
+            publish(level, from, i % 2 == 0 ? near : dunes, CargoSize.S, 3.0 + i, 90 + i * 20L, 40, 60 + i * 5,
+                    false, List.of(new ItemStack(Items.WHEAT, 8 + i)));
+        }
+
+        source.sendSuccess(() -> Component.literal("[corkqa] station " + stationPos.toShortString()), true);
+        AeronauticsCouriers.LOGGER.info("[corkqa] station {} in-progress {}", stationPos, corkInProgressId);
+        return 1;
+    }
+
+    private static void runCorkCommand(ServerPlayer player, String raw) {
+        String cmd = raw.strip().toLowerCase(java.util.Locale.ROOT);
+        MinecraftServer server = player.server;
+        if ("setup".equals(cmd) || "corkqa".equals(cmd)) {
+            corkQa(player.createCommandSourceStack().withPermission(4));
+            preparePlayer(player, true, LicenseRank.RANK1);
+            return;
+        }
+        if (corkStationPos == null) {
+            corkQa(player.createCommandSourceStack().withPermission(4));
+        }
+        switch (cmd) {
+            case "board" -> {
+                preparePlayer(player, true, LicenseRank.RANK1);
+                StationPackets.open(player, player.serverLevel(), corkStationPos);
+            }
+            case "board-op" -> {
+                preparePlayer(player, true, LicenseRank.RANK3);
+                player.setGameMode(GameType.CREATIVE);
+                StationPackets.open(player, player.serverLevel(), corkStationPos);
+            }
+            case "admin" -> {
+                preparePlayer(player, true, LicenseRank.RANK3);
+                player.setGameMode(GameType.CREATIVE);
+                StationPackets.openAdmin(player, player.serverLevel(), corkStationPos);
+            }
+            case "survival" -> {
+                player.setGameMode(GameType.SURVIVAL);
+                server.getPlayerList().deop(player.getGameProfile());
+                preparePlayer(player, true, LicenseRank.RANK1);
+                StationPackets.open(player, player.serverLevel(), corkStationPos);
+            }
+            case "notablet" -> {
+                preparePlayer(player, false, LicenseRank.RANK1);
+                CouriersServerConfig.REQUIRE_TABLET.set(true);
+                StationPackets.open(player, player.serverLevel(), corkStationPos);
+            }
+            case "tablet" -> {
+                preparePlayer(player, true, LicenseRank.RANK1);
+                CouriersServerConfig.REQUIRE_TABLET.set(true);
+                StationPackets.open(player, player.serverLevel(), corkStationPos);
+            }
+            default -> AeronauticsCouriers.LOGGER.warn("[corkqa] unknown cmd {}", cmd);
+        }
+    }
+
+    private static void preparePlayer(ServerPlayer player, boolean tablet, LicenseRank rank) {
+        if (corkStationPos != null) {
+            player.connection.teleport(corkStationPos.getX() + 0.5, corkStationPos.getY(),
+                    corkStationPos.getZ() + 3.5, 180.0f, 10.0f);
+        }
+        player.serverLevel().setDayTime(6000);
+        player.getInventory().clearContent();
+        if (tablet) {
+            if (!player.getInventory().add(new ItemStack(ModItems.ORDER_TABLET.get()))) {
+                player.drop(new ItemStack(ModItems.ORDER_TABLET.get()), false);
+            }
+        }
+        AdminActions.grantLicense(player, rank);
+        Economy economy = Economies.get(player.server);
+        if (economy.balance(player.getUUID()) < 5_000) {
+            economy.deposit(player.getUUID(), 5_000, "corkqa");
+        }
+        if (corkInProgressId != null) {
+            ContractManager.get(player.server).byId(corkInProgressId).ifPresent(c -> {
+                if (c.state() == ContractState.OPEN) {
+                    acceptAsMira(player.server, player.serverLevel(), c.id());
+                }
+            });
+        }
+    }
+
+    private static Contract publish(ServerLevel level, StationAtlas.Station from, StationAtlas.Station to,
+                                    CargoSize size, double weight, long reward, long collateral,
+                                    int deadlineMinutes, boolean rare, List<ItemStack> manifest) {
+        return ContractManager.get(level.getServer())
+                .publishVillage(level, from, to, manifest, size, weight, reward, collateral, deadlineMinutes, rare)
+                .orElse(null);
+    }
+
+    private static void acceptAsMira(MinecraftServer server, ServerLevel level, UUID id) {
+        UUID miraId = UUID.nameUUIDFromBytes("aerocouriers-corkqa:mira".getBytes(StandardCharsets.UTF_8));
+        GameProfile mira = new GameProfile(miraId, "Mira");
+        if (server.getProfileCache() != null) {
+            server.getProfileCache().add(mira);
+        }
+        ServerPlayer courier = FakePlayerFactory.get(level, mira);
+        ItemStack license = Licenses.issueLicense(courier, LicenseRank.ADMIN, false);
+        CuriosApi.getCuriosInventory(courier).ifPresent(inv ->
+                inv.setEquippedCurio(Licenses.CURIOS_SLOT, 0, license));
+        Licenses.findLicense(courier).ifPresent(stack -> Licenses.tickWorn(courier, stack));
+        Economies.get(server).deposit(miraId, 20_000, "corkqa");
+        ContractManager.Outcome accepted = ContractManager.get(server).accept(courier, id);
+        if (!accepted.success()) {
+            AeronauticsCouriers.LOGGER.warn("[corkqa] mira accept failed: {}", accepted.message().getString());
+        }
+    }
+
+    private static void placeStation(ServerLevel level, BlockPos pos, UUID id, String name) {
+        level.setBlock(pos, ModBlocks.POST_STATION.get().defaultBlockState(), 3);
+        if (level.getBlockEntity(pos) instanceof PostStationBlockEntity be) {
+            CompoundTag tag = be.saveWithFullMetadata(level.registryAccess());
+            tag.putUUID("station_id", id);
+            tag.putString("name", name);
+            tag.putBoolean("village", true);
+            be.loadWithComponents(tag, level.registryAccess());
+            be.setChanged();
+        }
+    }
+
+    private static void flattenCork(ServerLevel level, BlockPos origin) {
+        int x0 = origin.getX() - 2;
+        int x1 = origin.getX() + 16;
+        int z0 = origin.getZ() - 2;
+        int z1 = origin.getZ() + 16;
+        int y0 = origin.getY() - 1;
+        int y1 = origin.getY() + 6;
+        for (int x = x0; x <= x1; x++) {
+            for (int z = z0; z <= z1; z++) {
+                level.setBlock(new BlockPos(x, y0, z), Blocks.SMOOTH_STONE.defaultBlockState(), 2);
+                for (int y = y0 + 1; y <= y1; y++) {
+                    level.setBlock(new BlockPos(x, y, z), Blocks.AIR.defaultBlockState(), 2);
+                }
+            }
+        }
     }
 }

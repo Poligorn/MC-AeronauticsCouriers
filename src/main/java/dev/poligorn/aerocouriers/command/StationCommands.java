@@ -4,10 +4,12 @@ import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import dev.poligorn.aerocouriers.net.StationPackets;
 import dev.poligorn.aerocouriers.village.PostStationBlock;
 import dev.poligorn.aerocouriers.village.PostStationBlockEntity;
 import dev.poligorn.aerocouriers.village.StationAtlas;
 import dev.poligorn.aerocouriers.village.StationContractSource;
+import dev.poligorn.aerocouriers.village.VillageAdmin;
 import java.util.List;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
@@ -15,6 +17,7 @@ import net.minecraft.commands.arguments.coordinates.BlockPosArgument;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
+import org.jetbrains.annotations.Nullable;
 
 /** {@code /couriers station list|rename|generate} (GDD §6.0–6.2). */
 final class StationCommands {
@@ -30,6 +33,14 @@ final class StationCommands {
                 .then(Commands.literal("generate")
                         .requires(src -> src.hasPermission(OP))
                         .executes(StationCommands::generate))
+                .then(Commands.literal("open")
+                        .executes(ctx -> open(ctx, false, null))
+                        .then(Commands.argument("pos", BlockPosArgument.blockPos())
+                                .executes(ctx -> open(ctx, false, BlockPosArgument.getLoadedBlockPos(ctx, "pos")))))
+                .then(Commands.literal("admin")
+                        .executes(ctx -> open(ctx, true, null))
+                        .then(Commands.argument("pos", BlockPosArgument.blockPos())
+                                .executes(ctx -> open(ctx, true, BlockPosArgument.getLoadedBlockPos(ctx, "pos")))))
                 .then(Commands.literal("rename")
                         .requires(src -> src.hasPermission(OP))
                         .then(Commands.argument("pos", BlockPosArgument.blockPos())
@@ -50,6 +61,31 @@ final class StationCommands {
                     s.dimension().location().toString(), s.pos().toShortString(), s.discoveredBy().size()), false);
         }
         return shown.size();
+    }
+
+    private static int open(CommandContext<CommandSourceStack> ctx, boolean admin, @Nullable BlockPos pos)
+            throws CommandSyntaxException {
+        ServerPlayer player = ctx.getSource().getPlayerOrException();
+        BlockPos target = pos;
+        if (target == null) {
+            target = VillageAdmin.resolve(player.server, player, VillageAdmin.HERE)
+                    .map(StationAtlas.Station::pos)
+                    .orElse(null);
+        }
+        if (target == null) {
+            ctx.getSource().sendFailure(Component.translatable("station.aerocouriers.error.not_station", "here"));
+            return 0;
+        }
+        if (admin) {
+            StationPackets.openAdmin(player, player.serverLevel(), target);
+        } else {
+            StationPackets.open(player, player.serverLevel(), target);
+        }
+        String name = StationAtlas.get(player.server).byPos(player.level().dimension(), target)
+                .map(StationAtlas.Station::name).orElse(target.toShortString());
+        ctx.getSource().sendSuccess(() -> Component.translatable(
+                admin ? "station.aerocouriers.admin_opened" : "station.aerocouriers.opened", name), false);
+        return 1;
     }
 
     private static int generate(CommandContext<CommandSourceStack> ctx) {

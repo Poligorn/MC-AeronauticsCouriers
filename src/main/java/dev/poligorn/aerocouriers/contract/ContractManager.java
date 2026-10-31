@@ -513,6 +513,19 @@ public final class ContractManager extends SavedData {
         return Optional.of(contract);
     }
 
+    /** Dev/QA: pin remaining time so the cork-board expiry style can be screenshotted. */
+    public void qaSetRemaining(MinecraftServer server, UUID id, int minutesLeft, int deadlineMinutes) {
+        Contract contract = contracts.get(id);
+        if (contract == null) {
+            return;
+        }
+        long now = now(server);
+        long deadline = (long) deadlineMinutes * Pricing.TICKS_PER_MINUTE;
+        long expires = now + (long) Math.max(0, minutesLeft) * Pricing.TICKS_PER_MINUTE;
+        put(contract.withTiming(new Contract.Timing(expires - deadline, expires, deadline,
+                contract.timing().acceptedAt(), contract.timing().paused())));
+    }
+
     /**
      * Dev seed only ({@code /couriers dev seed}, not registered in production): a player order from an arbitrary
      * issuer without charging the issuer or emptying a container. {@code ageMinutes} back-dates the creation time.

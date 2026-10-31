@@ -1,6 +1,7 @@
 package dev.poligorn.aerocouriers.client;
 
 import dev.poligorn.aerocouriers.AeronauticsCouriers;
+import dev.poligorn.aerocouriers.client.station.CorkQaClient;
 import dev.poligorn.aerocouriers.client.tablet.OrderTabletVisuals;
 import dev.poligorn.aerocouriers.license.LicenseRank;
 import dev.poligorn.aerocouriers.registry.ModComponents;
@@ -44,6 +45,7 @@ public final class AeroCouriersClient {
         NeoForge.EVENT_BUS.addListener(TaskPanelHud::onRenderGui);
         NeoForge.EVENT_BUS.addListener(AeroCouriersClient::onLoggingOut);
         NeoForge.EVENT_BUS.addListener(AeroCouriersClient::centerJadeOverlayForQa);
+        NeoForge.EVENT_BUS.addListener(CorkQaClient::onClientTick);
         modBus.addListener(AeroCouriersClient::registerItemDecorations);
     }
 

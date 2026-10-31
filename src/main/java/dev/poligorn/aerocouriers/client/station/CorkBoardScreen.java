@@ -43,6 +43,27 @@ public final class CorkBoardScreen extends Screen {
         }
     }
 
+    public void openWaybill(BoardSnapshotPayload.BoardEntry entry) {
+        waybill = new StationWaybillOverlay(snapshot, entry, style(entry));
+    }
+
+    public void closeWaybill() {
+        waybill = null;
+    }
+
+    public void setScrollRows(int rows) {
+        layout = CorkBoardLayout.of(width, height);
+        scroll = Mth.clamp(rows, 0, layout.maxScrollRows(filters.apply(snapshot.orders()).size()));
+    }
+
+    public List<BoardSnapshotPayload.BoardEntry> visibleOrders() {
+        return filters.apply(snapshot.orders());
+    }
+
+    public CorkNoteStyle noteStyle(BoardSnapshotPayload.BoardEntry entry) {
+        return style(entry);
+    }
+
     private void syncRefresh() {
         if (VillageRefreshUi.isEnabled(snapshot.nextVillageRefreshGameTime())) {
             VillageRefreshUi.applySnapshot(snapshot.nextVillageRefreshGameTime(),

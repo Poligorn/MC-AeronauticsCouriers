@@ -380,6 +380,8 @@
   "station.aerocouriers.error.name": "Название — от 1 до %s символов",
   "station.aerocouriers.error.not_station": "В %s нет почтовой станции",
   "station.aerocouriers.generated": "Опубликовано NPC-заказов между станциями: %s",
+  "station.aerocouriers.opened": "Открыта станция «%s»",
+  "station.aerocouriers.admin_opened": "Открыта админ-панель деревни «%s»",
   "ui.aerocouriers.village_refresh.in": "Новые заказы через %s",
   "ui.aerocouriers.village_refresh.soon": "Новые заказы скоро",
   "ui.aerocouriers.cork.title": "Почтовая станция «%s»",

@@ -66,12 +66,12 @@ public final class VillageAdminScreen extends Screen {
         winY = (height - winH) / 2;
         int left = winX + 16;
         int colW = (winW - 40) / 2;
-        intervalField = new EditBox(font, left + 110, winY + 196, 28, 14,
+        intervalField = new EditBox(font, left + 110, winY + 204, 28, 14,
                 Component.translatable("ui.aerocouriers.village_admin.interval"));
         intervalField.setMaxLength(4);
         intervalField.setValue(Integer.toString(snapshot.view().refreshIntervalMin()));
         addRenderableWidget(intervalField);
-        exactRepField = new EditBox(font, left + 86, winY + 118, 28, 14,
+        exactRepField = new EditBox(font, left + 6, winY + 138, 28, 14,
                 Component.translatable("ui.aerocouriers.village_admin.rep.exact"));
         exactRepField.setMaxLength(3);
         exactRepField.setValue(Integer.toString(snapshot.reputation()));
@@ -107,12 +107,12 @@ public final class VillageAdminScreen extends Screen {
         int left = winX + 16;
         int right = winX + winW / 2 + 4;
         int colW = (winW - 40) / 2;
-        drawName(graphics, left, 54, colW, mouseX, mouseY);
-        drawReputation(graphics, left, 92, colW, mouseX, mouseY);
-        drawOrders(graphics, left, 168, colW, mouseX, mouseY);
-        drawStats(graphics, right, 54, colW);
-        drawPolicy(graphics, right, 140, colW, mouseX, mouseY);
-        drawCommands(graphics, right, 214, colW);
+        drawName(graphics, left, winY + 54, colW, mouseX, mouseY);
+        drawReputation(graphics, left, winY + 92, colW, mouseX, mouseY);
+        drawOrders(graphics, left, winY + 168, colW, mouseX, mouseY);
+        drawStats(graphics, right, winY + 54, colW);
+        drawPolicy(graphics, right, winY + 140, colW, mouseX, mouseY);
+        drawCommands(graphics, right, winY + 214, colW);
         drawFooter(graphics, mouseX, mouseY);
 
         super.render(graphics, mouseX, mouseY, partialTick);
@@ -360,6 +360,30 @@ public final class VillageAdminScreen extends Screen {
             return true;
         }
         return super.mouseClicked(mouseX, mouseY, button);
+    }
+
+    public void openRenameDialog() {
+        openDialog(new VillageAdminDialogs.Rename(snapshot));
+    }
+
+    public void openReputationDialog() {
+        openDialog(new VillageAdminDialogs.Reputation(snapshot));
+    }
+
+    public void openConfirmDialog(VillageAdminPayload.Action action) {
+        if (action == VillageAdminPayload.Action.REGENERATE) {
+            openDialog(new VillageAdminDialogs.Confirm(snapshot,
+                    Component.translatable("ui.aerocouriers.village_admin.orders.regen"),
+                    Component.translatable("ui.aerocouriers.village_admin.confirm.regen"),
+                    action));
+            return;
+        }
+        if (action == VillageAdminPayload.Action.CLEAR) {
+            openDialog(new VillageAdminDialogs.Confirm(snapshot,
+                    Component.translatable("ui.aerocouriers.village_admin.orders.clear"),
+                    Component.translatable("ui.aerocouriers.village_admin.confirm.clear"),
+                    action));
+        }
     }
 
     private void openDialog(VillageAdminDialogs next) {
