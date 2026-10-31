@@ -12,7 +12,17 @@
 - Текстуры 16px свои: `tools/gen_post_station_textures.py`. Модели `post_station_lower` / `post_station_upper`, предмет — собранная стойка с антенной.
 - **Старые миры.** Отсутствующий `half` → `lower` (дефолт StateDefinition). NBT BE не меняется. `onLoad` достраивает верх, если клетка `canBeReplaced`. Занято сверху — станция остаётся рабочей одноблочной.
 - Worldgen: `post_station.nbt` кладёт lower (1,1,1) + upper (1,2,1). Процессор дедупит только контроллер; лишний верх → воздух. Счётчики GameTest считают только `isController`.
-- GameTest: `placingAndBreakingEitherHalfMakesATwoHighStation`; структура и генерация деревень проверяют 2-tall; Jade — тултип с верхней половины. `./gradlew build` SUCCESS. `runGameTestServer -PwithoutJade=true` **82/82** (было 81; +1 place/break). Версия не менялась.
+- **Фикс дедупа (клиентский QA).** `isDuplicateAtLoad` считал процессорный клейм старта деревни дублем и на следующем тике менял единственную стойку на стол картографа (в сгенерированной plains: 5 кусков `post_station` → 5 столов, 0 станций). Теперь клетка из `CLAIMED_STATIONS` не конвертируется. После фикса `/place structure minecraft:village_plains` зарегистрировал «Песчаная Коса» 73,64,-88; lower+upper на месте, в атласе 1 станция.
+- GameTest: `placingAndBreakingEitherHalfMakesATwoHighStation`; `sevenStationHousesKeepOnePostStation` ждёт 5 тиков и проверяет keeper; структура и генерация деревень проверяют 2-tall; Jade — тултип с верхней половины. `./gradlew build` SUCCESS. `runGameTestServer -PwithoutJade=true` **82/82** (было 81; +1 place/break). Версия не менялась.
+- **QA в клиенте (31.10.2026, Xvfb 1920×1080, GUI 3, RU, Jade 15.10.6).** Кадры — `/opt/cursor/artifacts/station-stoyka/`. OpenAL не стартует. GLFW-клики в GUI мира не использовались — постановка/слом через команды (`setblock` / `setblock … destroy`); `/give` предмета ок.
+  - Фасад день: андезит + латунная щель, доска с листами, медная крыша, антенна с кольцами и огоньком, фонарь слева. ✅ `21_front_day_close.png`
+  - Тыл день: глухой, без вывески. ✅ `23_back_day_close.png`
+  - Ночь: небо 18000, фонарь и огонёк антенны видны, блок светит (~11). Отдельных emissive-текстур окна нет — бумаги не «горят». ✅ `30_front_night.png`
+  - Деревня plains (`/place structure` после фикса): 2-tall стойка у дома, фонари на заборах из куска, Jade «Песчаная Коса» + деревня. ✅ `80_village_station.png`
+  - Jade на стойке (имя, репутация, заказы, таймер). Прицел с травы на корпус; отдельный кадр «только верхняя клетка» без тултипа — тултип с верхней закрыт GameTest `JadeTooltipGameTests` (snapshot с `above()`). ✅ `58_jade_stand.png`, `80_village_station.png`
+  - Слом нижней (`setblock … air destroy`): обе клетки воздух (`LOWER_AIR` + `UPPER_AIR`). ✅ `60_after_break.png`
+  - Предмет в хотбаре — собранная стойка с антенной. ✅
+  - **Не проверено в клиенте:** постановка руками (клик предметом; GLFW не принимает синтетику), слом верхней половины руками, ПКМ-экран станции с обеих половин глазами, 4 facing глазами, естественный locate без `/place structure`, старый одноблочный мир, GUI scale 2 / EN.
 
 ### Jade-тултипы контейнера и станции (0.3.0, 30.10.2026)
 - Soft-dep Jade **15.10.6+neoforge** (`maven.modrinth:jade`, `compileOnly` + `localRuntime`; jar не в репозитории). Без Jade мод грузится: `runGameTestServer -PwithoutJade=true`. Версию мода и `PROTOCOL_VERSION` не поднимали.
