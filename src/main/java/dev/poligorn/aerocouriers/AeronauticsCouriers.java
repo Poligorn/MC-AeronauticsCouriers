@@ -77,6 +77,8 @@ public final class AeronauticsCouriers {
         NeoForge.EVENT_BUS.addListener(ItemWeights::onAddReloadListeners);
         NeoForge.EVENT_BUS.addListener(VillageStructures::onServerAboutToStart);
         NeoForge.EVENT_BUS.addListener(CollateralProfiles::onServerStarted);
+        NeoForge.EVENT_BUS.addListener(CouriersCommands::onJadeQaServerStarted);
+        NeoForge.EVENT_BUS.addListener(CouriersCommands::onJadeQaServerTick);
         CargoEvents.register();
         if (GameTestHooks.isGametestEnabled()) {
             NeoForge.EVENT_BUS.addListener(CouriersGameTests::createEmptyTemplate);

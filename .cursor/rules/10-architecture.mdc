@@ -24,7 +24,7 @@ alwaysApply: false
 | `net` | C2S: OpenBoard, ContractIntent, CreateContract (только со штампа), Claim, OperatorBoard; S2C: BoardSnapshot (по 20, + `Extras`), OpenStamp, ZoneSync. 0.2.0: C2S `TutorialIntent`, `TaskPref`, `MarkNotificationsRead`; S2C `NotificationAlert`, `NotificationSync`, `TaskSync`. `ZoneSync` несёт срок и точку B (маршрут). `PROTOCOL_VERSION` 3 |
 | `client` | Экран, вкладки, кнопка инвентаря, клавиши, `CreateGui` / `CreateGuiTextures` / `CreateStyleButton` (стиль Create по ResourceLocation), NavRenderer (луч погрузки/доставки), `XaeroMapPicker` / `XaeroMinimapAccess` / `XaeroWorldMapAccess`, `XaeroBridge`, `EpauletteRenderer`; маршрут на картах — `XaeroRouteHooks` (без типов Xaero), `XaeroRouteWorldMapLayer` / `XaeroRouteMinimapLayer` / `XaeroRouteBreadcrumbs` (типы Xaero), `RouteSettingsScreen` |
 | `client.route` | Чистая логика маршрута без типов Xaero: `RoutePlan`, `RouteTracker`, `RoutePreview`, `RouteProbes`, `RouteCanvas`, `RouteStyle`, `RouteScene` |
-| `compat` | `JadeProvider`, `ClaimsBridge` и прочие мосты к опциональным модам |
+| `compat` | `JadeTooltipData` (без типов Jade), `jade/JadePlugin` + провайдеры, `ClaimsBridge` и прочие мосты к опциональным модам |
 
 ## Правила
 - Клиентский код — только в `client` и только через `@EventBusSubscriber(value = Dist.CLIENT)` / `@Mod(dist = Dist.CLIENT)`; общий код не должен ссылаться на `client.*`.
@@ -34,6 +34,6 @@ alwaysApply: false
 - Curios 9: `CuriosApi.getCuriosInventory(entity)` (❌ `getCuriosHelper()` — API 1.18–1.20).
 
 ## Сборка
-- Версии — только в `gradle.properties`. Maven: `maven.ryanhcode.dev/releases` (Sable, Companion, Aeronautics, Simulated), `maven.theillusivec4.top` (Curios), `maven.createmod.net` (Create), `chocolateminecraft.com/maven` (Xaero, только `compileOnly`).
+- Версии — только в `gradle.properties`. Maven: `maven.ryanhcode.dev/releases` (Sable, Companion, Aeronautics, Simulated), `maven.theillusivec4.top` (Curios), `maven.createmod.net` (Create), `chocolateminecraft.com/maven` (Xaero, только `compileOnly`), `api.modrinth.com/maven` (Numismatics, Jade — `compileOnly`, не бандлить).
 - Sable/Create/Aeronautics — `compileOnly` (рантайм даёт пак); Companion — `jarJar` ровно той версии, что требует Sable (1.6.0).
 - `./gradlew build` обязан проходить перед каждым коммитом в PR.

@@ -131,7 +131,23 @@ Worldgen (sources `neoforge-21.1.235-sources.jar`, 30.10.2026):
 | Чанк загружен | `Level.isLoaded(BlockPos)` вместо устаревшего `LevelReader.hasChunkAt` | ✅ исходники |
 | Лицензия при смерти | Curios `ICurioItem.getDropRule(...)` → `ICurio.DropRule.ALWAYS_KEEP` | ✅ (уже было в `PilotLicenseItem`) |
 
+## Jade 15.10.6+neoforge (тултипы контейнера и станции, 30.10.2026)
+Артефакт: `maven.modrinth:jade:15.10.6+neoforge` (Modrinth Maven; тот же файл, что в паке Ikaria). Сверено **javap** публичных классов, без декомпиляции.
+
+| Что | Факт | Статус |
+|---|---|---|
+| Mod ID | `jade` | ✅ `neoforge.mods.toml` пака / jar |
+| Плагин | `@WailaPlugin` (`Retention.RUNTIME`, `value` по умолчанию `""`) на `IWailaPlugin` | ✅ javap |
+| Регистрация сервера | `IWailaCommonRegistration.registerBlockDataProvider(IServerDataProvider<BlockAccessor>, Class<?>)` — `Class<?>` принимает и блок, и BE. **В клиенте 31.10.2026:** сегменты L/XL без BE не получают NBT, если провайдер висит только на `CargoContainerBlockEntity` — нужна ещё регистрация на класс блока | ✅ javap + QA |
+| Регистрация клиента | `IWailaClientRegistration.registerBlockComponent(IComponentProvider<BlockAccessor>, Class<? extends Block>)` | ✅ javap |
+| Данные | `IServerDataProvider.appendServerData(CompoundTag, T)` (NBT, как в задаче). `StreamServerDataProvider` тоже есть — не используем | ✅ javap |
+| Тултип | `IBlockComponentProvider.appendTooltip(ITooltip, BlockAccessor, IPluginConfig)`; `ITooltip.add/append(Component\|IElement)`; `replace(JadeIds.CORE_OBJECT_NAME, Component)` | ✅ javap |
+| Иконки | `IElementHelper.get().smallItem(ItemStack)` | ✅ javap |
+| Конфиг | ключ `config.jade.plugin_<modid>.<uid-path>` | ✅ дока plugins22 + UID |
+| Луч на объекте Aeronautics/Sable | changelog 15.10.6: «improve compatibility with Create Aeronautics». QA 31.10.2026: луч попал в собранные ящики на площадке (проекция plot ~2e7), полного корабля не собирали | ⚠️ частично |
+
 ## Что ещё не проверено
 - Xaero: fair-play mod ID; выбор точки на карте **в игре** (код есть); линия маршрута на World Map и миникарте **в игре** (код есть).
 - FFItemWeight: API для веса предметов.
 - Aeronautics: можно ли зацепить верёвку/лебёдку за наш блок (только в игре).
+- Jade на контейнере внутри собранного корпуса корабля Sable (не одиночный ящик на площадке).

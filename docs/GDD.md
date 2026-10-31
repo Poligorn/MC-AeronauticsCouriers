@@ -378,7 +378,7 @@ ServerSubLevel sub = SubLevelAssemblyHelper.assembleBlocks(level, anchor, List.o
 - **Контейнер можно повредить** (решение владельца, §9.7): у него есть прочность (`piracy.break_seconds`), его можно сломать или взорвать. Тогда заказ проваливается с причиной `DAMAGED`. Если пиратство на сервере выключено (`piracy.enabled = false`), контейнер неразрушим, как раньше. ❌ Было: «сломать нельзя никому».
 - Сломанный контейнер ничего не роняет сам. Груз выпадает только из хранилища (§9.7).
 - Внутри блока лежит **только `contractId`**. Предметы лежат в хранилище сервера → дюп невозможен по построению.
-- Подсказка при наведении (Jade/WTHIT, если установлены): номер заказа, получатель, срок.
+- Подсказка при наведении (Jade, если установлен; 0.3.0, решение владельца 30.10.2026): заказчик (ник / деревня), номер заказа, вес, статус (опубликован / в пути / доставлен / просрочен). Контейнер без заказа — «без заказа». Станция: имя, деревня, репутация, число открытых заказов, таймер обновления. WTHIT в 0.3.0 нет. См. [CLARIFICATIONS](CLARIFICATIONS.md).
 
 ### 9.3 Самопроверка доставки ✅
 > ❌ Поправка (25.10.2026): перегрузки `projectOutOfSubLevel(Level, Vec3)` и `getVelocity(Level, Vec3)` в Sable Companion 1.6.0 помечены `@Deprecated(ScheduledForRemoval "2.0.0")`. Использовать JOML-версии `projectOutOfSubLevel(Level, Vector3dc, Vector3d)` / `getVelocity(Level, Vector3dc, Vector3d)` (см. `cargo/SableBridge`, `docs/research/api-verification.md`). Скорость — в блоках/с.
@@ -614,7 +614,7 @@ dev.poligorn.aerocouriers
 ├─ net/        C2S: OpenBoard, Accept, Abandon, CreateContract, Claim
 │              S2C: BoardSnapshot, ProfileSync, NavTargets (зоны для частиц)
 ├─ client/     FreightScreen, tabs/*, InventoryButton, KeyBinds, NavRenderer (луч), ZoneParticles, XaeroBridge, EpauletteRenderer (из pilotwings)
-└─ compat/     JadeProvider, ClaimsBridge
+└─ compat/     JadeTooltipData, jade/JadePlugin (soft-dep), ClaimsBridge
 ```
 
 ### 14.2 Ключевые решения

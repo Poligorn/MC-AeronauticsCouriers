@@ -43,12 +43,32 @@ public final class AeroCouriersClient {
         NeoForge.EVENT_BUS.addListener(ClientToasts::onRenderScreen);
         NeoForge.EVENT_BUS.addListener(TaskPanelHud::onRenderGui);
         NeoForge.EVENT_BUS.addListener(AeroCouriersClient::onLoggingOut);
+        NeoForge.EVENT_BUS.addListener(AeroCouriersClient::centerJadeOverlayForQa);
         modBus.addListener(AeroCouriersClient::registerItemDecorations);
     }
 
     private static void onLoggingOut(net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent.LoggingOut event) {
         ClientToasts.clear();
         ClientTasks.clear();
+    }
+
+    /** QA: pin Jade to the screen center so the full tooltip is not under the hotbar. */
+    private static void centerJadeOverlayForQa(net.neoforged.neoforge.client.event.ClientTickEvent.Post event) {
+        if (!Boolean.getBoolean("aerocouriers.jadeqa")) {
+            return;
+        }
+        try {
+            Class<?> jade = Class.forName("snownee.jade.Jade");
+            Object json = jade.getField("CONFIG").get(null);
+            Object waila = json.getClass().getMethod("get").invoke(json);
+            Object overlay = waila.getClass().getMethod("getOverlay").invoke(waila);
+            overlay.getClass().getMethod("setOverlayPosX", float.class).invoke(overlay, 0.5f);
+            overlay.getClass().getMethod("setOverlayPosY", float.class).invoke(overlay, 0.22f);
+            overlay.getClass().getMethod("setAnchorX", float.class).invoke(overlay, 0.5f);
+            overlay.getClass().getMethod("setAnchorY", float.class).invoke(overlay, 0.0f);
+        } catch (Throwable ignored) {
+            // Jade is optional; QA overlay pin is best-effort.
+        }
     }
 
     private static void registerItemDecorations(net.neoforged.neoforge.client.event.RegisterItemDecorationsEvent event) {
