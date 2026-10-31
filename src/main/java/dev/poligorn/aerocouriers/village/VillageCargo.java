@@ -5,14 +5,19 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import dev.poligorn.aerocouriers.AeronauticsCouriers;
+import dev.poligorn.aerocouriers.cargo.CargoSize;
 import dev.poligorn.aerocouriers.config.CouriersServerConfig;
+import dev.poligorn.aerocouriers.contract.ItemValues;
+import dev.poligorn.aerocouriers.contract.Weights;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import net.minecraft.core.Holder;
 import net.minecraft.core.HolderLookup;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
@@ -27,7 +32,6 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.item.enchantment.ItemEnchantments;
-import net.minecraft.core.component.DataComponents;
 import net.neoforged.neoforge.event.AddReloadListenerEvent;
 
 /**
@@ -35,11 +39,46 @@ import net.neoforged.neoforge.event.AddReloadListenerEvent;
  * Rare cargo: {@code data/<ns>/village_cargo/rare/<id>.json} (GDD §6.4).
  */
 public final class VillageCargo extends SimpleJsonResourceReloadListener {
-    public record Offer(Item item, int min, int max) {
+    public record Offer(
+            Item item,
+            int min,
+            int max,
+            int stacksMin,
+            int stacksMax,
+            int pickWeight,
+            boolean valuable,
+            double valueMultiplier,
+            CargoSize minSize
+    ) {
+        static Offer of(Item item, int min, int max) {
+            return new Offer(item, min, max, 1, 1, 1, false, 1.0, CargoSize.S);
+        }
+
         ItemStack roll(RandomSource random) {
-            int lo = Math.max(1, min);
-            int hi = Math.max(lo, max);
+            int cap = Math.max(1, item.getDefaultMaxStackSize());
+            int lo = Math.max(1, Math.min(min, cap));
+            int hi = Math.max(lo, Math.min(max, cap));
             return new ItemStack(item, lo + random.nextInt(hi - lo + 1));
+        }
+
+        int rollStacks(RandomSource random) {
+            int lo = Math.max(1, stacksMin);
+            int hi = Math.max(lo, stacksMax);
+            return lo + random.nextInt(hi - lo + 1);
+        }
+
+        double valueScale() {
+            if (valueMultiplier > 0.0 && valueMultiplier != 1.0) {
+                return valueMultiplier;
+            }
+            if (valuable) {
+                return CouriersServerConfig.villageValuableMultiplier();
+            }
+            return 1.0;
+        }
+
+        int selectionWeight() {
+            return Math.max(1, pickWeight);
         }
     }
 
@@ -47,7 +86,10 @@ public final class VillageCargo extends SimpleJsonResourceReloadListener {
         static final Table EMPTY = new Table(List.of(), List.of());
     }
 
-    public record ManifestRoll(List<ItemStack> stacks, boolean rare) {
+    public record ManifestRoll(List<ItemStack> stacks, boolean rare, boolean valuable, long valueSpurs) {
+        public ManifestRoll(List<ItemStack> stacks, boolean rare) {
+            this(stacks, rare, false, 0L);
+        }
     }
 
     interface RareEntry {
@@ -133,30 +175,120 @@ public final class VillageCargo extends SimpleJsonResourceReloadListener {
         return fallback != null ? fallback : Table.EMPTY;
     }
 
+    /** Highest container size this reputation tier may publish (tier 0 = S … tier 3+ = XL). */
+    public static CargoSize maxSizeForTier(int tier) {
+        int index = Math.max(0, Math.min(CargoSize.XL.ordinal(), tier));
+        return CargoSize.values()[index];
+    }
+
+    /**
+     * Weighted size roll among sizes unlocked by {@code originReputation} and allowed by {@code policy}.
+     * Missing weights are dropped and the rest are renormalised.
+     */
+    public static Optional<CargoSize> rollTargetSize(int originReputation, VillageBoardPolicy policy,
+                                                     RandomSource random) {
+        return rollTargetSize(originReputation, policy, Optional.empty(), random);
+    }
+
+    public static Optional<CargoSize> rollTargetSize(int originReputation, VillageBoardPolicy policy,
+                                                     Optional<CargoSize> forceSize, RandomSource random) {
+        CargoSize max = maxSizeForTier(StationReputation.tier(originReputation));
+        if (forceSize.isPresent()) {
+            CargoSize forced = forceSize.get();
+            if (forced.ordinal() <= max.ordinal() && policy.allowsSize(forced)) {
+                return Optional.of(forced);
+            }
+        }
+        int total = 0;
+        int[] weights = new int[CargoSize.values().length];
+        for (CargoSize size : CargoSize.values()) {
+            if (size.ordinal() > max.ordinal() || !policy.allowsSize(size)) {
+                continue;
+            }
+            int weight = CouriersServerConfig.villageSizeWeight(size);
+            if (weight <= 0) {
+                continue;
+            }
+            weights[size.ordinal()] = weight;
+            total += weight;
+        }
+        if (total <= 0) {
+            for (CargoSize size : CargoSize.values()) {
+                if (size.ordinal() <= max.ordinal() && policy.allowsSize(size)) {
+                    return Optional.of(size);
+                }
+            }
+            return Optional.empty();
+        }
+        int pick = random.nextInt(total);
+        for (CargoSize size : CargoSize.values()) {
+            pick -= weights[size.ordinal()];
+            if (pick < 0) {
+                return Optional.of(size);
+            }
+        }
+        return Optional.of(CargoSize.S);
+    }
+
     /**
      * What the origin produces that the destination wants; if the overlap is empty, what the origin produces.
-     * When {@code originReputation} unlocks rare tables, may replace one stack with rare cargo.
+     * Rolls a target container size for the origin reputation, then fills until {@link CargoSize#smallestFor}
+     * actually returns that size. Rare cargo may replace one stack when the origin tier unlocks it.
      */
     public static ManifestRoll rollManifest(ResourceLocation originBiome, ResourceLocation destBiome,
                                             int originReputation, HolderLookup.RegistryLookup<Enchantment> enchantments,
                                             RandomSource random) {
-        Table origin = tableFor(originBiome);
-        Table dest = tableFor(destBiome);
-        List<Offer> wanted = origin.produces.stream()
-                .filter(offer -> dest.consumes.stream().anyMatch(need -> need.item() == offer.item()))
-                .toList();
-        List<Offer> pool = wanted.isEmpty() ? origin.produces : wanted;
+        return rollManifest(originBiome, destBiome, originReputation, VillageBoardPolicy.DEFAULT, Optional.empty(),
+                enchantments, random);
+    }
+
+    public static ManifestRoll rollManifest(ResourceLocation originBiome, ResourceLocation destBiome,
+                                            int originReputation, VillageBoardPolicy policy,
+                                            Optional<CargoSize> forceSize,
+                                            HolderLookup.RegistryLookup<Enchantment> enchantments,
+                                            RandomSource random) {
+        Optional<CargoSize> targetOpt = rollTargetSize(originReputation, policy, forceSize, random);
+        if (targetOpt.isEmpty()) {
+            return new ManifestRoll(List.of(), false, false, 0L);
+        }
+        CargoSize target = targetOpt.get();
+        List<Offer> pool = poolFor(originBiome, destBiome, target);
         List<ItemStack> manifest = new ArrayList<>();
-        if (pool.isEmpty()) {
-            manifest.add(new ItemStack(Items.WHEAT, 8 + random.nextInt(9)));
-        } else {
-            int stacks = 1 + random.nextInt(Math.min(3, pool.size()));
-            for (int i = 0; i < stacks; i++) {
-                manifest.add(pool.get(random.nextInt(pool.size())).roll(random));
+        long[] value = {0L};
+        boolean[] valuable = {false};
+        fillToSize(manifest, pool, target, random, value, valuable);
+        boolean rare = false;
+        if (policy.allowRare()) {
+            List<ItemStack> beforeRare = copyStacks(manifest);
+            long valueBefore = value[0];
+            boolean valuableBefore = valuable[0];
+            rare = tryInjectRare(originReputation, enchantments, random, manifest);
+            if (rare) {
+                value[0] = valueOf(manifest, 1.0);
+                padToSize(manifest, pool, target, random, value, valuable);
+                trimToSize(manifest, target, value);
+                if (!matchesSize(manifest, target)) {
+                    manifest.clear();
+                    manifest.addAll(beforeRare);
+                    value[0] = valueBefore;
+                    valuable[0] = valuableBefore;
+                    rare = false;
+                }
             }
         }
-        boolean rare = tryInjectRare(originReputation, enchantments, random, manifest);
-        return new ManifestRoll(List.copyOf(manifest), rare);
+        if (!matchesSize(manifest, target)) {
+            fillToSize(manifest, pool, target, random, value, valuable);
+        }
+        if (manifest.isEmpty()) {
+            manifest.add(new ItemStack(Items.WHEAT, 8 + random.nextInt(9)));
+            value[0] = valueOf(manifest, 1.0);
+        }
+        trimToSize(manifest, target, value);
+        return new ManifestRoll(List.copyOf(manifest), rare, valuable[0], Math.max(0L, value[0]));
+    }
+
+    public static boolean matchesSize(List<ItemStack> manifest, CargoSize target) {
+        return CargoSize.smallestFor(manifest.size(), Weights.of(manifest)).orElse(null) == target;
     }
 
     static boolean tryInjectRare(int originReputation, HolderLookup.RegistryLookup<Enchantment> enchantments,
@@ -199,6 +331,171 @@ public final class VillageCargo extends SimpleJsonResourceReloadListener {
         return false;
     }
 
+    private static List<Offer> poolFor(ResourceLocation originBiome, ResourceLocation destBiome, CargoSize target) {
+        Table origin = tableFor(originBiome);
+        Table dest = tableFor(destBiome);
+        List<Offer> wanted = origin.produces.stream()
+                .filter(offer -> dest.consumes.stream().anyMatch(need -> need.item() == offer.item()))
+                .toList();
+        List<Offer> base = wanted.isEmpty() ? origin.produces : wanted;
+        List<Offer> sized = base.stream()
+                .filter(offer -> offer.minSize().ordinal() <= target.ordinal())
+                .toList();
+        if (!sized.isEmpty()) {
+            return sized;
+        }
+        if (!base.isEmpty()) {
+            return base;
+        }
+        return List.of(new Offer(Items.WHEAT, 16, 64, 1, Math.max(4, target.slots()), 4, false, 1.0, CargoSize.S),
+                new Offer(Items.OAK_LOG, 16, 64, 1, Math.max(4, target.slots()), 6, false, 1.0, CargoSize.S));
+    }
+
+    private static void fillToSize(List<ItemStack> manifest, List<Offer> pool, CargoSize target, RandomSource random,
+                                   long[] value, boolean[] valuable) {
+        if (pool.isEmpty()) {
+            return;
+        }
+        int sCap = target == CargoSize.S
+                ? 1 + random.nextInt(CouriersServerConfig.villageSStacksMax())
+                : target.slots();
+        int attempts = 0;
+        int maxAttempts = Math.max(16, target.slots() * 6);
+        while (attempts++ < maxAttempts) {
+            if (target == CargoSize.S) {
+                if (!manifest.isEmpty() && manifest.size() >= sCap) {
+                    return;
+                }
+            } else if (matchesSize(manifest, target)) {
+                return;
+            }
+            Offer offer = pick(pool, random);
+            int burst = offer.rollStacks(random);
+            boolean added = false;
+            for (int i = 0; i < burst; i++) {
+                if (target == CargoSize.S && manifest.size() >= sCap) {
+                    break;
+                }
+                if (target != CargoSize.S && matchesSize(manifest, target)) {
+                    break;
+                }
+                ItemStack stack = fit(offer.roll(random), manifest, target);
+                if (stack.isEmpty()) {
+                    break;
+                }
+                manifest.add(stack);
+                value[0] += lineValue(stack, offer.valueScale());
+                if (offer.valuable() || offer.valueScale() > 1.0) {
+                    valuable[0] = true;
+                }
+                added = true;
+            }
+            if (!added && !canGrow(manifest, target)) {
+                return;
+            }
+        }
+    }
+
+    private static void padToSize(List<ItemStack> manifest, List<Offer> pool, CargoSize target, RandomSource random,
+                                  long[] value, boolean[] valuable) {
+        if (target == CargoSize.S || matchesSize(manifest, target) || pool.isEmpty()) {
+            return;
+        }
+        int attempts = 0;
+        while (attempts++ < target.slots() * 4 && !matchesSize(manifest, target) && canGrow(manifest, target)) {
+            Offer offer = pick(pool, random);
+            ItemStack stack = fit(offer.roll(random), manifest, target);
+            if (stack.isEmpty()) {
+                continue;
+            }
+            manifest.add(stack);
+            value[0] += lineValue(stack, offer.valueScale());
+            if (offer.valuable() || offer.valueScale() > 1.0) {
+                valuable[0] = true;
+            }
+        }
+    }
+
+    private static void trimToSize(List<ItemStack> manifest, CargoSize target, long[] value) {
+        while (!manifest.isEmpty()) {
+            Optional<CargoSize> actual = CargoSize.smallestFor(manifest.size(), Weights.of(manifest));
+            if (actual.isPresent() && actual.get().ordinal() <= target.ordinal()) {
+                return;
+            }
+            ItemStack removed = manifest.remove(manifest.size() - 1);
+            value[0] = Math.max(0L, value[0] - lineValue(removed, 1.0));
+        }
+    }
+
+    private static boolean canGrow(List<ItemStack> manifest, CargoSize target) {
+        return manifest.size() < target.slots() && Weights.of(manifest) < target.maxWeight();
+    }
+
+    private static ItemStack fit(ItemStack stack, List<ItemStack> manifest, CargoSize target) {
+        if (stack.isEmpty()) {
+            return ItemStack.EMPTY;
+        }
+        if (fits(manifest, stack, target)) {
+            return stack;
+        }
+        int count = stack.getCount();
+        while (count > 0) {
+            ItemStack next = stack.copyWithCount(count);
+            if (fits(manifest, next, target)) {
+                return next;
+            }
+            count--;
+        }
+        return ItemStack.EMPTY;
+    }
+
+    private static boolean fits(List<ItemStack> manifest, ItemStack extra, CargoSize target) {
+        int stacks = manifest.size() + 1;
+        double weight = Weights.of(manifest) + Weights.perItem(extra) * extra.getCount();
+        return stacks <= target.slots() && weight <= target.maxWeight();
+    }
+
+    private static Offer pick(List<Offer> pool, RandomSource random) {
+        int total = 0;
+        for (Offer offer : pool) {
+            total += offer.selectionWeight();
+        }
+        if (total <= 0) {
+            return pool.get(random.nextInt(pool.size()));
+        }
+        int pick = random.nextInt(total);
+        for (Offer offer : pool) {
+            pick -= offer.selectionWeight();
+            if (pick < 0) {
+                return offer;
+            }
+        }
+        return pool.get(0);
+    }
+
+    private static long lineValue(ItemStack stack, double scale) {
+        if (stack.isEmpty()) {
+            return 0L;
+        }
+        return Math.round(ItemValues.perItem(stack) * (double) stack.getCount() * Math.max(0.0, scale));
+    }
+
+    private static long valueOf(List<ItemStack> manifest, double scale) {
+        long total = 0L;
+        for (ItemStack stack : manifest) {
+            total += lineValue(stack, scale);
+        }
+        return total;
+    }
+
+    private static List<ItemStack> copyStacks(List<ItemStack> stacks) {
+        List<ItemStack> copy = new ArrayList<>(stacks.size());
+        for (ItemStack stack : stacks) {
+            copy.add(stack.copy());
+        }
+        return copy;
+    }
+
     private static int thisWeight(RareEntry entry) {
         if (entry instanceof RareItemEntry item) {
             return Math.max(1, item.weight());
@@ -225,9 +522,28 @@ public final class VillageCargo extends SimpleJsonResourceReloadListener {
             if (item.isEmpty() || item.get() == Items.AIR) {
                 return;
             }
-            offers.add(new Offer(item.get(), GsonHelper.getAsInt(row, "min", 1), GsonHelper.getAsInt(row, "max", 16)));
+            offers.add(parseOffer(item.get(), row));
         });
         return List.copyOf(offers);
+    }
+
+    private static Offer parseOffer(Item item, JsonObject row) {
+        int min = GsonHelper.getAsInt(row, "min", 1);
+        int max = GsonHelper.getAsInt(row, "max", 16);
+        int stacksMin = GsonHelper.getAsInt(row, "stacks_min", 1);
+        int stacksMax = GsonHelper.getAsInt(row, "stacks_max", 1);
+        int pickWeight = GsonHelper.getAsInt(row, "weight", 1);
+        boolean valuable = GsonHelper.getAsBoolean(row, "valuable", false);
+        double multiplier = GsonHelper.getAsDouble(row, "value_multiplier", valuable ? 0.0 : 1.0);
+        CargoSize minSize = CargoSize.S;
+        if (row.has("min_size")) {
+            try {
+                minSize = CargoSize.valueOf(GsonHelper.getAsString(row, "min_size").trim().toUpperCase(Locale.ROOT));
+            } catch (IllegalArgumentException ignored) {
+                minSize = CargoSize.S;
+            }
+        }
+        return new Offer(item, min, max, stacksMin, stacksMax, pickWeight, valuable, multiplier, minSize);
     }
 
     private static RareEntry parseRare(JsonObject json) {
@@ -246,7 +562,7 @@ public final class VillageCargo extends SimpleJsonResourceReloadListener {
         if (resolved.isEmpty() || resolved.get() == Items.AIR) {
             throw new IllegalArgumentException("missing item id");
         }
-        Offer offer = new Offer(resolved.get(), GsonHelper.getAsInt(item, "min", 1), GsonHelper.getAsInt(item, "max", 1));
+        Offer offer = Offer.of(resolved.get(), GsonHelper.getAsInt(item, "min", 1), GsonHelper.getAsInt(item, "max", 1));
         return new RareItemEntry(minRep, weight, offer);
     }
 

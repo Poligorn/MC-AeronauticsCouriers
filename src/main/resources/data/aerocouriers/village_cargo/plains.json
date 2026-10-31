@@ -1,12 +1,21 @@
 {
   "produces": [
-    {"id": "minecraft:wheat", "min": 12, "max": 32},
-    {"id": "minecraft:bread", "min": 8, "max": 16},
-    {"id": "minecraft:hay_block", "min": 1, "max": 4}
+    {"id": "minecraft:wheat", "min": 24, "max": 64, "stacks_min": 1, "stacks_max": 10, "weight": 12},
+    {"id": "minecraft:bread", "min": 8, "max": 32, "stacks_min": 1, "stacks_max": 5, "weight": 7},
+    {"id": "minecraft:hay_block", "min": 8, "max": 64, "stacks_min": 1, "stacks_max": 8, "weight": 8},
+    {"id": "minecraft:white_wool", "min": 16, "max": 64, "stacks_min": 1, "stacks_max": 8, "weight": 6},
+    {"id": "minecraft:oak_log", "min": 16, "max": 64, "stacks_min": 1, "stacks_max": 8, "weight": 7},
+    {"id": "minecraft:carrot", "min": 16, "max": 64, "stacks_min": 1, "stacks_max": 6, "weight": 5},
+    {"id": "create:andesite_alloy", "min": 16, "max": 64, "stacks_min": 1, "stacks_max": 5, "weight": 4, "min_size": "m"},
+    {"id": "minecraft:book", "min": 4, "max": 16, "stacks_min": 1, "stacks_max": 2, "weight": 3, "valuable": true, "value_multiplier": 6, "min_size": "m"},
+    {"id": "create:brass_ingot", "min": 8, "max": 24, "stacks_min": 1, "stacks_max": 2, "weight": 2, "valuable": true, "value_multiplier": 8, "min_size": "l"}
   ],
   "consumes": [
     {"id": "minecraft:coal", "min": 8, "max": 24},
     {"id": "minecraft:iron_ingot", "min": 4, "max": 12},
-    {"id": "minecraft:oak_log", "min": 8, "max": 16}
+    {"id": "minecraft:oak_log", "min": 8, "max": 16},
+    {"id": "minecraft:cobblestone", "min": 16, "max": 32},
+    {"id": "create:andesite_alloy", "min": 8, "max": 24},
+    {"id": "minecraft:wheat", "min": 12, "max": 32}
   ]
 }

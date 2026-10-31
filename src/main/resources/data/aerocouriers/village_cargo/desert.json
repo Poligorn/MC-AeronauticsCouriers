@@ -1,12 +1,20 @@
 {
   "produces": [
-    {"id": "minecraft:cactus", "min": 8, "max": 24},
-    {"id": "minecraft:sand", "min": 16, "max": 32},
-    {"id": "minecraft:gold_nugget", "min": 8, "max": 24}
+    {"id": "minecraft:sand", "min": 32, "max": 64, "stacks_min": 2, "stacks_max": 12, "weight": 10},
+    {"id": "minecraft:cactus", "min": 16, "max": 64, "stacks_min": 1, "stacks_max": 6, "weight": 6},
+    {"id": "minecraft:terracotta", "min": 16, "max": 64, "stacks_min": 1, "stacks_max": 8, "weight": 7},
+    {"id": "minecraft:bricks", "min": 16, "max": 64, "stacks_min": 1, "stacks_max": 8, "weight": 6},
+    {"id": "minecraft:glass", "min": 16, "max": 64, "stacks_min": 1, "stacks_max": 6, "weight": 5},
+    {"id": "minecraft:gold_nugget", "min": 16, "max": 64, "stacks_min": 1, "stacks_max": 3, "weight": 4},
+    {"id": "minecraft:gold_ingot", "min": 8, "max": 32, "stacks_min": 1, "stacks_max": 3, "weight": 3, "valuable": true, "value_multiplier": 8, "min_size": "m"},
+    {"id": "create:golden_sheet", "min": 4, "max": 16, "stacks_min": 1, "stacks_max": 2, "weight": 2, "valuable": true, "value_multiplier": 8, "min_size": "l"}
   ],
   "consumes": [
     {"id": "minecraft:wheat", "min": 8, "max": 24},
     {"id": "minecraft:oak_log", "min": 8, "max": 16},
-    {"id": "minecraft:water_bucket", "min": 1, "max": 2}
+    {"id": "minecraft:water_bucket", "min": 1, "max": 2},
+    {"id": "minecraft:bread", "min": 8, "max": 16},
+    {"id": "minecraft:coal", "min": 8, "max": 24},
+    {"id": "create:andesite_alloy", "min": 8, "max": 16}
   ]
 }
