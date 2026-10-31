@@ -86,9 +86,14 @@ public final class VillageCargo extends SimpleJsonResourceReloadListener {
         static final Table EMPTY = new Table(List.of(), List.of());
     }
 
-    public record ManifestRoll(List<ItemStack> stacks, boolean rare, boolean valuable, long valueSpurs) {
+    public record ManifestRoll(List<ItemStack> stacks, boolean rare, boolean valuable, long valueSpurs,
+                               long valuableSpurs) {
         public ManifestRoll(List<ItemStack> stacks, boolean rare) {
-            this(stacks, rare, false, 0L);
+            this(stacks, rare, false, 0L, 0L);
+        }
+
+        public ManifestRoll(List<ItemStack> stacks, boolean rare, boolean valuable, long valueSpurs) {
+            this(stacks, rare, valuable, valueSpurs, 0L);
         }
     }
 
@@ -249,42 +254,47 @@ public final class VillageCargo extends SimpleJsonResourceReloadListener {
                                             RandomSource random) {
         Optional<CargoSize> targetOpt = rollTargetSize(originReputation, policy, forceSize, random);
         if (targetOpt.isEmpty()) {
-            return new ManifestRoll(List.of(), false, false, 0L);
+            return new ManifestRoll(List.of(), false, false, 0L, 0L);
         }
         CargoSize target = targetOpt.get();
         List<Offer> pool = poolFor(originBiome, destBiome, target);
         List<ItemStack> manifest = new ArrayList<>();
         long[] value = {0L};
+        long[] valuableValue = {0L};
         boolean[] valuable = {false};
-        fillToSize(manifest, pool, target, random, value, valuable);
+        fillToSize(manifest, pool, target, random, value, valuableValue, valuable);
         boolean rare = false;
         if (policy.allowRare()) {
             List<ItemStack> beforeRare = copyStacks(manifest);
             long valueBefore = value[0];
-            boolean valuableBefore = valuable[0];
+            long valuableBefore = valuableValue[0];
+            boolean flagBefore = valuable[0];
             rare = tryInjectRare(originReputation, enchantments, random, manifest);
             if (rare) {
-                value[0] = valueOf(manifest, 1.0);
-                padToSize(manifest, pool, target, random, value, valuable);
+                value[0] = valueOf(manifest, 1.0) + Math.max(0L, valuableValue[0]);
+                padToSize(manifest, pool, target, random, value, valuableValue, valuable);
                 trimToSize(manifest, target, value);
                 if (!matchesSize(manifest, target)) {
                     manifest.clear();
                     manifest.addAll(beforeRare);
                     value[0] = valueBefore;
-                    valuable[0] = valuableBefore;
+                    valuableValue[0] = valuableBefore;
+                    valuable[0] = flagBefore;
                     rare = false;
                 }
             }
         }
+        maybeInjectValuable(manifest, originBiome, pool, target, random, value, valuableValue, valuable);
         if (!matchesSize(manifest, target)) {
-            fillToSize(manifest, pool, target, random, value, valuable);
+            fillToSize(manifest, pool, target, random, value, valuableValue, valuable);
         }
         if (manifest.isEmpty()) {
             manifest.add(new ItemStack(Items.WHEAT, 8 + random.nextInt(9)));
             value[0] = valueOf(manifest, 1.0);
         }
         trimToSize(manifest, target, value);
-        return new ManifestRoll(List.copyOf(manifest), rare, valuable[0], Math.max(0L, value[0]));
+        return new ManifestRoll(List.copyOf(manifest), rare, valuable[0], Math.max(0L, value[0]),
+                Math.max(0L, valuableValue[0]));
     }
 
     public static boolean matchesSize(List<ItemStack> manifest, CargoSize target) {
@@ -341,6 +351,10 @@ public final class VillageCargo extends SimpleJsonResourceReloadListener {
         List<Offer> sized = base.stream()
                 .filter(offer -> offer.minSize().ordinal() <= target.ordinal())
                 .toList();
+        List<Offer> bulk = sized.stream().filter(offer -> !isValuable(offer)).toList();
+        if (!bulk.isEmpty()) {
+            return bulk;
+        }
         if (!sized.isEmpty()) {
             return sized;
         }
@@ -351,8 +365,82 @@ public final class VillageCargo extends SimpleJsonResourceReloadListener {
                 new Offer(Items.OAK_LOG, 16, 64, 1, Math.max(4, target.slots()), 6, false, 1.0, CargoSize.S));
     }
 
+    private static boolean isValuable(Offer offer) {
+        return offer.valuable() || offer.valueScale() > 1.0;
+    }
+
+    private static List<Offer> valuableOffers(ResourceLocation originBiome, CargoSize target) {
+        return tableFor(originBiome).produces.stream()
+                .filter(offer -> isValuable(offer) && offer.minSize().ordinal() <= target.ordinal())
+                .toList();
+    }
+
+    /**
+     * One valuable origin row, after bulk fill. Frequency is {@code village_valuable_inject_chance} so a crate of
+     * wheat does not pick gold on every stack roll.
+     */
+    private static void maybeInjectValuable(List<ItemStack> manifest, ResourceLocation originBiome, List<Offer> pool,
+                                           CargoSize target, RandomSource random, long[] value, long[] valuableValue,
+                                           boolean[] valuable) {
+        if (target == CargoSize.S || manifest.isEmpty()) {
+            return;
+        }
+        double chance = CouriersServerConfig.villageValuableInjectChance();
+        if (chance <= 0.0 || random.nextDouble() >= chance) {
+            return;
+        }
+        List<Offer> valuables = valuableOffers(originBiome, target);
+        if (valuables.isEmpty()) {
+            return;
+        }
+        Offer offer = pick(valuables, random);
+        ItemStack candidate = offer.roll(random);
+        if (candidate.isEmpty()) {
+            return;
+        }
+        List<ItemStack> before = copyStacks(manifest);
+        long valueBefore = value[0];
+        long valuableBefore = valuableValue[0];
+        boolean flagBefore = valuable[0];
+        ItemStack added = fit(candidate, manifest, target);
+        if (!added.isEmpty()) {
+            manifest.add(added);
+        } else {
+            int index = random.nextInt(manifest.size());
+            ItemStack fitted = fit(candidate, withoutIndex(manifest, index), target);
+            if (fitted.isEmpty()) {
+                return;
+            }
+            manifest.set(index, fitted);
+            added = fitted;
+        }
+        padToSize(manifest, pool, target, random, value, valuableValue, valuable);
+        trimToSize(manifest, target, value);
+        if (!matchesSize(manifest, target)) {
+            manifest.clear();
+            manifest.addAll(before);
+            value[0] = valueBefore;
+            valuableValue[0] = valuableBefore;
+            valuable[0] = flagBefore;
+            return;
+        }
+        value[0] = Math.max(0L, valueBefore + lineValue(added, offer.valueScale()));
+        valuableValue[0] = valuableBefore + lineValue(added, offer.valueScale());
+        valuable[0] = true;
+    }
+
+    private static List<ItemStack> withoutIndex(List<ItemStack> manifest, int skip) {
+        List<ItemStack> copy = new ArrayList<>(manifest.size());
+        for (int i = 0; i < manifest.size(); i++) {
+            if (i != skip) {
+                copy.add(manifest.get(i));
+            }
+        }
+        return copy;
+    }
+
     private static void fillToSize(List<ItemStack> manifest, List<Offer> pool, CargoSize target, RandomSource random,
-                                   long[] value, boolean[] valuable) {
+                                   long[] value, long[] valuableValue, boolean[] valuable) {
         if (pool.isEmpty()) {
             return;
         }
@@ -384,8 +472,10 @@ public final class VillageCargo extends SimpleJsonResourceReloadListener {
                     break;
                 }
                 manifest.add(stack);
-                value[0] += lineValue(stack, offer.valueScale());
-                if (offer.valuable() || offer.valueScale() > 1.0) {
+                long line = lineValue(stack, offer.valueScale());
+                value[0] += line;
+                if (isValuable(offer)) {
+                    valuableValue[0] += line;
                     valuable[0] = true;
                 }
                 added = true;
@@ -397,7 +487,7 @@ public final class VillageCargo extends SimpleJsonResourceReloadListener {
     }
 
     private static void padToSize(List<ItemStack> manifest, List<Offer> pool, CargoSize target, RandomSource random,
-                                  long[] value, boolean[] valuable) {
+                                  long[] value, long[] valuableValue, boolean[] valuable) {
         if (target == CargoSize.S || matchesSize(manifest, target) || pool.isEmpty()) {
             return;
         }
@@ -409,8 +499,10 @@ public final class VillageCargo extends SimpleJsonResourceReloadListener {
                 continue;
             }
             manifest.add(stack);
-            value[0] += lineValue(stack, offer.valueScale());
-            if (offer.valuable() || offer.valueScale() > 1.0) {
+            long line = lineValue(stack, offer.valueScale());
+            value[0] += line;
+            if (isValuable(offer)) {
+                valuableValue[0] += line;
                 valuable[0] = true;
             }
         }

@@ -9,8 +9,8 @@
     {"id": "minecraft:coal", "min": 16, "max": 64, "stacks_min": 1, "stacks_max": 6, "weight": 6},
     {"id": "create:andesite_alloy", "min": 16, "max": 64, "stacks_min": 1, "stacks_max": 6, "weight": 5, "min_size": "m"},
     {"id": "minecraft:book", "min": 4, "max": 16, "stacks_min": 1, "stacks_max": 2, "weight": 3, "valuable": true, "value_multiplier": 6, "min_size": "m"},
-    {"id": "minecraft:gold_ingot", "min": 8, "max": 32, "stacks_min": 1, "stacks_max": 3, "weight": 3, "valuable": true, "value_multiplier": 8, "min_size": "m"},
-    {"id": "create:brass_ingot", "min": 8, "max": 32, "stacks_min": 1, "stacks_max": 3, "weight": 2, "valuable": true, "value_multiplier": 8, "min_size": "l"},
+    {"id": "minecraft:gold_ingot", "min": 16, "max": 32, "stacks_min": 1, "stacks_max": 3, "weight": 3, "valuable": true, "value_multiplier": 8, "min_size": "m"},
+    {"id": "create:brass_ingot", "min": 16, "max": 32, "stacks_min": 1, "stacks_max": 3, "weight": 2, "valuable": true, "value_multiplier": 8, "min_size": "l"},
     {"id": "create:precision_mechanism", "min": 1, "max": 8, "stacks_min": 1, "stacks_max": 2, "weight": 2, "valuable": true, "value_multiplier": 12, "min_size": "l"}
   ],
   "consumes": [

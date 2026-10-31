@@ -4,7 +4,7 @@
     {"id": "minecraft:cooked_beef", "min": 8, "max": 32, "stacks_min": 1, "stacks_max": 4, "weight": 5},
     {"id": "minecraft:leather", "min": 8, "max": 32, "stacks_min": 1, "stacks_max": 4, "weight": 5},
     {"id": "minecraft:terracotta", "min": 16, "max": 64, "stacks_min": 1, "stacks_max": 8, "weight": 6},
-    {"id": "minecraft:gold_ingot", "min": 4, "max": 16, "stacks_min": 1, "stacks_max": 2, "weight": 3, "valuable": true, "value_multiplier": 8, "min_size": "m"},
+    {"id": "minecraft:gold_ingot", "min": 16, "max": 28, "stacks_min": 1, "stacks_max": 2, "weight": 3, "valuable": true, "value_multiplier": 8, "min_size": "m"},
     {"id": "create:andesite_alloy", "min": 16, "max": 48, "stacks_min": 1, "stacks_max": 5, "weight": 4, "min_size": "m"},
     {"id": "create:precision_mechanism", "min": 1, "max": 6, "stacks_min": 1, "stacks_max": 2, "weight": 2, "valuable": true, "value_multiplier": 12, "min_size": "l"}
   ],

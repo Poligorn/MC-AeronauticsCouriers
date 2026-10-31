@@ -59,7 +59,9 @@ public final class CouriersServerConfig {
     public static final ModConfigSpec.IntValue VILLAGE_SIZE_WEIGHT_XL;
     public static final ModConfigSpec.IntValue VILLAGE_S_STACKS_MAX;
     public static final ModConfigSpec.DoubleValue VILLAGE_VALUE_REWARD_FACTOR;
+    public static final ModConfigSpec.DoubleValue VILLAGE_VALUE_REWARD_CAP;
     public static final ModConfigSpec.DoubleValue VILLAGE_VALUABLE_MULTIPLIER;
+    public static final ModConfigSpec.DoubleValue VILLAGE_VALUABLE_INJECT_CHANCE;
     public static final ModConfigSpec.DoubleValue VILLAGE_SIZE_BONUS_S;
     public static final ModConfigSpec.DoubleValue VILLAGE_SIZE_BONUS_M;
     public static final ModConfigSpec.DoubleValue VILLAGE_SIZE_BONUS_L;
@@ -235,18 +237,25 @@ public final class CouriersServerConfig {
                 .defineInRange("village_size_weight_xl", 8, 0, 10_000);
         VILLAGE_S_STACKS_MAX = b.comment("S village orders stay light: 1..this many stacks (never more than the S slot cap)")
                 .defineInRange("village_s_stacks_max", 4, 1, 64);
-        VILLAGE_VALUE_REWARD_FACTOR = b.comment("NPC reward adds cargo value (spurs, after table value_multiplier) × this factor")
+        VILLAGE_VALUE_REWARD_FACTOR = b.comment("NPC reward adds cargo value (spurs, after table value_multiplier) × this factor.",
+                        "Ordinary (non-valuable) cargo is also capped by village_value_reward_cap so a crate of wheat is not automatically expensive")
                 .defineInRange("village_value_reward_factor", 0.35, 0.0, 100.0);
+        VILLAGE_VALUE_REWARD_CAP = b.comment("Max spurs added to the NPC reward from ordinary (non-valuable) cargo × village_value_reward_factor.",
+                        "0 = no cap. Valuable rows are never capped. EXPENSIVE_REWARD stays 1000")
+                .defineInRange("village_value_reward_cap", 500.0, 0.0, 1_000_000.0);
         VILLAGE_VALUABLE_MULTIPLIER = b.comment("Default value_multiplier for village_cargo rows with valuable=true and no explicit multiplier")
                 .defineInRange("village_valuable_multiplier", 5.0, 1.0, 100.0);
+        VILLAGE_VALUABLE_INJECT_CHANCE = b.comment("After the bulk manifest is filled, chance to add one valuable origin row (M+ only).",
+                        "Keeps valuable cargo rare enough that expensive orders stay ~10–15% at mid/top tiers")
+                .defineInRange("village_valuable_inject_chance", 0.22, 0.0, 1.0);
         VILLAGE_SIZE_BONUS_S = b.comment("Extra NPC reward in spurs for a village order of this container size (before 0.8–1.2 jitter)")
                 .defineInRange("village_size_bonus_s", 0.0, 0.0, 100_000.0);
         VILLAGE_SIZE_BONUS_M = b.comment("Extra NPC reward in spurs for village M orders")
                 .defineInRange("village_size_bonus_m", 40.0, 0.0, 100_000.0);
         VILLAGE_SIZE_BONUS_L = b.comment("Extra NPC reward in spurs for village L orders")
-                .defineInRange("village_size_bonus_l", 180.0, 0.0, 100_000.0);
+                .defineInRange("village_size_bonus_l", 220.0, 0.0, 100_000.0);
         VILLAGE_SIZE_BONUS_XL = b.comment("Extra NPC reward in spurs for village XL orders")
-                .defineInRange("village_size_bonus_xl", 360.0, 0.0, 100_000.0);
+                .defineInRange("village_size_bonus_xl", 240.0, 0.0, 100_000.0);
         b.pop();
 
         b.push("migration");
@@ -398,6 +407,14 @@ public final class CouriersServerConfig {
         return SPEC.isLoaded() ? VILLAGE_VALUABLE_MULTIPLIER.get() : 5.0;
     }
 
+    public static double villageValueRewardCap() {
+        return SPEC.isLoaded() ? VILLAGE_VALUE_REWARD_CAP.get() : 500.0;
+    }
+
+    public static double villageValuableInjectChance() {
+        return SPEC.isLoaded() ? VILLAGE_VALUABLE_INJECT_CHANCE.get() : 0.22;
+    }
+
     public static double villageSizeRewardBonus(CargoSize size) {
         if (!SPEC.isLoaded()) {
             return defaultVillageSizeBonus(size);
@@ -414,8 +431,8 @@ public final class CouriersServerConfig {
         return switch (size) {
             case S -> 0.0;
             case M -> 40.0;
-            case L -> 180.0;
-            case XL -> 360.0;
+            case L -> 220.0;
+            case XL -> 240.0;
         };
     }
 

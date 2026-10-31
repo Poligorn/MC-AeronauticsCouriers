@@ -325,7 +325,8 @@ public final class StationContractSource implements ContractSource {
         double distance = ContractDistances.pricingBlocks(
                 new Destination(from.dimension(), from.pos(), ZONE_RADIUS),
                 new Destination(to.dimension(), to.pos(), ZONE_RADIUS));
-        long reward = Pricing.npcReward(distance, weight, rolled.valueSpurs(), size.get(), random);
+        long reward = Pricing.npcReward(distance, weight, rolled.valueSpurs(), rolled.valuableSpurs(), size.get(),
+                random);
         if (!policy.allowExpensive() && reward >= VillageBoardPolicy.EXPENSIVE_REWARD) {
             return Optional.empty();
         }

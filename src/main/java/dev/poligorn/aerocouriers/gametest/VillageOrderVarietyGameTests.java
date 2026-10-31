@@ -94,10 +94,14 @@ public final class VillageOrderVarietyGameTests {
 
     @GameTest(template = CouriersGameTests.EMPTY, batch = BATCH)
     public static void expensiveShareAtMidAndTopTiers(GameTestHelper helper) {
-        int mid = expensiveCount(helper, 25, 2000L);
-        int top = expensiveCount(helper, 50, 3000L);
-        assertShare(helper, "mid tier (rep 25)", mid, EXPENSIVE_SAMPLES, 0.10, 0.15);
-        assertShare(helper, "top tier (rep 50)", top, EXPENSIVE_SAMPLES, 0.10, 0.15);
+        Count mid = expensiveCount(helper, 25, 2000L);
+        Count top = expensiveCount(helper, 50, 3000L);
+        AeronauticsCouriers.LOGGER.info("village variety expensive mid={} top={} midBySize={} topBySize={}",
+                mid.summary(), top.summary(), mid.bySize(), top.bySize());
+        assertShare(helper, "mid tier (rep 25) " + mid.bySize() + " | top was " + top.summary(),
+                mid.expensive, EXPENSIVE_SAMPLES, 0.10, 0.15);
+        assertShare(helper, "top tier (rep 50) " + top.bySize() + " | mid was " + mid.summary(),
+                top.expensive, EXPENSIVE_SAMPLES, 0.10, 0.15);
         helper.succeed();
     }
 
@@ -194,8 +198,8 @@ public final class VillageOrderVarietyGameTests {
         }
     }
 
-    private static int expensiveCount(GameTestHelper helper, int reputation, long seed) {
-        int expensive = 0;
+    private static Count expensiveCount(GameTestHelper helper, int reputation, long seed) {
+        Count count = new Count();
         for (int i = 0; i < EXPENSIVE_SAMPLES; i++) {
             double distance = DISTANCES[i % DISTANCES.length];
             RandomSource random = RandomSource.create(seed + i);
@@ -209,12 +213,42 @@ public final class VillageOrderVarietyGameTests {
             if (size == null) {
                 continue;
             }
-            long reward = Pricing.npcReward(distance, Weights.of(rolled.stacks()), rolled.valueSpurs(), size, random);
+            count.seen.merge(size, 1, Integer::sum);
+            long reward = Pricing.npcReward(distance, Weights.of(rolled.stacks()), rolled.valueSpurs(),
+                    rolled.valuableSpurs(), size, random);
             if (MoneyScale.toSpurs(reward) >= VillageBoardPolicy.EXPENSIVE_REWARD) {
-                expensive++;
+                count.expensive++;
+                count.hits.merge(size, 1, Integer::sum);
             }
         }
-        return expensive;
+        return count;
+    }
+
+    private static final class Count {
+        int expensive;
+        final EnumMap<CargoSize, Integer> seen = new EnumMap<>(CargoSize.class);
+        final EnumMap<CargoSize, Integer> hits = new EnumMap<>(CargoSize.class);
+
+        String summary() {
+            return expensive + "/" + EXPENSIVE_SAMPLES
+                    + " = " + String.format("%.3f", expensive / (double) EXPENSIVE_SAMPLES);
+        }
+
+        String bySize() {
+            StringBuilder out = new StringBuilder();
+            for (CargoSize size : CargoSize.values()) {
+                int n = seen.getOrDefault(size, 0);
+                int h = hits.getOrDefault(size, 0);
+                if (n == 0 && h == 0) {
+                    continue;
+                }
+                if (!out.isEmpty()) {
+                    out.append(' ');
+                }
+                out.append(size).append('=').append(h).append('/').append(n);
+            }
+            return out.toString();
+        }
     }
 
     private static void assertShare(GameTestHelper helper, String label, int hits, int total, double lo, double hi) {
