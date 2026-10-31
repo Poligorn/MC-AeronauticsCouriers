@@ -223,7 +223,25 @@ public final class StationGameTests {
                         "extra house upper half must not stay as post_station");
             }
         }
-        helper.succeed();
+        // Processor claims the keeper before BE finishFirstLoad; that tick must not convert it.
+        helper.startSequence()
+                .thenExecuteAfter(5, () -> {
+                    int still = 0;
+                    for (BlockPos stationPos : stations) {
+                        if (level.getBlockState(stationPos).is(ModBlocks.POST_STATION.get())
+                                && PostStationBlock.isController(level.getBlockState(stationPos))) {
+                            still++;
+                            helper.assertTrue(PostStationBlock.isUpper(level.getBlockState(stationPos.above())),
+                                    "keeper still 2-tall after first-load tick");
+                            helper.assertTrue(
+                                    level.getBlockEntity(stationPos) instanceof PostStationBlockEntity keeper
+                                            && keeper.stationId() != null,
+                                    "keeper registered after first-load tick");
+                        }
+                    }
+                    helper.assertValueEqual(still, 1, "keeper survives finishFirstLoad");
+                })
+                .thenSucceed();
     }
 
     /**

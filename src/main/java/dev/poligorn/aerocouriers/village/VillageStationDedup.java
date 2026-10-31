@@ -109,6 +109,11 @@ public final class VillageStationDedup {
      * loading on the same tick do not all turn into cartography tables.
      */
     public static boolean isDuplicateAtLoad(LevelReader level, BlockPos pos, @Nullable StationAtlas atlas) {
+        // The processor claims the kept controller before its BE runs finishFirstLoad.
+        // That village start is already in CLAIMED_VILLAGE_STARTS — do not convert the original.
+        if (CLAIMED_STATIONS.contains(pos)) {
+            return false;
+        }
         BlockPos start = villageStart(level, pos);
         if (start != null && CLAIMED_VILLAGE_STARTS.contains(start)) {
             return true;
