@@ -25,7 +25,10 @@ public final class CorkBoardScreen extends Screen {
     private final CorkBoardFilters filters = new CorkBoardFilters();
     private CorkBoardLayout layout;
     private int scroll;
-    private @Nullable Component hoverTip;
+    private @Nullable List<Component> hoverTipLines;
+    private int qaHoverIndex = -1;
+    private int qaTipX;
+    private int qaTipY;
 
     public CorkBoardScreen(StationSnapshotPayload snapshot) {
         super(Component.translatable("ui.aerocouriers.cork.title", snapshot.name()));
@@ -54,11 +57,16 @@ public final class CorkBoardScreen extends Screen {
     /** QA / click: open the courier tablet on this village order. */
     public void openOrderOnTablet(BoardSnapshotPayload.BoardEntry entry) {
         if (readOnly()) {
-            hoverTip = Component.translatable("ui.aerocouriers.cork.need_tablet");
+            hoverTipLines = List.of(Component.translatable("ui.aerocouriers.cork.need_tablet"));
             ClientCouriersSounds.playOrderDeny();
             return;
         }
         ClientBoard.focusContract(entry.id(), entry, snapshot.orders());
+    }
+
+    /** QA: force the first visible note's hover tooltip without a GLFW cursor. */
+    public void qaHoverFirstNote() {
+        qaHoverIndex = 0;
     }
 
     private void syncRefresh() {
@@ -88,7 +96,7 @@ public final class CorkBoardScreen extends Screen {
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         layout = CorkBoardLayout.of(width, height);
-        hoverTip = null;
+        hoverTipLines = null;
         renderBackground(graphics, mouseX, mouseY, partialTick);
         CorkBoardGui.fullBright();
         CorkBoardGui.boardWindow(graphics, layout);
@@ -110,8 +118,10 @@ public final class CorkBoardScreen extends Screen {
         drawFooter(graphics, mouseX, mouseY);
         CorkBoardGui.scrollBar(graphics, layout.scroll, scroll, layout.maxScrollRows(orders.size()),
                 layout.visibleRows, layout.totalRows(orders.size()));
-        if (hoverTip != null && !hoverTip.getString().isBlank()) {
-            TooltipDraw.render(graphics, font, List.of(hoverTip), java.util.Optional.empty(), mouseX, mouseY);
+        if (hoverTipLines != null && !hoverTipLines.isEmpty()) {
+            int tipX = qaHoverIndex >= 0 ? qaTipX : mouseX;
+            int tipY = qaHoverIndex >= 0 ? qaTipY : mouseY;
+            TooltipDraw.render(graphics, font, hoverTipLines, java.util.Optional.empty(), tipX, tipY);
         }
     }
 
@@ -134,12 +144,15 @@ public final class CorkBoardScreen extends Screen {
 
         CorkBoardGui.blit(graphics, CorkSprites.CHIP_DARK, layout.timerChip);
         int timer = VillageRefreshUi.remainingTicks(minecraft);
-        Component timerLabel = timer < 0 ? Component.empty() : VillageRefreshUi.countdownLabel(timer);
-        if (!timerLabel.getString().isEmpty()) {
-            CorkBoardGui.blitTint(graphics, CorkSprites.ICON_CLOCK, layout.timerChip.x() + 4,
-                    layout.timerChip.y() + 2, 9, 8, CorkPalette.TIMER);
-            CorkBoardGui.text(graphics, font, timerLabel, layout.timerChip.x() + 15, layout.timerChip.y() + 3,
-                    CorkPalette.TIMER);
+        if (timer >= 0) {
+            int textMax = Math.max(8, layout.timerChip.w() - 19);
+            String chip = VillageRefreshUi.chipText(timer, textMax, font::width);
+            if (!chip.isBlank()) {
+                CorkBoardGui.blitTint(graphics, CorkSprites.ICON_CLOCK, layout.timerChip.x() + 4,
+                        layout.timerChip.y() + 2, 9, 8, CorkPalette.TIMER);
+                CorkBoardGui.text(graphics, font, CorkBoardGui.ellipsize(font, chip, textMax),
+                        layout.timerChip.x() + 15, layout.timerChip.y() + 3, CorkPalette.TIMER);
+            }
         }
 
         String repLabel = Component.translatable(layout.narrow
@@ -221,11 +234,17 @@ public final class CorkBoardScreen extends Screen {
             int ny = layout.noteY(row, i);
             BoardSnapshotPayload.BoardEntry entry = orders.get(i);
             boolean hover = mouseX >= nx && mouseX < nx + layout.noteW
-                    && mouseY >= ny && mouseY < ny + layout.noteH;
-            CorkNoteRenderer.render(graphics, font, entry, style(entry), nx, ny, layout.noteW, layout.noteH,
+                    && mouseY >= ny && mouseY < ny + layout.noteH
+                    || qaHoverIndex == i;
+            CorkNoteStyle noteStyle = style(entry);
+            CorkNoteRenderer.render(graphics, font, entry, noteStyle, nx, ny, layout.noteW, layout.noteH,
                     hover, false);
-            if (hover && readOnly()) {
-                hoverTip = Component.translatable("ui.aerocouriers.cork.need_tablet");
+            if (hover) {
+                hoverTipLines = CorkNoteTooltip.lines(entry, noteStyle, readOnly());
+                if (qaHoverIndex == i) {
+                    qaTipX = nx + layout.noteW / 2;
+                    qaTipY = ny + 12;
+                }
             }
         }
     }

@@ -79,6 +79,23 @@ public final class VillageRefreshUi {
         return Component.translatable("ui.aerocouriers.village_refresh.in", formatDuration(remainingTicks));
     }
 
+    /**
+     * Chip text that stays inside {@code maxTextWidth}: full sentence, otherwise icon-side time only.
+     */
+    public static String chipText(int remainingTicks, int maxTextWidth, java.util.function.ToIntFunction<String> widthOf) {
+        if (remainingTicks < 0 || maxTextWidth <= 0) {
+            return "";
+        }
+        String full = countdownLabel(remainingTicks).getString();
+        if (widthOf.applyAsInt(full) <= maxTextWidth) {
+            return full;
+        }
+        String time = remainingTicks <= SOON_TICKS
+                ? Component.translatable("ui.aerocouriers.village_refresh.soon").getString()
+                : formatDuration(remainingTicks);
+        return widthOf.applyAsInt(time) <= maxTextWidth ? time : time;
+    }
+
     /** Right-aligned clock icon + countdown in the list header band. */
     public static void renderHeader(GuiGraphics graphics, Font font, int contentLeft, int contentRight, int y,
                                     int remainingTicks) {

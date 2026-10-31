@@ -15,7 +15,10 @@ import dev.poligorn.aerocouriers.village.PostStationBlockEntity;
 import dev.poligorn.aerocouriers.village.StationAtlas;
 import dev.poligorn.aerocouriers.village.StationContractSource;
 import dev.poligorn.aerocouriers.client.board.BoardFocus;
+import dev.poligorn.aerocouriers.client.board.VillageRefreshUi;
 import dev.poligorn.aerocouriers.client.station.CorkBoardLayout;
+import dev.poligorn.aerocouriers.client.station.CorkNoteStyle;
+import dev.poligorn.aerocouriers.client.station.CorkNoteTooltip;
 import dev.poligorn.aerocouriers.license.LicenseRank;
 import dev.poligorn.aerocouriers.net.BoardSnapshotPayload;
 import dev.poligorn.aerocouriers.village.VillageAdmin;
@@ -209,7 +212,23 @@ public final class VillageAdminGameTests {
                 "large subtitle inside nameplate");
         helper.assertTrue(large.filterBar.y() >= large.headerPlank.y() + large.headerPlank.h(),
                 "large filter below header plank");
+        helper.assertTrue(timerInsideHeader(narrow), "narrow timer chip inside header");
+        helper.assertTrue(timerInsideHeader(large), "large timer chip inside header");
+        String time = VillageRefreshUi.formatDuration(11_560);
+        helper.assertValueEqual(VillageRefreshUi.chipText(11_560, 8, String::length), time,
+                "overflowing chip falls back to icon+time");
+        helper.assertTrue(VillageRefreshUi.chipText(11_560, 80, String::length).contains(time),
+                "wide chip keeps the countdown");
         helper.succeed();
+    }
+
+    private static boolean timerInsideHeader(CorkBoardLayout layout) {
+        CorkBoardLayout.Rect header = layout.headerPlank;
+        CorkBoardLayout.Rect chip = layout.timerChip;
+        return chip.x() >= header.x()
+                && chip.y() >= header.y()
+                && chip.x() + chip.w() <= header.x() + header.w()
+                && chip.y() + chip.h() <= header.y() + header.h();
     }
 
     @GameTest(template = CouriersGameTests.EMPTY, batch = "aerocouriers.village.admin")
@@ -231,6 +250,21 @@ public final class VillageAdminGameTests {
                 "mergeMissing injects omitted village rows");
         helper.assertValueEqual(BoardFocus.mergeMissing(List.of(extra), List.of(extra)).size(), 1,
                 "mergeMissing skips an already-listed row");
+        helper.succeed();
+    }
+
+    @GameTest(template = CouriersGameTests.EMPTY, batch = "aerocouriers.village.admin")
+    public static void corkNoteHoverTooltipHasContent(GameTestHelper helper) {
+        BoardSnapshotPayload.BoardEntry extra = focusSample(
+                UUID.fromString("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"), "Речной Берег", 90L);
+        CorkNoteStyle style = CorkNoteStyle.of(extra, 3, "");
+        List<net.minecraft.network.chat.Component> lines = CorkNoteTooltip.lines(extra, style, false);
+        helper.assertTrue(lines.size() >= 5, "hover lists dest, cargo, deadline, money, hint");
+        helper.assertTrue(lines.stream().noneMatch(c -> c.getString().isBlank()), "no blank hover lines");
+        List<net.minecraft.network.chat.Component> locked = CorkNoteTooltip.lines(extra,
+                CorkNoteStyle.of(extra, 1, ""), true);
+        helper.assertTrue(locked.stream().anyMatch(c -> !c.getString().isBlank()),
+                "read-only hover still has a tablet hint");
         helper.succeed();
     }
 

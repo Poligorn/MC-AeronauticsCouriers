@@ -116,6 +116,10 @@ public final class CorkQaClient {
         }
         if (cmd.startsWith("open-note") || cmd.startsWith("waybill") || "open-order".equals(cmd)) {
             openFirst(board, style -> !style.locked() && !style.inProgress());
+            return;
+        }
+        if (cmd.startsWith("hover-note") || "hover".equals(cmd)) {
+            board.qaHoverFirstNote();
         }
     }
 
