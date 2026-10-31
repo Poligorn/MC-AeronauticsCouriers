@@ -21,11 +21,18 @@ public final class CorkBoardLayout {
     /** One footer line (count + optional hint). */
     public static final int FOOTER_H = 16;
     /**
-     * Transparent / world margin under the last inner pixel of the frame sprite
-     * (compact hole ends at y=258 of 270; large hole ends at y=342 of 360).
+     * Reserved floor for the 16 px footer line (1 px above the last hole row).
+     * Used only to size the cork; the painted hole is {@link #innerHole}.
      */
     public static final int FRAME_INSET_NARROW = 12;
     public static final int FRAME_INSET_LARGE = 18;
+    /** Exclusive bottom inset of {@code frame_full_*} inner hole (270−259 / 360−343). */
+    public static final int HOLE_BOTTOM_NARROW = 11;
+    public static final int HOLE_BOTTOM_LARGE = 17;
+    public static final int HOLE_SIDE_NARROW = 11;
+    public static final int HOLE_SIDE_LARGE = 18;
+    public static final int SLICE_BORDER_NARROW = 8;
+    public static final int SLICE_BORDER_LARGE = 10;
     private static final int[][] JITTER = {
             {0, 1}, {1, -1}, {-1, 0}, {0, 1}, {1, 0}, {-1, 1}, {0, -1}, {1, 0}
     };
@@ -59,6 +66,8 @@ public final class CorkBoardLayout {
     public final Rect filterBar;
     public final Rect cork;
     public final Rect footerPlank;
+    /** Frame inner hole (exclusive). Panel wood must cover this; the world stays outside. */
+    public final Rect innerHole;
     public final Rect nameplate;
     public final Rect timerChip;
     public final Rect scroll;
@@ -106,13 +115,22 @@ public final class CorkBoardLayout {
         noteH = NOTE_H;
         pitchX = PITCH_X;
         pitchY = PITCH_Y;
-        int side = narrow ? 11 : 18;
+        int side = narrow ? HOLE_SIDE_NARROW : HOLE_SIDE_LARGE;
         int corkTop = narrow ? 82 : 77;
         int preferredCork = narrow ? 180 : 243;
-        int innerBottom = p + winH - (narrow ? FRAME_INSET_NARROW : FRAME_INSET_LARGE);
-        int corkH = Math.min(preferredCork, Math.max(NOTE_H, innerBottom - FOOTER_H - (p + corkTop)));
+        if (exactFrame) {
+            int holeB = narrow ? HOLE_BOTTOM_NARROW : HOLE_BOTTOM_LARGE;
+            innerHole = new Rect(o + side, p + side, winW - 2 * side, winH - side - holeB);
+        } else {
+            int b = narrow ? SLICE_BORDER_NARROW : SLICE_BORDER_LARGE;
+            innerHole = new Rect(o + b, p + b, winW - 2 * b, winH - 2 * b);
+        }
+        int reservedBottom = p + winH - (narrow ? FRAME_INSET_NARROW : FRAME_INSET_LARGE);
+        int corkH = Math.min(preferredCork, Math.max(NOTE_H, reservedBottom - FOOTER_H - (p + corkTop)));
         cork = new Rect(o + side, p + corkTop, winW - 2 * side, corkH);
-        footerPlank = new Rect(o + side, cork.y() + cork.h(), winW - 2 * side, FOOTER_H);
+        int footerTop = cork.y() + cork.h();
+        int holeBottom = innerHole.y() + innerHole.h();
+        footerPlank = new Rect(o + side, footerTop, winW - 2 * side, Math.max(FOOTER_H, holeBottom - footerTop));
         footerCountX = o + side + 6;
         footerCountY = footerPlank.y() + (FOOTER_H - TEXT) / 2;
         footerHintX = footerCountX;
@@ -199,19 +217,22 @@ public final class CorkBoardLayout {
     }
 
     public int frameInsetBottom() {
-        return narrow ? FRAME_INSET_NARROW : FRAME_INSET_LARGE;
+        return winY + winH - (innerHole.y() + innerHole.h());
     }
 
-    /** Footer plank and the 8 px text cell sit inside the frame's inner hole. */
+    /** Footer plank fills down to the hole; the 8 px text cell stays on one line inside it. */
     public boolean footerFitsInFrame() {
-        int innerBottom = winY + winH - frameInsetBottom();
+        int holeBottom = innerHole.y() + innerHole.h();
+        int holeRight = innerHole.x() + innerHole.w();
         int textBottom = footerCountY + TEXT;
         return footerPlank.y() >= cork.y() + cork.h()
-                && footerPlank.y() + footerPlank.h() <= innerBottom
+                && footerPlank.y() + footerPlank.h() >= holeBottom
+                && footerPlank.y() + footerPlank.h() <= holeBottom
                 && footerCountY >= footerPlank.y()
-                && textBottom <= footerPlank.y() + footerPlank.h()
-                && textBottom <= innerBottom
-                && footerPlank.x() >= winX
-                && footerPlank.x() + footerPlank.w() <= winX + winW;
+                && footerCountY + TEXT <= footerPlank.y() + FOOTER_H
+                && textBottom <= holeBottom
+                && footerHintY == footerCountY
+                && footerPlank.x() >= innerHole.x()
+                && footerPlank.x() + footerPlank.w() <= holeRight;
     }
 }
