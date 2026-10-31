@@ -945,6 +945,7 @@ public final class ContractManager extends SavedData {
             StationAtlas atlas = StationAtlas.get(server);
             atlas.adjustReputation(contract.issuer(), StationReputation.DELIVERY_DELTA);
             atlas.adjustReputation(contract.recipient(), StationReputation.DELIVERY_DELTA);
+            atlas.recordDelivery(contract.issuer());
             int originRep = atlas.reputation(contract.issuer());
             int destRep = atlas.reputation(contract.recipient());
             paid = Math.max(1, Math.round(paid * StationReputation.rewardMultiplier(originRep, destRep)));

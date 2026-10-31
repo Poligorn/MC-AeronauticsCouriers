@@ -176,6 +176,7 @@ public final class CourierBoardScreen extends Screen {
             listRowButtonKey = null;
             refreshBoardContent();
             focusScrollToSelected();
+            openDetails(focus);
         }
         if (selected != null && payload.find(selected).isEmpty()) {
             selected = null;

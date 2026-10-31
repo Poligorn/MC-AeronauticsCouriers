@@ -52,11 +52,25 @@ public final class StationContractSource implements ContractSource {
 
     public static void onServerTick(ServerTickEvent.Post event) {
         MinecraftServer server = event.getServer();
-        int interval = CouriersServerConfig.VILLAGE_GENERATION_INTERVAL_MIN.get() * 60 * 20;
-        if (interval <= 0 || server.getTickCount() == 0 || server.getTickCount() % interval != 0) {
+        long tick = server.getTickCount();
+        if (tick == 0) {
             return;
         }
-        INSTANCE.generate(server);
+        int global = CouriersServerConfig.VILLAGE_GENERATION_INTERVAL_MIN.get() * 60 * 20;
+        boolean globalDue = global > 0 && tick % global == 0;
+        if (globalDue) {
+            INSTANCE.generate(server);
+        }
+        for (StationAtlas.Station station : StationAtlas.get(server).all()) {
+            int custom = station.policy().refreshIntervalMin();
+            if (custom <= 0) {
+                continue;
+            }
+            int ticks = custom * 60 * 20;
+            if (ticks > 0 && tick % ticks == 0 && !(globalDue && custom == CouriersServerConfig.VILLAGE_GENERATION_INTERVAL_MIN.get())) {
+                generateFor(server, station);
+            }
+        }
     }
 
     /** Fills the board up to {@code village_board_max}; same-dimension pairs per level, then optional cross-dimension. */
@@ -194,6 +208,50 @@ public final class StationContractSource implements ContractSource {
         });
     }
 
+    /** Fills OPEN village orders that start at {@code from}, honouring that station's board policy. */
+    public static int generateFor(MinecraftServer server, StationAtlas.Station from) {
+        ServerLevel level = server.getLevel(from.dimension());
+        if (level == null) {
+            return 0;
+        }
+        ContractManager manager = ContractManager.get(server);
+        long already = manager.all()
+                .filter(c -> c.type() == ContractType.VILLAGE && c.state() == ContractState.OPEN)
+                .count();
+        int room = (int) Math.max(0, CouriersServerConfig.VILLAGE_BOARD_MAX.get() - already);
+        if (room <= 0) {
+            return 0;
+        }
+        List<StationAtlas.Station> others = StationAtlas.get(server).all().stream()
+                .filter(s -> !s.id().equals(from.id()))
+                .toList();
+        List<StationAtlas.Station> candidates = new ArrayList<>(others);
+        Collections.shuffle(candidates, new java.util.Random(level.getRandom().nextLong()));
+        int created = 0;
+        for (StationAtlas.Station to : candidates) {
+            if (created >= room) {
+                break;
+            }
+            if (from.dimension().equals(to.dimension())
+                    && from.pos().distSqr(to.pos()) > MAX_PAIR_DISTANCE * MAX_PAIR_DISTANCE) {
+                continue;
+            }
+            if (!from.dimension().equals(to.dimension()) && !CouriersServerConfig.ALLOW_CROSS_DIMENSION_ORDERS.get()) {
+                continue;
+            }
+            if (hasOpenPair(manager, from, to)) {
+                continue;
+            }
+            if (!level.isLoaded(from.pos())) {
+                continue;
+            }
+            if (publish(level, from, to, level.getRandom()).isPresent()) {
+                created++;
+            }
+        }
+        return created;
+    }
+
     public static boolean hasOpenPair(ContractManager manager, StationAtlas.Station from, StationAtlas.Station to) {
         return manager.open()
                 .filter(c -> c.type() == ContractType.VILLAGE)
@@ -212,6 +270,7 @@ public final class StationContractSource implements ContractSource {
         ResourceLocation destinationBiome = destinationLevel != null
                 ? biomeId(destinationLevel, to.pos())
                 : biomeId(level, to.pos());
+        VillageBoardPolicy policy = from.policy();
         VillageCargo.ManifestRoll rolled = VillageCargo.rollManifest(
                 biomeId(level, from.pos()),
                 destinationBiome,
@@ -220,15 +279,21 @@ public final class StationContractSource implements ContractSource {
                 random);
         List<ItemStack> manifest = rolled.stacks();
         boolean villageRare = rolled.rare();
+        if (villageRare && !policy.allowRare()) {
+            return Optional.empty();
+        }
         double weight = Weights.of(manifest);
         Optional<CargoSize> size = CargoSize.smallestFor(manifest.size(), weight);
-        if (size.isEmpty()) {
+        if (size.isEmpty() || !policy.allowsSize(size.get())) {
             return Optional.empty();
         }
         double distance = ContractDistances.pricingBlocks(
                 new Destination(from.dimension(), from.pos(), ZONE_RADIUS),
                 new Destination(to.dimension(), to.pos(), ZONE_RADIUS));
         long reward = Pricing.npcReward(distance, weight, random);
+        if (!policy.allowExpensive() && reward >= VillageBoardPolicy.EXPENSIVE_REWARD) {
+            return Optional.empty();
+        }
         CollateralProfile profile = CollateralProfile.active();
         long collateral = Pricing.npcCollateral(profile, manifest, weight);
         Destination origin = new Destination(from.dimension(), from.pos(), ZONE_RADIUS);

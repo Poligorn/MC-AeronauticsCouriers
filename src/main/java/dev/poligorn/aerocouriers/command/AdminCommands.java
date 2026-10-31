@@ -27,8 +27,11 @@ import dev.poligorn.aerocouriers.economy.Economies;
 import dev.poligorn.aerocouriers.item.Waybills;
 import dev.poligorn.aerocouriers.village.StationAtlas;
 import dev.poligorn.aerocouriers.village.StationContractSource;
+import dev.poligorn.aerocouriers.village.VillageAdmin;
+import dev.poligorn.aerocouriers.village.VillageBoardPolicy;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
@@ -60,7 +63,8 @@ public final class AdminCommands {
                         .then(Commands.argument("player", EntityArgument.player())
                                 .executes(AdminCommands::playerResetLicense)))
                 .then(economyBranch())
-                .then(serverBranch());
+                .then(serverBranch())
+                .then(villageBranch());
     }
 
     private static LiteralArgumentBuilder<CommandSourceStack> contractBranch() {
@@ -126,6 +130,176 @@ public final class AdminCommands {
                         .executes(ctx -> economyHand(ctx, false))
                         .then(Commands.argument("weight", DoubleArgumentType.doubleArg(0))
                                 .executes(ctx -> economySetWeight(ctx, DoubleArgumentType.getDouble(ctx, "weight")))));
+    }
+
+    private static LiteralArgumentBuilder<CommandSourceStack> villageBranch() {
+        RequiredArgumentBuilder<CommandSourceStack, String> village = Commands.argument("village",
+                        StringArgumentType.string())
+                .suggests((ctx, builder) -> {
+                    List<String> names = new java.util.ArrayList<>();
+                    names.add(VillageAdmin.HERE);
+                    StationAtlas.get(ctx.getSource().getServer()).all()
+                            .forEach(s -> names.add(s.name()));
+                    return SharedSuggestionProvider.suggest(names, builder);
+                });
+        village.then(Commands.literal("rename")
+                .then(Commands.argument("name", StringArgumentType.greedyString())
+                        .executes(AdminCommands::villageRename)));
+        village.then(Commands.literal("rep")
+                .then(Commands.literal("add").then(Commands.argument("amount", IntegerArgumentType.integer())
+                        .executes(ctx -> villageRep(ctx, false, false))))
+                .then(Commands.literal("set").then(Commands.argument("amount", IntegerArgumentType.integer())
+                        .executes(ctx -> villageRep(ctx, true, false))))
+                .then(Commands.literal("sub").then(Commands.argument("amount", IntegerArgumentType.integer())
+                        .executes(ctx -> villageRep(ctx, false, true)))));
+        village.then(Commands.literal("refresh").executes(AdminCommands::villageRefresh));
+        village.then(Commands.literal("regenerate").executes(AdminCommands::villageRegenerate));
+        village.then(Commands.literal("clear").executes(AdminCommands::villageClear));
+        village.then(Commands.literal("interval")
+                .then(Commands.argument("minutes", IntegerArgumentType.integer(0, 1440))
+                        .executes(AdminCommands::villageInterval)));
+        village.then(Commands.literal("stats").executes(AdminCommands::villageStats));
+        village.then(Commands.literal("info").executes(AdminCommands::villageStats));
+        village.then(Commands.literal("expensive")
+                .then(Commands.argument("value", BoolArgumentType.bool())
+                        .executes(ctx -> villageToggle(ctx, true))));
+        village.then(Commands.literal("rare")
+                .then(Commands.argument("value", BoolArgumentType.bool())
+                        .executes(ctx -> villageToggle(ctx, false))));
+        village.then(Commands.literal("sizes")
+                .then(Commands.argument("sizes", StringArgumentType.greedyString())
+                        .executes(AdminCommands::villageSizes)));
+        village.then(Commands.literal("orders")
+                .then(Commands.literal("refresh").executes(AdminCommands::villageRefresh))
+                .then(Commands.literal("regenerate").executes(AdminCommands::villageRegenerate))
+                .then(Commands.literal("clear").executes(AdminCommands::villageClear)));
+        return Commands.literal("village")
+                .then(Commands.literal("list").executes(AdminCommands::villageList))
+                .then(village);
+    }
+
+    private static Optional<StationAtlas.Station> villageArg(CommandContext<CommandSourceStack> ctx) {
+        CommandSourceStack source = ctx.getSource();
+        return VillageAdmin.resolve(source.getServer(), source.getPlayer(),
+                StringArgumentType.getString(ctx, "village"));
+    }
+
+    private static int villageMissing(CommandSourceStack source, String token) {
+        source.sendFailure(Component.translatable("admin.aerocouriers.village.unknown", token));
+        return 0;
+    }
+
+    private static int villageRename(CommandContext<CommandSourceStack> ctx) {
+        String token = StringArgumentType.getString(ctx, "village");
+        Optional<StationAtlas.Station> station = villageArg(ctx);
+        if (station.isEmpty()) {
+            return villageMissing(ctx.getSource(), token);
+        }
+        Component message = VillageAdmin.rename(ctx.getSource().getServer(), station.get(),
+                StringArgumentType.getString(ctx, "name"));
+        ctx.getSource().sendSuccess(() -> message, true);
+        return 1;
+    }
+
+    private static int villageRep(CommandContext<CommandSourceStack> ctx, boolean set, boolean sub) {
+        String token = StringArgumentType.getString(ctx, "village");
+        Optional<StationAtlas.Station> station = villageArg(ctx);
+        if (station.isEmpty()) {
+            return villageMissing(ctx.getSource(), token);
+        }
+        int amount = IntegerArgumentType.getInteger(ctx, "amount");
+        Component message = set
+                ? VillageAdmin.setReputation(ctx.getSource().getServer(), station.get(), amount)
+                : VillageAdmin.addReputation(ctx.getSource().getServer(), station.get(), sub ? -amount : amount);
+        ctx.getSource().sendSuccess(() -> message, true);
+        return 1;
+    }
+
+    private static int villageRefresh(CommandContext<CommandSourceStack> ctx) {
+        return villageAction(ctx, VillageAdmin::refreshNow);
+    }
+
+    private static int villageRegenerate(CommandContext<CommandSourceStack> ctx) {
+        return villageAction(ctx, VillageAdmin::regenerate);
+    }
+
+    private static int villageClear(CommandContext<CommandSourceStack> ctx) {
+        return villageAction(ctx, VillageAdmin::clearBoard);
+    }
+
+    private static int villageInterval(CommandContext<CommandSourceStack> ctx) {
+        String token = StringArgumentType.getString(ctx, "village");
+        Optional<StationAtlas.Station> station = villageArg(ctx);
+        if (station.isEmpty()) {
+            return villageMissing(ctx.getSource(), token);
+        }
+        Component message = VillageAdmin.setInterval(ctx.getSource().getServer(), station.get(),
+                IntegerArgumentType.getInteger(ctx, "minutes"));
+        ctx.getSource().sendSuccess(() -> message, true);
+        return 1;
+    }
+
+    private static int villageStats(CommandContext<CommandSourceStack> ctx) {
+        return villageAction(ctx, VillageAdmin::statsMessage);
+    }
+
+    private static int villageToggle(CommandContext<CommandSourceStack> ctx, boolean expensive) {
+        String token = StringArgumentType.getString(ctx, "village");
+        Optional<StationAtlas.Station> station = villageArg(ctx);
+        if (station.isEmpty()) {
+            return villageMissing(ctx.getSource(), token);
+        }
+        boolean value = BoolArgumentType.getBool(ctx, "value");
+        Component message = expensive
+                ? VillageAdmin.setExpensive(ctx.getSource().getServer(), station.get(), value)
+                : VillageAdmin.setRare(ctx.getSource().getServer(), station.get(), value);
+        ctx.getSource().sendSuccess(() -> message, true);
+        return 1;
+    }
+
+    private static int villageSizes(CommandContext<CommandSourceStack> ctx) {
+        String token = StringArgumentType.getString(ctx, "village");
+        Optional<StationAtlas.Station> station = villageArg(ctx);
+        if (station.isEmpty()) {
+            return villageMissing(ctx.getSource(), token);
+        }
+        try {
+            int mask = VillageBoardPolicy.maskOf(VillageBoardPolicy.parseSizes(
+                    StringArgumentType.getString(ctx, "sizes")));
+            Component message = VillageAdmin.setSizes(ctx.getSource().getServer(), station.get(), mask);
+            ctx.getSource().sendSuccess(() -> message, true);
+            return 1;
+        } catch (IllegalArgumentException e) {
+            ctx.getSource().sendFailure(Component.translatable("admin.aerocouriers.village.sizes.unknown"));
+            return 0;
+        }
+    }
+
+    private static int villageList(CommandContext<CommandSourceStack> ctx) {
+        Collection<StationAtlas.Station> all = StationAtlas.get(ctx.getSource().getServer()).all();
+        ctx.getSource().sendSuccess(() -> Component.translatable("admin.aerocouriers.village.list.header",
+                all.size()), false);
+        for (StationAtlas.Station station : all) {
+            ctx.getSource().sendSuccess(() -> Component.translatable("admin.aerocouriers.village.list.line",
+                    station.name(), station.reputation(), station.pos().toShortString()), false);
+        }
+        return all.size();
+    }
+
+    @FunctionalInterface
+    private interface VillageOp {
+        Component run(MinecraftServer server, StationAtlas.Station station);
+    }
+
+    private static int villageAction(CommandContext<CommandSourceStack> ctx, VillageOp op) {
+        String token = StringArgumentType.getString(ctx, "village");
+        Optional<StationAtlas.Station> station = villageArg(ctx);
+        if (station.isEmpty()) {
+            return villageMissing(ctx.getSource(), token);
+        }
+        Component message = op.run(ctx.getSource().getServer(), station.get());
+        ctx.getSource().sendSuccess(() -> message, true);
+        return 1;
     }
 
     private static LiteralArgumentBuilder<CommandSourceStack> serverBranch() {

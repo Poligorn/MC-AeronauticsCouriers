@@ -10,11 +10,11 @@ import net.minecraft.client.gui.screens.Screen;
  * {@code processBlurEffect} there, which breaks sprite atlas draws for the rest of the frame
  * (tabs/frame vanish while {@link TabletGui#drawScreenBackground} fills still show).
  */
-final class InGamePauseBackground {
+public final class InGamePauseBackground {
     private InGamePauseBackground() {
     }
 
-    static void render(Screen screen, GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+    public static void render(Screen screen, GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         render(screen, graphics, mouseX, mouseY, partialTick, 1.0F);
     }
 
