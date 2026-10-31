@@ -100,19 +100,6 @@ public final class CorkSprites {
         return id("note_paper_normal" + suffix);
     }
 
-    public static ResourceLocation waybill(CorkNoteStyle style) {
-        if (style.expensive() && style.rare()) {
-            return id("waybill_sheet_expensive_rare_344x244");
-        }
-        if (style.expensive()) {
-            return id("waybill_sheet_expensive_344x244");
-        }
-        if (style.rare()) {
-            return id("waybill_sheet_rare_344x244");
-        }
-        return id("waybill_sheet_normal_344x244");
-    }
-
     public static ResourceLocation crate(String size) {
         return switch (size.toLowerCase()) {
             case "s" -> id("crate_s_52x52");

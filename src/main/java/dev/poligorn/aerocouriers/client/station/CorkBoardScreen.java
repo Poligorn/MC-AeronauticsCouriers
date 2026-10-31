@@ -3,6 +3,7 @@ package dev.poligorn.aerocouriers.client.station;
 import com.mojang.blaze3d.systems.RenderSystem;
 import dev.poligorn.aerocouriers.cargo.CargoSize;
 import dev.poligorn.aerocouriers.client.ClientBoard;
+import dev.poligorn.aerocouriers.client.ClientCouriersSounds;
 import dev.poligorn.aerocouriers.client.TooltipDraw;
 import dev.poligorn.aerocouriers.client.board.VillageRefreshUi;
 import dev.poligorn.aerocouriers.license.LicenseRank;
@@ -10,6 +11,7 @@ import dev.poligorn.aerocouriers.net.BoardSnapshotPayload;
 import dev.poligorn.aerocouriers.net.StationSnapshotPayload;
 import dev.poligorn.aerocouriers.net.VillageAdminPayload;
 import java.util.List;
+import java.util.UUID;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
@@ -23,7 +25,6 @@ public final class CorkBoardScreen extends Screen {
     private final CorkBoardFilters filters = new CorkBoardFilters();
     private CorkBoardLayout layout;
     private int scroll;
-    private @Nullable StationWaybillOverlay waybill;
     private @Nullable Component hoverTip;
 
     public CorkBoardScreen(StationSnapshotPayload snapshot) {
@@ -35,18 +36,6 @@ public final class CorkBoardScreen extends Screen {
     public void apply(StationSnapshotPayload payload) {
         this.snapshot = payload;
         syncRefresh();
-        if (waybill != null) {
-            BoardSnapshotPayload.BoardEntry found = find(waybill.entry().id());
-            waybill = found == null ? null : new StationWaybillOverlay(payload, found, style(found));
-        }
-    }
-
-    public void openWaybill(BoardSnapshotPayload.BoardEntry entry) {
-        waybill = new StationWaybillOverlay(snapshot, entry, style(entry));
-    }
-
-    public void closeWaybill() {
-        waybill = null;
     }
 
     public void setScrollRows(int rows) {
@@ -60,6 +49,16 @@ public final class CorkBoardScreen extends Screen {
 
     public CorkNoteStyle noteStyle(BoardSnapshotPayload.BoardEntry entry) {
         return style(entry);
+    }
+
+    /** QA / click: open the courier tablet on this village order. */
+    public void openOrderOnTablet(BoardSnapshotPayload.BoardEntry entry) {
+        if (readOnly()) {
+            hoverTip = Component.translatable("ui.aerocouriers.cork.need_tablet");
+            ClientCouriersSounds.playOrderDeny();
+            return;
+        }
+        ClientBoard.focusContract(entry.id());
     }
 
     private void syncRefresh() {
@@ -79,7 +78,6 @@ public final class CorkBoardScreen extends Screen {
 
     @Override
     public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        // World stays visible. No dim and no full-screen mask — HUD is skipped by CorkHudGuard.
         RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
     }
 
@@ -102,7 +100,7 @@ public final class CorkBoardScreen extends Screen {
         drawNotes(graphics, orders, mouseX, mouseY);
         graphics.disableScissor();
         if (readOnly()) {
-            if (!layout.compact) {
+            if (!layout.narrow && layout.cork.w() == 604) {
                 CorkBoardGui.blit(graphics, CorkSprites.GLASS, layout.cork.x(), layout.cork.y(), 604, 243);
             } else {
                 graphics.fill(layout.cork.x(), layout.cork.y(),
@@ -112,14 +110,6 @@ public final class CorkBoardScreen extends Screen {
         drawFooter(graphics, mouseX, mouseY);
         CorkBoardGui.scrollBar(graphics, layout.scroll, scroll, layout.maxScrollRows(orders.size()),
                 layout.visibleRows, layout.totalRows(orders.size()));
-        if (waybill != null) {
-            waybill.layout(layout);
-            waybill.render(graphics, font, mouseX, mouseY);
-            Component hint = waybill.hint();
-            if (!hint.getString().isEmpty() && waybill.overButton(mouseX, mouseY)) {
-                hoverTip = hint;
-            }
-        }
         if (hoverTip != null) {
             TooltipDraw.render(graphics, font, List.of(hoverTip), java.util.Optional.empty(), mouseX, mouseY);
         }
@@ -136,13 +126,11 @@ public final class CorkBoardScreen extends Screen {
                 CorkPalette.HEADER_TITLE);
         String title = Component.translatable("ui.aerocouriers.cork.station", snapshot.name()).getString();
         int titleMax = Math.max(24, layout.timerChip.x() - layout.titleX - 8);
-        CorkBoardGui.bold(graphics, font, CorkBoardGui.ellipsize(font, title, titleMax),
+        CorkBoardGui.bold(graphics, font, font.width(title) <= titleMax ? title
+                        : CorkBoardGui.ellipsize(font, title, titleMax),
                 layout.titleX, layout.titleY, CorkPalette.HEADER_TITLE);
-        if (!layout.compact) {
-            CorkBoardGui.text(graphics, font, CorkBoardGui.ellipsize(font,
-                            Component.translatable("ui.aerocouriers.cork.subtitle").getString(), titleMax),
-                    layout.subtitleX, layout.subtitleY, CorkPalette.HEADER_SUBTITLE);
-        }
+        CorkBoardGui.text(graphics, font, Component.translatable("ui.aerocouriers.cork.subtitle"),
+                layout.subtitleX, layout.subtitleY, CorkPalette.HEADER_SUBTITLE);
 
         CorkBoardGui.blit(graphics, CorkSprites.CHIP_DARK, layout.timerChip);
         int timer = VillageRefreshUi.remainingTicks(minecraft);
@@ -154,41 +142,55 @@ public final class CorkBoardScreen extends Screen {
                     CorkPalette.TIMER);
         }
 
-        int repLabelMax = Math.max(16, layout.repBarX - layout.repLabelX - 4);
-        CorkBoardGui.text(graphics, font, CorkBoardGui.ellipsize(font, Component.translatable(layout.compact
-                        ? "ui.aerocouriers.cork.reputation_label_short"
-                        : "ui.aerocouriers.cork.reputation_label").getString(), repLabelMax),
-                layout.repLabelX, layout.repLabelY, CorkPalette.HEADER_MUTED);
-        CorkBoardGui.reputationBar(graphics, layout.repBarX, layout.repBarY, layout.repBarW, 7,
-                snapshot.reputation(), 50);
-        CorkBoardGui.bold(graphics, font, Integer.toString(snapshot.reputation()),
-                layout.repValueX, layout.repValueY, CorkPalette.REPUTATION);
-        Component bonus = Component.translatable(layout.compact
-                        ? "ui.aerocouriers.cork.bonus_short"
-                        : "ui.aerocouriers.cork.bonus",
-                snapshot.bonusPercent());
-        int bonusMax = (layout.compact ? layout.headerPlank.x() + layout.headerPlank.w() : layout.rankX)
-                - layout.bonusX - 8;
-        CorkBoardGui.text(graphics, font, CorkBoardGui.ellipsize(font, bonus.getString(), Math.max(16, bonusMax)),
-                layout.bonusX, layout.bonusY, CorkPalette.REPUTATION);
-        if (!layout.compact) {
-            LicenseRank rank = snapshot.view().playerRankLevel() <= 0
-                    ? LicenseRank.ADMIN
-                    : LicenseRank.byLevel(snapshot.view().playerRankLevel());
-            String rankText = Component.translatable("ui.aerocouriers.cork.rank",
-                    rank.displayName()).getString();
-            CorkBoardGui.text(graphics, font, CorkBoardGui.ellipsize(font, rankText,
-                            Math.max(24, layout.headerPlank.x() + layout.headerPlank.w() - layout.rankX - 8)),
-                    layout.rankX, layout.rankY, CorkPalette.HEADER_MUTED);
+        String repLabel = Component.translatable("ui.aerocouriers.cork.reputation_label").getString();
+        String bonus = Component.translatable("ui.aerocouriers.cork.bonus", snapshot.bonusPercent()).getString();
+        LicenseRank rank = snapshot.view().playerRankLevel() <= 0
+                ? LicenseRank.ADMIN
+                : LicenseRank.byLevel(snapshot.view().playerRankLevel());
+        String rankText = Component.translatable("ui.aerocouriers.cork.rank", rank.displayName()).getString();
+        String repValue = Integer.toString(snapshot.reputation());
+        int headerRight = layout.headerPlank.x() + layout.headerPlank.w() - 8;
+        int labelW = font.width(repLabel);
+        int valueW = font.width(repValue);
+        int bonusW = font.width(bonus);
+        int rankW = font.width(rankText);
+        int barW = layout.narrow ? 80 : 150;
+        int first = labelW + 6 + barW + 6 + valueW + 6 + bonusW + 8 + rankW;
+        boolean rankBelow = first > headerRight - layout.repLabelX || layout.narrow;
+        if (rankBelow) {
+            int withoutRank = labelW + 6 + barW + 6 + valueW + 6 + bonusW;
+            int overflow = withoutRank - (headerRight - layout.repLabelX);
+            if (overflow > 0) {
+                barW = Math.max(48, barW - overflow);
+            }
+        }
+        CorkBoardGui.text(graphics, font, repLabel, layout.repLabelX, layout.repLabelY, CorkPalette.HEADER_MUTED);
+        int barX = layout.repLabelX + labelW + 6;
+        CorkBoardGui.reputationBar(graphics, barX, layout.repLabelY - 1, barW, 7, snapshot.reputation(), 50);
+        int valueX = barX + barW + 6;
+        CorkBoardGui.bold(graphics, font, repValue, valueX, layout.repLabelY, CorkPalette.REPUTATION);
+        int bonusX = valueX + valueW + 6;
+        int bonusMax = Math.max(16, (rankBelow ? headerRight : headerRight - rankW - 8) - bonusX);
+        if (font.width(bonus) > bonusMax) {
+            bonus = Component.translatable("ui.aerocouriers.cork.bonus_short", snapshot.bonusPercent()).getString();
+        }
+        if (font.width(bonus) > bonusMax) {
+            CorkBoardGui.wrap2(graphics, font, bonus, bonusX, layout.repLabelY, bonusMax, CorkPalette.REPUTATION);
+        } else {
+            CorkBoardGui.text(graphics, font, bonus, bonusX, layout.repLabelY, CorkPalette.REPUTATION);
+        }
+        if (rankBelow) {
+            CorkBoardGui.text(graphics, font, rankText, layout.repLabelX, layout.repLabelY + 9,
+                    CorkPalette.HEADER_MUTED);
+        } else {
+            CorkBoardGui.text(graphics, font, rankText, headerRight - rankW, layout.repLabelY, CorkPalette.HEADER_MUTED);
         }
 
         if (readOnly()) {
             CorkBoardGui.blit(graphics, CorkSprites.BANNER, layout.filterBar);
             CorkBoardGui.blitTint(graphics, CorkSprites.ICON_WARN, layout.filterBar.x() + 8,
                     layout.filterBar.y() + 4, 7, 6, CorkPalette.BANNER_ICON);
-            CorkBoardGui.text(graphics, font, CorkBoardGui.ellipsize(font,
-                            Component.translatable("ui.aerocouriers.cork.readonly.banner").getString(),
-                            layout.filterBar.w() - 28),
+            CorkBoardGui.text(graphics, font, Component.translatable("ui.aerocouriers.cork.readonly.banner"),
                     layout.filterBar.x() + 20, layout.filterBar.y() + 5, CorkPalette.BANNER);
         } else {
             CorkBoardGui.chip(graphics, font, layout.chips[0], filters.sizeLabel(),
@@ -208,11 +210,9 @@ public final class CorkBoardScreen extends Screen {
 
     private void drawNotes(GuiGraphics graphics, List<BoardSnapshotPayload.BoardEntry> orders, int mouseX, int mouseY) {
         if (orders.isEmpty()) {
-            if (!layout.compact) {
-                CorkBoardGui.blit(graphics, CorkSprites.EMPTY_PAPER,
-                        layout.cork.x() + (layout.cork.w() - 280) / 2,
-                        layout.cork.y() + (layout.cork.h() - 118) / 2, 280, 118);
-            }
+            CorkBoardGui.blit(graphics, CorkSprites.EMPTY_PAPER,
+                    layout.cork.x() + (layout.cork.w() - 280) / 2,
+                    layout.cork.y() + (layout.cork.h() - 118) / 2, 280, 118);
             Component empty = Component.translatable("ui.aerocouriers.cork.empty");
             CorkBoardGui.bold(graphics, font, empty,
                     layout.cork.x() + (layout.cork.w() - font.width(empty)) / 2,
@@ -220,7 +220,7 @@ public final class CorkBoardScreen extends Screen {
             return;
         }
         int start = scroll * layout.cols;
-        int end = Math.min(orders.size(), start + layout.cols * layout.visibleRows);
+        int end = Math.min(orders.size(), start + layout.cols * layout.drawRows);
         for (int i = start; i < end; i++) {
             int local = i - start;
             int col = local % layout.cols;
@@ -228,25 +228,27 @@ public final class CorkBoardScreen extends Screen {
             int nx = layout.noteX(col, i);
             int ny = layout.noteY(row, i);
             BoardSnapshotPayload.BoardEntry entry = orders.get(i);
-            boolean hover = waybill == null && mouseX >= nx && mouseX < nx + layout.noteW
+            boolean hover = mouseX >= nx && mouseX < nx + layout.noteW
                     && mouseY >= ny && mouseY < ny + layout.noteH;
             CorkNoteRenderer.render(graphics, font, entry, style(entry), nx, ny, layout.noteW, layout.noteH,
-                    hover, layout.compact);
+                    hover, false);
+            if (hover) {
+                hoverTip = readOnly()
+                        ? Component.translatable("ui.aerocouriers.cork.need_tablet")
+                        : Component.translatable("ui.aerocouriers.cork.hint");
+            }
         }
     }
 
     private void drawFooter(GuiGraphics graphics, int mouseX, int mouseY) {
-        CorkBoardGui.text(graphics, font, CorkBoardGui.ellipsize(font, Component.translatable(
-                        "ui.aerocouriers.cork.orders_count", snapshot.orders().size()).getString(),
-                        Math.max(24, layout.tabletBtn.x() - layout.footerCountX - 8)),
+        CorkBoardGui.text(graphics, font, Component.translatable(
+                        "ui.aerocouriers.cork.orders_count", snapshot.orders().size()),
                 layout.footerCountX, layout.footerCountY, CorkPalette.FOOTER);
-        if (!layout.compact) {
+        if (!layout.narrow) {
             Component hint = Component.translatable(readOnly()
                     ? "ui.aerocouriers.cork.readonly.hint"
                     : "ui.aerocouriers.cork.hint");
-            CorkBoardGui.text(graphics, font, CorkBoardGui.ellipsize(font, hint.getString(),
-                            Math.max(24, layout.tabletBtn.x() - layout.footerHintX - 8)),
-                    layout.footerHintX, layout.footerHintY, CorkPalette.FOOTER_HINT);
+            CorkBoardGui.text(graphics, font, hint, layout.footerHintX, layout.footerHintY, CorkPalette.FOOTER_HINT);
         }
         boolean tabletOk = !readOnly();
         Component tablet = Component.translatable(tabletOk
@@ -261,13 +263,6 @@ public final class CorkBoardScreen extends Screen {
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (button != 0) {
             return super.mouseClicked(mouseX, mouseY, button);
-        }
-        if (waybill != null) {
-            if (waybill.overClose(mouseX, mouseY) || !waybill.contains(mouseX, mouseY)) {
-                waybill = null;
-                return true;
-            }
-            return waybill.mouseClicked(mouseX, mouseY);
         }
         if (!readOnly() && over(mouseX, mouseY, layout.chips[0])) {
             cycleSize();
@@ -292,7 +287,7 @@ public final class CorkBoardScreen extends Screen {
         }
         List<BoardSnapshotPayload.BoardEntry> orders = filters.apply(snapshot.orders());
         int start = scroll * layout.cols;
-        int end = Math.min(orders.size(), start + layout.cols * layout.visibleRows);
+        int end = Math.min(orders.size(), start + layout.cols * layout.drawRows);
         for (int i = start; i < end; i++) {
             int local = i - start;
             int col = local % layout.cols;
@@ -300,7 +295,7 @@ public final class CorkBoardScreen extends Screen {
             int nx = layout.noteX(col, i);
             int ny = layout.noteY(row, i);
             if (mouseX >= nx && mouseX < nx + layout.noteW && mouseY >= ny && mouseY < ny + layout.noteH) {
-                waybill = new StationWaybillOverlay(snapshot, orders.get(i), style(orders.get(i)));
+                openOrderOnTablet(orders.get(i));
                 return true;
             }
         }
@@ -340,15 +335,6 @@ public final class CorkBoardScreen extends Screen {
     }
 
     @Override
-    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        if (keyCode == 256 && waybill != null) {
-            waybill = null;
-            return true;
-        }
-        return super.keyPressed(keyCode, scanCode, modifiers);
-    }
-
-    @Override
     public boolean isPauseScreen() {
         return false;
     }
@@ -358,13 +344,9 @@ public final class CorkBoardScreen extends Screen {
         return CorkNoteStyle.of(entry, snapshot.view().playerRankLevel(), snapshot.view().courierName(index));
     }
 
-    private @Nullable BoardSnapshotPayload.BoardEntry find(java.util.UUID id) {
-        for (BoardSnapshotPayload.BoardEntry entry : snapshot.orders()) {
-            if (entry.id().equals(id)) {
-                return entry;
-            }
-        }
-        return null;
+    public @Nullable UUID firstVisibleOrderId() {
+        List<BoardSnapshotPayload.BoardEntry> orders = filters.apply(snapshot.orders());
+        return orders.isEmpty() ? null : orders.getFirst().id();
     }
 
     private static boolean over(double mx, double my, CorkBoardLayout.Rect r) {

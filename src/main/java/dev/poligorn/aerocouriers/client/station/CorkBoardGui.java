@@ -77,20 +77,25 @@ public final class CorkBoardGui {
     public static void adminWindow(GuiGraphics g, CorkBoardLayout layout) {
         fullBright();
         blit(g, CorkSprites.WOOD_DARK_H, layout.headerPlank);
-        blit(g, CorkSprites.ADMIN_BG, layout.winX + (layout.compact ? 11 : 18),
-                layout.winY + (layout.compact ? 45 : 58),
-                layout.compact ? 458 : 604, layout.compact ? 196 : 262);
+        blit(g, CorkSprites.ADMIN_BG, layout.winX + (layout.narrow ? 11 : 18),
+                layout.winY + (layout.narrow ? 51 : 58),
+                layout.narrow ? layout.winW - 22 : 604, layout.narrow ? layout.winH - 73 : 262);
         blit(g, CorkSprites.WOOD_DARK_H, layout.footerPlank);
         blitFrame(g, layout);
     }
 
-    /** Cork plate at native 604×243 / 458×180 — never stretched to the game window. */
+    /** Cork plate at native size, or tiled when the window is not 640 / 480. */
     private static void blitCork(GuiGraphics g, CorkBoardLayout layout) {
-        if (layout.compact) {
-            blit(g, CorkSprites.CORK_AREA_COMPACT, layout.cork.x(), layout.cork.y(), 458, 180);
-        } else {
+        if (!layout.narrow && layout.cork.w() == 604 && layout.cork.h() == 243) {
             blit(g, CorkSprites.CORK_AREA, layout.cork.x(), layout.cork.y(), 604, 243);
+            return;
         }
+        if (layout.narrow && layout.cork.w() == 458) {
+            blit(g, CorkSprites.CORK_AREA_COMPACT, layout.cork.x(), layout.cork.y(), 458, 180);
+            return;
+        }
+        blit(g, CorkSprites.CORK_TILE, layout.cork);
+        blit(g, CorkSprites.CORK_VIGNETTE, layout.cork);
     }
 
     /**
@@ -100,14 +105,14 @@ public final class CorkBoardGui {
      */
     private static void blitFrame(GuiGraphics g, CorkBoardLayout layout) {
         if (layout.exactFrame) {
-            if (layout.compact) {
+            if (layout.narrow) {
                 blit(g, CorkSprites.FRAME_COMPACT, layout.winX, layout.winY, 480, 270);
             } else {
                 blit(g, CorkSprites.FRAME_FULL, layout.winX, layout.winY, 640, 360);
             }
             return;
         }
-        blit(g, layout.compact ? CorkSprites.FRAME_9_COMPACT : CorkSprites.FRAME_9,
+        blit(g, layout.narrow ? CorkSprites.FRAME_9_COMPACT : CorkSprites.FRAME_9,
                 layout.winX, layout.winY, layout.winW, layout.winH);
     }
 
@@ -215,6 +220,27 @@ public final class CorkBoardGui {
 
     public static void input(GuiGraphics g, int x, int y, int w, int h, boolean focus, boolean error) {
         blit(g, error ? CorkSprites.INPUT_ERR : focus ? CorkSprites.INPUT_FOCUS : CorkSprites.INPUT, x, y, w, h);
+    }
+
+    /** Draw at most two 8 px lines. Returns the y of the last line. */
+    public static int wrap2(GuiGraphics g, Font font, String s, int x, int y, int maxW, int color) {
+        if (maxW < 8 || font.width(s) <= maxW) {
+            text(g, font, s, x, y, color);
+            return y;
+        }
+        int split = -1;
+        for (int i = 1; i < s.length(); i++) {
+            if (s.charAt(i) == ' ' && font.width(s.substring(0, i)) <= maxW) {
+                split = i;
+            }
+        }
+        if (split < 0) {
+            text(g, font, ellipsize(font, s, maxW), x, y, color);
+            return y;
+        }
+        text(g, font, s.substring(0, split), x, y, color);
+        text(g, font, s.substring(split + 1), x, y + 9, color);
+        return y + 9;
     }
 
     public static String ellipsize(Font font, String text, int maxW) {

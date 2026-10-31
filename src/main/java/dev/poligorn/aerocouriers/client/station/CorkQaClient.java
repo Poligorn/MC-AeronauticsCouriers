@@ -13,7 +13,8 @@ import net.neoforged.neoforge.client.event.RenderGuiEvent;
 import net.neoforged.neoforge.client.event.ScreenEvent;
 
 /**
- * Dev/QA: drop {@code corkqa-ui.txt} in the game dir to open waybills and admin dialogs without GLFW clicks.
+ * Dev/QA: drop {@code corkqa-ui.txt} in the game dir to change GUI scale, open a note on the
+ * tablet, or open admin dialogs without GLFW clicks.
  */
 public final class CorkQaClient {
     private static String pendingShot;
@@ -43,12 +44,16 @@ public final class CorkQaClient {
 
     private static void apply(Minecraft minecraft, String cmd) {
         switch (cmd) {
-            case "compact" -> {
-                minecraft.options.guiScale().set(4);
+            case "scale2", "wide" -> {
+                minecraft.options.guiScale().set(2);
                 minecraft.resizeDisplay();
             }
-            case "large" -> {
+            case "scale3", "large" -> {
                 minecraft.options.guiScale().set(3);
+                minecraft.resizeDisplay();
+            }
+            case "scale4", "compact" -> {
+                minecraft.options.guiScale().set(4);
                 minecraft.resizeDisplay();
             }
             case "close" -> minecraft.setScreen(null);
@@ -109,28 +114,8 @@ public final class CorkQaClient {
             board.setScrollRows(rows);
             return;
         }
-        if ("waybill".equals(cmd)) {
+        if (cmd.startsWith("open-note") || cmd.startsWith("waybill") || "open-order".equals(cmd)) {
             openFirst(board, style -> !style.locked() && !style.inProgress());
-            return;
-        }
-        if ("waybill-locked".equals(cmd)) {
-            openFirst(board, CorkNoteStyle::locked);
-            return;
-        }
-        if ("waybill-progress".equals(cmd)) {
-            openFirst(board, CorkNoteStyle::inProgress);
-            return;
-        }
-        if ("waybill-expensive".equals(cmd)) {
-            openFirst(board, style -> style.expensive() && !style.locked());
-            return;
-        }
-        if ("waybill-rare".equals(cmd)) {
-            openFirst(board, style -> style.rare() && !style.locked());
-            return;
-        }
-        if ("waybill-close".equals(cmd)) {
-            board.closeWaybill();
         }
     }
 
@@ -148,12 +133,12 @@ public final class CorkQaClient {
     private static void openFirst(CorkBoardScreen board, java.util.function.Predicate<CorkNoteStyle> match) {
         for (BoardSnapshotPayload.BoardEntry entry : board.visibleOrders()) {
             if (match.test(board.noteStyle(entry))) {
-                board.openWaybill(entry);
+                board.openOrderOnTablet(entry);
                 return;
             }
         }
         if (!board.visibleOrders().isEmpty()) {
-            board.openWaybill(board.visibleOrders().getFirst());
+            board.openOrderOnTablet(board.visibleOrders().getFirst());
         }
     }
 }

@@ -14,6 +14,7 @@ import dev.poligorn.aerocouriers.registry.ModBlocks;
 import dev.poligorn.aerocouriers.village.PostStationBlockEntity;
 import dev.poligorn.aerocouriers.village.StationAtlas;
 import dev.poligorn.aerocouriers.village.StationContractSource;
+import dev.poligorn.aerocouriers.client.station.CorkBoardLayout;
 import dev.poligorn.aerocouriers.village.VillageAdmin;
 import dev.poligorn.aerocouriers.village.VillageBoardPolicy;
 import io.netty.buffer.Unpooled;
@@ -153,6 +154,31 @@ public final class VillageAdminGameTests {
                     f.cleanup();
                 })
                 .thenSucceed();
+    }
+
+    @GameTest(template = CouriersGameTests.EMPTY, batch = "aerocouriers.village.admin")
+    public static void corkBoardColumnsFollowScaledWidth(GameTestHelper helper) {
+        CorkBoardLayout large = CorkBoardLayout.of(640, 360);
+        helper.assertValueEqual(large.cols, 4, "640×360 columns");
+        helper.assertValueEqual(large.noteW, CorkBoardLayout.NOTE_W, "640 note width");
+        helper.assertValueEqual(large.noteH, CorkBoardLayout.NOTE_H, "640 note height");
+        helper.assertValueEqual(large.visibleRows, 2, "640 visible rows");
+        helper.assertFalse(large.narrow, "640 is the large frame");
+
+        CorkBoardLayout mid = CorkBoardLayout.of(480, 270);
+        helper.assertValueEqual(mid.cols, 3, "480×270 columns");
+        helper.assertValueEqual(mid.noteW, CorkBoardLayout.NOTE_W, "480 note width stays");
+        helper.assertValueEqual(mid.noteH, CorkBoardLayout.NOTE_H, "480 note height stays");
+        helper.assertTrue(mid.narrow, "480 uses narrow chrome");
+
+        CorkBoardLayout tiny = CorkBoardLayout.of(384, 216);
+        helper.assertValueEqual(tiny.cols, 2, "narrower than 480 columns");
+        helper.assertValueEqual(tiny.noteH, CorkBoardLayout.NOTE_H, "tiny note height stays");
+
+        CorkBoardLayout wide = CorkBoardLayout.of(960, 540);
+        helper.assertValueEqual(wide.cols, 4, "960 still max 4 columns");
+        helper.assertValueEqual(wide.winW, CorkBoardLayout.LARGE_W, "frame stays 640 when the screen is larger");
+        helper.succeed();
     }
 
     @GameTest(template = CouriersGameTests.EMPTY, batch = "aerocouriers.village.admin")
