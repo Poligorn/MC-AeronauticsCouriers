@@ -22,7 +22,7 @@ alwaysApply: false
 - Worldgen: `VillageStructures` на `ServerAboutToStartEvent` дописывает элемент в `templates`/`rawTemplates` пулов `village/*/houses` (рефлексия по mojmap-именам; в рантайме NeoForge 1.21.1 имена Mojang). Структура генерируется скриптом `tools/gen_post_station_structure.py` — правьте скрипт, а не `.nbt`.
 - Атлас: `StationAtlas.discoverNearby(player)` раз в секунду для всех игроков; FakePlayer в тестах вызывает его напрямую.
 - Команды: `/couriers station list` (игрок — открытые им, оператор/консоль — все), `/couriers station rename <pos> <имя>` (оператор). Админ деревни: `/couriers admin village <имя|here> rename|rep|refresh|regenerate|clear|interval|stats|expensive|rare|sizes` и `list`.
-- ПКМ по станции открывает пробковую доску (`StationPackets.open` → `CorkBoardScreen`). Принятия на станции нет. Shift+ПКМ / кнопка «Админ» — панель оператора (права 2 или креатив в одиночке). «На доске» = OPEN + в пути; `stats.onBoard` = только OPEN.
+- ПКМ по станции открывает пробковую доску (`StationPackets.open` → `CorkBoardScreen`). Листки 136×108, колонки 4/3/2 по ширине. Клик по листку открывает этот заказ в планшете; без планшета — только подсказка. Принятия на станции нет. Shift+ПКМ / кнопка «Админ» — панель оператора (права 2 или креатив в одиночке). «На доске» = OPEN + в пути; `stats.onBoard` = только OPEN.
 - Репутация станции и редкий груз есть. «Уровень деревни» отдельно от ранга по репутации — бэклог. Зомби-деревни не сделаны.
 
 ## Реализация (итерация 5)
