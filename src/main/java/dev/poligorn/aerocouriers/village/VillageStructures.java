@@ -24,8 +24,9 @@ import org.jetbrains.annotations.Nullable;
  * from datapacks, so vanilla and other mods' pool JSON stay untouched. Affects villages generated from now on.
  *
  * <p>The 3×3×3 piece always fits, so jigsaw uses it as a fallback when larger houses fail — a village can get
- * several station houses. {@link OncePerVillageStationProcessor} keeps the first {@code post_station} and turns
- * the rest into cartography tables while the piece is placed.
+ * several station houses. {@link OncePerVillageStationProcessor} keeps the first controller
+ * {@code post_station} (the 1×1×2 stand) and turns extra lowers into cartography tables (their upper
+ * halves become air) while the piece is placed.
  */
 public final class VillageStructures {
     public static final ResourceLocation STRUCTURE = AeronauticsCouriers.id("village/post_station");

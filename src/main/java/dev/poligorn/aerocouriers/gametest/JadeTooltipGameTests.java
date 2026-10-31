@@ -15,6 +15,7 @@ import dev.poligorn.aerocouriers.contract.ContractType;
 import dev.poligorn.aerocouriers.contract.Destination;
 import dev.poligorn.aerocouriers.economy.Economies;
 import dev.poligorn.aerocouriers.registry.ModBlocks;
+import dev.poligorn.aerocouriers.village.PostStationBlock;
 import dev.poligorn.aerocouriers.village.PostStationBlockEntity;
 import dev.poligorn.aerocouriers.village.StationAtlas;
 import dev.poligorn.aerocouriers.village.StationContractSource;
@@ -228,6 +229,12 @@ public final class JadeTooltipGameTests {
                             "one open NPC order");
                     StationSnapshot snapshot = JadeTooltipData.stationAt(level, helper.absolutePos(STATION_A))
                             .orElseThrow();
+                    helper.assertTrue(PostStationBlock.isUpper(level.getBlockState(helper.absolutePos(STATION_A).above())),
+                            "setBlock lower grows the upper half for Jade");
+                    StationSnapshot fromUpper = JadeTooltipData.stationAt(level,
+                            helper.absolutePos(STATION_A).above()).orElseThrow();
+                    helper.assertValueEqual(fromUpper.name(), snapshot.name(), "jade on the upper half");
+                    helper.assertValueEqual(fromUpper.reputation(), snapshot.reputation(), "jade reputation on upper");
                     helper.assertValueEqual(snapshot.name(), "Yasnaya Polyana", "station name");
                     helper.assertTrue(snapshot.village(), "village flag");
                     helper.assertValueEqual(snapshot.villageName(), "Yasnaya Polyana", "village name");

@@ -56,6 +56,7 @@ public final class ModBlocks {
                     .sound(SoundType.WOOD)
                     .strength(-1.0F, 3_600_000.0F)
                     .noLootTable()
+                    .lightLevel(state -> PostStationBlock.LIGHT_LEVEL)
                     .pushReaction(PushReaction.BLOCK));
 
     private ModBlocks() {

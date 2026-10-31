@@ -21,9 +21,14 @@ import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
+import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructurePlaceSettings;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
 import net.minecraft.world.phys.Vec3;
@@ -52,8 +57,13 @@ public final class StationGameTests {
             BlockPos origin = stationPos.offset(-1, -1, -1);
             template.placeInWorld(level, origin, origin, new StructurePlaceSettings(), level.getRandom(), Block.UPDATE_ALL);
             helper.assertTrue(level.getBlockState(stationPos).is(ModBlocks.POST_STATION.get()), "No station in the structure");
+            helper.assertTrue(PostStationBlock.isController(level.getBlockState(stationPos)),
+                    "structure lower half is the controller");
             helper.assertValueEqual(level.getBlockState(stationPos).getValue(PostStationBlock.FACING), Direction.WEST,
                     "the station faces the street jigsaw");
+            helper.assertTrue(PostStationBlock.isUpper(level.getBlockState(stationPos.above())),
+                    "structure places the upper half");
+            helper.assertTrue(level.getBlockEntity(stationPos.above()) == null, "upper half has no block entity");
             if (level.getBlockEntity(stationPos) instanceof PostStationBlockEntity placed) {
                 placed.markVillage();
             }
@@ -77,6 +87,8 @@ public final class StationGameTests {
                     helper.assertTrue(registered != null, "The station is not in the atlas");
                     helper.assertValueEqual(registered.name(), station.name(), "name in the atlas");
                     helper.assertValueEqual(registered.pos(), stationPos, "position in the atlas");
+                    helper.assertTrue(PostStationBlock.isUpper(level.getBlockState(stationPos.above())),
+                            "kept village station is 2-tall");
                     id.set(station.stationId());
                     kept.set(stationPos);
                 })
@@ -130,6 +142,9 @@ public final class StationGameTests {
                     helper.assertValueEqual(StationAtlas.get(level.getServer()).all().stream()
                                     .filter(s -> s.pos().equals(first) || s.pos().equals(second))
                                     .count(), 1L, "atlas has one of the pair");
+                    BlockPos kept = firstKept ? first : second;
+                    helper.assertTrue(PostStationBlock.isUpper(level.getBlockState(kept.above())),
+                            "surviving 1-block village station grew an upper half");
                 })
                 .thenSucceed();
     }
@@ -199,6 +214,15 @@ public final class StationGameTests {
                 before, postStations, cartography);
         helper.assertValueEqual(postStations, 1, "after: one post_station");
         helper.assertValueEqual(cartography, houses - 1, "after: extras are cartography tables");
+        for (BlockPos stationPos : stations) {
+            if (level.getBlockState(stationPos).is(ModBlocks.POST_STATION.get())) {
+                helper.assertTrue(PostStationBlock.isUpper(level.getBlockState(stationPos.above())),
+                        "kept pool-element station is 2-tall");
+            } else {
+                helper.assertTrue(!level.getBlockState(stationPos.above()).is(ModBlocks.POST_STATION.get()),
+                        "extra house upper half must not stay as post_station");
+            }
+        }
         helper.succeed();
     }
 
@@ -331,14 +355,114 @@ public final class StationGameTests {
             for (int x = pieceBox.minX(); x <= pieceBox.maxX(); x++) {
                 for (int y = pieceBox.minY(); y <= pieceBox.maxY(); y++) {
                     for (int z = pieceBox.minZ(); z <= pieceBox.maxZ(); z++) {
-                        if (level.getBlockState(cursor.set(x, y, z)).is(ModBlocks.POST_STATION.get())) {
+                        BlockState state = level.getBlockState(cursor.set(x, y, z));
+                        if (state.is(ModBlocks.POST_STATION.get()) && PostStationBlock.isController(state)) {
                             stations.add(cursor.immutable());
                         }
                     }
                 }
             }
         }
+        for (BlockPos station : stations) {
+            helper.assertTrue(PostStationBlock.isUpper(level.getBlockState(station.above())),
+                    "generated station at " + station.toShortString() + " must be 2-tall");
+        }
         return new VillageCount(true, start.getPieces().size(), stations.size());
+    }
+
+    @GameTest(template = CouriersGameTests.EMPTY, batch = "aerocouriers.stations.place", timeoutTicks = 200)
+    public static void placingAndBreakingEitherHalfMakesATwoHighStation(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        isolateVillageDedup(helper);
+        BlockPos lowerRel = new BlockPos(2, 1, 2);
+        BlockPos lower = helper.absolutePos(lowerRel);
+        BlockPos upper = lower.above();
+        helper.setBlock(new BlockPos(2, 0, 2), Blocks.STONE);
+
+        helper.assertTrue(placeStation(helper, lower, Direction.NORTH), "place facing north");
+        assertPair(helper, lower, Direction.NORTH);
+
+        helper.setBlock(lowerRel, Blocks.AIR);
+        helper.assertTrue(level.getBlockState(upper).isAir(), "breaking the lower half removes the upper");
+        helper.assertTrue(level.getBlockEntity(lower) == null, "controller BE is gone");
+
+        helper.assertTrue(placeStation(helper, lower, Direction.EAST), "place facing east");
+        assertPair(helper, lower, Direction.EAST);
+        helper.setBlock(lowerRel.above(), Blocks.AIR);
+        helper.assertTrue(level.getBlockState(lower).isAir(), "breaking the upper half removes the lower");
+
+        helper.setBlock(lowerRel.above(), Blocks.STONE);
+        ServerPlayer blocked = FakePlayerFactory.get(level, new GameProfile(UUID.randomUUID(), "no_room"));
+        helper.assertTrue(ModBlocks.POST_STATION.get().getStateForPlacement(placeContext(blocked, lower)) == null,
+                "cannot place when the cell above is occupied");
+        helper.setBlock(lowerRel.above(), Blocks.AIR);
+
+        for (Direction facing : List.of(Direction.NORTH, Direction.SOUTH, Direction.WEST, Direction.EAST)) {
+            helper.assertTrue(placeStation(helper, lower, facing), "place " + facing);
+            assertPair(helper, lower, facing);
+            helper.setBlock(lowerRel, Blocks.AIR);
+        }
+        helper.succeed();
+    }
+
+    private static boolean placeStation(GameTestHelper helper, BlockPos absLower, Direction front) {
+        ServerLevel level = helper.getLevel();
+        ServerPlayer player = FakePlayerFactory.get(level, new GameProfile(UUID.randomUUID(), "station_builder"));
+        player.setYRot(yRotLookingTowards(front.getOpposite()));
+        player.setPos(Vec3.atCenterOf(absLower.relative(front.getOpposite(), 2)));
+        ItemStack stack = new ItemStack(ModItems.POST_STATION.get());
+        player.setItemInHand(InteractionHand.MAIN_HAND, stack);
+        BlockPlaceContext ctx = placeContext(player, absLower);
+        BlockState state = ModBlocks.POST_STATION.get().getStateForPlacement(ctx);
+        if (state == null) {
+            return false;
+        }
+        if (!level.setBlock(absLower, state, Block.UPDATE_ALL)) {
+            return false;
+        }
+        ModBlocks.POST_STATION.get().setPlacedBy(level, absLower, state, player, stack);
+        return true;
+    }
+
+    private static BlockPlaceContext placeContext(ServerPlayer player, BlockPos absLower) {
+        BlockPos ground = absLower.below();
+        BlockHitResult hit = new BlockHitResult(
+                Vec3.atCenterOf(ground).add(0, 0.51, 0), Direction.UP, ground, false);
+        return new BlockPlaceContext(player, InteractionHand.MAIN_HAND,
+                player.getMainHandItem().isEmpty()
+                        ? new ItemStack(ModItems.POST_STATION.get())
+                        : player.getMainHandItem(),
+                hit);
+    }
+
+    private static float yRotLookingTowards(Direction look) {
+        return switch (look) {
+            case SOUTH -> 0.0F;
+            case WEST -> 90.0F;
+            case NORTH -> 180.0F;
+            case EAST -> -90.0F;
+            default -> 0.0F;
+        };
+    }
+
+    private static void assertPair(GameTestHelper helper, BlockPos lower, Direction facing) {
+        ServerLevel level = helper.getLevel();
+        BlockState low = level.getBlockState(lower);
+        BlockState high = level.getBlockState(lower.above());
+        helper.assertTrue(low.is(ModBlocks.POST_STATION.get()) && PostStationBlock.isController(low),
+                "lower half is the controller");
+        helper.assertTrue(high.is(ModBlocks.POST_STATION.get()) && PostStationBlock.isUpper(high),
+                "upper half is present");
+        helper.assertValueEqual(low.getValue(PostStationBlock.FACING), facing, "lower facing");
+        helper.assertValueEqual(high.getValue(PostStationBlock.FACING), facing, "upper facing");
+        helper.assertValueEqual(low.getValue(PostStationBlock.HALF), DoubleBlockHalf.LOWER, "half=lower");
+        helper.assertTrue(level.getBlockEntity(lower) instanceof PostStationBlockEntity, "BE on lower");
+        helper.assertTrue(level.getBlockEntity(lower.above()) == null, "no BE on upper");
+        helper.assertTrue(PostStationBlock.stationEntity(level, lower)
+                        == PostStationBlock.stationEntity(level, lower.above()),
+                "both halves resolve to the same station");
+        helper.assertValueEqual(low.getLightEmission(), PostStationBlock.LIGHT_LEVEL, "lower light");
+        helper.assertValueEqual(high.getLightEmission(), PostStationBlock.LIGHT_LEVEL, "upper light");
     }
 
     private static void isolateVillageDedup(GameTestHelper helper) {

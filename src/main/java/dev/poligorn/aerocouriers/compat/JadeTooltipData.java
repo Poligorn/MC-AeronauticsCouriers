@@ -8,6 +8,7 @@ import dev.poligorn.aerocouriers.contract.ContractState;
 import dev.poligorn.aerocouriers.contract.ContractType;
 import dev.poligorn.aerocouriers.net.BoardPackets;
 import dev.poligorn.aerocouriers.tutorial.Tutorials;
+import dev.poligorn.aerocouriers.village.PostStationBlock;
 import dev.poligorn.aerocouriers.village.PostStationBlockEntity;
 import dev.poligorn.aerocouriers.village.StationAtlas;
 import dev.poligorn.aerocouriers.village.StationReputation;
@@ -250,8 +251,8 @@ public final class JadeTooltipData {
     }
 
     public static Optional<StationSnapshot> stationAt(ServerLevel level, BlockPos pos) {
-        BlockEntity be = level.getBlockEntity(pos);
-        if (!(be instanceof PostStationBlockEntity station)) {
+        PostStationBlockEntity station = PostStationBlock.stationEntity(level, pos);
+        if (station == null) {
             return Optional.empty();
         }
         MinecraftServer server = level.getServer();

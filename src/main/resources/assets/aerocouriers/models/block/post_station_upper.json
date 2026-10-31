@@ -1,0 +1,149 @@
+{
+  "parent": "minecraft:block/block",
+  "render_type": "minecraft:cutout",
+  "textures": {
+    "particle": "aerocouriers:block/post_station_planks",
+    "planks": "aerocouriers:block/post_station_planks",
+    "back": "aerocouriers:block/post_station_planks_back",
+    "front": "aerocouriers:block/post_station_front_upper",
+    "side": "aerocouriers:block/post_station_side_upper",
+    "lantern_mount": "aerocouriers:block/post_station_side_lantern",
+    "roof": "aerocouriers:block/post_station_roof",
+    "roof_side": "aerocouriers:block/post_station_roof_side",
+    "lantern": "aerocouriers:block/post_station_lantern",
+    "antenna": "aerocouriers:block/post_station_antenna",
+    "tip": "aerocouriers:block/post_station_antenna_tip"
+  },
+  "elements": [
+    {
+      "name": "plank_body",
+      "from": [0, 0, 0],
+      "to": [16, 12, 16],
+      "faces": {
+        "north": { "uv": [0, 4, 16, 16], "texture": "#front" },
+        "south": { "uv": [0, 4, 16, 16], "texture": "#back" },
+        "east":  { "uv": [0, 4, 16, 16], "texture": "#lantern_mount" },
+        "west":  { "uv": [0, 4, 16, 16], "texture": "#side" },
+        "up":    { "uv": [0, 0, 16, 16], "texture": "#planks" },
+        "down":  { "uv": [0, 0, 16, 16], "texture": "#planks", "cullface": "down" }
+      }
+    },
+    {
+      "name": "roof_eaves",
+      "from": [-1, 11, -1],
+      "to": [17, 13, 17],
+      "faces": {
+        "north": { "uv": [0, 6, 16, 8], "texture": "#roof_side" },
+        "south": { "uv": [0, 6, 16, 8], "texture": "#roof_side" },
+        "east":  { "uv": [0, 6, 16, 8], "texture": "#roof_side" },
+        "west":  { "uv": [0, 6, 16, 8], "texture": "#roof_side" },
+        "up":    { "uv": [0, 0, 16, 16], "texture": "#roof" },
+        "down":  { "uv": [0, 0, 16, 16], "texture": "#roof_side" }
+      }
+    },
+    {
+      "name": "roof_mid",
+      "from": [2, 13, 2],
+      "to": [14, 15, 14],
+      "faces": {
+        "north": { "uv": [2, 4, 14, 6], "texture": "#roof_side" },
+        "south": { "uv": [2, 4, 14, 6], "texture": "#roof_side" },
+        "east":  { "uv": [2, 4, 14, 6], "texture": "#roof_side" },
+        "west":  { "uv": [2, 4, 14, 6], "texture": "#roof_side" },
+        "up":    { "uv": [2, 2, 14, 14], "texture": "#roof" },
+        "down":  { "uv": [2, 2, 14, 14], "texture": "#roof_side" }
+      }
+    },
+    {
+      "name": "roof_peak",
+      "from": [5, 15, 5],
+      "to": [11, 17, 11],
+      "faces": {
+        "north": { "uv": [5, 2, 11, 4], "texture": "#roof_side" },
+        "south": { "uv": [5, 2, 11, 4], "texture": "#roof_side" },
+        "east":  { "uv": [5, 2, 11, 4], "texture": "#roof_side" },
+        "west":  { "uv": [5, 2, 11, 4], "texture": "#roof_side" },
+        "up":    { "uv": [5, 5, 11, 11], "texture": "#roof" },
+        "down":  { "uv": [5, 5, 11, 11], "texture": "#roof_side" }
+      }
+    },
+    {
+      "name": "antenna_mast",
+      "from": [7.5, 17, 7.5],
+      "to": [8.5, 30, 8.5],
+      "faces": {
+        "north": { "uv": [7, 2, 8, 15], "texture": "#antenna" },
+        "south": { "uv": [7, 2, 8, 15], "texture": "#antenna" },
+        "east":  { "uv": [8, 2, 9, 15], "texture": "#antenna" },
+        "west":  { "uv": [8, 2, 9, 15], "texture": "#antenna" },
+        "up":    { "uv": [7, 0, 8, 1], "texture": "#antenna" },
+        "down":  { "uv": [7, 15, 8, 16], "texture": "#antenna" }
+      }
+    },
+    {
+      "name": "antenna_ring_low",
+      "from": [7, 21, 7],
+      "to": [9, 22, 9],
+      "faces": {
+        "north": { "uv": [5, 4, 11, 5], "texture": "#antenna" },
+        "south": { "uv": [5, 4, 11, 5], "texture": "#antenna" },
+        "east":  { "uv": [5, 4, 11, 5], "texture": "#antenna" },
+        "west":  { "uv": [5, 4, 11, 5], "texture": "#antenna" },
+        "up":    { "uv": [5, 4, 11, 10], "texture": "#antenna" },
+        "down":  { "uv": [5, 4, 11, 10], "texture": "#antenna" }
+      }
+    },
+    {
+      "name": "antenna_ring_high",
+      "from": [7, 25, 7],
+      "to": [9, 26, 9],
+      "faces": {
+        "north": { "uv": [5, 10, 11, 11], "texture": "#antenna" },
+        "south": { "uv": [5, 10, 11, 11], "texture": "#antenna" },
+        "east":  { "uv": [5, 10, 11, 11], "texture": "#antenna" },
+        "west":  { "uv": [5, 10, 11, 11], "texture": "#antenna" },
+        "up":    { "uv": [5, 10, 11, 16], "texture": "#antenna" },
+        "down":  { "uv": [5, 10, 11, 16], "texture": "#antenna" }
+      }
+    },
+    {
+      "name": "antenna_tip",
+      "from": [7, 30, 7],
+      "to": [9, 32, 9],
+      "faces": {
+        "north": { "uv": [5, 5, 11, 11], "texture": "#tip" },
+        "south": { "uv": [5, 5, 11, 11], "texture": "#tip" },
+        "east":  { "uv": [5, 5, 11, 11], "texture": "#tip" },
+        "west":  { "uv": [5, 5, 11, 11], "texture": "#tip" },
+        "up":    { "uv": [5, 5, 11, 11], "texture": "#tip" },
+        "down":  { "uv": [5, 5, 11, 11], "texture": "#tip" }
+      }
+    },
+    {
+      "name": "lantern_arm",
+      "from": [16, 7, 7],
+      "to": [18, 8, 9],
+      "faces": {
+        "north": { "uv": [4, 2, 12, 3], "texture": "#lantern" },
+        "south": { "uv": [4, 2, 12, 3], "texture": "#lantern" },
+        "east":  { "uv": [4, 2, 12, 3], "texture": "#lantern" },
+        "west":  { "uv": [4, 2, 12, 3], "texture": "#lantern" },
+        "up":    { "uv": [4, 1, 12, 3], "texture": "#lantern" },
+        "down":  { "uv": [4, 1, 12, 3], "texture": "#lantern" }
+      }
+    },
+    {
+      "name": "lantern_body",
+      "from": [16.5, 3, 6.5],
+      "to": [19.5, 7, 9.5],
+      "faces": {
+        "north": { "uv": [4, 3, 12, 13], "texture": "#lantern" },
+        "south": { "uv": [4, 3, 12, 13], "texture": "#lantern" },
+        "east":  { "uv": [4, 3, 12, 13], "texture": "#lantern" },
+        "west":  { "uv": [4, 3, 12, 13], "texture": "#lantern" },
+        "up":    { "uv": [4, 2, 12, 5], "texture": "#lantern" },
+        "down":  { "uv": [4, 13, 12, 16], "texture": "#lantern" }
+      }
+    }
+  ]
+}

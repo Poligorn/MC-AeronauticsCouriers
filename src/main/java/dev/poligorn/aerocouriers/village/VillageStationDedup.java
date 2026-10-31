@@ -67,6 +67,11 @@ public final class VillageStationDedup {
         }
     }
 
+    /** True if this exact controller cell was claimed during the current server session. */
+    public static boolean isClaimed(BlockPos pos) {
+        return CLAIMED_STATIONS.contains(pos);
+    }
+
     /**
      * Worldgen: the original is the first station claimed for this village start, or the first claimed
      * block within a village-sized fallback when the start is not in the structure manager yet.

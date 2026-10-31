@@ -41,6 +41,21 @@ public final class OncePerVillageStationProcessor extends StructureProcessor {
         if (box != null && !box.isInside(block.pos())) {
             return block;
         }
+        // Dedup only the controller. The upper half of a kept station must not look like a second
+        // station; the upper half of an extra house becomes air (not a second cartography table).
+        if (PostStationBlock.isUpper(block.state())) {
+            BlockPos below = block.pos().below();
+            if (VillageStationDedup.isClaimed(below)) {
+                return block;
+            }
+            if (VillageStationDedup.isDuplicateAtPlacement(level, below)) {
+                AeronauticsCouriers.LOGGER.debug("[station] Extra village post station upper at {} -> air",
+                        block.pos().toShortString());
+                return new StructureTemplate.StructureBlockInfo(
+                        block.pos(), net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), null);
+            }
+            return block;
+        }
         if (VillageStationDedup.isDuplicateAtPlacement(level, block.pos())) {
             AeronauticsCouriers.LOGGER.debug("[station] Extra village post station at {} -> cartography table",
                     block.pos().toShortString());

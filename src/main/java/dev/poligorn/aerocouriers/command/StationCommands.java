@@ -4,6 +4,7 @@ import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import dev.poligorn.aerocouriers.village.PostStationBlock;
 import dev.poligorn.aerocouriers.village.PostStationBlockEntity;
 import dev.poligorn.aerocouriers.village.StationAtlas;
 import dev.poligorn.aerocouriers.village.StationContractSource;
@@ -65,7 +66,8 @@ final class StationCommands {
             source.sendFailure(Component.translatable("station.aerocouriers.error.name", MAX_NAME_LENGTH));
             return 0;
         }
-        if (!(source.getLevel().getBlockEntity(pos) instanceof PostStationBlockEntity station)) {
+        PostStationBlockEntity station = PostStationBlock.stationEntity(source.getLevel(), pos);
+        if (station == null) {
             source.sendFailure(Component.translatable("station.aerocouriers.error.not_station", pos.toShortString()));
             return 0;
         }
