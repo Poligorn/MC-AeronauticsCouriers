@@ -29,6 +29,11 @@ public final class VillageAdminScreen extends Screen {
     private @Nullable VillageAdminDialogs dialog;
     private @Nullable EditBox intervalField;
     private @Nullable EditBox exactRepField;
+    private CorkBoardLayout.Rect intervalBox = new CorkBoardLayout.Rect(0, 0, 28, 13);
+    private CorkBoardLayout.Rect exactBox = new CorkBoardLayout.Rect(0, 0, 44, 14);
+    private int quickBtnY = 170;
+    private int exactBtnY = 190;
+    private static final int FIELD_PAD = 4;
 
     public VillageAdminScreen(StationSnapshotPayload snapshot) {
         super(Component.translatable("ui.aerocouriers.village_admin.title", snapshot.name()));
@@ -69,17 +74,13 @@ public final class VillageAdminScreen extends Screen {
     private void rebuild() {
         clearWidgets();
         origin();
-        intervalField = new EditBox(font, ox + 146, oy + 261, 28, 13,
-                Component.translatable("ui.aerocouriers.village_admin.interval"));
-        intervalField.setMaxLength(4);
-        intervalField.setBordered(false);
-        intervalField.setTextColor(CorkPalette.INPUT);
+        intervalBox = new CorkBoardLayout.Rect(ox + 146, oy + 261, 28, 13);
+        exactBox = new CorkBoardLayout.Rect(ox + 82, oy + 190, 44, 14);
+        intervalField = paddedField(intervalBox,
+                Component.translatable("ui.aerocouriers.village_admin.interval"), 4);
         intervalField.setValue(Integer.toString(snapshot.view().refreshIntervalMin()));
-        exactRepField = new EditBox(font, ox + 82, oy + 190, 44, 14,
-                Component.translatable("ui.aerocouriers.village_admin.rep.exact"));
-        exactRepField.setMaxLength(3);
-        exactRepField.setBordered(false);
-        exactRepField.setTextColor(CorkPalette.INPUT);
+        exactRepField = paddedField(exactBox,
+                Component.translatable("ui.aerocouriers.village_admin.rep.exact"), 3);
         exactRepField.setValue(Integer.toString(snapshot.reputation()));
         if (dialog == null) {
             addRenderableWidget(intervalField);
@@ -113,10 +114,12 @@ public final class VillageAdminScreen extends Screen {
         CorkBoardGui.text(graphics, font, CorkBoardGui.ellipsize(font,
                         Component.translatable("ui.aerocouriers.village_admin.panel").getString(), 400),
                 ox + 50, oy + 34, CorkPalette.ADMIN_OP);
-        CorkBoardGui.blitTint(graphics, CorkSprites.ICON_GEAR, ox + 470, oy + 26, 7, 7, CorkPalette.ADMIN_OP);
-        CorkBoardGui.text(graphics, font, CorkBoardGui.ellipsize(font,
-                        Component.translatable("ui.aerocouriers.village_admin.op").getString(), 130),
-                ox + 481, oy + 27, CorkPalette.ADMIN_OP);
+        String op = Component.translatable("ui.aerocouriers.village_admin.op").getString();
+        int opW = font.width(op);
+        int opRight = ox + (layout.narrow ? layout.winW - 14 : 614);
+        int opX = opRight - opW;
+        CorkBoardGui.blitTint(graphics, CorkSprites.ICON_GEAR, opX - 12, oy + 26, 7, 7, CorkPalette.ADMIN_OP);
+        CorkBoardGui.text(graphics, font, op, opX, oy + 27, CorkPalette.ADMIN_OP);
         CorkBoardGui.text(graphics, font, CorkBoardGui.ellipsize(font,
                         Component.translatable("ui.aerocouriers.village_admin.subtitle").getString(), 590),
                 ox + 26, oy + 47, CorkPalette.HEADER_MUTED);
@@ -137,12 +140,12 @@ public final class VillageAdminScreen extends Screen {
 
         if (dialog == null) {
             if (exactRepField != null) {
-                CorkBoardGui.input(graphics, exactRepField.getX(), exactRepField.getY(),
-                        exactRepField.getWidth(), exactRepField.getHeight(), exactRepField.isFocused(), false);
+                CorkBoardGui.input(graphics, exactBox.x(), exactBox.y(), exactBox.w(), exactBox.h(),
+                        exactRepField.isFocused(), false);
             }
             if (intervalField != null) {
-                CorkBoardGui.input(graphics, intervalField.getX(), intervalField.getY(),
-                        intervalField.getWidth(), intervalField.getHeight(), intervalField.isFocused(), false);
+                CorkBoardGui.input(graphics, intervalBox.x(), intervalBox.y(), intervalBox.w(), intervalBox.h(),
+                        intervalField.isFocused(), false);
             }
             for (var widget : renderables) {
                 widget.render(graphics, mouseX, mouseY, partialTick);
@@ -206,27 +209,49 @@ public final class VillageAdminScreen extends Screen {
         CorkBoardGui.text(g, font, "10", ox + 68, oy + 145, CorkPalette.ADMIN_LABEL);
         CorkBoardGui.text(g, font, "25", ox + 128, oy + 145, CorkPalette.ADMIN_LABEL);
         CorkBoardGui.text(g, font, "50", ox + 226, oy + 145, CorkPalette.ADMIN_LABEL);
-        CorkBoardGui.text(g, font, Component.translatable("ui.aerocouriers.village_admin.rep.thresholds"),
-                ox + 34, oy + 157, CorkPalette.ADMIN_LABEL);
+        String thresholds = Component.translatable("ui.aerocouriers.village_admin.rep.thresholds").getString();
+        int threshBottom = drawThresholds(g, ox + 34, oy + 157, 284, thresholds);
+        quickBtnY = Math.max(173, threshBottom - oy + 8);
         CorkBoardGui.text(g, font, Component.translatable("ui.aerocouriers.village_admin.rep.quick"),
-                ox + 34, oy + 173, CorkPalette.ADMIN_LABEL);
+                ox + 34, oy + quickBtnY + 3, CorkPalette.ADMIN_LABEL);
         int[] deltas = {-10, -1, 1, 10};
         int[] xs = {82, 116, 150, 184};
         for (int i = 0; i < deltas.length; i++) {
             Component label = Component.literal((deltas[i] > 0 ? "+" : "") + deltas[i]);
             CorkBoardGui.ButtonStyle st = deltas[i] < 0
                     ? CorkBoardGui.ButtonStyle.DANGER : CorkBoardGui.ButtonStyle.NORMAL;
-            CorkBoardGui.button(g, font, ox + xs[i], oy + 170, 30, 14, label,
-                    hover(mx, my, xs[i], 170, 30, 14), true, st);
+            CorkBoardGui.button(g, font, ox + xs[i], oy + quickBtnY, 30, 14, label,
+                    hover(mx, my, xs[i], quickBtnY, 30, 14), true, st);
+        }
+        exactBtnY = Math.max(190, quickBtnY + 18);
+        exactBox = new CorkBoardLayout.Rect(ox + 82, oy + exactBtnY, 44, 14);
+        if (exactRepField != null) {
+            exactRepField.setX(exactBox.x() + FIELD_PAD);
+            exactRepField.setY(exactBox.y());
+            exactRepField.setWidth(Math.max(8, exactBox.w() - FIELD_PAD * 2));
         }
         CorkBoardGui.text(g, font, Component.translatable("ui.aerocouriers.village_admin.rep.exact_label"),
-                ox + 34, oy + 193, CorkPalette.ADMIN_LABEL);
-        CorkBoardGui.button(g, font, ox + 130, oy + 190, 62, 14,
+                ox + 34, oy + exactBtnY + 3, CorkPalette.ADMIN_LABEL);
+        CorkBoardGui.button(g, font, ox + 130, oy + exactBtnY, 56, 14,
                 Component.translatable("ui.aerocouriers.village_admin.rep.set"),
-                hover(mx, my, 130, 190, 62, 14), true, CorkBoardGui.ButtonStyle.GOLD);
-        CorkBoardGui.button(g, font, ox + 198, oy + 190, 112, 14,
+                hover(mx, my, 130, exactBtnY, 56, 14), true, CorkBoardGui.ButtonStyle.GOLD);
+        CorkBoardGui.button(g, font, ox + 188, oy + exactBtnY, 132, 14,
                 Component.translatable("ui.aerocouriers.village_admin.rep.adjust"),
-                hover(mx, my, 198, 190, 112, 14), true, CorkBoardGui.ButtonStyle.NORMAL);
+                hover(mx, my, 188, exactBtnY, 132, 14), true, CorkBoardGui.ButtonStyle.NORMAL);
+    }
+
+    private int drawThresholds(GuiGraphics g, int x, int y, int maxW, String text) {
+        if (font.width(text) <= maxW) {
+            CorkBoardGui.text(g, font, text, x, y, CorkPalette.ADMIN_LABEL);
+            return y;
+        }
+        int split = text.lastIndexOf('·');
+        if (split > 0 && font.width(text.substring(0, split).strip()) <= maxW) {
+            CorkBoardGui.text(g, font, text.substring(0, split).strip(), x, y, CorkPalette.ADMIN_LABEL);
+            CorkBoardGui.text(g, font, text.substring(split + 1).strip(), x, y + 9, CorkPalette.ADMIN_LABEL);
+            return y + 9;
+        }
+        return CorkBoardGui.wrap2(g, font, text, x, y, maxW, CorkPalette.ADMIN_LABEL);
     }
 
     private void drawOrders(GuiGraphics g, int mx, int my) {
@@ -345,13 +370,13 @@ public final class VillageAdminScreen extends Screen {
         int[] deltas = {-10, -1, 1, 10};
         int[] xs = {82, 116, 150, 184};
         for (int i = 0; i < deltas.length; i++) {
-            if (hover(mouseX, mouseY, xs[i], 170, 30, 14)) {
+            if (hover(mouseX, mouseY, xs[i], quickBtnY, 30, 14)) {
                 PacketDistributor.sendToServer(VillageAdminPayload.amount(snapshot.stationPos(),
                         VillageAdminPayload.Action.REP_ADD, deltas[i]));
                 return true;
             }
         }
-        if (hover(mouseX, mouseY, 130, 190, 62, 14) && exactRepField != null) {
+        if (hover(mouseX, mouseY, 130, exactBtnY, 56, 14) && exactRepField != null) {
             try {
                 int value = Integer.parseInt(exactRepField.getValue().strip());
                 PacketDistributor.sendToServer(VillageAdminPayload.amount(snapshot.stationPos(),
@@ -360,7 +385,7 @@ public final class VillageAdminScreen extends Screen {
             }
             return true;
         }
-        if (hover(mouseX, mouseY, 198, 190, 112, 14)) {
+        if (hover(mouseX, mouseY, 188, exactBtnY, 132, 14)) {
             openDialog(new VillageAdminDialogs.Reputation(snapshot));
             return true;
         }
@@ -466,6 +491,15 @@ public final class VillageAdminScreen extends Screen {
     private void openDialog(VillageAdminDialogs next) {
         dialog = next;
         rebuild();
+    }
+
+    private EditBox paddedField(CorkBoardLayout.Rect box, Component message, int maxLen) {
+        EditBox field = new EditBox(font, box.x() + FIELD_PAD, box.y(),
+                Math.max(8, box.w() - FIELD_PAD * 2), box.h(), message);
+        field.setMaxLength(maxLen);
+        field.setBordered(false);
+        field.setTextColor(CorkPalette.INPUT);
+        return field;
     }
 
     private boolean hover(double mx, double my, int x, int y, int w, int h) {

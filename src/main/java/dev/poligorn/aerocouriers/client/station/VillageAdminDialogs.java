@@ -56,11 +56,9 @@ public abstract class VillageAdminDialogs {
 
         @Override
         public void init(VillageAdminScreen screen) {
-            field = new EditBox(screen.getFont(), x + 10, y + 33, 268, 16,
-                    Component.translatable("ui.aerocouriers.village_admin.dialog.rename.field"));
-            field.setMaxLength(VillageBoardPolicy.NAME_MAX);
-            field.setBordered(false);
-            field.setTextColor(CorkPalette.INPUT);
+            field = paddedField(screen, x + 10, y + 33, 268, 16,
+                    Component.translatable("ui.aerocouriers.village_admin.dialog.rename.field"),
+                    VillageBoardPolicy.NAME_MAX);
             field.setValue(snapshot.name());
             screen.addDialogWidget(field);
         }
@@ -125,11 +123,8 @@ public abstract class VillageAdminDialogs {
 
         @Override
         public void init(VillageAdminScreen screen) {
-            field = new EditBox(screen.getFont(), x + 66, y + 38, 50, 15,
-                    Component.translatable("ui.aerocouriers.village_admin.dialog.rep.amount"));
-            field.setMaxLength(3);
-            field.setBordered(false);
-            field.setTextColor(CorkPalette.INPUT);
+            field = paddedField(screen, x + 66, y + 38, 50, 15,
+                    Component.translatable("ui.aerocouriers.village_admin.dialog.rep.amount"), 3);
             field.setValue(Integer.toString(snapshot.reputation()));
             screen.addDialogWidget(field);
         }
@@ -306,5 +301,15 @@ public abstract class VillageAdminDialogs {
 
     protected static int clamp(int value) {
         return Mth.clamp(value, VillageBoardPolicy.REPUTATION_MIN, VillageBoardPolicy.REPUTATION_MAX);
+    }
+
+    /** Text sits 4 px from the sprite border; vanilla EditBox centers the 8 px line in {@code h}. */
+    protected static EditBox paddedField(VillageAdminScreen screen, int x, int y, int w, int h,
+                                         Component message, int maxLen) {
+        EditBox field = new EditBox(screen.getFont(), x + 4, y, Math.max(8, w - 8), h, message);
+        field.setMaxLength(maxLen);
+        field.setBordered(false);
+        field.setTextColor(CorkPalette.INPUT);
+        return field;
     }
 }
