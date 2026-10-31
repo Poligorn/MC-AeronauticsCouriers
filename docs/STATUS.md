@@ -11,14 +11,16 @@
 - Админ-панель: права 2 или креатив в одиночке; Shift+ПКМ и кнопка «Админ». Переименование (24, уникальность), репутация, заказы, политика доски. Команды `/couriers admin village <имя|here> …`. Настройки в optional-полях `StationAtlas` (`board_policy`, `completed`).
 - Версию и протокол не поднимали. `./gradlew build` SUCCESS. `runGameTestServer -PwithoutJade=true` **90/90** (повтор после правок ревью PR #73).
 - **Правки ревью PR #73 (31.10.2026).** Затемнение: `CorkBoardScreen` / `VillageAdminScreen` рисуют ванильный фон, затем GUI на полной яркости, без `super.render()` и без затемнения поверх (как `WaybillCreateScreen`). Атлас `tools/gen_cork_board_textures.py` → `textures/gui/sprites/cork/` (пробка, рама с заклёпками, бумага, кнопки, переключатели, печать, лента, кнопки). Шапка: таймер = `VillageRefreshUi.countdownLabel`, ранг = `displayName` (без «ранг III · III»). «На доске» = все листки (`orders.size()`, OPEN+в пути); `VillageAdmin.stats.onBoard` по-прежнему только OPEN (GameTest). Порог дорогих — `MoneyFormat.component(EXPENSIVE_REWARD)`. Админ: интервал «мин −/+ Применить», секции с золотой шапкой, тумблеры, красная опасная кнопка. `corkqa` чистит доску перед сидом, `qaAccept` ставит «выполняется», команды `empty` / `progress`.
-- **QA в клиенте (31.10.2026, повтор).** Кадры — `/opt/cursor/artifacts/cork-board/`. Экран открывался пакетом (`corkqa-cmd.txt` / `corkqa-ui.txt`); GLFW-клики по миру не использовались. OpenAL не стартует.
-  - Доска день, сетка 4×2, 14 заказов, фильтры, таймер, кнопка «Админ», «Открыть доску в планшете». ✅ `01_board_day_4x2.png`
-  - Варианты листков: дорогой, редкий, дорогой+редкий, L/XL, истекает (красная рамка), ранг мал (замок, награда скрыта). ✅ `01` / `02_board_locked_variants.png`
-  - Накладная: откуда/куда, груз, «Подтвердить на планшете», кнопки «Принять» нет. С планшетом и без (`require_tablet`). ✅ `03_waybill_with_tablet.png`, `04_waybill_no_tablet.png`
-  - Прокрутка рядами и компакт 3×2 (guiScale 4) с полосой прокрутки. ✅ `05_board_scroll.png`, `06_board_compact_3x2.png`
-  - Админ-панель, диалоги переименования / репутации / очистки. ✅ `07_admin_panel.png`, `08_admin_rename.png`, `09_admin_reputation.png`, `10_admin_clear_confirm.png`
-  - Survival без OP: кнопки «Админ» нет. ✅ `11_no_admin_button_survival.png`
-  - **Не проверено в клиенте:** штамп «выполняется заказ» глазами (FakePlayer не проходит `accept` по рангу; lifecycle закрыт GameTest `inProgressNoteStaysUntilDelivered`); наведение и клик по листку руками; Shift+ПКМ; «Подтвердить на планшете» → окно заказа планшета (код `ClientBoard.focusContract`, GLFW не принимает синтетику); пустая доска; EN; RMB по блоку Стойки.
+- **QA в клиенте (31.10.2026, повтор после ревью).** Xvfb 1920×1080, GUI 3 / compact 4, RU. Кадры — `/opt/cursor/artifacts/cork-board/`. Хуки `corkqa-cmd.txt` / `corkqa-ui.txt`. OpenAL не стартует.
+  - Доска без затемнения поверх GUI: пробка, рама, булавки, печать/лента, штампы размера. Таймер «Новые заказы через …», ранг «III Пилот», «12 на доске (макс. 16)». ✅ `01_board_day_4x2.png`
+  - Варианты: дорогой/редкий/оба, L/XL, истекает, ранг-замок. ✅ `02_board_locked_variants.png`
+  - Накладная без «Принять»; с планшетом и без. ✅ `03_waybill_with_tablet.png`, `04_waybill_no_tablet.png`
+  - Прокрутка и компакт 3×2. ✅ `05_board_scroll.png`, `06_board_compact_3x2.png`
+  - Админ: интервал «мин −/+ Применить», тумблеры, «от 1 000 изумрудов», «На доске 12 / 16» = «Открытых 11» + «Активных 1». Диалоги. ✅ `07_admin_panel.png` … `10_admin_clear_confirm.png`
+  - Survival без «Админ». ✅ `11_no_admin_button_survival.png`
+  - Штамп «ВЫПОЛНЯЕТСЯ ЗАКАЗ Mira» + накладная «уже выполняется». ✅ `12_in_progress.png`
+  - Пустая доска, пробка видна, «0 на доске (макс. 16)». ✅ `13_empty_board.png`
+  - **Не проверено в клиенте:** наведение/клик по листку руками; Shift+ПКМ и RMB по блоку; «Подтвердить на планшете» → окно планшета (GLFW не принимает синтетику); EN; GUI scale 2.
 
 ### Модель почтовой станции — концепт A «Стойка» (0.3.0, 31.10.2026)
 - Заглушка (текстуры стола картографа) заменена на 1×1×2 «Стойку» по макету `11_block_A_stoyka_views.png` (утверждён как есть, без вывески сзади). Версию мода и `PROTOCOL_VERSION` не поднимали.
