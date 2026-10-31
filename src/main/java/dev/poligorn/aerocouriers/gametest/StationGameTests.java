@@ -461,8 +461,8 @@ public final class StationGameTests {
         helper.assertTrue(PostStationBlock.stationEntity(level, lower)
                         == PostStationBlock.stationEntity(level, lower.above()),
                 "both halves resolve to the same station");
-        helper.assertValueEqual(low.getLightEmission(), PostStationBlock.LIGHT_LEVEL, "lower light");
-        helper.assertValueEqual(high.getLightEmission(), PostStationBlock.LIGHT_LEVEL, "upper light");
+        helper.assertValueEqual(low.getLightEmission(level, lower), PostStationBlock.LIGHT_LEVEL, "lower light");
+        helper.assertValueEqual(high.getLightEmission(level, lower.above()), PostStationBlock.LIGHT_LEVEL, "upper light");
     }
 
     private static void isolateVillageDedup(GameTestHelper helper) {

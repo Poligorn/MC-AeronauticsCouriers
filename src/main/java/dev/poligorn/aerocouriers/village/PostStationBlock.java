@@ -19,7 +19,6 @@ import net.minecraft.world.level.LevelReader;
 import net.minecraft.world.level.block.BaseEntityBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.DoublePlantBlock;
 import net.minecraft.world.level.block.HorizontalDirectionalBlock;
 import net.minecraft.world.level.block.Mirror;
 import net.minecraft.world.level.block.RenderShape;
@@ -204,8 +203,14 @@ public class PostStationBlock extends BaseEntityBlock {
 
     @Override
     public BlockState playerWillDestroy(Level level, BlockPos pos, BlockState state, Player player) {
-        if (!level.isClientSide && player.isCreative()) {
-            DoublePlantBlock.preventDropFromBottomPart(level, pos, state, player);
+        if (!level.isClientSide && player.isCreative() && isUpper(state)) {
+            BlockPos below = pos.below();
+            BlockState belowState = level.getBlockState(below);
+            if (belowState.is(this) && isController(belowState)) {
+                // Flag 35: neighbors + clients + suppress drops, same as vanilla double blocks.
+                level.setBlock(below, Blocks.AIR.defaultBlockState(), 35);
+                level.levelEvent(player, 2001, below, Block.getId(belowState));
+            }
         }
         return super.playerWillDestroy(level, pos, state, player);
     }
