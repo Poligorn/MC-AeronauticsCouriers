@@ -139,7 +139,8 @@ public final class CorkBoardScreen extends Screen {
         CorkBoardGui.bold(graphics, font, CorkBoardGui.ellipsize(font, title, titleMax),
                 layout.titleX, layout.titleY, CorkPalette.HEADER_TITLE);
         if (!layout.compact) {
-            CorkBoardGui.text(graphics, font, Component.translatable("ui.aerocouriers.cork.subtitle"),
+            CorkBoardGui.text(graphics, font, CorkBoardGui.ellipsize(font,
+                            Component.translatable("ui.aerocouriers.cork.subtitle").getString(), titleMax),
                     layout.subtitleX, layout.subtitleY, CorkPalette.HEADER_SUBTITLE);
         }
 
@@ -153,9 +154,10 @@ public final class CorkBoardScreen extends Screen {
                     CorkPalette.TIMER);
         }
 
-        CorkBoardGui.text(graphics, font, Component.translatable(layout.compact
+        int repLabelMax = Math.max(16, layout.repBarX - layout.repLabelX - 4);
+        CorkBoardGui.text(graphics, font, CorkBoardGui.ellipsize(font, Component.translatable(layout.compact
                         ? "ui.aerocouriers.cork.reputation_label_short"
-                        : "ui.aerocouriers.cork.reputation_label"),
+                        : "ui.aerocouriers.cork.reputation_label").getString(), repLabelMax),
                 layout.repLabelX, layout.repLabelY, CorkPalette.HEADER_MUTED);
         CorkBoardGui.reputationBar(graphics, layout.repBarX, layout.repBarY, layout.repBarW, 7,
                 snapshot.reputation(), 50);
@@ -165,10 +167,10 @@ public final class CorkBoardScreen extends Screen {
                         ? "ui.aerocouriers.cork.bonus_short"
                         : "ui.aerocouriers.cork.bonus",
                 snapshot.bonusPercent());
-        int bonusX = layout.repValueX + font.width(Integer.toString(snapshot.reputation())) + 4;
-        int bonusMax = (layout.compact ? layout.headerPlank.x() + layout.headerPlank.w() : layout.rankX) - bonusX - 8;
+        int bonusMax = (layout.compact ? layout.headerPlank.x() + layout.headerPlank.w() : layout.rankX)
+                - layout.bonusX - 8;
         CorkBoardGui.text(graphics, font, CorkBoardGui.ellipsize(font, bonus.getString(), Math.max(16, bonusMax)),
-                bonusX, layout.repValueY, CorkPalette.REPUTATION);
+                layout.bonusX, layout.bonusY, CorkPalette.REPUTATION);
         if (!layout.compact) {
             LicenseRank rank = snapshot.view().playerRankLevel() <= 0
                     ? LicenseRank.ADMIN
@@ -234,8 +236,9 @@ public final class CorkBoardScreen extends Screen {
     }
 
     private void drawFooter(GuiGraphics graphics, int mouseX, int mouseY) {
-        CorkBoardGui.text(graphics, font, Component.translatable("ui.aerocouriers.cork.orders_count",
-                        snapshot.orders().size()),
+        CorkBoardGui.text(graphics, font, CorkBoardGui.ellipsize(font, Component.translatable(
+                        "ui.aerocouriers.cork.orders_count", snapshot.orders().size()).getString(),
+                        Math.max(24, layout.tabletBtn.x() - layout.footerCountX - 8)),
                 layout.footerCountX, layout.footerCountY, CorkPalette.FOOTER);
         if (!layout.compact) {
             Component hint = Component.translatable(readOnly()

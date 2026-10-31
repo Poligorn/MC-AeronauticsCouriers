@@ -114,19 +114,19 @@ public final class CorkSprites {
     }
 
     public static ResourceLocation crate(String size) {
-        return switch (size.toUpperCase()) {
-            case "S" -> id("crate_S_52x52");
-            case "M" -> id("crate_M_52x52");
-            case "L" -> id("crate_L_52x52");
-            case "XL" -> id("crate_XL_52x52");
+        return switch (size.toLowerCase()) {
+            case "s" -> id("crate_s_52x52");
+            case "m" -> id("crate_m_52x52");
+            case "l" -> id("crate_l_52x52");
+            case "xl" -> id("crate_xl_52x52");
             default -> id("crate_blank_52x52");
         };
     }
 
     public static ResourceLocation stamp(String size, boolean filled) {
-        String letter = size.toUpperCase();
-        if (!letter.equals("S") && !letter.equals("M") && !letter.equals("L") && !letter.equals("XL")) {
-            letter = "S";
+        String letter = size.toLowerCase();
+        if (!letter.equals("s") && !letter.equals("m") && !letter.equals("l") && !letter.equals("xl")) {
+            letter = "s";
         }
         return id("stamp_" + letter + (filled ? "_filled_17x15" : "_outline_17x15"));
     }

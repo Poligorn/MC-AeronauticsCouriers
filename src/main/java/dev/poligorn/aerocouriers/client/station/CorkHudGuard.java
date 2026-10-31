@@ -5,8 +5,9 @@ import net.minecraft.client.gui.screens.Screen;
 import net.neoforged.neoforge.client.event.RenderGuiEvent;
 
 /**
- * Station UI must not cover the world. Chat / vanilla HUD / toasts are skipped while the cork
- * board or village admin is open (no full-screen mask, no dim).
+ * Station UI must not cover the world. While the cork board or village admin is open the vanilla
+ * {@code Gui} (chat, hotbar, boss bar, overlay, toasts-in-gui) is skipped — no full-screen mask
+ * and no dim. The world stays visible in the frame's transparent margin.
  */
 public final class CorkHudGuard {
     private CorkHudGuard() {

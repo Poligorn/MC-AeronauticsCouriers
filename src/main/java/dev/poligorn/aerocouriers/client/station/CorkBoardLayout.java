@@ -65,6 +65,8 @@ public final class CorkBoardLayout {
     public final int repValueY;
     public final int rankX;
     public final int rankY;
+    public final int bonusX;
+    public final int bonusY;
     public final int footerCountX;
     public final int footerCountY;
     public final int footerHintX;
@@ -120,6 +122,8 @@ public final class CorkBoardLayout {
             repValueY = p + 33;
             rankX = o + 360;
             rankY = p + 33;
+            bonusX = o + 207;
+            bonusY = p + 33;
             footerCountX = o + 17;
             footerCountY = p + 246;
             footerHintX = o + 17;
@@ -156,6 +160,8 @@ public final class CorkBoardLayout {
             repValueY = p + 47;
             rankX = o + 522;
             rankY = p + 47;
+            bonusX = o + 306;
+            bonusY = p + 47;
             footerCountX = o + 26;
             footerCountY = p + 323;
             footerHintX = o + 26;

@@ -1,17 +1,23 @@
 package dev.poligorn.aerocouriers.client.station;
 
+import com.mojang.blaze3d.pipeline.RenderTarget;
 import dev.poligorn.aerocouriers.AeronauticsCouriers;
 import dev.poligorn.aerocouriers.net.BoardSnapshotPayload;
 import dev.poligorn.aerocouriers.net.VillageAdminPayload;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.Screenshot;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
+import net.neoforged.neoforge.client.event.RenderGuiEvent;
+import net.neoforged.neoforge.client.event.ScreenEvent;
 
 /**
  * Dev/QA: drop {@code corkqa-ui.txt} in the game dir to open waybills and admin dialogs without GLFW clicks.
  */
 public final class CorkQaClient {
+    private static String pendingShot;
+
     private CorkQaClient() {
     }
 
@@ -47,6 +53,10 @@ public final class CorkQaClient {
             }
             case "close" -> minecraft.setScreen(null);
             default -> {
+                if (cmd.startsWith("shot")) {
+                    pendingShot = shotName(cmd);
+                    return;
+                }
                 if (minecraft.screen instanceof CorkBoardScreen board) {
                     applyBoard(board, cmd);
                 } else if (minecraft.screen instanceof VillageAdminScreen admin) {
@@ -54,6 +64,36 @@ public final class CorkQaClient {
                 }
             }
         }
+    }
+
+    public static void onScreenRender(ScreenEvent.Render.Post event) {
+        grabPending();
+    }
+
+    public static void onRenderGui(RenderGuiEvent.Post event) {
+        if (Minecraft.getInstance().screen == null) {
+            grabPending();
+        }
+    }
+
+    private static String shotName(String cmd) {
+        String name = cmd.contains("=") ? cmd.substring(cmd.indexOf('=') + 1).strip() : "corkqa.png";
+        if (name.isEmpty()) {
+            name = "corkqa.png";
+        }
+        return name.endsWith(".png") ? name : name + ".png";
+    }
+
+    private static void grabPending() {
+        if (pendingShot == null) {
+            return;
+        }
+        String name = pendingShot;
+        pendingShot = null;
+        Minecraft minecraft = Minecraft.getInstance();
+        RenderTarget target = minecraft.getMainRenderTarget();
+        Screenshot.grab(minecraft.gameDirectory, name, target, message ->
+                AeronauticsCouriers.LOGGER.info("[corkqa] {}", message.getString()));
     }
 
     private static void applyBoard(CorkBoardScreen board, String cmd) {

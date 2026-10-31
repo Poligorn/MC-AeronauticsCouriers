@@ -23,6 +23,7 @@ public final class CorkBoardGui {
     public static void fullBright() {
         RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
         RenderSystem.enableBlend();
+        RenderSystem.defaultBlendFunc();
     }
 
     public static void blit(GuiGraphics g, ResourceLocation sprite, int x, int y, int w, int h) {
@@ -65,24 +66,12 @@ public final class CorkBoardGui {
 
     public static void boardWindow(GuiGraphics g, CorkBoardLayout layout) {
         fullBright();
+        // Wood stays inside the frame. The 8 px / 3 px transparent margin is the world.
         blit(g, CorkSprites.WOOD_DARK_H, layout.headerPlank);
         blit(g, CorkSprites.WOOD_MID_H, layout.filterBar);
         blit(g, CorkSprites.WOOD_DARK_H, layout.footerPlank);
-        if (layout.compact) {
-            blit(g, CorkSprites.CORK_AREA_COMPACT, layout.cork.x(), layout.cork.y(), 458, 180);
-        } else {
-            blit(g, CorkSprites.CORK_AREA, layout.cork.x(), layout.cork.y(), 604, 243);
-        }
-        if (layout.exactFrame) {
-            if (layout.compact) {
-                blit(g, CorkSprites.FRAME_COMPACT, layout.winX, layout.winY, 480, 270);
-            } else {
-                blit(g, CorkSprites.FRAME_FULL, layout.winX, layout.winY, 640, 360);
-            }
-        } else {
-            blit(g, layout.compact ? CorkSprites.FRAME_9_COMPACT : CorkSprites.FRAME_9,
-                    layout.winX, layout.winY, layout.winW, layout.winH);
-        }
+        blitCork(g, layout);
+        blitFrame(g, layout);
     }
 
     public static void adminWindow(GuiGraphics g, CorkBoardLayout layout) {
@@ -92,21 +81,40 @@ public final class CorkBoardGui {
                 layout.winY + (layout.compact ? 45 : 58),
                 layout.compact ? 458 : 604, layout.compact ? 196 : 262);
         blit(g, CorkSprites.WOOD_DARK_H, layout.footerPlank);
+        blitFrame(g, layout);
+    }
+
+    /** Cork plate at native 604×243 / 458×180 — never stretched to the game window. */
+    private static void blitCork(GuiGraphics g, CorkBoardLayout layout) {
+        if (layout.compact) {
+            blit(g, CorkSprites.CORK_AREA_COMPACT, layout.cork.x(), layout.cork.y(), 458, 180);
+        } else {
+            blit(g, CorkSprites.CORK_AREA, layout.cork.x(), layout.cork.y(), 604, 243);
+        }
+    }
+
+    /**
+     * Frame at sprite size (640×360 / 480×270) sitting on {@code layout.winX/Y}. Other window
+     * sizes use the 9-slice sprites (insets 10 / 8). Never blit {@code frame_full_*} over the
+     * whole Minecraft window.
+     */
+    private static void blitFrame(GuiGraphics g, CorkBoardLayout layout) {
         if (layout.exactFrame) {
             if (layout.compact) {
                 blit(g, CorkSprites.FRAME_COMPACT, layout.winX, layout.winY, 480, 270);
             } else {
                 blit(g, CorkSprites.FRAME_FULL, layout.winX, layout.winY, 640, 360);
             }
-        } else {
-            blit(g, layout.compact ? CorkSprites.FRAME_9_COMPACT : CorkSprites.FRAME_9,
-                    layout.winX, layout.winY, layout.winW, layout.winH);
+            return;
         }
+        blit(g, layout.compact ? CorkSprites.FRAME_9_COMPACT : CorkSprites.FRAME_9,
+                layout.winX, layout.winY, layout.winW, layout.winH);
     }
 
     public static void section(GuiGraphics g, Font font, int x, int y, int w, int h, Component title) {
         blit(g, CorkSprites.ADMIN_SECTION, x, y, w, h);
-        bold(g, font, title, x + 6, y + 3, CorkPalette.ADMIN_TITLE);
+        bold(g, font, ellipsize(font, title.getString(), Math.max(16, w - 12)),
+                x + 6, y + 3, CorkPalette.ADMIN_TITLE);
     }
 
     public static void dialog(GuiGraphics g, int x, int y, int w, int h) {

@@ -49,6 +49,8 @@ public final class AeroCouriersClient {
         NeoForge.EVENT_BUS.addListener(AeroCouriersClient::onLoggingOut);
         NeoForge.EVENT_BUS.addListener(AeroCouriersClient::centerJadeOverlayForQa);
         NeoForge.EVENT_BUS.addListener(CorkQaClient::onClientTick);
+        NeoForge.EVENT_BUS.addListener(CorkQaClient::onScreenRender);
+        NeoForge.EVENT_BUS.addListener(CorkQaClient::onRenderGui);
         modBus.addListener(AeroCouriersClient::registerItemDecorations);
     }
 

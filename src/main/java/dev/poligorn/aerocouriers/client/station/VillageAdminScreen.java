@@ -110,10 +110,12 @@ public final class VillageAdminScreen extends Screen {
         String title = Component.translatable("ui.aerocouriers.cork.station", snapshot.name()).getString();
         CorkBoardGui.bold(graphics, font, CorkBoardGui.ellipsize(font, title, 400),
                 ox + 50, oy + 25, CorkPalette.HEADER_TITLE);
-        CorkBoardGui.text(graphics, font, Component.translatable("ui.aerocouriers.village_admin.panel"),
+        CorkBoardGui.text(graphics, font, CorkBoardGui.ellipsize(font,
+                        Component.translatable("ui.aerocouriers.village_admin.panel").getString(), 400),
                 ox + 50, oy + 34, CorkPalette.ADMIN_OP);
         CorkBoardGui.blitTint(graphics, CorkSprites.ICON_GEAR, ox + 470, oy + 26, 7, 7, CorkPalette.ADMIN_OP);
-        CorkBoardGui.text(graphics, font, Component.translatable("ui.aerocouriers.village_admin.op"),
+        CorkBoardGui.text(graphics, font, CorkBoardGui.ellipsize(font,
+                        Component.translatable("ui.aerocouriers.village_admin.op").getString(), 130),
                 ox + 481, oy + 27, CorkPalette.ADMIN_OP);
         CorkBoardGui.text(graphics, font, CorkBoardGui.ellipsize(font,
                         Component.translatable("ui.aerocouriers.village_admin.subtitle").getString(), 590),
