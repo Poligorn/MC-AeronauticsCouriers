@@ -1,10 +1,10 @@
 package dev.poligorn.aerocouriers.client.station;
 
+import com.mojang.blaze3d.systems.RenderSystem;
 import dev.poligorn.aerocouriers.cargo.CargoSize;
 import dev.poligorn.aerocouriers.client.ClientBoard;
 import dev.poligorn.aerocouriers.client.InGamePauseBackground;
 import dev.poligorn.aerocouriers.client.TooltipDraw;
-import dev.poligorn.aerocouriers.client.board.BoardCardRenderer;
 import dev.poligorn.aerocouriers.client.board.VillageRefreshUi;
 import dev.poligorn.aerocouriers.license.LicenseRank;
 import dev.poligorn.aerocouriers.net.BoardSnapshotPayload;
@@ -82,6 +82,11 @@ public final class CorkBoardScreen extends Screen {
     @Override
     public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         InGamePauseBackground.render(this, graphics, mouseX, mouseY, partialTick);
+        RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+    }
+
+    @Override
+    protected void renderBlurredBackground(float partialTick) {
     }
 
     @Override
@@ -89,7 +94,7 @@ public final class CorkBoardScreen extends Screen {
         layout = CorkBoardLayout.of(width, height);
         hoverTip = null;
         renderBackground(graphics, mouseX, mouseY, partialTick);
-        CorkBoardGui.dimWorld(graphics, width, height);
+        CorkBoardGui.fullBright();
         CorkBoardGui.frame(graphics, layout.winX, layout.winY, layout.winW, layout.winH);
         CorkBoardGui.headerBand(graphics, layout.innerX, layout.innerY, layout.innerW, layout.headerH);
         CorkBoardGui.cork(graphics, layout.corkX, layout.corkY, layout.corkW, layout.corkH);
@@ -97,7 +102,7 @@ public final class CorkBoardScreen extends Screen {
         List<BoardSnapshotPayload.BoardEntry> orders = filters.apply(snapshot.orders());
         scroll = Mth.clamp(scroll, 0, layout.maxScrollRows(orders.size()));
         drawNotes(graphics, orders, mouseX, mouseY);
-        drawFooter(graphics, orders.size(), mouseX, mouseY);
+        drawFooter(graphics, mouseX, mouseY);
         CorkBoardGui.scrollBar(graphics, layout.scrollX, layout.scrollY, CorkBoardLayout.SCROLL_W, layout.scrollH,
                 scroll, layout.maxScrollRows(orders.size()));
         if (waybill != null) {
@@ -110,7 +115,6 @@ public final class CorkBoardScreen extends Screen {
                 hoverTip = hint;
             }
         }
-        super.render(graphics, mouseX, mouseY, partialTick);
         if (hoverTip != null) {
             TooltipDraw.render(graphics, font, List.of(hoverTip), java.util.Optional.empty(), mouseX, mouseY);
         }
@@ -122,14 +126,10 @@ public final class CorkBoardScreen extends Screen {
         graphics.drawString(font, Component.translatable("ui.aerocouriers.cork.station", snapshot.name()),
                 x, y, CorkBoardGui.HEADER, false);
         int timer = VillageRefreshUi.remainingTicks(minecraft);
-        Component timerLabel = timer < 0
-                ? Component.empty()
-                : VillageRefreshUi.countdownLabel(timer);
+        Component timerLabel = timer < 0 ? Component.empty() : VillageRefreshUi.countdownLabel(timer);
         if (!timerLabel.getString().isEmpty()) {
-            graphics.drawString(font, Component.translatable("ui.aerocouriers.cork.timer", timerLabel),
-                    layout.innerX + layout.innerW - 8 - font.width(Component.translatable(
-                            "ui.aerocouriers.cork.timer", timerLabel)),
-                    y, CorkBoardGui.HEADER, false);
+            graphics.drawString(font, timerLabel,
+                    layout.innerX + layout.innerW - 8 - font.width(timerLabel), y, CorkBoardGui.HEADER, false);
         }
         y += 12;
         CorkBoardGui.reputationBar(graphics, x, y, Math.min(220, layout.innerW / 2), 7,
@@ -141,8 +141,7 @@ public final class CorkBoardScreen extends Screen {
         LicenseRank rank = snapshot.view().playerRankLevel() <= 0
                 ? LicenseRank.ADMIN
                 : LicenseRank.byLevel(snapshot.view().playerRankLevel());
-        Component rankLabel = Component.translatable("ui.aerocouriers.cork.rank",
-                BoardCardRenderer.roman(rank), rank.displayName());
+        Component rankLabel = rank.displayName();
         graphics.drawString(font, rankLabel,
                 layout.innerX + layout.innerW - 8 - font.width(rankLabel), y, CorkBoardGui.HEADER, false);
 
@@ -193,10 +192,10 @@ public final class CorkBoardScreen extends Screen {
         }
     }
 
-    private void drawFooter(GuiGraphics graphics, int visible, int mouseX, int mouseY) {
+    private void drawFooter(GuiGraphics graphics, int mouseX, int mouseY) {
         int y = layout.innerY + layout.innerH - layout.footerH + 8;
         graphics.drawString(font, Component.translatable("ui.aerocouriers.cork.orders_count",
-                        visible, snapshot.view().boardMax()),
+                        snapshot.orders().size(), snapshot.view().boardMax()),
                 layout.innerX + 8, y, CorkBoardGui.HEADER, false);
         if (!layout.compact) {
             graphics.drawString(font, Component.translatable("ui.aerocouriers.cork.hint"),

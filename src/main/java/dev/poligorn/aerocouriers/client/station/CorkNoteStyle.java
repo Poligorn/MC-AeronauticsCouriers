@@ -1,12 +1,14 @@
 package dev.poligorn.aerocouriers.client.station;
 
 import dev.poligorn.aerocouriers.cargo.CargoSize;
+import dev.poligorn.aerocouriers.client.AerocouriersGuiSprites;
 import dev.poligorn.aerocouriers.client.board.BoardAcceptUi;
 import dev.poligorn.aerocouriers.client.board.BoardCardRenderer;
 import dev.poligorn.aerocouriers.license.LicenseRank;
 import dev.poligorn.aerocouriers.net.BoardSnapshotPayload;
 import dev.poligorn.aerocouriers.village.VillageBoardPolicy;
 import java.util.Locale;
+import net.minecraft.resources.ResourceLocation;
 
 public record CorkNoteStyle(
         boolean expensive,
@@ -50,6 +52,22 @@ public record CorkNoteStyle(
             return CorkBoardGui.PINK_PAPER;
         }
         return CorkBoardGui.CREAM;
+    }
+
+    public ResourceLocation paperSprite() {
+        if (locked) {
+            return AerocouriersGuiSprites.CORK_PAPER_LOCKED;
+        }
+        if (expensive && rare) {
+            return AerocouriersGuiSprites.CORK_PAPER_BLEND;
+        }
+        if (expensive) {
+            return AerocouriersGuiSprites.CORK_PAPER_GOLD;
+        }
+        if (rare) {
+            return AerocouriersGuiSprites.CORK_PAPER_PINK;
+        }
+        return AerocouriersGuiSprites.CORK_PAPER;
     }
 
     public int border() {

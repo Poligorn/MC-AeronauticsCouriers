@@ -13,12 +13,15 @@ public final class CorkNoteRenderer {
 
     public static void render(GuiGraphics graphics, Font font, BoardSnapshotPayload.BoardEntry entry,
                               CorkNoteStyle style, int x, int y, int w, int h, boolean hover, boolean compact) {
-        int fill = style.paper();
+        CorkBoardGui.paper(graphics, x, y, w, h, style.paperSprite());
         if (hover && !style.locked()) {
-            fill = brighten(fill);
+            graphics.fill(x + 1, y + 1, x + w - 1, y + h - 1, 0x22FFFFFF);
         }
-        CorkBoardGui.paper(graphics, x, y, w, h, fill, style.border());
-        CorkBoardGui.pin(graphics, x + w / 2, y + 3);
+        graphics.fill(x, y, x + w, y + 1, style.border());
+        graphics.fill(x, y + h - 1, x + w, y + h, style.border());
+        graphics.fill(x, y, x + 1, y + h, style.border());
+        graphics.fill(x + w - 1, y, x + w, y + h, style.border());
+        CorkBoardGui.pin(graphics, x + w / 2, y + 3, entry.id().hashCode());
 
         int pad = compact ? 4 : 6;
         int tx = x + pad;
@@ -76,14 +79,14 @@ public final class CorkNoteRenderer {
         }
 
         if (style.expensive()) {
-            CorkBoardGui.waxSeal(graphics, x + w - 14, y + h - 16);
+            CorkBoardGui.waxSeal(graphics, x + w - 18, y + h - 18);
         }
         if (style.rare()) {
-            CorkBoardGui.ribbon(graphics, x + w - 10, y + 1);
+            CorkBoardGui.ribbon(graphics, x + w - 14, y);
         }
         if (style.inProgress()) {
-            int stampW = Math.min(w - pad * 2, font.width(Component.translatable(
-                    "ui.aerocouriers.cork.note.in_progress")) + 16);
+            int stampW = Math.min(w - pad * 2, Math.max(48, font.width(Component.translatable(
+                    "ui.aerocouriers.cork.note.in_progress")) + 16));
             String nick = style.courierName().isBlank() ? "—" : style.courierName();
             CorkBoardGui.progressStamp(graphics, font, x + pad, y + h - 26, stampW,
                     Component.translatable("ui.aerocouriers.cork.note.in_progress"),
@@ -96,10 +99,4 @@ public final class CorkNoteRenderer {
         return String.valueOf(minutes);
     }
 
-    private static int brighten(int argb) {
-        int r = Math.min(255, ((argb >> 16) & 0xFF) + 12);
-        int g = Math.min(255, ((argb >> 8) & 0xFF) + 10);
-        int b = Math.min(255, (argb & 0xFF) + 6);
-        return 0xFF000000 | (r << 16) | (g << 8) | b;
-    }
 }

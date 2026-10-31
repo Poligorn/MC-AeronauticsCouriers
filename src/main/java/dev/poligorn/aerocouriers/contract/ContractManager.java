@@ -513,6 +513,15 @@ public final class ContractManager extends SavedData {
         return Optional.of(contract);
     }
 
+    /** Dev/QA: mark an OPEN village note as accepted so the in-progress stamp can be screenshotted. */
+    public void qaAccept(MinecraftServer server, UUID id, UUID courierId) {
+        Contract contract = contracts.get(id);
+        if (contract == null || contract.state() != ContractState.OPEN) {
+            return;
+        }
+        put(contract.accepted(courierId, now(server)));
+    }
+
     /** Dev/QA: pin remaining time so the cork-board expiry style can be screenshotted. */
     public void qaSetRemaining(MinecraftServer server, UUID id, int minutesLeft, int deadlineMinutes) {
         Contract contract = contracts.get(id);

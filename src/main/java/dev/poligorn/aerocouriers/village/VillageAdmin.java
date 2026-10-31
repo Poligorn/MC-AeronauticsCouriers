@@ -206,7 +206,7 @@ public final class VillageAdmin {
                 VillageBoardPolicy.REPUTATION_MAX,
                 s.completed(),
                 s.active(),
-                s.onBoard(),
+                s.onBoard() + s.active(),
                 s.boardMax(),
                 s.expensive(),
                 s.rare());

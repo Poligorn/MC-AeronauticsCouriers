@@ -13,6 +13,7 @@ import dev.poligorn.aerocouriers.admin.AdminActions;
 import dev.poligorn.aerocouriers.contract.Contract;
 import dev.poligorn.aerocouriers.contract.ContractManager;
 import dev.poligorn.aerocouriers.contract.ContractState;
+import dev.poligorn.aerocouriers.contract.ContractType;
 import dev.poligorn.aerocouriers.contract.Destination;
 import dev.poligorn.aerocouriers.economy.Economies;
 import dev.poligorn.aerocouriers.economy.Economy;
@@ -388,6 +389,7 @@ final class DevSeedCommands {
         UUID toNear = UUID.nameUUIDFromBytes("aerocouriers-corkqa:near".getBytes(StandardCharsets.UTF_8));
         UUID toFar = UUID.nameUUIDFromBytes("aerocouriers-corkqa:far".getBytes(StandardCharsets.UTF_8));
         UUID toRare = UUID.nameUUIDFromBytes("aerocouriers-corkqa:rare".getBytes(StandardCharsets.UTF_8));
+        clearVillageOrders(server, fromId);
         StationAtlas atlas = StationAtlas.get(server);
         atlas.register(fromId, "Ясная Поляна", level.dimension(), stationPos);
         atlas.register(toNear, "Речной Берег", level.dimension(), origin.offset(48, 0, 12));
@@ -425,9 +427,14 @@ final class DevSeedCommands {
                 List.of(new ItemStack(Items.LEATHER, 8), new ItemStack(Items.STRING, 16)));
         corkInProgressId = progress == null ? null : progress.id();
         if (progress != null) {
-            acceptAsMira(server, level, progress.id());
+            UUID miraId = UUID.nameUUIDFromBytes("aerocouriers-corkqa:mira".getBytes(StandardCharsets.UTF_8));
+            GameProfile mira = new GameProfile(miraId, "Mira");
+            if (server.getProfileCache() != null) {
+                server.getProfileCache().add(mira);
+            }
+            manager.qaAccept(server, progress.id(), miraId);
         }
-        for (int i = 0; i < 6; i++) {
+        for (int i = 0; i < 4; i++) {
             publish(level, from, i % 2 == 0 ? near : dunes, CargoSize.S, 3.0 + i, 90 + i * 20L, 40, 60 + i * 5,
                     false, List.of(new ItemStack(Items.WHEAT, 8 + i)));
         }
@@ -479,6 +486,19 @@ final class DevSeedCommands {
                 CouriersServerConfig.REQUIRE_TABLET.set(true);
                 StationPackets.open(player, player.serverLevel(), corkStationPos);
             }
+            case "empty" -> {
+                UUID fromId = UUID.nameUUIDFromBytes("aerocouriers-corkqa:from".getBytes(StandardCharsets.UTF_8));
+                clearVillageOrders(server, fromId);
+                corkInProgressId = null;
+                preparePlayer(player, true, LicenseRank.RANK3);
+                player.setGameMode(GameType.CREATIVE);
+                StationPackets.open(player, player.serverLevel(), corkStationPos);
+            }
+            case "progress" -> {
+                preparePlayer(player, true, LicenseRank.RANK3);
+                player.setGameMode(GameType.CREATIVE);
+                StationPackets.open(player, player.serverLevel(), corkStationPos);
+            }
             default -> AeronauticsCouriers.LOGGER.warn("[corkqa] unknown cmd {}", cmd);
         }
     }
@@ -501,11 +521,23 @@ final class DevSeedCommands {
             economy.deposit(player.getUUID(), 5_000, "corkqa");
         }
         if (corkInProgressId != null) {
-            ContractManager.get(player.server).byId(corkInProgressId).ifPresent(c -> {
+            ContractManager manager = ContractManager.get(player.server);
+            manager.byId(corkInProgressId).ifPresent(c -> {
                 if (c.state() == ContractState.OPEN) {
-                    acceptAsMira(player.server, player.serverLevel(), c.id());
+                    manager.qaAccept(player.server, c.id(), player.getUUID());
                 }
             });
+        }
+    }
+
+    private static void clearVillageOrders(MinecraftServer server, UUID stationId) {
+        ContractManager manager = ContractManager.get(server);
+        for (Contract contract : List.copyOf(manager.all().toList())) {
+            if (contract.type() == ContractType.VILLAGE
+                    && contract.issuer().equals(stationId)
+                    && !contract.state().isFinal()) {
+                manager.adminCancelWithRefund(server, contract.id());
+            }
         }
     }
 
@@ -515,24 +547,6 @@ final class DevSeedCommands {
         return ContractManager.get(level.getServer())
                 .publishVillage(level, from, to, manifest, size, weight, reward, collateral, deadlineMinutes, rare)
                 .orElse(null);
-    }
-
-    private static void acceptAsMira(MinecraftServer server, ServerLevel level, UUID id) {
-        UUID miraId = UUID.nameUUIDFromBytes("aerocouriers-corkqa:mira".getBytes(StandardCharsets.UTF_8));
-        GameProfile mira = new GameProfile(miraId, "Mira");
-        if (server.getProfileCache() != null) {
-            server.getProfileCache().add(mira);
-        }
-        ServerPlayer courier = FakePlayerFactory.get(level, mira);
-        ItemStack license = Licenses.issueLicense(courier, LicenseRank.ADMIN, false);
-        CuriosApi.getCuriosInventory(courier).ifPresent(inv ->
-                inv.setEquippedCurio(Licenses.CURIOS_SLOT, 0, license));
-        Licenses.findLicense(courier).ifPresent(stack -> Licenses.tickWorn(courier, stack));
-        Economies.get(server).deposit(miraId, 20_000, "corkqa");
-        ContractManager.Outcome accepted = ContractManager.get(server).accept(courier, id);
-        if (!accepted.success()) {
-            AeronauticsCouriers.LOGGER.warn("[corkqa] mira accept failed: {}", accepted.message().getString());
-        }
     }
 
     private static void placeStation(ServerLevel level, BlockPos pos, UUID id, String name) {

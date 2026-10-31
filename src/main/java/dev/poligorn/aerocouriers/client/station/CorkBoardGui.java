@@ -1,114 +1,138 @@
 package dev.poligorn.aerocouriers.client.station;
 
+import com.mojang.blaze3d.systems.RenderSystem;
+import dev.poligorn.aerocouriers.client.AerocouriersGuiSprites;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 
 /** Original pixel chrome for the cork board and village admin panel. */
 public final class CorkBoardGui {
-    public static final int WOOD = 0xFF6B4423;
-    public static final int WOOD_DARK = 0xFF4A2E14;
-    public static final int WOOD_LIGHT = 0xFF8A5A30;
+    public static final int WOOD = 0xFF8A582C;
+    public static final int WOOD_DARK = 0xFF4E2C12;
+    public static final int WOOD_LIGHT = 0xFFB4743C;
     public static final int WOOD_LINE = 0xFFD4A84A;
-    public static final int CORK = 0xFFC4A06A;
-    public static final int CORK_DARK = 0xFFB08950;
-    public static final int CORK_SPECK = 0xFFA07840;
-    public static final int INK = 0xFF3A2A18;
+    public static final int CORK = 0xFFE2B86E;
+    public static final int CORK_DARK = 0xFFB88848;
+    public static final int CORK_SPECK = 0xFF8E6428;
+    public static final int INK = 0xFF3A2814;
     public static final int INK_MUTED = 0xFF7A6040;
-    public static final int CREAM = 0xFFF3E6C4;
-    public static final int GOLD_PAPER = 0xFFF0D48A;
-    public static final int PINK_PAPER = 0xFFF2D4E4;
-    public static final int LOCK_PAPER = 0xFFC8C4BC;
+    public static final int CREAM = 0xFFF7EAC8;
+    public static final int GOLD_PAPER = 0xFFF4D478;
+    public static final int PINK_PAPER = 0xFFF4D4E6;
+    public static final int LOCK_PAPER = 0xFFD4D0C6;
     public static final int TEAL = 0xFF2A9A94;
-    public static final int TEAL_DARK = 0xFF1E6E6A;
-    public static final int RED = 0xFFC04030;
-    public static final int GOLD = 0xFFC4A020;
+    public static final int TEAL_DARK = 0xFF1A6460;
+    public static final int RED = 0xFFC03828;
+    public static final int GOLD = 0xFFE0C048;
     public static final int HEADER = 0xFFF5E6C8;
-    public static final int PANEL = 0xFF3E2814;
-    public static final int PANEL_LINE = 0xFF2A1A0C;
+    public static final int PANEL = 0xFF4A2E16;
+    public static final int PANEL_LINE = 0xFF2A180A;
     public static final int BAR_BG = 0xFF2A1A0C;
     public static final int BAR_FILL = 0xFF3AA8A0;
+
+    private static final ResourceLocation[] PINS = {
+            AerocouriersGuiSprites.CORK_PIN_RED,
+            AerocouriersGuiSprites.CORK_PIN_TEAL,
+            AerocouriersGuiSprites.CORK_PIN_BRASS,
+            AerocouriersGuiSprites.CORK_PIN_PINK
+    };
 
     private CorkBoardGui() {
     }
 
-    public static void dimWorld(GuiGraphics graphics, int width, int height) {
-        graphics.fill(0, 0, width, height, 0xB0100804);
+    public static void fullBright() {
+        RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+        RenderSystem.enableBlend();
     }
 
     public static void frame(GuiGraphics graphics, int x, int y, int w, int h) {
-        graphics.fill(x, y, x + w, y + h, WOOD_DARK);
-        graphics.fill(x + 1, y + 1, x + w - 1, y + h - 1, WOOD);
-        graphics.fill(x + 2, y + 2, x + w - 2, y + 3, WOOD_LIGHT);
-        graphics.fill(x + 2, y + h - 3, x + w - 2, y + h - 2, WOOD_DARK);
-        graphics.fill(x + 3, y + 3, x + w - 3, y + 4, WOOD_LINE);
-        graphics.fill(x + CorkBoardLayout.FRAME - 1, y + CorkBoardLayout.FRAME - 1,
-                x + w - CorkBoardLayout.FRAME + 1, y + h - CorkBoardLayout.FRAME + 1, WOOD_DARK);
+        fullBright();
+        graphics.blitSprite(AerocouriersGuiSprites.CORK_FRAME, x, y, w, h);
     }
 
     public static void cork(GuiGraphics graphics, int x, int y, int w, int h) {
-        graphics.fill(x, y, x + w, y + h, CORK);
-        for (int py = 0; py < h; py += 3) {
-            for (int px = 0; px < w; px += 4) {
-                int hash = (px * 13 + py * 37 + (px ^ py)) & 7;
-                if (hash == 0) {
-                    graphics.fill(x + px, y + py, x + px + 1, y + py + 1, CORK_SPECK);
-                } else if (hash == 1) {
-                    graphics.fill(x + px + 1, y + py + 1, x + px + 2, y + py + 2, CORK_DARK);
-                }
-            }
-        }
+        fullBright();
+        graphics.blitSprite(AerocouriersGuiSprites.CORK_TILE, x, y, w, h);
     }
 
     public static void headerBand(GuiGraphics graphics, int x, int y, int w, int h) {
-        graphics.fill(x, y, x + w, y + h, WOOD);
-        graphics.fill(x, y + h - 1, x + w, y + h, WOOD_LINE);
+        fullBright();
+        graphics.blitSprite(AerocouriersGuiSprites.CORK_HEADER, x, y, w, h);
+    }
+
+    public static void interior(GuiGraphics graphics, int x, int y, int w, int h) {
+        fullBright();
+        graphics.blitSprite(AerocouriersGuiSprites.CORK_INTERIOR, x, y, w, h);
     }
 
     public static void panel(GuiGraphics graphics, int x, int y, int w, int h) {
-        graphics.fill(x, y, x + w, y + h, PANEL_LINE);
-        graphics.fill(x + 1, y + 1, x + w - 1, y + h - 1, PANEL);
+        fullBright();
+        graphics.blitSprite(AerocouriersGuiSprites.CORK_PANEL, x, y, w, h);
     }
 
     public static void paper(GuiGraphics graphics, int x, int y, int w, int h, int fill, int border) {
-        graphics.fill(x, y, x + w, y + h, border);
-        graphics.fill(x + 1, y + 1, x + w - 1, y + h - 1, fill);
+        if (fill == PANEL) {
+            panel(graphics, x, y, w, h);
+            return;
+        }
+        paper(graphics, x, y, w, h, paperSprite(fill));
+    }
+
+    public static void paper(GuiGraphics graphics, int x, int y, int w, int h, ResourceLocation sprite) {
+        fullBright();
+        graphics.blitSprite(sprite, x, y, w, h);
+    }
+
+    public static ResourceLocation paperSprite(int fill) {
+        if (fill == LOCK_PAPER) {
+            return AerocouriersGuiSprites.CORK_PAPER_LOCKED;
+        }
+        if (fill == GOLD_PAPER) {
+            return AerocouriersGuiSprites.CORK_PAPER_GOLD;
+        }
+        if (fill == PINK_PAPER) {
+            return AerocouriersGuiSprites.CORK_PAPER_PINK;
+        }
+        if (fill == 0xFFF4D8B0) {
+            return AerocouriersGuiSprites.CORK_PAPER_BLEND;
+        }
+        return AerocouriersGuiSprites.CORK_PAPER;
     }
 
     public static void pin(GuiGraphics graphics, int cx, int cy) {
-        graphics.fill(cx - 2, cy - 1, cx + 3, cy + 2, 0xFF8A8A8A);
-        graphics.fill(cx - 1, cy - 2, cx + 2, cy + 3, 0xFF8A8A8A);
-        graphics.fill(cx - 1, cy - 1, cx + 2, cy + 2, 0xFFE8E8E8);
-        graphics.fill(cx, cy, cx + 1, cy + 1, 0xFF6A6A6A);
+        pin(graphics, cx, cy, 0);
+    }
+
+    public static void pin(GuiGraphics graphics, int cx, int cy, int variant) {
+        fullBright();
+        ResourceLocation sprite = PINS[Math.floorMod(variant, PINS.length)];
+        graphics.blitSprite(sprite, cx - 4, cy - 3, 9, 9);
     }
 
     public static void waxSeal(GuiGraphics graphics, int x, int y) {
-        graphics.fill(x + 1, y, x + 7, y + 8, 0xFF8A2020);
-        graphics.fill(x, y + 1, x + 8, y + 7, 0xFF8A2020);
-        graphics.fill(x + 2, y + 2, x + 6, y + 6, 0xFFC04030);
-        graphics.fill(x + 3, y + 3, x + 5, y + 5, 0xFFE0C040);
+        fullBright();
+        graphics.blitSprite(AerocouriersGuiSprites.CORK_WAX, x, y, 14, 14);
     }
 
     public static void ribbon(GuiGraphics graphics, int x, int y) {
-        graphics.fill(x, y, x + 6, y + 12, 0xFFC04070);
-        graphics.fill(x + 1, y + 1, x + 5, y + 5, 0xFFE070A0);
-        graphics.fill(x + 2, y + 5, x + 4, y + 11, 0xFFA02858);
+        fullBright();
+        graphics.blitSprite(AerocouriersGuiSprites.CORK_RIBBON, x, y, 12, 16);
     }
 
     public static void lock(GuiGraphics graphics, int x, int y) {
-        graphics.fill(x + 2, y, x + 7, y + 3, INK_MUTED);
-        graphics.fill(x + 1, y + 3, x + 8, y + 9, INK);
-        graphics.fill(x + 3, y + 5, x + 6, y + 8, 0xFFD8D0C0);
+        fullBright();
+        graphics.blitSprite(AerocouriersGuiSprites.CORK_LOCK, x, y, 10, 12);
     }
 
     public static void sizeStamp(GuiGraphics graphics, Font font, int x, int y, String size, boolean large) {
-        int w = large ? 16 : 13;
-        int h = large ? 13 : 11;
-        graphics.fill(x, y, x + w, y + h, 0xFFE8D8A8);
-        graphics.fill(x, y, x + w, y + 1, 0xFFB0A070);
-        graphics.fill(x, y + h - 1, x + w, y + h, 0xFFB0A070);
-        graphics.drawString(font, size, x + (w - font.width(size)) / 2, y + (h - 8) / 2, INK, false);
+        int w = large ? 18 : 16;
+        int h = 13;
+        fullBright();
+        graphics.blitSprite(AerocouriersGuiSprites.CORK_STAMP, x, y, w, h);
+        graphics.drawString(font, size, x + (w - font.width(size)) / 2, y + 3, INK, false);
     }
 
     public static void badge(GuiGraphics graphics, Font font, int x, int y, Component text, int bg, int fg) {
@@ -120,8 +144,8 @@ public final class CorkBoardGui {
     public static void progressStamp(GuiGraphics graphics, Font font, int x, int y, int w, Component title,
                                      Component nick) {
         int h = 22;
-        graphics.fill(x, y, x + w, y + h, TEAL_DARK);
-        graphics.fill(x + 1, y + 1, x + w - 1, y + h - 1, 0xFFE8F4F2);
+        fullBright();
+        graphics.blitSprite(AerocouriersGuiSprites.CORK_PROGRESS, x, y, Math.max(48, w), h);
         graphics.drawString(font, title, x + 4, y + 2, TEAL_DARK, false);
         graphics.drawString(font, nick, x + 4, y + 11, TEAL, false);
     }
@@ -158,29 +182,47 @@ public final class CorkBoardGui {
 
     public static void button(GuiGraphics graphics, Font font, int x, int y, int w, int h, Component label,
                               boolean hover, boolean enabled, boolean danger) {
-        int border = danger ? RED : (hover && enabled ? WOOD_LINE : WOOD_DARK);
-        int fill = !enabled ? 0xFF5A4030 : danger ? 0xFF6A2820 : hover ? 0xFF8A5A30 : WOOD;
+        fullBright();
+        ResourceLocation sprite;
+        if (!enabled) {
+            sprite = AerocouriersGuiSprites.CORK_BUTTON;
+        } else if (danger) {
+            sprite = hover
+                    ? AerocouriersGuiSprites.CORK_BUTTON_DANGER_HOVER
+                    : AerocouriersGuiSprites.CORK_BUTTON_DANGER;
+        } else {
+            sprite = hover ? AerocouriersGuiSprites.CORK_BUTTON_HOVER : AerocouriersGuiSprites.CORK_BUTTON;
+        }
+        graphics.blitSprite(sprite, x, y, w, h);
         int text = !enabled ? 0xFF8A7A60 : HEADER;
-        graphics.fill(x, y, x + w, y + h, border);
-        graphics.fill(x + 1, y + 1, x + w - 1, y + h - 1, fill);
         graphics.drawString(font, label, x + (w - font.width(label)) / 2, y + (h - 8) / 2, text, false);
     }
 
     public static void chip(GuiGraphics graphics, Font font, int x, int y, int w, int h, Component label,
                             boolean on, boolean hover) {
-        int fill = on ? 0xFF8A5A30 : hover ? 0xFF5A3A20 : 0xFF3E2814;
-        graphics.fill(x, y, x + w, y + h, WOOD_LINE);
-        graphics.fill(x + 1, y + 1, x + w - 1, y + h - 1, fill);
+        fullBright();
+        graphics.blitSprite(AerocouriersGuiSprites.CORK_CHIP, x, y, w, h);
+        if (on) {
+            graphics.fill(x + 1, y + 1, x + w - 1, y + h - 1, 0x668A5A30);
+        } else if (hover) {
+            graphics.fill(x + 1, y + 1, x + w - 1, y + h - 1, 0x335A3A20);
+        }
         graphics.drawString(font, label, x + 5, y + (h - 8) / 2, HEADER, false);
     }
 
+    public static void toggle(GuiGraphics graphics, Font font, int x, int y, Component label, boolean on) {
+        fullBright();
+        graphics.blitSprite(on ? AerocouriersGuiSprites.CORK_SWITCH_ON : AerocouriersGuiSprites.CORK_SWITCH_OFF,
+                x, y, 22, 12);
+        graphics.drawString(font, label, x + 26, y + 2, HEADER, false);
+    }
+
+    public static int toggleW(Font font, Component label) {
+        return 26 + font.width(label);
+    }
+
     public static void checkbox(GuiGraphics graphics, Font font, int x, int y, Component label, boolean on) {
-        graphics.fill(x, y, x + 9, y + 9, WOOD_LINE);
-        graphics.fill(x + 1, y + 1, x + 8, y + 8, BAR_BG);
-        if (on) {
-            graphics.fill(x + 2, y + 2, x + 7, y + 7, BAR_FILL);
-        }
-        graphics.drawString(font, label, x + 12, y, HEADER, false);
+        toggle(graphics, font, x, y, label, on);
     }
 
     public static int chipW(Font font, Component label) {
