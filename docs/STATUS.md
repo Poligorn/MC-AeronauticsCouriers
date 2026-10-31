@@ -12,7 +12,7 @@
 - Текстуры 16px свои: `tools/gen_post_station_textures.py`. Модели `post_station_lower` / `post_station_upper`, предмет — собранная стойка с антенной.
 - **Старые миры.** Отсутствующий `half` → `lower` (дефолт StateDefinition). NBT BE не меняется. `onLoad` достраивает верх, если клетка `canBeReplaced`. Занято сверху — станция остаётся рабочей одноблочной.
 - Worldgen: `post_station.nbt` кладёт lower (1,1,1) + upper (1,2,1). Процессор дедупит только контроллер; лишний верх → воздух. Счётчики GameTest считают только `isController`.
-- GameTest: `placingAndBreakingEitherHalfMakesATwoHighStation`; структура и генерация деревень проверяют 2-tall; Jade — тултип с верхней половины. Версия не менялась.
+- GameTest: `placingAndBreakingEitherHalfMakesATwoHighStation`; структура и генерация деревень проверяют 2-tall; Jade — тултип с верхней половины. `./gradlew build` SUCCESS. `runGameTestServer -PwithoutJade=true` **82/82** (было 81; +1 place/break). Версия не менялась.
 
 ### Jade-тултипы контейнера и станции (0.3.0, 30.10.2026)
 - Soft-dep Jade **15.10.6+neoforge** (`maven.modrinth:jade`, `compileOnly` + `localRuntime`; jar не в репозитории). Без Jade мод грузится: `runGameTestServer -PwithoutJade=true`. Версию мода и `PROTOCOL_VERSION` не поднимали.
