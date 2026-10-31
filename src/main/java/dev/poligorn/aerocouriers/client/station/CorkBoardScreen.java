@@ -27,6 +27,7 @@ public final class CorkBoardScreen extends Screen {
     private @Nullable List<Component> hoverTipLines;
     private @Nullable CorkBoardLayout.Rect hoverNote;
     private int qaHoverIndex = -1;
+    private CorkBoardLayout.Rect lastFooterText = new CorkBoardLayout.Rect(0, 0, 0, 0);
 
     public CorkBoardScreen(StationSnapshotPayload snapshot) {
         super(Component.translatable("ui.aerocouriers.cork.title", snapshot.name()));
@@ -65,6 +66,14 @@ public final class CorkBoardScreen extends Screen {
     /** QA: force the first visible note's hover tooltip without a GLFW cursor. */
     public void qaHoverFirstNote() {
         qaHoverIndex = 0;
+    }
+
+    public CorkBoardLayout layout() {
+        return layout;
+    }
+
+    public CorkBoardLayout.Rect lastFooterText() {
+        return lastFooterText;
     }
 
     private void syncRefresh() {
@@ -257,22 +266,35 @@ public final class CorkBoardScreen extends Screen {
     }
 
     private void drawFooter(GuiGraphics graphics, int mouseX, int mouseY) {
-        CorkBoardGui.text(graphics, font, Component.translatable(
-                        "ui.aerocouriers.cork.orders_count", snapshot.orders().size()),
-                layout.footerCountX, layout.footerCountY, CorkPalette.FOOTER);
-        if (!layout.narrow) {
-            Component hint = Component.translatable(readOnly()
+        String count = Component.translatable(
+                "ui.aerocouriers.cork.orders_count", snapshot.orders().size()).getString();
+        int tx = layout.footerCountX;
+        int ty = layout.footerCountY;
+        CorkBoardGui.text(graphics, font, count, tx, ty, CorkPalette.FOOTER);
+        int used = font.width(count);
+        int right = layout.footerPlank.x() + layout.footerPlank.w() - 6;
+        int avail = right - (tx + used + 8);
+        String drawnHint = "";
+        if (avail >= 16) {
+            String full = Component.translatable(readOnly()
                     ? "ui.aerocouriers.cork.readonly.hint"
-                    : "ui.aerocouriers.cork.hint");
-            CorkBoardGui.text(graphics, font, hint, layout.footerHintX, layout.footerHintY, CorkPalette.FOOTER_HINT);
+                    : "ui.aerocouriers.cork.hint").getString();
+            String shortened = Component.translatable(readOnly()
+                    ? "ui.aerocouriers.cork.readonly.hint_short"
+                    : "ui.aerocouriers.cork.hint_short").getString();
+            if (font.width(full) <= avail) {
+                drawnHint = full;
+            } else if (font.width(shortened) <= avail) {
+                drawnHint = shortened;
+            } else {
+                drawnHint = CorkBoardGui.ellipsize(font, shortened, avail);
+            }
+            if (!drawnHint.isBlank()) {
+                CorkBoardGui.text(graphics, font, drawnHint, tx + used + 8, ty, CorkPalette.FOOTER_HINT);
+                used += 8 + font.width(drawnHint);
+            }
         }
-        boolean tabletOk = !readOnly();
-        Component tablet = Component.translatable(tabletOk
-                ? "ui.aerocouriers.cork.open_tablet"
-                : "ui.aerocouriers.cork.readonly.tablet");
-        CorkBoardGui.button(graphics, font, layout.tabletBtn.x(), layout.tabletBtn.y(),
-                layout.tabletBtn.w(), layout.tabletBtn.h(), tablet,
-                tabletOk && over(mouseX, mouseY, layout.tabletBtn), tabletOk, CorkBoardGui.ButtonStyle.GOLD);
+        lastFooterText = new CorkBoardLayout.Rect(tx, ty, used, CorkBoardLayout.TEXT);
     }
 
     @Override
@@ -294,11 +316,6 @@ public final class CorkBoardScreen extends Screen {
         }
         if (snapshot.view().canAdmin() && over(mouseX, mouseY, layout.adminBtn)) {
             PacketDistributor.sendToServer(VillageAdminPayload.open(snapshot.stationPos()));
-            return true;
-        }
-        if (!readOnly() && over(mouseX, mouseY, layout.tabletBtn)) {
-            onClose();
-            ClientBoard.requestOpen(0);
             return true;
         }
         List<BoardSnapshotPayload.BoardEntry> orders = filters.apply(snapshot.orders());

@@ -224,6 +224,25 @@ public final class VillageAdminGameTests {
                 "full «new orders in» stays when the chip is wide enough");
         helper.assertValueEqual(VillageRefreshUi.chipLabel(11_560, 15 + full.length() + 4, String::length), full,
                 "chipLabel keeps the sentence when the chip is wide enough");
+        helper.assertTrue(narrow.footerFitsInFrame(), "GUI-4 footer stays inside the frame");
+        helper.assertTrue(large.footerFitsInFrame(), "large footer stays inside the frame");
+        helper.assertTrue(CorkBoardLayout.of(384, 216).footerFitsInFrame(), "tiny footer stays inside the frame");
+        helper.succeed();
+    }
+
+    @GameTest(template = CouriersGameTests.EMPTY, batch = "aerocouriers.village.admin")
+    public static void corkBoardFooterFitsGui4Frame(GameTestHelper helper) {
+        CorkBoardLayout gui4 = CorkBoardLayout.of(480, 270);
+        helper.assertTrue(gui4.narrow, "GUI 4 uses the 480×270 frame");
+        helper.assertTrue(gui4.footerFitsInFrame(), "footer plank and text sit above the frame rim");
+        helper.assertTrue(gui4.footerPlank.y() >= gui4.cork.y() + gui4.cork.h(),
+                "cork height leaves room for the footer");
+        helper.assertTrue(gui4.footerCountY + CorkBoardLayout.TEXT
+                        <= gui4.winY + gui4.winH - gui4.frameInsetBottom(),
+                "footer text cell is above the inner bottom");
+        helper.assertTrue(gui4.footerPlank.h() >= CorkBoardLayout.TEXT,
+                "footer plank fits the 8 px line");
+        helper.assertTrue(gui4.footerHintY == gui4.footerCountY, "count and hint share one line");
         helper.succeed();
     }
 

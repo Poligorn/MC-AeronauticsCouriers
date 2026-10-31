@@ -97,6 +97,7 @@ public final class CorkQaClient {
         pendingShot = null;
         Minecraft minecraft = Minecraft.getInstance();
         writeTooltipRect(minecraft);
+        writeFooterRect(minecraft);
         RenderTarget target = minecraft.getMainRenderTarget();
         Screenshot.grab(minecraft.gameDirectory, name, target, message ->
                 AeronauticsCouriers.LOGGER.info("[corkqa] {}", message.getString()));
@@ -117,6 +118,28 @@ public final class CorkQaClient {
             AeronauticsCouriers.LOGGER.info("[corkqa] tooltip rect {}", line.replace('\n', ' '));
         } catch (Exception e) {
             AeronauticsCouriers.LOGGER.warn("[corkqa] tooltip rect: {}", e.toString());
+        }
+    }
+
+    private static void writeFooterRect(Minecraft minecraft) {
+        try {
+            if (!(minecraft.screen instanceof CorkBoardScreen board) || board.layout() == null) {
+                return;
+            }
+            int scale = (int) minecraft.getWindow().getGuiScale();
+            CorkBoardLayout layout = board.layout();
+            CorkBoardLayout.Rect text = board.lastFooterText();
+            CorkBoardLayout.Rect plank = layout.footerPlank;
+            String line = "plank=" + plank.x() + "," + plank.y() + "," + plank.w() + "," + plank.h()
+                    + "\ntext=" + text.x() + "," + text.y() + "," + text.w() + "," + text.h()
+                    + "\nwin=" + layout.winX + "," + layout.winY + "," + layout.winW + "," + layout.winH
+                    + "\ninset=" + layout.frameInsetBottom()
+                    + "\nscale=" + scale
+                    + "\n";
+            Files.writeString(minecraft.gameDirectory.toPath().resolve("corkqa-footer-rect.txt"), line);
+            AeronauticsCouriers.LOGGER.info("[corkqa] footer {}", line.replace('\n', ' '));
+        } catch (Exception e) {
+            AeronauticsCouriers.LOGGER.warn("[corkqa] footer rect: {}", e.toString());
         }
     }
 

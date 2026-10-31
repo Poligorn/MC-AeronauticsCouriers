@@ -69,7 +69,6 @@ public final class CorkSprites {
     public static final ResourceLocation ICON_STAR = icon("star_9x9");
     public static final ResourceLocation ICON_ARROW = icon("arrow_7x5");
     public static final ResourceLocation ICON_GEM = icon("gem_7x6");
-    public static final ResourceLocation ICON_TABLET = icon("tablet_9x7");
     public static final ResourceLocation ICON_CHECK = icon("check_7x5");
     public static final ResourceLocation ICON_CROSS = icon("cross_5x5");
     public static final ResourceLocation ICON_GEAR = icon("gear_7x7");

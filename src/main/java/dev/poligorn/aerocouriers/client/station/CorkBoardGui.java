@@ -77,21 +77,36 @@ public final class CorkBoardGui {
     public static void adminWindow(GuiGraphics g, CorkBoardLayout layout) {
         fullBright();
         blit(g, CorkSprites.WOOD_DARK_H, layout.headerPlank);
-        blit(g, CorkSprites.ADMIN_BG, layout.winX + (layout.narrow ? 11 : 18),
-                layout.winY + (layout.narrow ? 51 : 58),
-                layout.narrow ? layout.winW - 22 : 604, layout.narrow ? layout.winH - 73 : 262);
+        int bgX = layout.winX + (layout.narrow ? 11 : 18);
+        int bgY = layout.winY + (layout.narrow ? 51 : 58);
+        int bgW = layout.narrow ? layout.winW - 22 : 604;
+        blit(g, CorkSprites.ADMIN_BG, bgX, bgY, bgW, Math.max(8, layout.footerPlank.y() - bgY));
         blit(g, CorkSprites.WOOD_DARK_H, layout.footerPlank);
         blitFrame(g, layout);
     }
 
     /** Cork plate at native size, or tiled when the window is not 640 / 480. */
     private static void blitCork(GuiGraphics g, CorkBoardLayout layout) {
-        if (!layout.narrow && layout.cork.w() == 604 && layout.cork.h() == 243) {
-            blit(g, CorkSprites.CORK_AREA, layout.cork.x(), layout.cork.y(), 604, 243);
+        if (!layout.narrow && layout.cork.w() == 604) {
+            if (layout.cork.h() == 243) {
+                blit(g, CorkSprites.CORK_AREA, layout.cork.x(), layout.cork.y(), 604, 243);
+            } else {
+                g.enableScissor(layout.cork.x(), layout.cork.y(),
+                        layout.cork.x() + layout.cork.w(), layout.cork.y() + layout.cork.h());
+                blit(g, CorkSprites.CORK_AREA, layout.cork.x(), layout.cork.y(), 604, 243);
+                g.disableScissor();
+            }
             return;
         }
         if (layout.narrow && layout.cork.w() == 458) {
-            blit(g, CorkSprites.CORK_AREA_COMPACT, layout.cork.x(), layout.cork.y(), 458, 180);
+            if (layout.cork.h() == 180) {
+                blit(g, CorkSprites.CORK_AREA_COMPACT, layout.cork.x(), layout.cork.y(), 458, 180);
+            } else {
+                g.enableScissor(layout.cork.x(), layout.cork.y(),
+                        layout.cork.x() + layout.cork.w(), layout.cork.y() + layout.cork.h());
+                blit(g, CorkSprites.CORK_AREA_COMPACT, layout.cork.x(), layout.cork.y(), 458, 180);
+                g.disableScissor();
+            }
             return;
         }
         blit(g, CorkSprites.CORK_TILE, layout.cork);
