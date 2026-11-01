@@ -2,9 +2,11 @@ package dev.poligorn.aerocouriers.village;
 
 import com.mojang.serialization.MapCodec;
 import dev.poligorn.aerocouriers.net.StationPackets;
+import dev.poligorn.aerocouriers.tutorial.Tutorials;
 import java.util.Map;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionResult;
@@ -200,6 +202,10 @@ public class PostStationBlock extends BaseEntityBlock {
             BlockHitResult hit) {
         if (level.isClientSide) {
             return InteractionResult.SUCCESS;
+        }
+        if (player instanceof ServerPlayer serverPlayer && Tutorials.blocksStation(serverPlayer)) {
+            serverPlayer.displayClientMessage(Component.translatable("tutorial.aerocouriers.station_locked"), true);
+            return InteractionResult.FAIL;
         }
         BlockPos controller = controllerPos(state, pos);
         if (player instanceof ServerPlayer serverPlayer && level instanceof ServerLevel serverLevel) {

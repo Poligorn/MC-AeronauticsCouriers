@@ -27,6 +27,8 @@ import dev.poligorn.aerocouriers.registry.ModBlocks;
 import dev.poligorn.aerocouriers.registry.ModItems;
 import dev.poligorn.aerocouriers.village.PostStationBlock;
 import dev.poligorn.aerocouriers.village.PostStationBlockEntity;
+import dev.poligorn.aerocouriers.tutorial.TutorialData;
+import dev.poligorn.aerocouriers.tutorial.Tutorials;
 import dev.poligorn.aerocouriers.village.StationAtlas;
 import dev.poligorn.aerocouriers.village.StationContractSource;
 import java.nio.charset.StandardCharsets;
@@ -272,11 +274,23 @@ final class DevSeedCommands {
         return 1;
     }
 
+    /** QA: enable the tutorial, issue the training order, reopen the board. */
+    private static void seedTutorial(ServerPlayer player) {
+        MinecraftServer server = player.server;
+        CouriersServerConfig.TUTORIAL_ENABLED.set(true);
+        TutorialData.get(server).put(player.getUUID(), TutorialData.Entry.EMPTY);
+        Component message = Tutorials.start(player);
+        BoardPackets.open(player);
+        AeronauticsCouriers.LOGGER.info("[tabletsqa] tutorial {}", message.getString());
+    }
+
     private static void runTabletCommand(ServerPlayer player, String raw) {
         String cmd = raw.strip().toLowerCase(java.util.Locale.ROOT);
         try {
             if ("seed".equals(cmd) || "tabletsqa".equals(cmd) || "board".equals(cmd)) {
                 seed(player.createCommandSourceStack().withPermission(4), 989);
+            } else if ("tutorial".equals(cmd) || "tutorial-seed".equals(cmd)) {
+                seedTutorial(player);
             } else {
                 AeronauticsCouriers.LOGGER.warn("[tabletsqa] unknown cmd {}", cmd);
             }

@@ -2,9 +2,17 @@
 
 > Живой документ. Обновлять при каждом завершённом шаге итерации или изменении решения (см. `.cursor/rules/90-maintaining-docs.mdc`).
 
-**Обновлено:** 01.11.2026 · **Версия:** 0.3.2. Протокол сети `PROTOCOL_VERSION` `"5"` (`OpenStationNamePayload`, `NameStationPayload`).
+**Обновлено:** 01.11.2026 · **Версия:** 0.3.2. Протокол сети `PROTOCOL_VERSION` `"5"` (`OpenStationNamePayload`, `NameStationPayload`). Версию и протокол не поднимали.
 
 ## Сделано
+
+### Жёсткое обучение (после 0.3.2, 01.11.2026)
+Плейтест 01.11: пока идёт обучение, на планшете должны быть затемнены все элементы кроме цели шага; станция «Столб» не открывается по ПКМ. Решения Егора — [CLARIFICATIONS](CLARIFICATIONS.md) «Жёсткое обучение».
+- **Планшет.** `BoardTutorialUi` + `CourierBoardScreen`: вуаль `TabletPalette.TUTORIAL_DIM` (0xA6, 65 %) вокруг цели шага; бирюзовая рамка как раньше, плюс рамка у «Принять» в деталях. Затемнённое: мышь −1, без тултипов, клик/скролл/drag/клавиши (включая Enter) глотаются. Esc и закрытие планшета всегда; «пропустить» на плашке живая. Серая строка `ui.aerocouriers.tutorial.locked`. Шаги 3–4: ярко вкладка «Мои». Учебный заказ на шаге 2 пиннится вверху `listEntriesForTab` независимо от фильтров, `scroll = 0`.
+- **Станции.** `Tutorials.blocksStation` = `enabled() && inProgress() && !creative`. `PostStationBlock.useWithoutItem` → `FAIL` + action bar `tutorial.aerocouriers.station_locked` (без звука). `StationPackets.open` возвращает `boolean` и несёт тот же гард на каждом C2S-пути. Все станции, не только точка A.
+- **Тесты.** `TutorialStationGameTests`: in-progress / not-running / обе половины + Shift + предмет в руке / выключение обучения / пакетный путь / креатив. Состояние пишется в `TutorialData.put`, не через `Tutorials.start`.
+- **QA.** `TabletQaClient`: `tutorial-step1` / `tutorial-step2` / `tutorial-step2-details` / `tutorial-step3`. Сид: `tabletsqa-cmd.txt` → `tutorial`.
+- Версию и `PROTOCOL_VERSION` `"5"` не меняли.
 
 ### Релиз 0.3.2 (01.11.2026)
 - Своя творческая вкладка «Aeronautics Couriers»; предметы убраны из ванильных вкладок. Станция во вкладке только при правах оператора.

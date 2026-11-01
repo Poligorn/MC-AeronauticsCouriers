@@ -13,7 +13,7 @@ import net.neoforged.neoforge.client.event.ScreenEvent;
 
 /**
  * Dev/QA: drop {@code tabletsqa-ui.txt} in the game dir to change GUI scale, hover chips,
- * open details, or grab a screenshot without GLFW clicks.
+ * open details, force a strict-tutorial frame, or grab a screenshot without GLFW clicks.
  */
 public final class TabletQaClient {
     private static String pendingShot;
@@ -141,6 +141,8 @@ public final class TabletQaClient {
             case "hover-rare" -> board.qaHoverFlag(true);
             case "hover-expensive" -> board.qaHoverFlag(false);
             case "hover-item" -> board.qaHoverRareItem();
+            case "tutorial-step1", "tutorial-step2", "tutorial-step2-details", "tutorial-step3" ->
+                    board.qaTutorialFrame(cmd);
             default -> {
                 AeronauticsCouriers.LOGGER.warn("[tabletsqa] unknown ui {}", cmd);
                 yield false;

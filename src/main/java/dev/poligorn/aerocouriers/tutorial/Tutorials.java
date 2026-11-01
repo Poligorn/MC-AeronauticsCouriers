@@ -58,6 +58,14 @@ public final class Tutorials {
         return TutorialData.get(player.server).get(player.getUUID());
     }
 
+    /**
+     * Every post station is closed while this player's tutorial is running. Creative mode is the only
+     * bypass (operators turn the tutorial off with {@code /couriers admin server tutorial off}).
+     */
+    public static boolean blocksStation(ServerPlayer player) {
+        return !player.isCreative() && enabled() && entry(player).state().inProgress();
+    }
+
     private static void put(ServerPlayer player, TutorialData.Entry entry) {
         TutorialData.get(player.server).put(player.getUUID(), entry);
         TaskSync.sendNow(player);

@@ -48,6 +48,8 @@ public final class TabletPalette {
     public static final int TOOLTIP_BORDER = 0xFF582C84;
     /** Board dimming behind overlays (≈150/255 black, as in the mockup). */
     public static final int SCRIM = 0x96000000;
+    /** Strict-tutorial veil (65 % black) over everything except the current step's target. */
+    public static final int TUTORIAL_DIM = 0xA6000000;
 
     /** Rare / expensive chips — cork badge colours on the dark tablet card (mockup 01v2). */
     public static final int RARE_BORDER = 0xFFEC62AA;

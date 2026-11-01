@@ -17,6 +17,7 @@ import dev.poligorn.aerocouriers.village.StationNamePending;
 import dev.poligorn.aerocouriers.village.VillageAdmin;
 import dev.poligorn.aerocouriers.village.VillageBoardPolicy;
 import dev.poligorn.aerocouriers.village.VillageRefreshTiming;
+import dev.poligorn.aerocouriers.tutorial.Tutorials;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -30,8 +31,8 @@ public final class StationPackets {
     private StationPackets() {
     }
 
-    public static void open(ServerPlayer player, ServerLevel level, BlockPos pos) {
-        open(player, level, pos, false);
+    public static boolean open(ServerPlayer player, ServerLevel level, BlockPos pos) {
+        return open(player, level, pos, false);
     }
 
     public static void openAdmin(ServerPlayer player, ServerLevel level, BlockPos pos) {
@@ -43,11 +44,15 @@ public final class StationPackets {
         open(player, level, pos, true);
     }
 
-    public static void open(ServerPlayer player, ServerLevel level, BlockPos pos, boolean adminPanel) {
+    public static boolean open(ServerPlayer player, ServerLevel level, BlockPos pos, boolean adminPanel) {
+        if (Tutorials.blocksStation(player)) {
+            player.displayClientMessage(Component.translatable("tutorial.aerocouriers.station_locked"), true);
+            return false;
+        }
         PostStationBlockEntity station = PostStationBlock.stationEntity(level, pos);
         if (station == null || station.stationId() == null) {
             player.sendSystemMessage(Component.translatable("station.aerocouriers.error.not_station", pos.toShortString()));
-            return;
+            return false;
         }
         BlockPos controller = station.getBlockPos().immutable();
         UUID stationId = station.stationId();
@@ -111,6 +116,7 @@ public final class StationPackets {
                 nextVillageRefresh,
                 overworldGameTime,
                 view), StationSnapshotPayload.STREAM_CODEC);
+        return true;
     }
 
     private static List<String> otherNames(StationAtlas atlas, UUID self) {
