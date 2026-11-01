@@ -2,9 +2,15 @@
 
 > Живой документ. Обновлять при каждом завершённом шаге итерации или изменении решения (см. `.cursor/rules/90-maintaining-docs.mdc`).
 
-**Обновлено:** 31.10.2026 (чипы планшета; текстуры E2; разнообразие деревенских заказов; раунд 7 футера; новый логотип) · **Версия:** 0.2.1-beta. Протокол сети `PROTOCOL_VERSION` `"3"` → `"4"` (`BoardEntry.expensive`, `rareItemIndex`).
+**Обновлено:** 31.10.2026 · **Версия:** 0.3.0. Протокол сети `PROTOCOL_VERSION` `"4"` (`BoardEntry.expensive`, `rareItemIndex`).
 
 ## Сделано
+
+### Релиз 0.3.0 (31.10.2026)
+- `mod_version`: `0.2.1-beta` → `0.3.0`. Протокол сети `"3"` → `"4"` (`BoardEntry.expensive`, `rareItemIndex`). Клиент и сервер должны быть одной сборки.
+- Состав относительно 0.2.1-beta: разнообразие деревенских заказов ([PR #74](https://github.com/Poligorn/MC-AeronauticsCouriers/pull/74)); текстуры контейнеров E2 без дверей и свои модели XL ([PR #75](https://github.com/Poligorn/MC-AeronauticsCouriers/pull/75)); зазор футера пробковой доски ([PR #76](https://github.com/Poligorn/MC-AeronauticsCouriers/pull/76)); новый логотип ([PR #77](https://github.com/Poligorn/MC-AeronauticsCouriers/pull/77)); чипы редкого/дорогого ◆ на планшете и фикс тултипа ([PR #78](https://github.com/Poligorn/MC-AeronauticsCouriers/pull/78)); уже на main — пробковая доска и админ-панель деревни, «Стойка», Jade, одна станция на деревню.
+- Ветка `release/0.3.0`: влиты #76 → #74 → #75 → #78 поверх main с #77. Конфликты — `docs/STATUS.md` (все четыре), `docs/CLARIFICATIONS.md` (#75/#78); Java (`VillageCargo`, `VillageAdminGameTests`) смержилась автоматически, обе стороны сохранены.
+- Проверка релиза: `./gradlew build -PwithoutJade=true` и `runGameTestServer -PwithoutJade=true` — в этом прогоне (числа ниже после прогона). Jar `aerocouriers-0.3.0.jar`.
 
 ### Чипы редкого и дорогого на планшете — раунд 2 (31.10.2026)
 Отзыв владельца на PR #78: ★ → тот же ◆, что у редкого; пустой тултип; шапка без текста.
