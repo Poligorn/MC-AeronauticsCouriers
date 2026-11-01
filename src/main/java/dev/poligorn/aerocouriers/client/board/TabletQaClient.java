@@ -143,6 +143,9 @@ public final class TabletQaClient {
             case "hover-item" -> board.qaHoverRareItem();
             case "tutorial-step1", "tutorial-step2", "tutorial-step2-details", "tutorial-step3" ->
                     board.qaTutorialFrame(cmd);
+            case "details-player", "customer-details" -> board.qaOpenPlayerCustomerDetails();
+            case "hover-customer" -> board.qaHoverCustomerName();
+            case "open-customer", "customer-profile" -> board.qaOpenCustomerProfile();
             default -> {
                 AeronauticsCouriers.LOGGER.warn("[tabletsqa] unknown ui {}", cmd);
                 yield false;

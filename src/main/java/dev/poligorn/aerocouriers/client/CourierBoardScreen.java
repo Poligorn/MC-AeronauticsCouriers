@@ -758,6 +758,45 @@ public final class CourierBoardScreen extends Screen {
         return true;
     }
 
+    public boolean qaOpenPlayerCustomerDetails() {
+        BoardTutorialUi.qaClearForcedStep();
+        java.util.UUID self = minecraft != null && minecraft.player != null ? minecraft.player.getUUID() : null;
+        if (self != null && qaOpenDetails(e -> playerCustomer(e) && e.customerId().filter(self::equals).isPresent())) {
+            return true;
+        }
+        return qaOpenDetails(CourierBoardScreen::playerCustomer);
+    }
+
+    public boolean qaHoverCustomerName() {
+        if (detailsOverlay == null && !qaOpenPlayerCustomerDetails()) {
+            return false;
+        }
+        int[] box = detailsOverlay.customerNameScreenBox();
+        if (box == null) {
+            return false;
+        }
+        qaLocalX = box[0] + box[2] / 2;
+        qaLocalY = box[1] + box[3] / 2;
+        return true;
+    }
+
+    public boolean qaOpenCustomerProfile() {
+        if (detailsOverlay == null && !qaOpenPlayerCustomerDetails()) {
+            return false;
+        }
+        return resolveEntry(detailsOverlay.orderId()).map(entry -> {
+            if (!playerCustomer(entry)) {
+                return false;
+            }
+            overlayHost.openCustomerProfile(entry);
+            return true;
+        }).orElse(false);
+    }
+
+    private static boolean playerCustomer(BoardSnapshotPayload.BoardEntry entry) {
+        return !entry.courierService() && !entry.villageCustomer() && entry.customerId().isPresent();
+    }
+
     private BoardCardRenderer.Style cardStyle(BoardSnapshotPayload.BoardEntry entry, boolean hovered) {
         boolean boardTab = tab == Tab.BOARD;
         return new BoardCardRenderer.Style(
@@ -1982,7 +2021,7 @@ public final class CourierBoardScreen extends Screen {
     }
 
     private void onCustomerClick(BoardSnapshotPayload.BoardEntry entry) {
-        if (entry.villageCustomer()) {
+        if (entry.villageCustomer() || entry.courierService()) {
             return;
         }
         entry.customerId().ifPresent(ClientBoard::requestPlayerProfile);
