@@ -172,7 +172,7 @@ public final class NpcContractGameTests {
     @GameTest(template = CouriersGameTests.EMPTY, batch = "aerocouriers.npc", timeoutTicks = 200)
     public static void npcTraineeRejectsLongRoute(GameTestHelper helper) {
         Fixture f = new Fixture(helper);
-        BlockPos far = new BlockPos(900, 1, 1);
+        BlockPos far = new BlockPos(1600, 1, 1);
         helper.setBlock(far, ModBlocks.POST_STATION.get());
         helper.startSequence()
                 .thenIdle(2)
@@ -185,6 +185,48 @@ public final class NpcContractGameTests {
                     f.expect(f.manager.accept(f.courier, contract.id()), false, "trainee long route");
                     f.cleanup();
                     helper.setBlock(far, Blocks.AIR);
+                })
+                .thenIdle(SABLE_SETTLE_TICKS)
+                .thenSucceed();
+    }
+
+    @GameTest(template = CouriersGameTests.EMPTY, batch = "aerocouriers.npc.generate", timeoutTicks = 200)
+    public static void npcGeneratorPrefersShortTraineePairs(GameTestHelper helper) {
+        Fixture f = new Fixture(helper);
+        BlockPos far = new BlockPos(2000, 1, 1);
+        helper.setBlock(far, ModBlocks.POST_STATION.get());
+        int previousMax = CouriersServerConfig.VILLAGE_BOARD_MAX.get();
+        helper.startSequence()
+                .thenIdle(2)
+                .thenExecute(() -> {
+                    StationAtlas.Station from = f.station(A);
+                    StationAtlas.Station near = f.station(B);
+                    StationAtlas.Station distant = f.station(far);
+                    try {
+                        CouriersServerConfig.VILLAGE_BOARD_MAX.set(2);
+                        int created = StationContractSource.INSTANCE.generate(f.server());
+                        helper.assertTrue(created >= 1, "generated at least one NPC order, got " + created);
+                        long shortPairs = f.manager.open()
+                                .filter(c -> c.type() == ContractType.VILLAGE)
+                                .filter(c -> c.distance() <= CouriersServerConfig.TRAINEE_MAX_DISTANCE.get())
+                                .count();
+                        long longPairs = f.manager.open()
+                                .filter(c -> c.type() == ContractType.VILLAGE)
+                                .filter(c -> c.distance() > CouriersServerConfig.TRAINEE_MAX_DISTANCE.get())
+                                .count();
+                        helper.assertTrue(shortPairs >= 1, "generator should publish a short trainee pair");
+                        helper.assertValueEqual(longPairs, 0L, "board cap should fill with short pairs first");
+                        helper.assertTrue(
+                                f.manager.open().anyMatch(c ->
+                                        (c.issuer().equals(from.id()) && c.recipient().equals(near.id()))
+                                                || (c.issuer().equals(near.id()) && c.recipient().equals(from.id()))),
+                                "short pair uses the nearby stations, not " + distant.name());
+                    } finally {
+                        CouriersServerConfig.VILLAGE_BOARD_MAX.set(previousMax);
+                        StationAtlas.get(f.server()).remove(near.id());
+                        f.cleanup();
+                        helper.setBlock(far, Blocks.AIR);
+                    }
                 })
                 .thenIdle(SABLE_SETTLE_TICKS)
                 .thenSucceed();

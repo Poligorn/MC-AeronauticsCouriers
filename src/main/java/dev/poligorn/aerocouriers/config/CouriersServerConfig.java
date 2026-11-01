@@ -174,8 +174,10 @@ public final class CouriersServerConfig {
         TRAINEE_FREE_CONTRACTS = b.defineInRange("trainee_free_contracts", 3, 0, 100);
         TRAINEE_BONUS = b.comment("One-time advance paid after the trainee contracts, spurs (divided by emerald_value_spurs when emeralds are the currency)")
                 .defineInRange("trainee_bonus", 100, 0, 1_000_000);
-        TRAINEE_MAX_DISTANCE = b.comment("While trainee_free_contracts remain, NPC orders longer than this cannot be accepted (0 = no limit)")
-                .defineInRange("trainee_max_distance", 800, 0, 50_000);
+        TRAINEE_MAX_DISTANCE = b.comment(
+                        "While trainee_free_contracts remain, NPC orders longer than this cannot be accepted.",
+                        "Default 1500 equals the rank I distance cap. 0 = no limit.")
+                .defineInRange("trainee_max_distance", 1500, 0, 50_000);
         b.pop();
 
         b.push("economy");
@@ -217,7 +219,9 @@ public final class CouriersServerConfig {
                 .defineInRange("register_radius", 32, 4, 256);
         STATION_VILLAGE_DEDUP_RADIUS = b.comment("Village-generated stations within this radius of an existing station become a cartography table")
                 .defineInRange("village_dedup_radius", 96, 16, 256);
-        STATIONS_IN_VILLAGES = b.comment("Add post stations to village structures (takes effect for newly generated villages)")
+        STATIONS_IN_VILLAGES = b.comment(
+                        "Guarantee one post station in every newly generated village (town-center stand).",
+                        "Already generated villages are left as they are.")
                 .define("generate_in_villages", true);
         REPUTATION_TIER_THRESHOLDS = b.comment("Reputation at each tier (GDD §6.4); pairs with reputation_tier_bonus_percent")
                 .defineList("reputation_tier_thresholds", List.of(10, 25, 50), () -> 0,
