@@ -2,11 +2,17 @@
 
 > Живой документ. Обновлять при каждом завершённом шаге итерации или изменении решения (см. `.cursor/rules/90-maintaining-docs.mdc`).
 
-**Обновлено:** 01.11.2026 · **Версия:** 0.3.2. Протокол сети `PROTOCOL_VERSION` `"5"` (`OpenStationNamePayload`, `NameStationPayload`). Версию и протокол не поднимали.
+**Обновлено:** 01.11.2026 · **Версия:** 0.3.3. Протокол сети `PROTOCOL_VERSION` `"5"` (`OpenStationNamePayload`, `NameStationPayload`). Патч поверх 0.3.2, протокол не менялся.
 
 ## Сделано
 
-### Жёсткое обучение (после 0.3.2, 01.11.2026)
+### Релиз 0.3.3 (01.11.2026)
+- `mod_version`: `0.3.2` → `0.3.3`. Протокол сети не менялся (`PROTOCOL_VERSION` `"5"`).
+- Состав относительно 0.3.2: жёсткое обучение (вуаль планшета, станции закрыты до конца обучения), 84 мёртвых lang-ключа, `/couriers help` только по доступным подкомандам, клик по нику заказчика открывает профиль ([PR #83](https://github.com/Poligorn/MC-AeronauticsCouriers/pull/83)).
+- Ветка `release/0.3.3` от `main` после #83. Java в этом PR не менялась.
+- Проверка релиза: `./gradlew build -PwithoutJade=true` SUCCESS. `runGameTestServer -PwithoutJade=true` **125/125** (Create 6.0.10, Aeronautics 1.3.0, Simulated 1.3.0, Sable 2.0.6, Veil 4.5.2, без Numismatics и без Jade). Jar `aerocouriers-0.3.3.jar` (1 953 876 байт, sha256 `87d05fa6a82346445915ef333dcde53891113dee24542e1aa8ecd43f9e9badec`).
+
+### Жёсткое обучение (после 0.3.2, вошло в 0.3.3, 01.11.2026)
 Плейтест 01.11: пока идёт обучение, на планшете должны быть затемнены все элементы кроме цели шага; станция «Столб» не открывается по ПКМ. Решения Егора — [CLARIFICATIONS](CLARIFICATIONS.md) «Жёсткое обучение».
 - **Планшет.** `BoardTutorialUi` + `CourierBoardScreen`: вуаль `TabletPalette.TUTORIAL_DIM` (0xA6, 65 %) вокруг цели шага; бирюзовая рамка как раньше, плюс рамка у «Принять» в деталях. Затемнённое: мышь −1, без тултипов, клик/скролл/drag/клавиши (включая Enter) глотаются. Esc и закрытие планшета всегда; «пропустить» на плашке живая. Серая строка `ui.aerocouriers.tutorial.locked`. Шаги 3–4: ярко вкладка «Мои». Учебный заказ на шаге 2 пиннится вверху `listEntriesForTab` независимо от фильтров, `scroll = 0`.
 - **Станции.** `Tutorials.blocksStation` = `enabled() && inProgress() && !creative`. `PostStationBlock.useWithoutItem` → `FAIL` + action bar `tutorial.aerocouriers.station_locked` (без звука). `StationPackets.open` возвращает `boolean` и несёт тот же гард на каждом C2S-пути. Все станции, не только точка A.
@@ -14,7 +20,7 @@
 - **Проверки (01.11.2026).** `./gradlew build -PwithoutJade=true` SUCCESS. `runGameTestServer -PwithoutJade=true` **123/123** (база 117 + 6 `TutorialStationGameTests`, batch `aerocouriers.tutorial.station`). Create 6.0.10, Aeronautics 1.3.0, Sable 2.0.6, Veil 4.5.2, без Numismatics и без Jade. `PROTOCOL_VERSION` остался `"5"`.
 - **QA.** `TabletQaClient`: `tutorial-step1` / `tutorial-step2` / `tutorial-step2-details` / `tutorial-step3`. Сид: `tabletsqa-cmd.txt` → `tutorial`. Кадры — `/opt/cursor/artifacts/`. Xvfb 1920×1080, RU, GUI 3, `tabletsqa`. PIL, PNG в редакторе не открывались. OpenAL не стартует. Полость планшета в основном тёмная (вуаль). ✅ `tutorial_step1_profile_tab_dimmed.png` (вкладка «Профиль» светлее остальных невыбранных) · ✅ `tutorial_step2_board_dimmed.png` (первая карточка яркая, бирюзовая рамка) · ✅ `tutorial_step2_details_accept_only.png` («Принять» luma ~98, «Назад»/«Карта» ~12–16) · ✅ `tutorial_step3_mine_tab_bright.png` («Мои» светлее «Задач»/«Профиля»/«Почты»).
 - **Не проверено в клиенте:** живой hover/клик/Enter/Esc/«пропустить» руками (только file-hook); EN глазами; GUI 2/4; OCR строки плашки (tesseract нет); action bar у станции в живом клиенте (есть GameTest на `FAIL`); обход станции в креативе глазами; фильтр «только доступные» глазами (пин — в коде).
-- Версию и `PROTOCOL_VERSION` `"5"` не меняли.
+- В PR #83 версию и `PROTOCOL_VERSION` `"5"` не меняли (релиз 0.3.3 поднимает только `mod_version`).
 
 ### Хвосты 0.3.0 в том же PR (01.11.2026)
 - **Мёртвые lang-ключи.** Удалены 84 ключа, которых нет в коде/данных/ассетах. en/ru синхронны. Оставлены `board.count.*` / `details.slots.*` (TabletDraw.plural) и `config.jade.plugin_aerocouriers.*` (Jade по UID).
