@@ -19,6 +19,8 @@ import dev.poligorn.aerocouriers.net.MarkNotificationsReadPayload;
 import dev.poligorn.aerocouriers.net.NotificationAlertPayload;
 import dev.poligorn.aerocouriers.net.NotificationSyncPayload;
 import dev.poligorn.aerocouriers.net.OpenBoardPayload;
+import dev.poligorn.aerocouriers.net.NameStationPayload;
+import dev.poligorn.aerocouriers.net.OpenStationNamePayload;
 import dev.poligorn.aerocouriers.net.OpenStationPayload;
 import dev.poligorn.aerocouriers.net.OpenWaybillCreatePayload;
 import dev.poligorn.aerocouriers.net.OperatorBoardPayload;
@@ -39,7 +41,7 @@ import net.neoforged.neoforge.network.registration.PayloadRegistrar;
  * Network payloads (GDD §14.1 {@code net/}). C2S carry intents only; the server validates everything.
  */
 public final class ModPayloads {
-    public static final String PROTOCOL_VERSION = "4";
+    public static final String PROTOCOL_VERSION = "5";
 
     public static void register(RegisterPayloadHandlersEvent event) {
         PayloadRegistrar registrar = event.registrar(PROTOCOL_VERSION);
@@ -57,6 +59,8 @@ public final class ModPayloads {
                 CouriersUiSoundPayload::handle);
         registrar.playToClient(StationSnapshotPayload.TYPE, StationSnapshotPayload.STREAM_CODEC,
                 StationSnapshotPayload::handle);
+        registrar.playToClient(OpenStationNamePayload.TYPE, OpenStationNamePayload.STREAM_CODEC,
+                OpenStationNamePayload::handle);
         registrar.playToClient(PlayerProfilePayload.TYPE, PlayerProfilePayload.STREAM_CODEC,
                 PlayerProfilePayload::handle);
         registrar.playToClient(TaskSyncPayload.TYPE, TaskSyncPayload.STREAM_CODEC, TaskSyncPayload::handle);
@@ -131,6 +135,12 @@ public final class ModPayloads {
                 (payload, context) -> context.enqueueWork(() -> {
                     if (context.player() instanceof ServerPlayer player) {
                         StationPackets.handleRename(player, payload);
+                    }
+                }));
+        registrar.playToServer(NameStationPayload.TYPE, NameStationPayload.STREAM_CODEC,
+                (payload, context) -> context.enqueueWork(() -> {
+                    if (context.player() instanceof ServerPlayer player) {
+                        StationPackets.handleName(player, payload);
                     }
                 }));
         registrar.playToServer(VillageAdminPayload.TYPE, VillageAdminPayload.STREAM_CODEC,

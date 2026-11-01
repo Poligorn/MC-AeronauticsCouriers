@@ -136,6 +136,13 @@ public class PostStationBlock extends BaseEntityBlock {
         if (isController(state)) {
             level.setBlock(pos.above(), state.setValue(HALF, DoubleBlockHalf.UPPER), Block.UPDATE_ALL);
         }
+        if (isController(state)
+                && placer instanceof ServerPlayer player
+                && level instanceof ServerLevel serverLevel
+                && !PostStationBlockEntity.isPlacingVillage()) {
+            StationNamePending.remember(player, pos);
+            StationPackets.openName(player, serverLevel, pos);
+        }
     }
 
     @Override

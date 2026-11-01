@@ -1,0 +1,196 @@
+{
+  "variants": {
+    "facing=north,segment=0": {
+      "model": "aerocouriers:block/cargo_container_xl_seg000",
+      "y": 0
+    },
+    "facing=north,segment=1": {
+      "model": "aerocouriers:block/cargo_container_xl_seg100",
+      "y": 0
+    },
+    "facing=north,segment=4": {
+      "model": "aerocouriers:block/cargo_container_xl_seg001",
+      "y": 0
+    },
+    "facing=north,segment=5": {
+      "model": "aerocouriers:block/cargo_container_xl_seg101",
+      "y": 0
+    },
+    "facing=north,segment=2": {
+      "model": "aerocouriers:block/cargo_container_xl_seg010",
+      "y": 0
+    },
+    "facing=north,segment=3": {
+      "model": "aerocouriers:block/cargo_container_xl_seg110",
+      "y": 0
+    },
+    "facing=north,segment=6": {
+      "model": "aerocouriers:block/cargo_container_xl_seg011",
+      "y": 0
+    },
+    "facing=north,segment=7": {
+      "model": "aerocouriers:block/cargo_container_xl_seg111",
+      "y": 0
+    },
+    "facing=north,segment=8": {
+      "model": "aerocouriers:block/cargo_container_xl_seg020",
+      "y": 0
+    },
+    "facing=north,segment=9": {
+      "model": "aerocouriers:block/cargo_container_xl_seg120",
+      "y": 0
+    },
+    "facing=north,segment=10": {
+      "model": "aerocouriers:block/cargo_container_xl_seg021",
+      "y": 0
+    },
+    "facing=north,segment=11": {
+      "model": "aerocouriers:block/cargo_container_xl_seg121",
+      "y": 0
+    },
+    "facing=east,segment=0": {
+      "model": "aerocouriers:block/cargo_container_xl_seg001",
+      "y": 90
+    },
+    "facing=east,segment=1": {
+      "model": "aerocouriers:block/cargo_container_xl_seg000",
+      "y": 90
+    },
+    "facing=east,segment=4": {
+      "model": "aerocouriers:block/cargo_container_xl_seg101",
+      "y": 90
+    },
+    "facing=east,segment=5": {
+      "model": "aerocouriers:block/cargo_container_xl_seg100",
+      "y": 90
+    },
+    "facing=east,segment=2": {
+      "model": "aerocouriers:block/cargo_container_xl_seg011",
+      "y": 90
+    },
+    "facing=east,segment=3": {
+      "model": "aerocouriers:block/cargo_container_xl_seg010",
+      "y": 90
+    },
+    "facing=east,segment=6": {
+      "model": "aerocouriers:block/cargo_container_xl_seg111",
+      "y": 90
+    },
+    "facing=east,segment=7": {
+      "model": "aerocouriers:block/cargo_container_xl_seg110",
+      "y": 90
+    },
+    "facing=east,segment=8": {
+      "model": "aerocouriers:block/cargo_container_xl_seg021",
+      "y": 90
+    },
+    "facing=east,segment=9": {
+      "model": "aerocouriers:block/cargo_container_xl_seg020",
+      "y": 90
+    },
+    "facing=east,segment=10": {
+      "model": "aerocouriers:block/cargo_container_xl_seg121",
+      "y": 90
+    },
+    "facing=east,segment=11": {
+      "model": "aerocouriers:block/cargo_container_xl_seg120",
+      "y": 90
+    },
+    "facing=south,segment=0": {
+      "model": "aerocouriers:block/cargo_container_xl_seg101",
+      "y": 180
+    },
+    "facing=south,segment=1": {
+      "model": "aerocouriers:block/cargo_container_xl_seg001",
+      "y": 180
+    },
+    "facing=south,segment=4": {
+      "model": "aerocouriers:block/cargo_container_xl_seg100",
+      "y": 180
+    },
+    "facing=south,segment=5": {
+      "model": "aerocouriers:block/cargo_container_xl_seg000",
+      "y": 180
+    },
+    "facing=south,segment=2": {
+      "model": "aerocouriers:block/cargo_container_xl_seg111",
+      "y": 180
+    },
+    "facing=south,segment=3": {
+      "model": "aerocouriers:block/cargo_container_xl_seg011",
+      "y": 180
+    },
+    "facing=south,segment=6": {
+      "model": "aerocouriers:block/cargo_container_xl_seg110",
+      "y": 180
+    },
+    "facing=south,segment=7": {
+      "model": "aerocouriers:block/cargo_container_xl_seg010",
+      "y": 180
+    },
+    "facing=south,segment=8": {
+      "model": "aerocouriers:block/cargo_container_xl_seg121",
+      "y": 180
+    },
+    "facing=south,segment=9": {
+      "model": "aerocouriers:block/cargo_container_xl_seg021",
+      "y": 180
+    },
+    "facing=south,segment=10": {
+      "model": "aerocouriers:block/cargo_container_xl_seg120",
+      "y": 180
+    },
+    "facing=south,segment=11": {
+      "model": "aerocouriers:block/cargo_container_xl_seg020",
+      "y": 180
+    },
+    "facing=west,segment=0": {
+      "model": "aerocouriers:block/cargo_container_xl_seg100",
+      "y": 270
+    },
+    "facing=west,segment=1": {
+      "model": "aerocouriers:block/cargo_container_xl_seg101",
+      "y": 270
+    },
+    "facing=west,segment=4": {
+      "model": "aerocouriers:block/cargo_container_xl_seg000",
+      "y": 270
+    },
+    "facing=west,segment=5": {
+      "model": "aerocouriers:block/cargo_container_xl_seg001",
+      "y": 270
+    },
+    "facing=west,segment=2": {
+      "model": "aerocouriers:block/cargo_container_xl_seg110",
+      "y": 270
+    },
+    "facing=west,segment=3": {
+      "model": "aerocouriers:block/cargo_container_xl_seg111",
+      "y": 270
+    },
+    "facing=west,segment=6": {
+      "model": "aerocouriers:block/cargo_container_xl_seg010",
+      "y": 270
+    },
+    "facing=west,segment=7": {
+      "model": "aerocouriers:block/cargo_container_xl_seg011",
+      "y": 270
+    },
+    "facing=west,segment=8": {
+      "model": "aerocouriers:block/cargo_container_xl_seg120",
+      "y": 270
+    },
+    "facing=west,segment=9": {
+      "model": "aerocouriers:block/cargo_container_xl_seg121",
+      "y": 270
+    },
+    "facing=west,segment=10": {
+      "model": "aerocouriers:block/cargo_container_xl_seg020",
+      "y": 270
+    },
+    "facing=west,segment=11": {
+      "model": "aerocouriers:block/cargo_container_xl_seg021",
+      "y": 270
+    }
+  }
+}

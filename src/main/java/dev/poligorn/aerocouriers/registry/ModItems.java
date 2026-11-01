@@ -2,6 +2,7 @@ package dev.poligorn.aerocouriers.registry;
 
 import dev.poligorn.aerocouriers.AeronauticsCouriers;
 import dev.poligorn.aerocouriers.item.CourierStampItem;
+import dev.poligorn.aerocouriers.item.DecorCargoBlockItem;
 import dev.poligorn.aerocouriers.item.OrderTabletItem;
 import dev.poligorn.aerocouriers.item.TransportWaybillItem;
 import dev.poligorn.aerocouriers.license.PilotLicenseItem;
@@ -34,9 +35,25 @@ public final class ModItems {
             OrderTabletItem::new,
             new Item.Properties().stacksTo(1).rarity(Rarity.UNCOMMON));
 
-    // Operators only (creative "Operator Utilities" tab or /give); no recipe (GDD §6.0).
+    // Operators only (own creative tab when hasPermissions, or /give); no recipe (GDD §6.0).
     public static final DeferredItem<BlockItem> POST_STATION = REGISTER.registerSimpleBlockItem(
             "post_station", ModBlocks.POST_STATION, new Item.Properties().rarity(Rarity.EPIC));
+
+    public static final DeferredItem<DecorCargoBlockItem> DECOR_CARGO_CONTAINER_S = REGISTER.register(
+            "decor_cargo_container_s",
+            () -> new DecorCargoBlockItem(ModBlocks.DECOR_CARGO_CONTAINER_S.get(), new Item.Properties()));
+
+    public static final DeferredItem<DecorCargoBlockItem> DECOR_CARGO_CONTAINER_M = REGISTER.register(
+            "decor_cargo_container_m",
+            () -> new DecorCargoBlockItem(ModBlocks.DECOR_CARGO_CONTAINER_M.get(), new Item.Properties()));
+
+    public static final DeferredItem<DecorCargoBlockItem> DECOR_CARGO_CONTAINER_L = REGISTER.register(
+            "decor_cargo_container_l",
+            () -> new DecorCargoBlockItem(ModBlocks.DECOR_CARGO_CONTAINER_L.get(), new Item.Properties()));
+
+    public static final DeferredItem<DecorCargoBlockItem> DECOR_CARGO_CONTAINER_XL = REGISTER.register(
+            "decor_cargo_container_xl",
+            () -> new DecorCargoBlockItem(ModBlocks.DECOR_CARGO_CONTAINER_XL.get(), new Item.Properties()));
 
     private ModItems() {
     }

@@ -13,6 +13,7 @@ import dev.poligorn.aerocouriers.village.PostStationBlock;
 import dev.poligorn.aerocouriers.village.PostStationBlockEntity;
 import dev.poligorn.aerocouriers.village.StationAtlas;
 import dev.poligorn.aerocouriers.village.StationReputation;
+import dev.poligorn.aerocouriers.village.StationNamePending;
 import dev.poligorn.aerocouriers.village.VillageAdmin;
 import dev.poligorn.aerocouriers.village.VillageBoardPolicy;
 import dev.poligorn.aerocouriers.village.VillageRefreshTiming;
@@ -188,6 +189,43 @@ public final class StationPackets {
         }
         VillageBoardPolicy next = station.policy().withSize(sizes[ord], payload.flag());
         return VillageAdmin.setSizes(player.server, station, next.allowedSizesMask());
+    }
+
+    public static void openName(ServerPlayer player, ServerLevel level, BlockPos pos) {
+        PostStationBlockEntity station = PostStationBlock.stationEntity(level, pos);
+        BlockPos controller = station != null ? station.getBlockPos().immutable() : pos.immutable();
+        UUID self = station != null ? station.stationId() : null;
+        CouriersNetwork.sendRegistryPayload(player, new OpenStationNamePayload(controller, otherNames(
+                StationAtlas.get(player.server), self)), OpenStationNamePayload.STREAM_CODEC);
+    }
+
+    public static void handleName(ServerPlayer player, NameStationPayload payload) {
+        if (!(player.level() instanceof ServerLevel level)) {
+            return;
+        }
+        if (!StationNamePending.canName(player, payload.pos())) {
+            player.sendSystemMessage(Component.translatable("station.aerocouriers.error.not_placer"));
+            return;
+        }
+        PostStationBlockEntity station = PostStationBlock.stationEntity(level, payload.pos());
+        if (station == null || station.stationId() == null) {
+            player.sendSystemMessage(Component.translatable("station.aerocouriers.error.not_station",
+                    payload.pos().toShortString()));
+            return;
+        }
+        StationAtlas.Station atlas = StationAtlas.get(player.server).byId(station.stationId()).orElse(null);
+        if (atlas == null) {
+            player.sendSystemMessage(Component.translatable("station.aerocouriers.error.not_station",
+                    payload.pos().toShortString()));
+            return;
+        }
+        String want = payload.name().strip();
+        Component message = VillageAdmin.rename(player.server, atlas, want);
+        player.sendSystemMessage(message);
+        StationAtlas.Station after = StationAtlas.get(player.server).byId(atlas.id()).orElse(atlas);
+        if (after.name().equals(want)) {
+            StationNamePending.forget(level, payload.pos());
+        }
     }
 
     public static void handleRename(ServerPlayer player, RenameStationPayload payload) {

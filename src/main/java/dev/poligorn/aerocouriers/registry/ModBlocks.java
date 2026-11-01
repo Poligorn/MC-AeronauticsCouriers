@@ -6,6 +6,10 @@ import dev.poligorn.aerocouriers.cargo.CargoContainerLargeBlock;
 import dev.poligorn.aerocouriers.cargo.CargoContainerMediumBlock;
 import dev.poligorn.aerocouriers.cargo.CargoContainerXlBlock;
 import dev.poligorn.aerocouriers.cargo.CargoSize;
+import dev.poligorn.aerocouriers.cargo.DecorCargoBlock;
+import dev.poligorn.aerocouriers.cargo.DecorCargoLargeBlock;
+import dev.poligorn.aerocouriers.cargo.DecorCargoMediumBlock;
+import dev.poligorn.aerocouriers.cargo.DecorCargoXlBlock;
 import dev.poligorn.aerocouriers.village.PostStationBlock;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
@@ -47,6 +51,35 @@ public final class ModBlocks {
             "cargo_container_xl",
             CargoContainerXlBlock::new,
             cargoContainerProps());
+
+    private static BlockBehaviour.Properties decorContainerProps() {
+        return BlockBehaviour.Properties.of()
+                .mapColor(MapColor.METAL)
+                .sound(SoundType.METAL)
+                .strength(-1.0F, 3_600_000.0F)
+                .noLootTable()
+                .pushReaction(PushReaction.BLOCK);
+    }
+
+    public static final DeferredBlock<DecorCargoBlock> DECOR_CARGO_CONTAINER_S = REGISTER.registerBlock(
+            "decor_cargo_container_s",
+            props -> new DecorCargoBlock(CargoSize.S, props),
+            decorContainerProps());
+
+    public static final DeferredBlock<DecorCargoMediumBlock> DECOR_CARGO_CONTAINER_M = REGISTER.registerBlock(
+            "decor_cargo_container_m",
+            DecorCargoMediumBlock::new,
+            decorContainerProps());
+
+    public static final DeferredBlock<DecorCargoLargeBlock> DECOR_CARGO_CONTAINER_L = REGISTER.registerBlock(
+            "decor_cargo_container_l",
+            DecorCargoLargeBlock::new,
+            decorContainerProps());
+
+    public static final DeferredBlock<DecorCargoXlBlock> DECOR_CARGO_CONTAINER_XL = REGISTER.registerBlock(
+            "decor_cargo_container_xl",
+            DecorCargoXlBlock::new,
+            decorContainerProps());
 
     public static final DeferredBlock<PostStationBlock> POST_STATION = REGISTER.registerBlock(
             "post_station",

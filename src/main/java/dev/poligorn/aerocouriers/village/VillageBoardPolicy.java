@@ -21,6 +21,16 @@ public record VillageBoardPolicy(
     public static final int DEFAULT_INTERVAL = 0;
     public static final long EXPENSIVE_REWARD = 1000L;
     public static final int NAME_MAX = 24;
+
+    /** Letters (incl. Cyrillic), digits, space, hyphen — the charset the naming dialog promises. */
+    public static boolean isAllowedNameChar(int codePoint) {
+        return Character.isLetter(codePoint) || Character.isDigit(codePoint)
+                || codePoint == ' ' || codePoint == '-';
+    }
+
+    public static boolean hasValidNameChars(String name) {
+        return name != null && !name.isEmpty() && name.codePoints().allMatch(VillageBoardPolicy::isAllowedNameChar);
+    }
     public static final int REPUTATION_MIN = 0;
     public static final int REPUTATION_MAX = 50;
     public static final VillageBoardPolicy DEFAULT = new VillageBoardPolicy(true, true, ALL_SIZES, DEFAULT_INTERVAL);

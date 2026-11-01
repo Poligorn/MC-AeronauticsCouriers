@@ -59,6 +59,7 @@ public abstract class VillageAdminDialogs {
             field = paddedField(screen, x + 10, y + 33, 268, 16,
                     Component.translatable("ui.aerocouriers.village_admin.dialog.rename.field"),
                     VillageBoardPolicy.NAME_MAX);
+            field.setFilter(value -> value.codePoints().allMatch(VillageBoardPolicy::isAllowedNameChar));
             field.setValue(snapshot.name());
             screen.addDialogWidget(field);
         }

@@ -1,12 +1,18 @@
 package dev.poligorn.aerocouriers.client;
 
 import dev.poligorn.aerocouriers.client.station.CorkBoardScreen;
+import dev.poligorn.aerocouriers.client.station.StationNameScreen;
 import dev.poligorn.aerocouriers.client.station.VillageAdminScreen;
+import dev.poligorn.aerocouriers.net.OpenStationNamePayload;
 import dev.poligorn.aerocouriers.net.StationSnapshotPayload;
 import net.minecraft.client.Minecraft;
 
 public final class ClientStation {
     private ClientStation() {
+    }
+
+    public static void openName(OpenStationNamePayload payload) {
+        Minecraft.getInstance().setScreen(new StationNameScreen(payload));
     }
 
     public static void apply(StationSnapshotPayload payload) {

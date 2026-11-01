@@ -15,7 +15,9 @@ public final class CorkHudGuard {
 
     public static boolean stationUiOpen() {
         Screen screen = Minecraft.getInstance().screen;
-        return screen instanceof CorkBoardScreen || screen instanceof VillageAdminScreen;
+        return screen instanceof CorkBoardScreen
+                || screen instanceof VillageAdminScreen
+                || screen instanceof StationNameScreen;
     }
 
     public static void onRenderGui(RenderGuiEvent.Pre event) {
