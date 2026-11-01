@@ -10,7 +10,7 @@
 - `mod_version`: `0.3.0` → `0.3.1`. Протокол сети не менялся (`PROTOCOL_VERSION` `"4"`).
 - Состав относительно 0.3.0: новая рисованная рамка планшета 84×84; `trainee_max_distance` 1500 и сортировка коротких пар после shuffle; ровно одна почтовая станция у центра каждой новой деревни ([PR #80](https://github.com/Poligorn/MC-AeronauticsCouriers/pull/80)).
 - Ветка `release/0.3.1` от `main` после #80. Java в этом PR не менялась.
-- Проверка релиза: `./gradlew build -PwithoutJade=true` и `runGameTestServer -PwithoutJade=true` — в этом прогоне (числа ниже после прогона). Jar `aerocouriers-0.3.1.jar`.
+- Проверка релиза: `./gradlew build -PwithoutJade=true` SUCCESS. `runGameTestServer -PwithoutJade=true` **107/107** (Create 6.0.10, Aeronautics 1.3.0, Simulated 1.3.0, Sable 2.0.6, Veil 4.5.2, без Numismatics и без Jade). Jar `aerocouriers-0.3.1.jar`.
 
 ### Рамка планшета, стажировка 1500, станция в каждой новой деревне (01.11.2026)
 Три утверждённые правки в одном PR (#80), вошли в релиз 0.3.1. Протокол не поднимали. UI кроме спрайта рамки не менялся.

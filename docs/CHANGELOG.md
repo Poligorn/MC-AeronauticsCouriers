@@ -10,6 +10,8 @@
 - Стажировка: `trainee_max_distance` по умолчанию 1500 (потолок ранга I; 0 = без лимита). Генератор NPC реально предпочитает короткие пары: сначала тасует, потом стабильно сортирует ([PR #80](https://github.com/Poligorn/MC-AeronauticsCouriers/pull/80)).
 - Деревни: в каждой **новой** деревне (plains / desert / savanna / snowy / taiga) ровно одна почтовая станция у центра. Уже сгенерированные деревни не меняются ([PR #80](https://github.com/Poligorn/MC-AeronauticsCouriers/pull/80)).
 
+GameTest **107/107**.
+
 ## 0.3.0 (31.10.2026)
 
 Релиз поверх `0.2.1-beta`. Протокол сети `PROTOCOL_VERSION` `"3"` → `"4"` (`BoardEntry.expensive`, `rareItemIndex`). Клиент и сервер должны быть одной сборки.
