@@ -239,7 +239,7 @@ public record BoardSnapshotPayload(
             boolean pilotLicenseHeld
     ) {
         public static final BoardProfile EMPTY = new BoardProfile(
-                "", LicenseRank.RANK1, 0, 0, 0L, 0L, 0, 3, 800,
+                "", LicenseRank.RANK1, 0, 0, 0L, 0L, 0, 3, 1500,
                 0, 0, 300, 1500, 5000, 15000, 90,
                 false, 0, 0, 0L, 0L, 0, 0, 0, 0, false);
 

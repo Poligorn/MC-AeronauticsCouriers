@@ -25,9 +25,9 @@ def main() -> None:
     assert on_trainee(0, 3)
     assert on_trainee(2, 3)
     assert not on_trainee(3, 3)
-    assert distance_allowed(500, 0, 3, 800)
-    assert distance_allowed(801, 0, 3, 800) is False
-    assert distance_allowed(2000, 3, 3, 800)
+    assert distance_allowed(500, 0, 3, 1500)
+    assert distance_allowed(1501, 0, 3, 1500) is False
+    assert distance_allowed(2000, 3, 3, 1500)
     assert distance_allowed(2000, 0, 3, 0)
     print("check_trainee_rules: OK")
 

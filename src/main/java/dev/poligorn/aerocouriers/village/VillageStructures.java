@@ -5,6 +5,7 @@ import dev.poligorn.aerocouriers.AeronauticsCouriers;
 import dev.poligorn.aerocouriers.config.CouriersServerConfig;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.core.Holder;
@@ -15,18 +16,21 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.levelgen.structure.pools.StructurePoolElement;
 import net.minecraft.world.level.levelgen.structure.pools.StructureTemplatePool;
+import net.minecraft.world.level.levelgen.structure.templatesystem.StructureProcessor;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureProcessorList;
 import net.neoforged.neoforge.event.server.ServerAboutToStartEvent;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * Adds the post station to the village house pools (GDD §6.0). Only appends an element to pools already loaded
- * from datapacks, so vanilla and other mods' pool JSON stay untouched. Affects villages generated from now on.
+ * Guarantees one post station in every newly generated village (GDD §6.0). Vanilla and other mods' pool
+ * JSON stay untouched: at {@link ServerAboutToStartEvent} we attach
+ * {@link VillageTownCenterStationProcessor} to already-loaded {@code village/<type>/town_centers} elements.
+ * The 1x1x2 stand is written inside the current chunk clip, next to the bell when possible.
  *
- * <p>The 3×3×3 piece always fits, so jigsaw uses it as a fallback when larger houses fail — a village can get
- * several station houses. {@link OncePerVillageStationProcessor} keeps the first controller
- * {@code post_station} (the 1×1×2 stand) and turns extra lowers into cartography tables (their upper
- * halves become air) while the piece is placed.
+ * <p>The 3x3 house piece and {@link OncePerVillageStationProcessor} stay for tests and leftover copies.
+ * House pools are no longer injected: the tiny fallback stole house slots and still left some villages
+ * with no station. {@code generate_in_villages=false} skips the town-center wrap. Already generated
+ * villages are not rewritten.
  */
 public final class VillageStructures {
     public static final ResourceLocation STRUCTURE = AeronauticsCouriers.id("village/post_station");
@@ -44,24 +48,23 @@ public final class VillageStructures {
         }
         RegistryAccess access = event.getServer().registryAccess();
         Registry<StructureTemplatePool> pools = access.registryOrThrow(Registries.TEMPLATE_POOL);
-        StructurePoolElement element = stationPoolElement(access);
-        int added = 0;
+        int wrapped = 0;
         for (String village : VILLAGES) {
-            ResourceLocation id = ResourceLocation.withDefaultNamespace("village/" + village + "/houses");
+            ResourceLocation id = ResourceLocation.withDefaultNamespace("village/" + village + "/town_centers");
             StructureTemplatePool pool = pools.get(id);
             if (pool == null) {
-                AeronauticsCouriers.LOGGER.warn("[station] Village pool {} not found", id);
+                AeronauticsCouriers.LOGGER.warn("[station] Village town-center pool {} not found", id);
                 continue;
             }
             try {
-                if (append(pool, element)) {
-                    added++;
+                if (attachPlanter(pool)) {
+                    wrapped++;
                 }
             } catch (ReflectiveOperationException | RuntimeException e) {
-                AeronauticsCouriers.LOGGER.error("[station] Could not add the post station to {}", id, e);
+                AeronauticsCouriers.LOGGER.error("[station] Could not plant a post station in {}", id, e);
             }
         }
-        AeronauticsCouriers.LOGGER.info("[station] Post station added to {} village house pools (weight {})", added, WEIGHT);
+        AeronauticsCouriers.LOGGER.info("[station] Post station planter added to {} village town-center pools", wrapped);
     }
 
     /** Same pool element worldgen injects: rigid 3×3 house plus the once-per-village processor. */
@@ -84,6 +87,68 @@ public final class VillageStructures {
                     PROCESSOR_LIST.location());
         }
         return Holder.direct(new StructureProcessorList(List.of(OncePerVillageStationProcessor.INSTANCE)));
+    }
+
+    @SuppressWarnings("unchecked")
+    private static boolean attachPlanter(StructureTemplatePool pool) throws ReflectiveOperationException {
+        Field rawField = StructureTemplatePool.class.getDeclaredField("rawTemplates");
+        rawField.setAccessible(true);
+        List<Pair<StructurePoolElement, Integer>> raw =
+                (List<Pair<StructurePoolElement, Integer>>) rawField.get(pool);
+        boolean changed = false;
+        for (Pair<StructurePoolElement, Integer> pair : raw) {
+            if (attachPlanter(pair.getFirst())) {
+                changed = true;
+            }
+        }
+        return changed;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static boolean attachPlanter(StructurePoolElement element) throws ReflectiveOperationException {
+        boolean changed = false;
+        Class<?> type = element.getClass();
+        while (type != null && type != Object.class) {
+            for (Field field : type.getDeclaredFields()) {
+                // StructurePoolElement.EMPTY is a static Holder<StructureProcessorList>; writing it
+                // throws and used to abort the whole town_centers wrap.
+                if (Modifier.isStatic(field.getModifiers())) {
+                    continue;
+                }
+                field.setAccessible(true);
+                Object value;
+                try {
+                    value = field.get(element);
+                } catch (IllegalAccessException e) {
+                    continue;
+                }
+                if (value instanceof Holder<?> holder && holder.value() instanceof StructureProcessorList list) {
+                    if (list.list().stream().anyMatch(p -> p instanceof VillageTownCenterStationProcessor)) {
+                        continue;
+                    }
+                    List<StructureProcessor> combined = new ArrayList<>(list.list());
+                    combined.add(VillageTownCenterStationProcessor.INSTANCE);
+                    try {
+                        field.set(element, Holder.direct(new StructureProcessorList(combined)));
+                        changed = true;
+                    } catch (IllegalAccessException e) {
+                        AeronauticsCouriers.LOGGER.warn(
+                                "[station] Could not wrap processors on {}", type.getSimpleName());
+                    }
+                    continue;
+                }
+                if (value instanceof List<?> children && !children.isEmpty()
+                        && children.getFirst() instanceof StructurePoolElement) {
+                    for (Object child : children) {
+                        if (child instanceof StructurePoolElement nested && attachPlanter(nested)) {
+                            changed = true;
+                        }
+                    }
+                }
+            }
+            type = type.getSuperclass();
+        }
+        return changed;
     }
 
     @SuppressWarnings("unchecked")

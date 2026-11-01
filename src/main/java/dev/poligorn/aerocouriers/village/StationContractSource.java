@@ -126,8 +126,8 @@ public final class StationContractSource implements ContractSource {
                 pairs.add(new StationAtlas.Station[] {from, to});
             }
         }
-        sortPairsForTrainee(pairs);
         Collections.shuffle(pairs, new java.util.Random(random.nextLong()));
+        sortPairsForTrainee(pairs);
         int created = 0;
         boolean hasSmall = false;
         for (StationAtlas.Station[] pair : pairs) {
@@ -213,18 +213,40 @@ public final class StationContractSource implements ContractSource {
         return created;
     }
 
+    /** Shuffle first, then stable-sort so similar distances keep some randomness. */
+    private static final int TRAINEE_DISTANCE_BUCKET = 200;
+
     private static void sortPairsForTrainee(List<StationAtlas.Station[]> pairs) {
         int traineeMax = CouriersServerConfig.TRAINEE_MAX_DISTANCE.get();
-        pairs.sort((a, b) -> {
-            double da = Math.sqrt(a[0].pos().distSqr(a[1].pos()));
-            double db = Math.sqrt(b[0].pos().distSqr(b[1].pos()));
-            boolean shortA = traineeMax > 0 && da <= traineeMax;
-            boolean shortB = traineeMax > 0 && db <= traineeMax;
-            if (shortA != shortB) {
-                return shortB ? 1 : -1;
-            }
-            return Double.compare(da, db);
-        });
+        pairs.sort((a, b) -> compareTraineeDistance(pairDistance(a[0], a[1]), pairDistance(b[0], b[1]), traineeMax));
+    }
+
+    private static void sortStationsForTrainee(StationAtlas.Station from, List<StationAtlas.Station> stations) {
+        int traineeMax = CouriersServerConfig.TRAINEE_MAX_DISTANCE.get();
+        stations.sort((a, b) -> compareTraineeDistance(pairDistance(from, a), pairDistance(from, b), traineeMax));
+    }
+
+    private static int compareTraineeDistance(double da, double db, int traineeMax) {
+        boolean shortA = traineeMax > 0 && da <= traineeMax;
+        boolean shortB = traineeMax > 0 && db <= traineeMax;
+        if (shortA != shortB) {
+            return shortB ? 1 : -1;
+        }
+        return Integer.compare(distanceBucket(da), distanceBucket(db));
+    }
+
+    private static int distanceBucket(double distance) {
+        if (Double.isInfinite(distance)) {
+            return Integer.MAX_VALUE;
+        }
+        return (int) (distance / TRAINEE_DISTANCE_BUCKET);
+    }
+
+    private static double pairDistance(StationAtlas.Station from, StationAtlas.Station to) {
+        if (!from.dimension().equals(to.dimension())) {
+            return CouriersServerConfig.CROSS_DIMENSION_DISTANCE.get();
+        }
+        return Math.sqrt(from.pos().distSqr(to.pos()));
     }
 
     /** Fills OPEN village orders that start at {@code from}, honouring that station's board policy. */
@@ -246,6 +268,7 @@ public final class StationContractSource implements ContractSource {
                 .toList();
         List<StationAtlas.Station> candidates = new ArrayList<>(others);
         Collections.shuffle(candidates, new java.util.Random(level.getRandom().nextLong()));
+        sortStationsForTrainee(from, candidates);
         int created = 0;
         boolean hasSmall = false;
         for (StationAtlas.Station to : candidates) {

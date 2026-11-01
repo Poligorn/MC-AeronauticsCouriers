@@ -27,6 +27,7 @@ rank_xp = [0, 300, 1500, 5000, 15000]
 ace_min_success = 0.90
 trainee_free_contracts = 3
 trainee_bonus = 100
+trainee_max_distance = 1500  # rank I cap; 0 = no limit
 [economy]
 emerald_value_spurs = 8
 collateral_profile = "normal"   # peace | easy | normal | hard | custom (0.2.0)
