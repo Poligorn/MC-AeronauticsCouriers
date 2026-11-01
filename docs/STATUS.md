@@ -16,6 +16,13 @@
 - **Не проверено в клиенте:** живой hover/клик/Enter/Esc/«пропустить» руками (только file-hook); EN глазами; GUI 2/4; OCR строки плашки (tesseract нет); action bar у станции в живом клиенте (есть GameTest на `FAIL`); обход станции в креативе глазами; фильтр «только доступные» глазами (пин — в коде).
 - Версию и `PROTOCOL_VERSION` `"5"` не меняли.
 
+### Хвосты 0.3.0 в том же PR (01.11.2026)
+- **Мёртвые lang-ключи.** Удалены 84 ключа, которых нет в коде/данных/ассетах. en/ru синхронны. Оставлены `board.count.*` / `details.slots.*` (TabletDraw.plural) и `config.jade.plugin_aerocouriers.*` (Jade по UID).
+- **`/couriers` / `/couriers help`.** Обход дерева Brigadier: только литералы, которые `canUse` для источника. Нового поведения нет. GameTest: игрок не видит `admin`/`license`/`money`, оператор видит.
+- **Ник заказчика.** В деталях заказа клик шлёт уже существующий `RequestPlayerProfilePayload` (протокол не меняли). Hover = SEC + подчёркивание, TXT при наведении, как «пропустить». NPC и `courierService` не кликабельны; в жёстком обучении ник под вуалью.
+- **Проверки.** `./gradlew build -PwithoutJade=true` + `runGameTestServer -PwithoutJade=true` **125/125** (123 + 2 `CouriersHelpGameTests`). `PROTOCOL_VERSION` `"5"`.
+- **QA.** `TabletQaClient`: `details-player` / `hover-customer` / `open-customer`. Кадры — `/opt/cursor/artifacts/`. Xvfb 1920×1080, RU, GUI 3. PIL, PNG в редакторе не открывались. ✅ `customer_name_hover.png` (окно деталей, cream TXT/SEC) · ✅ `customer_profile_opened.png` (вкладка профиля, скин слева, полость без списка заказов).
+
 ### Релиз 0.3.2 (01.11.2026)
 - Своя творческая вкладка «Aeronautics Couriers»; предметы убраны из ванильных вкладок. Станция во вкладке только при правах оператора.
 - Окно названия при постановке станции игроком. Отмена/Esc — случайное имя. C2S принимает поставившего в окне 5 мин, не только оператора. Деревенские / setblock / структура — без окна.
