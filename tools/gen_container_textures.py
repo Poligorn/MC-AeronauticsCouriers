@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Generate original 16x16 cargo container block textures (PIL). Two palettes; default is rust-red."""
+"""Legacy generator for 16x16 rust/steel cargo faces.
+
+In-game S/M/L/XL textures are the approved E2 set (no doors). Do not overwrite
+`textures/block/cargo_container_*.png` from this script unless regenerating a
+scratch palette. Apply authored files with `tools/apply_e2_cargo_textures.py`.
+"""
 
 from __future__ import annotations
 

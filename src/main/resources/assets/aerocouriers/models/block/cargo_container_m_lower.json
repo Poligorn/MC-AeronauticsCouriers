@@ -4,7 +4,6 @@
     "particle": "aerocouriers:block/cargo_container_m_side_lower",
     "side": "aerocouriers:block/cargo_container_m_side_lower",
     "side_e": "aerocouriers:block/cargo_container_m_side_lower_waybill",
-    "door": "aerocouriers:block/cargo_container_m_door_lower",
     "bottom": "aerocouriers:block/cargo_container_m_bottom"
   },
   "elements": [
@@ -27,7 +26,7 @@
             16,
             16
           ],
-          "texture": "#door"
+          "texture": "#side"
         },
         "south": {
           "uv": [
