@@ -1,0 +1,8 @@
+{
+  "variants": {
+    "facing=north": { "model": "aerocouriers:block/cargo_container_s", "y": 0 },
+    "facing=east": { "model": "aerocouriers:block/cargo_container_s", "y": 90 },
+    "facing=south": { "model": "aerocouriers:block/cargo_container_s", "y": 180 },
+    "facing=west": { "model": "aerocouriers:block/cargo_container_s", "y": 270 }
+  }
+}

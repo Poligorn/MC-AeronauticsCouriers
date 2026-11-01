@@ -77,6 +77,9 @@ public final class VillageAdmin {
         if (name.isEmpty() || name.length() > VillageBoardPolicy.NAME_MAX) {
             return Component.translatable("station.aerocouriers.error.name", VillageBoardPolicy.NAME_MAX);
         }
+        if (!VillageBoardPolicy.hasValidNameChars(name)) {
+            return Component.translatable("station.aerocouriers.error.name_chars");
+        }
         StationAtlas atlas = StationAtlas.get(server);
         if (nameTaken(atlas, station.id(), name)) {
             return Component.translatable("admin.aerocouriers.village.rename.taken", name);

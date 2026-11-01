@@ -47,6 +47,10 @@ public class PostStationBlockEntity extends BlockEntity implements Nameable {
         return village;
     }
 
+    static boolean isPlacingVillage() {
+        return Boolean.TRUE.equals(PLACING_VILLAGE.get());
+    }
+
     /** Test / worldgen helper: the next station placed on this thread is treated as village-generated. */
     public static void placingVillage(Runnable place) {
         PLACING_VILLAGE.set(true);

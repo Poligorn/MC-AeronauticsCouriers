@@ -8,6 +8,7 @@ import dev.poligorn.aerocouriers.AeronauticsCouriers;
 import dev.poligorn.aerocouriers.access.OrderTablets;
 import dev.poligorn.aerocouriers.cargo.CargoSize;
 import dev.poligorn.aerocouriers.cargo.CargoSpawner;
+import dev.poligorn.aerocouriers.cargo.DecorCargoBlock;
 import dev.poligorn.aerocouriers.cargo.CargoTracker;
 import dev.poligorn.aerocouriers.config.CouriersServerConfig;
 import dev.poligorn.aerocouriers.admin.AdminActions;
@@ -125,6 +126,7 @@ final class DevSeedCommands {
         }
         pollFile(server, Path.of("corkqa-cmd.txt"), DevSeedCommands::runCorkCommand);
         pollFile(server, Path.of("tabletsqa-cmd.txt"), DevSeedCommands::runTabletCommand);
+        pollFile(server, Path.of("tabqa-world.txt"), DevSeedCommands::runTabQaWorld);
     }
 
     private static void pollFile(MinecraftServer server, Path path,
@@ -144,6 +146,47 @@ final class DevSeedCommands {
         } catch (Exception e) {
             AeronauticsCouriers.LOGGER.warn("[qa] {}: {}", path, e.toString());
         }
+    }
+
+    /** QA: {@code tabqa-world.txt} — place a row of decorative crates and look at them. */
+    private static void runTabQaWorld(ServerPlayer player, String cmd) {
+        ServerLevel level = player.serverLevel();
+        BlockPos origin = new BlockPos(player.blockPosition().getX() + 4, player.blockPosition().getY(),
+                player.blockPosition().getZ() + 4);
+        if (cmd.startsWith("look")) {
+            lookDecor(player, origin);
+            return;
+        }
+        flattenDecor(level, origin);
+        placeDecor(level, origin, CargoSize.S);
+        placeDecor(level, origin.offset(3, 0, 0), CargoSize.M);
+        placeDecor(level, origin.offset(6, 0, 0), CargoSize.L);
+        placeDecor(level, origin.offset(10, 0, 0), CargoSize.XL);
+        lookDecor(player, origin);
+        AeronauticsCouriers.LOGGER.info("[tabqa] placed decor S/M/L/XL at {}", origin);
+    }
+
+    private static void flattenDecor(ServerLevel level, BlockPos origin) {
+        for (int x = -1; x <= 14; x++) {
+            for (int z = -1; z <= 4; z++) {
+                level.setBlock(origin.offset(x, -1, z), Blocks.SMOOTH_STONE.defaultBlockState(), 2);
+                for (int y = 0; y <= 4; y++) {
+                    level.setBlock(origin.offset(x, y, z), Blocks.AIR.defaultBlockState(), 2);
+                }
+            }
+        }
+    }
+
+    private static void placeDecor(ServerLevel level, BlockPos pos, CargoSize size) {
+        var state = DecorCargoBlock.stateForPart(size, Direction.NORTH, BlockPos.ZERO);
+        level.setBlock(pos, state, 3);
+        DecorCargoBlock.blockFor(size).setPlacedBy(level, pos, state, null, ItemStack.EMPTY);
+    }
+
+    private static void lookDecor(ServerPlayer player, BlockPos origin) {
+        player.serverLevel().setDayTime(6000);
+        player.setGameMode(net.minecraft.world.level.GameType.CREATIVE);
+        player.connection.teleport(origin.getX() + 6.5, origin.getY() + 1.0, origin.getZ() + 8.5, 180.0f, 12.0f);
     }
 
     static LiteralArgumentBuilder<CommandSourceStack> dev() {

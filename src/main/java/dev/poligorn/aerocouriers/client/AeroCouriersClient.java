@@ -55,6 +55,9 @@ public final class AeroCouriersClient {
         NeoForge.EVENT_BUS.addListener(TabletQaClient::onClientTick);
         NeoForge.EVENT_BUS.addListener(TabletQaClient::onScreenRender);
         NeoForge.EVENT_BUS.addListener(TabletQaClient::onRenderGui);
+        NeoForge.EVENT_BUS.addListener(dev.poligorn.aerocouriers.client.station.TabQaClient::onClientTick);
+        NeoForge.EVENT_BUS.addListener(dev.poligorn.aerocouriers.client.station.TabQaClient::onScreenRender);
+        NeoForge.EVENT_BUS.addListener(dev.poligorn.aerocouriers.client.station.TabQaClient::onRenderGui);
         modBus.addListener(AeroCouriersClient::registerItemDecorations);
     }
 

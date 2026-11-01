@@ -98,6 +98,14 @@ neoForge {
                 programArgument '--height'
                 programArgument '1080'
             }
+            if (project.findProperty('tabqa') == 'true') {
+                programArgument '--quickPlaySingleplayer'
+                programArgument 'tabqa'
+                programArgument '--width'
+                programArgument '1920'
+                programArgument '--height'
+                programArgument '1080'
+            }
         }
         server {
             server()
@@ -118,6 +126,9 @@ neoForge {
             }
             if (project.findProperty('tabletsqa') == 'true') {
                 systemProperty 'aerocouriers.tabletsqa', 'true'
+            }
+            if (project.findProperty('tabqa') == 'true') {
+                systemProperty 'aerocouriers.tabqa', 'true'
             }
             logLevel = org.slf4j.event.Level.INFO
         }
