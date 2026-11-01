@@ -63,8 +63,22 @@ final class BoardTutorialUi {
         return TutorialData.State.byOrdinal(ClientBoard.extras().tutorialState());
     }
 
+    /** QA / screenshots: when ≥ 0, {@link #step()} returns this instead of the snapshot. */
+    private static int qaForcedStep = -1;
+
+    static void qaForceStep(int step) {
+        qaForcedStep = step;
+    }
+
+    static void qaClearForcedStep() {
+        qaForcedStep = -1;
+    }
+
     /** Current step 0..3, or -1 when no tutorial is running. */
     static int step() {
+        if (qaForcedStep >= 0) {
+            return qaForcedStep;
+        }
         BoardSnapshotPayload.Extras extras = ClientBoard.extras();
         if (!extras.tutorialEnabled() || !state().inProgress()) {
             return -1;
@@ -249,6 +263,11 @@ final class BoardTutorialUi {
      */
     void renderCoach(GuiGraphics graphics, Font font, int step, Component text, @Nullable Rect target, int x,
                      int anchorY, boolean fromTop, int w, int mx, int my, boolean onTop) {
+        renderCoach(graphics, font, step, text, null, target, x, anchorY, fromTop, w, mx, my, onTop);
+    }
+
+    void renderCoach(GuiGraphics graphics, Font font, int step, Component text, @Nullable Component note,
+                     @Nullable Rect target, int x, int anchorY, boolean fromTop, int w, int mx, int my, boolean onTop) {
         skipLink = null;
         plate = null;
         if (step < 0) {
@@ -267,7 +286,8 @@ final class BoardTutorialUi {
         }
         int textW = w - 12;
         List<FormattedCharSequence> body = font.split(text, textW);
-        int h = 6 + LINE + 2 + body.size() * LINE + 4;
+        List<FormattedCharSequence> extra = note == null ? List.of() : font.split(note, textW);
+        int h = 6 + LINE + 2 + body.size() * LINE + (extra.isEmpty() ? 0 : 2 + extra.size() * LINE) + 4;
         int y = fromTop ? anchorY : anchorY - h;
         plate = new Rect(x, y, w, h);
         TabletDraw.box(graphics, x, y, x + w - 1, y + h - 1, TEAL_BG, TabletPalette.TEAL);
@@ -290,7 +310,35 @@ final class BoardTutorialUi {
             graphics.drawString(font, seq, x + 6, ty, TabletPalette.TXT, false);
             ty += LINE;
         }
+        if (!extra.isEmpty()) {
+            ty += 2;
+            for (FormattedCharSequence seq : extra) {
+                graphics.drawString(font, seq, x + 6, ty, TabletPalette.SEC, false);
+                ty += LINE;
+            }
+        }
         graphics.pose().popPose();
+    }
+
+    /** 65 % veil over {@code [x0,y0)–[x1,y1)} with a hole for the highlighted target. */
+    static void fillDim(GuiGraphics graphics, int x0, int y0, int x1, int y1, @Nullable Rect hole) {
+        int dim = TabletPalette.TUTORIAL_DIM;
+        if (hole == null) {
+            graphics.fill(x0, y0, x1, y1, dim);
+            return;
+        }
+        int hx0 = Math.max(x0, hole.x());
+        int hy0 = Math.max(y0, hole.y());
+        int hx1 = Math.min(x1, hole.x() + hole.w());
+        int hy1 = Math.min(y1, hole.y() + hole.h());
+        if (hx0 >= hx1 || hy0 >= hy1) {
+            graphics.fill(x0, y0, x1, y1, dim);
+            return;
+        }
+        graphics.fill(x0, y0, x1, hy0, dim);
+        graphics.fill(x0, hy1, x1, y1, dim);
+        graphics.fill(x0, hy0, hx0, hy1, dim);
+        graphics.fill(hx1, hy0, x1, hy1, dim);
     }
 
     /** The plate swallows clicks so they do not reach buttons underneath. Skip is the only action on it. */

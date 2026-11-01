@@ -2,9 +2,26 @@
 
 > Живой документ. Обновлять при каждом завершённом шаге итерации или изменении решения (см. `.cursor/rules/90-maintaining-docs.mdc`).
 
-**Обновлено:** 01.11.2026 · **Версия:** 0.3.2. Протокол сети `PROTOCOL_VERSION` `"5"` (`OpenStationNamePayload`, `NameStationPayload`).
+**Обновлено:** 01.11.2026 · **Версия:** 0.3.2. Протокол сети `PROTOCOL_VERSION` `"5"` (`OpenStationNamePayload`, `NameStationPayload`). Версию и протокол не поднимали.
 
 ## Сделано
+
+### Жёсткое обучение (после 0.3.2, 01.11.2026)
+Плейтест 01.11: пока идёт обучение, на планшете должны быть затемнены все элементы кроме цели шага; станция «Столб» не открывается по ПКМ. Решения Егора — [CLARIFICATIONS](CLARIFICATIONS.md) «Жёсткое обучение».
+- **Планшет.** `BoardTutorialUi` + `CourierBoardScreen`: вуаль `TabletPalette.TUTORIAL_DIM` (0xA6, 65 %) вокруг цели шага; бирюзовая рамка как раньше, плюс рамка у «Принять» в деталях. Затемнённое: мышь −1, без тултипов, клик/скролл/drag/клавиши (включая Enter) глотаются. Esc и закрытие планшета всегда; «пропустить» на плашке живая. Серая строка `ui.aerocouriers.tutorial.locked`. Шаги 3–4: ярко вкладка «Мои». Учебный заказ на шаге 2 пиннится вверху `listEntriesForTab` независимо от фильтров, `scroll = 0`.
+- **Станции.** `Tutorials.blocksStation` = `enabled() && inProgress() && !creative`. `PostStationBlock.useWithoutItem` → `FAIL` + action bar `tutorial.aerocouriers.station_locked` (без звука). `StationPackets.open` возвращает `boolean` и несёт тот же гард на каждом C2S-пути. Все станции, не только точка A.
+- **Тесты.** `TutorialStationGameTests`: in-progress / not-running / обе половины + Shift + предмет в руке / выключение обучения / пакетный путь / креатив. Состояние пишется в `TutorialData.put`, не через `Tutorials.start`.
+- **Проверки (01.11.2026).** `./gradlew build -PwithoutJade=true` SUCCESS. `runGameTestServer -PwithoutJade=true` **123/123** (база 117 + 6 `TutorialStationGameTests`, batch `aerocouriers.tutorial.station`). Create 6.0.10, Aeronautics 1.3.0, Sable 2.0.6, Veil 4.5.2, без Numismatics и без Jade. `PROTOCOL_VERSION` остался `"5"`.
+- **QA.** `TabletQaClient`: `tutorial-step1` / `tutorial-step2` / `tutorial-step2-details` / `tutorial-step3`. Сид: `tabletsqa-cmd.txt` → `tutorial`. Кадры — `/opt/cursor/artifacts/`. Xvfb 1920×1080, RU, GUI 3, `tabletsqa`. PIL, PNG в редакторе не открывались. OpenAL не стартует. Полость планшета в основном тёмная (вуаль). ✅ `tutorial_step1_profile_tab_dimmed.png` (вкладка «Профиль» светлее остальных невыбранных) · ✅ `tutorial_step2_board_dimmed.png` (первая карточка яркая, бирюзовая рамка) · ✅ `tutorial_step2_details_accept_only.png` («Принять» luma ~98, «Назад»/«Карта» ~12–16) · ✅ `tutorial_step3_mine_tab_bright.png` («Мои» светлее «Задач»/«Профиля»/«Почты»).
+- **Не проверено в клиенте:** живой hover/клик/Enter/Esc/«пропустить» руками (только file-hook); EN глазами; GUI 2/4; OCR строки плашки (tesseract нет); action bar у станции в живом клиенте (есть GameTest на `FAIL`); обход станции в креативе глазами; фильтр «только доступные» глазами (пин — в коде).
+- Версию и `PROTOCOL_VERSION` `"5"` не меняли.
+
+### Хвосты 0.3.0 в том же PR (01.11.2026)
+- **Мёртвые lang-ключи.** Удалены 84 ключа, которых нет в коде/данных/ассетах. en/ru синхронны. Оставлены `board.count.*` / `details.slots.*` (TabletDraw.plural) и `config.jade.plugin_aerocouriers.*` (Jade по UID).
+- **`/couriers` / `/couriers help`.** Обход дерева Brigadier: только литералы, которые `canUse` для источника. Нового поведения нет. GameTest: игрок не видит `admin`/`license`/`money`, оператор видит.
+- **Ник заказчика.** В деталях заказа клик шлёт уже существующий `RequestPlayerProfilePayload` (протокол не меняли). Hover = SEC + подчёркивание, TXT при наведении, как «пропустить». NPC и `courierService` не кликабельны; в жёстком обучении ник под вуалью.
+- **Проверки.** `./gradlew build -PwithoutJade=true` + `runGameTestServer -PwithoutJade=true` **125/125** (123 + 2 `CouriersHelpGameTests`). `PROTOCOL_VERSION` `"5"`.
+- **QA.** `TabletQaClient`: `details-player` / `hover-customer` / `open-customer`. Кадры — `/opt/cursor/artifacts/`. Xvfb 1920×1080, RU, GUI 3. PIL, PNG в редакторе не открывались. ✅ `customer_name_hover.png` (окно деталей, cream TXT/SEC) · ✅ `customer_profile_opened.png` (вкладка профиля, скин слева, полость без списка заказов).
 
 ### Релиз 0.3.2 (01.11.2026)
 - Своя творческая вкладка «Aeronautics Couriers»; предметы убраны из ванильных вкладок. Станция во вкладке только при правах оператора.

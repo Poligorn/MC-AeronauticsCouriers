@@ -687,6 +687,37 @@ public final class CourierBoardScreen extends Screen {
         return detailsOverlay != null;
     }
 
+    /** QA frames for the strict tutorial: dimmed step 1 / 2 / 2-details / 3. */
+    public boolean qaTutorialFrame(String frame) {
+        qaClearPointer();
+        confirmOverlay = null;
+        return switch (frame) {
+            case "tutorial-step1", "step1" -> {
+                BoardTutorialUi.qaForceStep(0);
+                detailsOverlay = null;
+                selectTab(Tab.BOARD);
+                yield true;
+            }
+            case "tutorial-step2", "step2" -> {
+                BoardTutorialUi.qaForceStep(1);
+                detailsOverlay = null;
+                selectTab(Tab.BOARD);
+                yield true;
+            }
+            case "tutorial-step2-details", "step2-details" -> {
+                BoardTutorialUi.qaForceStep(1);
+                yield qaOpenDetails(BoardSnapshotPayload.BoardEntry::courierService);
+            }
+            case "tutorial-step3", "step3" -> {
+                BoardTutorialUi.qaForceStep(2);
+                detailsOverlay = null;
+                selectTab(Tab.BOARD);
+                yield true;
+            }
+            default -> false;
+        };
+    }
+
     public boolean qaHoverFlag(boolean rare) {
         qaClearPointer();
         detailsOverlay = null;
@@ -725,6 +756,45 @@ public final class CourierBoardScreen extends Screen {
         qaLocalX = detailsOverlay.screenX(local[0]);
         qaLocalY = detailsOverlay.screenY(local[1]);
         return true;
+    }
+
+    public boolean qaOpenPlayerCustomerDetails() {
+        BoardTutorialUi.qaClearForcedStep();
+        java.util.UUID self = minecraft != null && minecraft.player != null ? minecraft.player.getUUID() : null;
+        if (self != null && qaOpenDetails(e -> playerCustomer(e) && e.customerId().filter(self::equals).isPresent())) {
+            return true;
+        }
+        return qaOpenDetails(CourierBoardScreen::playerCustomer);
+    }
+
+    public boolean qaHoverCustomerName() {
+        if (detailsOverlay == null && !qaOpenPlayerCustomerDetails()) {
+            return false;
+        }
+        int[] box = detailsOverlay.customerNameScreenBox();
+        if (box == null) {
+            return false;
+        }
+        qaLocalX = box[0] + box[2] / 2;
+        qaLocalY = box[1] + box[3] / 2;
+        return true;
+    }
+
+    public boolean qaOpenCustomerProfile() {
+        if (detailsOverlay == null && !qaOpenPlayerCustomerDetails()) {
+            return false;
+        }
+        return resolveEntry(detailsOverlay.orderId()).map(entry -> {
+            if (!playerCustomer(entry)) {
+                return false;
+            }
+            overlayHost.openCustomerProfile(entry);
+            return true;
+        }).orElse(false);
+    }
+
+    private static boolean playerCustomer(BoardSnapshotPayload.BoardEntry entry) {
+        return !entry.courierService() && !entry.villageCustomer() && entry.customerId().isPresent();
     }
 
     private BoardCardRenderer.Style cardStyle(BoardSnapshotPayload.BoardEntry entry, boolean hovered) {
@@ -867,8 +937,12 @@ public final class CourierBoardScreen extends Screen {
         syncOverlays();
         boolean overlay = overlayOpen();
         boolean modal = snapshot != null && BoardTutorialUi.modal() != BoardTutorialUi.Modal.NONE;
-        int contentMouseX = overlay || modal ? -1 : mx;
-        int contentMouseY = overlay || modal ? -1 : overlayMouseY;
+        boolean tutorialLocked = tutorialInterfaceLocked();
+        boolean tutorialAllowed = !tutorialLocked || tutorialAllowsPoint(mx, overlayMouseY);
+        int overlayPointerX = modal || (tutorialLocked && !tutorialAllowed) ? -1 : mx;
+        int overlayPointerY = modal || (tutorialLocked && !tutorialAllowed) ? -1 : overlayMouseY;
+        int contentMouseX = overlay || modal || (tutorialLocked && !tutorialAllowed) ? -1 : mx;
+        int contentMouseY = overlay || modal || (tutorialLocked && !tutorialAllowed) ? -1 : overlayMouseY;
         boolean tabLoading = tabEffects.isTabLoadingActive();
         float cavityAlpha = tabletChrome.cavityContentAlpha(snapshot == null, tabLoading, partialTick);
         float contentAlpha = tabEffects.contentAlpha() * cavityAlpha;
@@ -887,7 +961,7 @@ public final class CourierBoardScreen extends Screen {
             }
             RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
             if (overlay && cavityAlpha > 0.001F) {
-                renderOverlays(graphics, modal ? -1 : mx, modal ? -1 : overlayMouseY, partialTick);
+                renderOverlays(graphics, overlayPointerX, overlayPointerY, partialTick);
             }
             if (snapshot != null && cavityAlpha > 0.001F && !tabLoading) {
                 renderTutorialChrome(graphics, mx, overlayMouseY, overlay);
@@ -908,7 +982,7 @@ public final class CourierBoardScreen extends Screen {
                 captureButtonHint(contentMouseX, contentMouseY);
             }
         }
-        if (overlay) {
+        if (overlay && tutorialAllowed) {
             captureOverlayHover();
         }
         graphics.pose().popPose();
@@ -928,48 +1002,45 @@ public final class CourierBoardScreen extends Screen {
             tutorialUi.clearCoach();
             return;
         }
-        BoardTutorialUi.Rect target = null;
-        String key;
-        if (overlay) {
-            boolean tutorialDetails = confirmOverlay == null && detailsOverlay != null
-                    && ClientBoard.extras().isTutorialOrder(detailsOverlay.orderId());
-            if (!tutorialDetails || step != 1) {
-                tutorialUi.clearCoach();
-                return;
-            }
-            key = "ui.aerocouriers.tutorial.coach.2_accept";
+        BoardTutorialUi.Rect target = tutorialTarget();
+        boolean onTop = overlay;
+        graphics.pose().pushPose();
+        graphics.pose().translate(0.0F, 0.0F, onTop ? 510.0F : 290.0F);
+        BoardTutorialUi.fillDim(graphics, cavityLeft(), cavityTop(), cavityLeft() + cavityW(),
+                cavityTop() + cavityH(), target);
+        graphics.pose().popPose();
+        Component note = Component.translatable("ui.aerocouriers.tutorial.locked");
+        if (overlay && isTutorialAcceptStep(step)) {
             int buttonTop = detailsOverlay.buttonsScreenTop();
             int plateX = detailsOverlay.screenX(10);
             int plateW = Math.max(120, detailsOverlay.screenX(BoardDetailsOverlay.W - 10) - plateX);
-            tutorialUi.renderCoach(graphics, font, step, Component.translatable(key), null, plateX,
+            tutorialUi.renderCoach(graphics, font, step,
+                    Component.translatable("ui.aerocouriers.tutorial.coach.2_accept"), note, target, plateX,
                     buttonTop - 6, false, plateW, mx, my, true);
             return;
-        } else if (step == 0) {
+        }
+        String key;
+        boolean fromTop = false;
+        int plateX = screenLeft();
+        int plateW = screenW();
+        int anchorY = contentBottom();
+        if (step == 0) {
             if (tab != Tab.PROFILE) {
-                target = tabRect(Tab.PROFILE);
                 key = "ui.aerocouriers.tutorial.coach.1_tab";
+            } else if (claimTraineeButton != null && target != null) {
+                key = "ui.aerocouriers.tutorial.coach.1";
+                plateX = profileStatsX(screenLeft());
+                plateW = profileStatsWidth(screenLeft());
+                anchorY = target.y() + target.h() + 6;
+                fromTop = true;
             } else {
-                if (claimTraineeButton != null) {
-                    target = new BoardTutorialUi.Rect(claimTraineeButton.getX(), claimTraineeButton.getY(),
-                            claimTraineeButton.getWidth(), claimTraineeButton.getHeight());
-                    int statsX = profileStatsX(screenLeft());
-                    tutorialUi.renderCoach(graphics, font, step,
-                            Component.translatable("ui.aerocouriers.tutorial.coach.1"), target, statsX,
-                            target.y() + target.h() + 6, true, profileStatsWidth(screenLeft()), mx, my, false);
-                    return;
-                }
                 key = "ui.aerocouriers.tutorial.coach.1";
             }
         } else if (step == 1) {
-            if (tab != Tab.BOARD) {
-                target = tabRect(Tab.BOARD);
-                key = "ui.aerocouriers.tutorial.coach.2_tab";
-            } else {
-                target = tutorialCardRect();
-                key = "ui.aerocouriers.tutorial.coach.2_board";
-            }
+            key = tab != Tab.BOARD
+                    ? "ui.aerocouriers.tutorial.coach.2_tab"
+                    : "ui.aerocouriers.tutorial.coach.2_board";
         } else if (step == 2) {
-            target = tab == Tab.MINE ? null : tabRect(Tab.MINE);
             key = "ui.aerocouriers.tutorial.coach.3";
         } else {
             key = "ui.aerocouriers.tutorial.coach.4";
@@ -978,8 +1049,63 @@ public final class CourierBoardScreen extends Screen {
         if (ClientBoard.extras().tutorialNoStation() && step == 1 && !overlay) {
             text = text.copy().append(" ").append(Component.translatable("ui.aerocouriers.tutorial.no_station"));
         }
-        tutorialUi.renderCoach(graphics, font, step, text, target, screenLeft(), contentBottom(), false, screenW(),
-                mx, my, overlay);
+        tutorialUi.renderCoach(graphics, font, step, text, note, target, plateX, anchorY, fromTop, plateW, mx, my,
+                onTop);
+    }
+
+    /** Tutorial is running and the tablet chrome (except the current target) must stay inert. */
+    private boolean tutorialInterfaceLocked() {
+        return snapshot != null
+                && BoardTutorialUi.modal() == BoardTutorialUi.Modal.NONE
+                && BoardTutorialUi.step() >= 0
+                && !(tab == Tab.PROFILE && ClientBoard.viewingOtherProfile());
+    }
+
+    private boolean tutorialAllowsPoint(double mx, double my) {
+        BoardTutorialUi.Rect target = tutorialTarget();
+        return target != null && target.contains(mx, my);
+    }
+
+    private boolean tutorialBlocksPoint(double mx, double my) {
+        return tutorialInterfaceLocked() && !tutorialAllowsPoint(mx, my);
+    }
+
+    private boolean isTutorialAcceptStep(int step) {
+        if (step != 1 || confirmOverlay != null || detailsOverlay == null) {
+            return false;
+        }
+        if (ClientBoard.extras().isTutorialOrder(detailsOverlay.orderId())) {
+            return true;
+        }
+        return resolveEntry(detailsOverlay.orderId()).map(BoardSnapshotPayload.BoardEntry::courierService)
+                .orElse(false);
+    }
+
+    private @Nullable BoardTutorialUi.Rect tutorialTarget() {
+        int step = BoardTutorialUi.step();
+        if (step < 0) {
+            return null;
+        }
+        if (overlayOpen()) {
+            if (isTutorialAcceptStep(step)) {
+                detailsOverlay.layout(cavityLeft() + 4, cavityTop() + 4, cavityW() - 8, cavityH() - 8);
+                int[] box = detailsOverlay.acceptButtonScreenBox();
+                return box == null ? null : new BoardTutorialUi.Rect(box[0], box[1], box[2], box[3]);
+            }
+            return null;
+        }
+        if (step == 0) {
+            if (tab != Tab.PROFILE) {
+                return tabRect(Tab.PROFILE);
+            }
+            return claimTraineeButton == null ? null
+                    : new BoardTutorialUi.Rect(claimTraineeButton.getX(), claimTraineeButton.getY(),
+                    claimTraineeButton.getWidth(), claimTraineeButton.getHeight());
+        }
+        if (step == 1) {
+            return tab != Tab.BOARD ? tabRect(Tab.BOARD) : tutorialCardRect();
+        }
+        return tabRect(Tab.MINE);
     }
 
     private @Nullable BoardTutorialUi.Rect tabRect(Tab which) {
@@ -1190,6 +1316,7 @@ public final class CourierBoardScreen extends Screen {
     @Override
     public void removed() {
         super.removed();
+        BoardTutorialUi.qaClearForcedStep();
         if (mailViewed) {
             mailViewed = false;
             PacketDistributor.sendToServer(MarkNotificationsReadPayload.INSTANCE);
@@ -1223,6 +1350,22 @@ public final class CourierBoardScreen extends Screen {
         if (tabletChrome.blocksInput(snapshot == null, 0.0F)) {
             return true;
         }
+        if (tutorialInterfaceLocked()) {
+            if (keyCode == org.lwjgl.glfw.GLFW.GLFW_KEY_ESCAPE) {
+                if (overlayOpen()) {
+                    closeTopOverlay();
+                    return true;
+                }
+                return super.keyPressed(keyCode, scanCode, modifiers);
+            }
+            if (minecraft != null && minecraft.options.keyInventory.matches(keyCode, scanCode)) {
+                if (overlayOpen()) {
+                    return true;
+                }
+                return super.keyPressed(keyCode, scanCode, modifiers);
+            }
+            return true;
+        }
         if (overlayOpen()) {
             if (keyCode == org.lwjgl.glfw.GLFW.GLFW_KEY_ESCAPE) {
                 closeTopOverlay();
@@ -1237,6 +1380,14 @@ public final class CourierBoardScreen extends Screen {
             return true;
         }
         return super.keyPressed(keyCode, scanCode, modifiers);
+    }
+
+    @Override
+    public boolean charTyped(char codePoint, int modifiers) {
+        if (tutorialInterfaceLocked()) {
+            return true;
+        }
+        return super.charTyped(codePoint, modifiers);
     }
 
     private void renderProfile(GuiGraphics graphics, BoardSnapshotPayload.BoardProfile profile, int sx,
@@ -1813,6 +1964,9 @@ public final class CourierBoardScreen extends Screen {
         if (button == 0 && tutorialUi.coachClicked(mouseX, adjustedY)) {
             return true;
         }
+        if (tutorialBlocksPoint(mouseX, adjustedY)) {
+            return true;
+        }
         if (confirmOverlay != null) {
             return confirmOverlay.mouseClicked(mouseX, adjustedY, button);
         }
@@ -1867,7 +2021,7 @@ public final class CourierBoardScreen extends Screen {
     }
 
     private void onCustomerClick(BoardSnapshotPayload.BoardEntry entry) {
-        if (entry.villageCustomer()) {
+        if (entry.villageCustomer() || entry.courierService()) {
             return;
         }
         entry.customerId().ifPresent(ClientBoard::requestPlayerProfile);
@@ -1902,6 +2056,9 @@ public final class CourierBoardScreen extends Screen {
         mouseX = fit.localX(mouseX);
         mouseY = fit.localY(mouseY);
         double adjustedY = tabletChrome.adjustMouseY(mouseY, 0.0F);
+        if (tutorialBlocksPoint(mouseX, adjustedY)) {
+            return true;
+        }
         if (tab == Tab.TASKS && tasksUi.scroll(scrollY)) {
             return true;
         }
@@ -1945,14 +2102,24 @@ public final class CourierBoardScreen extends Screen {
     @Override
     public boolean mouseReleased(double mouseX, double mouseY, int button) {
         refreshFit();
-        return super.mouseReleased(fit.localX(mouseX), fit.localY(mouseY), button);
+        double lx = fit.localX(mouseX);
+        double ly = tabletChrome.adjustMouseY(fit.localY(mouseY), 0.0F);
+        if (tutorialBlocksPoint(lx, ly)) {
+            return true;
+        }
+        return super.mouseReleased(lx, ly, button);
     }
 
     @Override
     public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
         refreshFit();
         double s = fit.scale;
-        return super.mouseDragged(fit.localX(mouseX), fit.localY(mouseY), button, dragX / s, dragY / s);
+        double lx = fit.localX(mouseX);
+        double ly = tabletChrome.adjustMouseY(fit.localY(mouseY), 0.0F);
+        if (tutorialBlocksPoint(lx, ly)) {
+            return true;
+        }
+        return super.mouseDragged(lx, ly, button, dragX / s, dragY / s);
     }
 
     private static final int PROFILE_CLOSE_W = 18;
@@ -2187,12 +2354,43 @@ public final class CourierBoardScreen extends Screen {
             int activeHauls = BoardAcceptUi.countActiveHauls(payload.mine());
             List<BoardSnapshotPayload.BoardEntry> filtered =
                     ClientBoard.boardFilters().apply(raw, payload.profile(), activeHauls);
-            return BoardFocus.ensureVisible(filtered, selected, focusedEntry);
+            List<BoardSnapshotPayload.BoardEntry> visible =
+                    BoardFocus.ensureVisible(filtered, selected, focusedEntry);
+            if (BoardTutorialUi.step() == 1) {
+                visible = pinTutorialOrders(raw, visible);
+                scroll = 0;
+            }
+            return visible;
         }
         if (tab == Tab.MINE) {
             return ClientBoard.mineFilters(ClientBoard.mineSection()).apply(raw, ClientBoard.mineSection());
         }
         return List.of();
+    }
+
+    /** Keep the training order on row 0 during step 2 even if filters or sort would hide it. */
+    private static List<BoardSnapshotPayload.BoardEntry> pinTutorialOrders(
+            List<BoardSnapshotPayload.BoardEntry> raw,
+            List<BoardSnapshotPayload.BoardEntry> listed) {
+        List<BoardSnapshotPayload.BoardEntry> pinned = new ArrayList<>();
+        for (BoardSnapshotPayload.BoardEntry entry : raw) {
+            if (entry.courierService()) {
+                pinned.add(entry);
+            }
+        }
+        if (pinned.isEmpty()) {
+            return listed;
+        }
+        List<BoardSnapshotPayload.BoardEntry> rest = new ArrayList<>();
+        for (BoardSnapshotPayload.BoardEntry entry : listed) {
+            if (!entry.courierService()) {
+                rest.add(entry);
+            }
+        }
+        List<BoardSnapshotPayload.BoardEntry> out = new ArrayList<>(pinned.size() + rest.size());
+        out.addAll(pinned);
+        out.addAll(rest);
+        return out;
     }
 
     private Component listEmptyMessage() {

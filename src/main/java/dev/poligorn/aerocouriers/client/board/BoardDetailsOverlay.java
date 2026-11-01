@@ -35,6 +35,33 @@ public final class BoardDetailsOverlay extends TabletOverlay {
     public int buttonsScreenTop() {
         return screenY(BUTTONS_Y);
     }
+
+    /** Screen box of the clickable player-customer name, after {@link #render}. */
+    public int @Nullable [] customerNameScreenBox() {
+        if (customerW <= 0) {
+            return null;
+        }
+        return new int[] {
+                screenX(customerX),
+                screenY(customerY),
+                Math.max(1, screenX(customerX + customerW) - screenX(customerX)),
+                Math.max(1, screenY(customerY + 11) - screenY(customerY))
+        };
+    }
+
+    /** Screen box of the Accept button, or {@code null} when this order is not accept-able. */
+    public int @Nullable [] acceptButtonScreenBox() {
+        Optional<BoardSnapshotPayload.BoardEntry> found = host.entry(orderId);
+        if (found.isEmpty() || action(found.get()) != Action.ACCEPT) {
+            return null;
+        }
+        return new int[] {
+                screenX(ACCEPT_X),
+                screenY(BUTTONS_Y),
+                Math.max(1, screenX(ACCEPT_X + ACCEPT_W) - screenX(ACCEPT_X)),
+                Math.max(1, screenY(BUTTONS_Y + TabletDraw.BUTTON_H) - screenY(BUTTONS_Y))
+        };
+    }
     private static final int MAP_X = 10;
     private static final int MAP_W = 150;
     private static final int BACK_W = 70;
@@ -425,7 +452,7 @@ public final class BoardDetailsOverlay extends TabletOverlay {
             }
             return;
         }
-        int color = hover ? TabletPalette.TXT : TabletPalette.BLUE;
+        int color = hover ? TabletPalette.TXT : TabletPalette.SEC;
         PixelGlyphs.draw(graphics, VALUE_X, ry, PixelGlyphs.FACE, color);
         TabletDraw.text(graphics, font, name, VALUE_X + 10, ry, color);
         TabletDraw.hline(graphics, VALUE_X + 10, VALUE_X + 10 + font.width(name) - 1, ry + 8, color);
@@ -606,7 +633,7 @@ public final class BoardDetailsOverlay extends TabletOverlay {
                     ? ContractIntentPayload.Kind.ABANDON : ContractIntentPayload.Kind.CANCEL);
             return true;
         }
-        if (!e.villageCustomer() && e.customerId().isPresent()
+        if (!e.courierService() && !e.villageCustomer() && e.customerId().isPresent()
                 && TabletDraw.inside(mx, my, customerX, customerY, customerW, 11)) {
             click();
             host.openCustomerProfile(e);
