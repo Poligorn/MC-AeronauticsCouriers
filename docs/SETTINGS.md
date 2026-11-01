@@ -45,7 +45,7 @@
 | `progression` | `ace_min_success` | 0.90 | 0…1. Доля успеха для ранга V |
 | `progression` | `trainee_free_contracts` | 3 | 0…100 |
 | `progression` | `trainee_bonus` | 100 | 0…1 000 000 шпор (с изумрудами делится на `emerald_value_spurs`) |
-| `progression` | `trainee_max_distance` | 800 | 0…50 000 блоков, 0 = без лимита |
+| `progression` | `trainee_max_distance` | 1500 | 0…50 000 блоков, 0 = без лимита. По умолчанию равен потолку дистанции ранга I |
 | `economy` | `backend` | `auto` | `auto` / `numismatics` / `internal` |
 | `economy` | `emerald_value_spurs` | 8 | 1…4096. Без Numismatics цены в шпорах делятся на это число |
 | `economy` | `collateral_profile` | `normal` | `peace`, `easy`, `normal`, `hard`, `custom` |

@@ -10,6 +10,8 @@ import dev.poligorn.aerocouriers.village.PostStationBlockEntity;
 import dev.poligorn.aerocouriers.village.StationAtlas;
 import dev.poligorn.aerocouriers.village.VillageStationDedup;
 import dev.poligorn.aerocouriers.village.VillageStructures;
+import dev.poligorn.aerocouriers.village.VillageTownCenterStationProcessor;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -284,6 +286,61 @@ public final class StationGameTests {
                 .thenSucceed();
     }
 
+    @GameTest(template = CouriersGameTests.EMPTY, batch = "aerocouriers.stations.towncenter", timeoutTicks = 200)
+    public static void townCenterPlanterPlacesOneStationBesideBell(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        isolateVillageDedup(helper);
+        BlockPos cobbleRel = new BlockPos(3, 1, 3);
+        BlockPos cobble = helper.absolutePos(cobbleRel);
+        BlockPos bell = cobble.above();
+        helper.setBlock(cobbleRel.below(), Blocks.DIRT);
+        helper.setBlock(cobbleRel, Blocks.COBBLESTONE);
+        helper.setBlock(cobbleRel.above(), Blocks.BELL);
+        for (Direction dir : List.of(Direction.NORTH, Direction.SOUTH, Direction.WEST, Direction.EAST)) {
+            BlockPos groundRel = cobbleRel.relative(dir);
+            helper.setBlock(groundRel, Blocks.COBBLESTONE);
+            helper.setBlock(groundRel.above(), Blocks.AIR);
+            helper.setBlock(groundRel.above(2), Blocks.AIR);
+        }
+        List<StructureTemplate.StructureBlockInfo> processed = new ArrayList<>();
+        processed.add(new StructureTemplate.StructureBlockInfo(cobble, Blocks.COBBLESTONE.defaultBlockState(), null));
+        processed.add(new StructureTemplate.StructureBlockInfo(bell, Blocks.BELL.defaultBlockState(), null));
+        for (Direction dir : List.of(Direction.NORTH, Direction.SOUTH, Direction.WEST, Direction.EAST)) {
+            processed.add(new StructureTemplate.StructureBlockInfo(
+                    cobble.relative(dir), Blocks.COBBLESTONE.defaultBlockState(), null));
+        }
+        StructurePlaceSettings settings = new StructurePlaceSettings();
+        List<StructureTemplate.StructureBlockInfo> first = VillageTownCenterStationProcessor.INSTANCE.finalizeProcessing(
+                level, cobble, cobble, processed, processed, settings);
+        int controllers = 0;
+        int uppers = 0;
+        BlockPos planted = null;
+        for (StructureTemplate.StructureBlockInfo info : first) {
+            if (info.state().is(ModBlocks.POST_STATION.get()) && PostStationBlock.isController(info.state())) {
+                controllers++;
+                planted = info.pos();
+                helper.assertTrue(info.nbt() != null && info.nbt().getBoolean("village"),
+                        "planted controller is a village station");
+            } else if (info.state().is(ModBlocks.POST_STATION.get()) && PostStationBlock.isUpper(info.state())) {
+                uppers++;
+            }
+        }
+        helper.assertValueEqual(controllers, 1, "planter adds one controller");
+        helper.assertValueEqual(uppers, 1, "planter adds one upper half");
+        helper.assertTrue(planted != null && planted.closerThan(bell, 2.0),
+                "stand sits next to the bell, got " + planted);
+        List<StructureTemplate.StructureBlockInfo> second = VillageTownCenterStationProcessor.INSTANCE.finalizeProcessing(
+                level, cobble, cobble, processed, processed, settings);
+        int again = 0;
+        for (StructureTemplate.StructureBlockInfo info : second) {
+            if (info.state().is(ModBlocks.POST_STATION.get()) && PostStationBlock.isController(info.state())) {
+                again++;
+            }
+        }
+        helper.assertValueEqual(again, 0, "second pass does not plant another station");
+        helper.succeed();
+    }
+
     @GameTest(template = CouriersGameTests.EMPTY, batch = "aerocouriers.stations.worldgen", timeoutTicks = 4000)
     public static void generatedVillagesKeepAtMostOnePostStation(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
@@ -293,6 +350,7 @@ public final class StationGameTests {
         StringBuilder report = new StringBuilder();
         int generated = 0;
         int tooMany = 0;
+        int missing = 0;
         for (int i = 0; i < villages.length; i++) {
             BlockPos origin = base.offset(i * 512, 0, 0);
             VillageCount count = placeVillageAndCount(helper, level, villages[i], origin);
@@ -305,11 +363,15 @@ public final class StationGameTests {
                 if (count.postStations > 1) {
                     tooMany++;
                 }
+                if (count.postStations != 1) {
+                    missing++;
+                }
             }
         }
         AeronauticsCouriers.LOGGER.info("[station] Village generation counts: {}", report);
         helper.assertTrue(generated >= 1, "at least one village structure should generate: " + report);
         helper.assertTrue(tooMany == 0, "every generated village must keep at most one post_station: " + report);
+        helper.assertTrue(missing == 0, "every generated village must have exactly one post_station: " + report);
         helper.succeed();
     }
 
