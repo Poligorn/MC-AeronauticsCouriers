@@ -2,6 +2,7 @@ package dev.poligorn.aerocouriers.client;
 
 import dev.poligorn.aerocouriers.AeronauticsCouriers;
 import dev.poligorn.aerocouriers.client.station.CorkHudGuard;
+import dev.poligorn.aerocouriers.client.board.TabletQaClient;
 import dev.poligorn.aerocouriers.client.station.CorkQaClient;
 import net.neoforged.bus.api.EventPriority;
 import dev.poligorn.aerocouriers.client.tablet.OrderTabletVisuals;
@@ -51,6 +52,9 @@ public final class AeroCouriersClient {
         NeoForge.EVENT_BUS.addListener(CorkQaClient::onClientTick);
         NeoForge.EVENT_BUS.addListener(CorkQaClient::onScreenRender);
         NeoForge.EVENT_BUS.addListener(CorkQaClient::onRenderGui);
+        NeoForge.EVENT_BUS.addListener(TabletQaClient::onClientTick);
+        NeoForge.EVENT_BUS.addListener(TabletQaClient::onScreenRender);
+        NeoForge.EVENT_BUS.addListener(TabletQaClient::onRenderGui);
         modBus.addListener(AeroCouriersClient::registerItemDecorations);
     }
 
