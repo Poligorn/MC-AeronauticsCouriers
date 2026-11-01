@@ -1,5 +1,6 @@
 package dev.poligorn.aerocouriers.gametest;
 
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import dev.poligorn.aerocouriers.AeronauticsCouriers;
 import dev.poligorn.aerocouriers.command.CouriersCommands;
 import java.util.List;
@@ -41,9 +42,14 @@ public final class CouriersHelpGameTests {
     public static void couriersAndHelpRun(GameTestHelper helper) {
         ServerPlayer courier = TestPlayers.courier(helper, "help_run");
         CommandSourceStack source = courier.createCommandSourceStack().withPermission(0).withSuppressedOutput();
-        var commands = helper.getLevel().getServer().getCommands();
-        helper.assertTrue(commands.performPrefixedCommand(source, "couriers") > 0, "/couriers with no args");
-        helper.assertTrue(commands.performPrefixedCommand(source, "couriers help") > 0, "/couriers help");
+        var dispatcher = helper.getLevel().getServer().getCommands().getDispatcher();
+        try {
+            helper.assertTrue(dispatcher.execute("couriers", source) > 0, "/couriers with no args");
+            helper.assertTrue(dispatcher.execute("couriers help", source) > 0, "/couriers help");
+        } catch (CommandSyntaxException e) {
+            helper.fail(e.getMessage());
+            return;
+        }
         helper.succeed();
     }
 }
