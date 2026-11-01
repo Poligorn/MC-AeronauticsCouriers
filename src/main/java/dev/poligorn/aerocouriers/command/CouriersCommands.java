@@ -6,6 +6,8 @@ import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import com.mojang.brigadier.tree.CommandNode;
+import com.mojang.brigadier.tree.LiteralCommandNode;
 import dev.poligorn.aerocouriers.cargo.CargoContainerBlock;
 import dev.poligorn.aerocouriers.cargo.CargoSize;
 import dev.poligorn.aerocouriers.cargo.CargoSpawner;
@@ -19,8 +21,10 @@ import dev.poligorn.aerocouriers.license.Licenses;
 import dev.poligorn.aerocouriers.net.BoardPackets;
 import dev.poligorn.aerocouriers.registry.ModComponents;
 import net.minecraft.core.Direction;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
 import java.util.Locale;
 import java.util.OptionalInt;
 import java.util.UUID;
@@ -59,7 +63,9 @@ public final class CouriersCommands {
     }
 
     private static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
-        LiteralArgumentBuilder<CommandSourceStack> root = Commands.literal("couriers");
+        LiteralArgumentBuilder<CommandSourceStack> root = Commands.literal("couriers")
+                .executes(ctx -> help(ctx.getSource()));
+        root.then(Commands.literal("help").executes(ctx -> help(ctx.getSource())));
 
         root.then(Commands.literal("profile")
                 .executes(ctx -> showProfile(ctx.getSource(), ctx.getSource().getPlayerOrException()))
@@ -123,6 +129,31 @@ public final class CouriersCommands {
         }
 
         dispatcher.register(root);
+    }
+
+    /** First-level {@code /couriers} literals the source is allowed to run. */
+    public static List<String> visibleSubcommands(CommandSourceStack source) {
+        CommandNode<CommandSourceStack> root = source.getServer().getCommands().getDispatcher()
+                .getRoot().getChild("couriers");
+        if (root == null) {
+            return List.of();
+        }
+        List<String> names = new ArrayList<>();
+        for (CommandNode<CommandSourceStack> child : root.getChildren()) {
+            if (child instanceof LiteralCommandNode<?> literal && child.canUse(source)) {
+                names.add(literal.getLiteral());
+            }
+        }
+        return names;
+    }
+
+    private static int help(CommandSourceStack source) {
+        source.sendSuccess(() -> Component.translatable("commands.aerocouriers.help.header"), false);
+        for (String name : visibleSubcommands(source)) {
+            source.sendSuccess(() -> Component.translatable("commands.aerocouriers.help.line", name,
+                    Component.translatable("commands.aerocouriers.help." + name)), false);
+        }
+        return 1;
     }
 
     private static com.mojang.brigadier.builder.RequiredArgumentBuilder<CommandSourceStack, ?> xpArgument(
