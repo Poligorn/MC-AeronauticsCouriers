@@ -2,9 +2,70 @@
 
 > Живой документ. Обновлять при каждом завершённом шаге итерации или изменении решения (см. `.cursor/rules/90-maintaining-docs.mdc`).
 
-**Обновлено:** 31.10.2026 (новый логотип мода) · **Версия:** 0.2.1-beta. Протокол сети `PROTOCOL_VERSION` `"3"` не менялся.
+**Обновлено:** 31.10.2026 · **Версия:** 0.3.0. Протокол сети `PROTOCOL_VERSION` `"4"` (`BoardEntry.expensive`, `rareItemIndex`).
 
 ## Сделано
+
+### Релиз 0.3.0 (31.10.2026)
+- `mod_version`: `0.2.1-beta` → `0.3.0`. Протокол сети `"3"` → `"4"` (`BoardEntry.expensive`, `rareItemIndex`). Клиент и сервер должны быть одной сборки.
+- Состав относительно 0.2.1-beta: разнообразие деревенских заказов ([PR #74](https://github.com/Poligorn/MC-AeronauticsCouriers/pull/74)); текстуры контейнеров E2 без дверей и свои модели XL ([PR #75](https://github.com/Poligorn/MC-AeronauticsCouriers/pull/75)); зазор футера пробковой доски ([PR #76](https://github.com/Poligorn/MC-AeronauticsCouriers/pull/76)); новый логотип ([PR #77](https://github.com/Poligorn/MC-AeronauticsCouriers/pull/77)); чипы редкого/дорогого ◆ на планшете и фикс тултипа ([PR #78](https://github.com/Poligorn/MC-AeronauticsCouriers/pull/78)); уже на main — пробковая доска и админ-панель деревни, «Стойка», Jade, одна станция на деревню.
+- Ветка `release/0.3.0`: влиты #76 → #74 → #75 → #78 поверх main с #77. Конфликты — `docs/STATUS.md` (все четыре), `docs/CLARIFICATIONS.md` (#75/#78); Java (`VillageCargo`, `VillageAdminGameTests`) смержилась автоматически, обе стороны сохранены.
+- Проверка релиза: `./gradlew build -PwithoutJade=true` SUCCESS. `runGameTestServer -PwithoutJade=true` **105/105** (Create 6.0.10, Aeronautics 1.3.0, Simulated 1.3.0, Sable 2.0.6, без Numismatics и без Jade). Jar `aerocouriers-0.3.0.jar`.
+
+### Чипы редкого и дорогого на планшете — раунд 2 (31.10.2026)
+Отзыв владельца на PR #78: ★ → тот же ◆, что у редкого; пустой тултип; шапка без текста.
+- **Дорогой** рисуется тем же 7×7 спрайтом `PixelGlyphs.DIAMOND`, палитра `#F0C45A` / `#3E2808` / `#FFE190`. Редкий остаётся розовым ◆. Форма пиксель-в-пиксель одна, цвет разный. Звезду (`STAR`) убрали.
+- **Тултип чипа.** Причина пустого бокса: `GuiGraphics.renderTooltip` заливает фон и кладёт текст на одном z=400, заливка выигрывает depth test (тот же баг, что у `CorkNoteTooltip`). Ключи `row.rare_cargo` / `card.expensive` были непустыми. `TooltipDraw.renderPlain` рисует бокс, затем строки кремом `TabletPalette.TXT` на z=410 после flush.
+- **Подробности.** Чипы шапки — icon-only (как в списке), тултип при наведении. Розовая строка «Тип», рамка редкого слота и плашка предмета не трогались.
+- **Проверки.** `./gradlew build -PwithoutJade=true` SUCCESS. `runGameTestServer` **96/96**.
+- **QA раунд 2 (Xvfb 1920×1080, RU, `tabletsqa`).** Кадры — `/opt/cursor/artifacts/rare-tablet-r2/`. PIL, PNG в редакторе не открывались. OpenAL не стартует.
+  - Список GUI 3: чипы 11×11, глиф 7×7 = `PixelGlyphs.DIAMOND` у розового и золотого (маски равны). ✅ `11_list_scale3.png`
+  - Наведение ◆: кроп `window=(579,489,213,45)`, cream `TabletPalette.TXT` **1215**, 3 цвета (фон/кромка/текст). ✅ `13_hover_rare.png`
+  - Наведение золотого ◆: кроп `(621,489,249,45)`, cream **1422**. ✅ `14_hover_expensive.png`
+  - Подробности оба флага: шапка icon-only 11×11 ◆+◆ (без широких текстовых чипов), плашки «Тип» и предмета на месте. ✅ `23_details_both.png`
+  - GUI 2: чипы 11×11, тот же ◆. ✅ `41_list_scale2.png` · GUI 4: планшет жмётся ScreenFit, чипы в downsample 9×9, форма одна. ✅ `42_list_scale4.png`
+  - **Не проверено в клиенте:** наведение/клик руками (GLFW); EN глазами (ключи есть); OCR строк тултипа (tesseract нет — только счёт cream-пикселей); ранг-лок; ширина ✦; hover чипа шапки подробностей (снят только список).
+
+### Чипы редкого и дорогого на планшете (31.10.2026)
+Утверждённые макеты: список **01v2 / 03v2 / 04v2**, подробности **02 / 02b** (v1 списка 01/03/04 не брали).
+- **Список (`BoardCardRenderer`).** После NEW — квадратные чипы 11×11 без текста на любом GUI: ◆ редкий `#EC62AA`/`#421632`/`#FFDEF0`, ◆ дорогой `#F0C45A`/`#3E2808`/`#FFE190` (один спрайт). Порядок NEW, ◆ розовый, ◆ золотой. Наведение «Редкий груз» / «Дорогой заказ». У редкой строки полоска 2 px; у выбранной золотая 3 px + розовая 1 px рядом. У дорогого полоски нет. Чипы не тускнеют на закрытых рангом строках и не заезжают на колонку награды.
+- **Подробности.** Шапка: те же icon-only ◆ (тултип при наведении). Строка «Тип» — розовая плашка «◆ Редкий груз · заказ станции» без роста окна. Редкий слот: рамка + ромб, плашка под сеткой, третья строка тултипа предмета.
+- **Протокол.** `BoardEntry.expensive` (NPC и награда ≥ `VillageBoardPolicy.EXPENSIVE_REWARD`), `rareItemIndex` (`VillageCargo.rareStackIndex` или −1). `PROTOCOL_VERSION` `"4"`.
+- **Проверки (раунд 1).** `./gradlew build -PwithoutJade=true` SUCCESS. `runGameTestServer` **96/96** (+ `boardEntryEncodesRareExpensiveFlags`).
+- **QA раунд 1 (Xvfb 1920×1080, RU, `tabletsqa`).** Кадры — `/opt/cursor/artifacts/rare-tablet/`. PIL, PNG в редакторе не открывались. OpenAL не стартует. Наведение 13/14: бокс тултипа был пустой (исправлено в раунде 2).
+  - Список GUI 3: два чипа 11×11, две полоски 2×25. ✅ `11_list_scale3.png` (раунд 1: дорогой был ★)
+  - Выбранный редкий: полоска 1×23 у x0+3. ✅ `12_list_selected_rare.png`
+  - Наведение ◆ / ★ — пустой бокс без текста. ❌ `13_hover_rare.png`, `14_hover_expensive.png` (раунд 1)
+  - Дорогой выбран, розовой полоски на этой строке нет. ✅ `15_list_expensive_selected.png`
+  - Подробности редкого и редкий+дорогой: чипы шапки с текстом, плашка «Тип», рамка слота, плашка предмета. ✅ `21_details_rare.png`, `23_details_both.png`
+  - Тултип предмета с лишней строкой. ✅ `22_details_rare_item.png`, `24_details_both_item.png`
+  - Фильтр «Редкий груз»: в списке только редкие, чипы 11×11. ✅ `31_filter_rare.png`
+  - GUI 2: чипы 11×11 layout, без ужатия. ✅ `41_list_scale2.png` · GUI 4: весь планшет как раньше жмётся ScreenFit, чипы в layout 11×11. ✅ `42_list_scale4.png`
+  - **Не проверено в клиенте (раунд 1):** наведение/клик руками (GLFW); EN; OCR текста тултипов (tesseract нет); ранг-лок глазами (сид выдал RANK3); ширина ✦ по пикселям (фильтр сработал, глиф не измеряли); минимальная карточка 358 px из макета 04v2.
+
+### Текстуры грузовых контейнеров E2 (31.10.2026)
+- Макет `E2_final.png`: металл, гофра, S синий / M зелёный / L охра / XL бордовый. Дверей, табличек и букв нет. Единственная наклейка — клипборд 10×12 с тенью. PNG из архива скопированы 1:1 (`tools/apply_e2_cargo_textures.py`). `gui/sprites/cork/crate_*` не трогали.
+- S/M/L: север больше не `*_door*`; неиспользуемые door-текстуры удалены. XL: свои `xl_side` 32×48 / `xl_top|bottom` 32×32 и 12 моделей сегментов (2×2×3); blockstate больше не ссылается на `cargo_container_l_seg*`. Свойства блоков и логика не менялись.
+- Предметных BlockItem у контейнера нет (`ModBlocks`, GDD §1) — в инвентаре иконки не показать. JSON моделей предмета обновлены под E2.
+- `./gradlew build` SUCCESS (этот прогон, до клиентского QA). `runGameTestServer -PwithoutJade=true` **95/95**. Версию и протокол не поднимали.
+- **QA в клиенте (31.10.2026, Xvfb 1920×1080, GUI 3, RU, Create 6.0.10 + Aeronautics 1.3.0 + Sable 2.0.6).** Кадры — `/opt/cursor/artifacts/cargo-e2/` и `/opt/cursor/artifacts/rare-tablet/`. PNG в редакторе не открывались (только PIL). OpenAL не стартует. Чат-команды с `/` на этой машине не доходят (GLFW / раскладка); постановка — `jadeqa` / `corkqa` file-hooks.
+  - XL бордовый 163k пикс. (сырой атлас avg 134,50,60). ✅ `23_xl.png` / `15_jadeqa_xl.png`
+  - L охра 97k пикс. (сырой avg 177,140,61). ✅ `22_l.png` / `16_jadeqa_l.png`
+  - S синий с заказом (waybill) и пустой. ✅ `21_s_waybill.png` / `17_jadeqa_s_waybill.png`, `18_jadeqa_s_empty.png`
+  - Пурпур missing-texture на кадрах = **0**.
+  - **Редкий заказ на планшете.** Сид `corkqa` (реп 27, rare S и M) + `open-note`. Список планшета после Esc — `31_tablet_after_esc.png`. Детали первого открытого листка (обычный S, не редкий) — `30_open_note.png`. Пробковая доска: 2 бейджа `badge_rare_iconchip` MAD **0.0** @ (678,288) и (180,645) — `00_cork_board.png`.
+  - Визуально редкий в списке планшета: иконка `AerocouriersGuiSprites.ICON_RARE_CARGO` (`BoardRowRenderer.renderLine2`), тултип `ui.aerocouriers.row.rare_cargo` = «Редкий груз». Фильтр «Тип» → `BoardContractKind.RARE` / `ui.aerocouriers.filters.type.rare` (`TabletFilterBar` + `TabletFilterGlyphs` ✦). В деталях (`BoardDetailsOverlay`) отдельной строки «Редкий груз» нет — тип = «заказ станции» / «деревенский».
+  - **Не проверено в клиенте:** контейнер M в мире (`jadeqa` его не ставит; `/setblock` без читаемого `/` не прошёл); иконки контейнера в инвентаре (BlockItem нет); фильтр «Редкий груз» на планшете глазами (Tab/Enter и GLFW-клик не сменили кадр); детали именно редкого заказа (open-note берёт первый незакрытый листок — обычный S); EN; GUI 2/4.
+
+### Разнообразие деревенских заказов (0.3.0, 31.10.2026)
+M/L/XL, дорогие и редкие больше не живут только в `DevSeedCommands.corkQa`. UI листков не меняли: штамп размера, редкий и дорогой уже были.
+- **Размер.** Станция сначала бросает целевой контейнер по тиру репутации (0 → только S, 1 → S+M, 2 → до L, 3 → до XL) и `VillageBoardPolicy.allowsSize`. Веса `[stations] village_size_weight_*` (по умолчанию 45/30/17/8). Затем `VillageCargo` набирает манифест, для которого `CargoSize.smallestFor` возвращает именно этот размер (слоты и/или вес выше предыдущего, не больше ёмкости). S остаётся лёгким (`village_s_stacks_max` = 4).
+- **Таблицы.** `village_cargo/*.json` обратно совместимы: опционально `stacks_min`/`stacks_max`, `weight`, `valuable`, `value_multiplier`, `min_size`. Насыпные культуры/брёвна/шерсть/кирпич + Create (андезит, латунь, precision, листы). Неизвестные id (нет Create) пропускаются.
+- **Дорогие.** Порог `EXPENSIVE_REWARD` = 1000 и порог редких (репутация 25) не трогали. Награда: база §6.3 + обычный груз × `village_value_reward_factor` (потолок `village_value_reward_cap` = 500, иначе XL из пшеницы всегда «дорогой») + valuable без потолка + `village_size_bonus_*` (0/40/220/240). Ценная строка отправителя подмешивается отдельно (`village_valuable_inject_chance` = 0.22, только M+), не на каждый стак. Залог по-прежнему `npcCollateral` + `balanceNpcMoney`.
+- **Редкие.** Тот же `tryInjectRare` (тир ≥ 1, шанс 0.35). Если замена ломает размер — откат.
+- **Микс.** Если за проход опубликован хотя бы один заказ, на доске остаётся минимум один S (последний слот + `ensureSmallOnBoard`).
+- **Проверка.** `./gradlew build -PwithoutJade=true` SUCCESS. `runGameTestServer -PwithoutJade=true` **104/104** (Create 6.0.10, Aeronautics 1.3.0, Simulated 1.3.0, Sable 2.0.6, без Numismatics). Новые: `aerocouriers.village.variety` — тиры 0–3, манифест нуждается в размере, политика `allowsSize`, rare+size, ≥1 S на refresh, доля дорогих mid **32/240 = 13.3%**, top **34/240 = 14.2%** (порог в шпорах через `MoneyScale.toSpurs`, потому что без Numismatics награда в изумрудах). Живой скриншот доски top-tier без `corkQa` в этом прогоне не снимали.
+- Версию мода и `PROTOCOL_VERSION` не поднимали. UI не меняли.
 
 ### Новый логотип мода (31.10.2026)
 - Заменён `src/main/resources/aerocouriers_logo.png`: исходник 1024×1024 RGBA (металлический контейнер с накладной в золотом кольце) уменьшен PIL LANCZOS до **512×512** — того же размера, что стоял в ресурсах. `logoFile="aerocouriers_logo.png"` и `logoBlur=false` в `neoforge.mods.toml` не менялись. Версию мода не поднимали.
@@ -12,6 +73,12 @@
 - `./gradlew build -PwithoutJade=true` SUCCESS. Список модов NeoForge глазами **не снимали** (нет `run/mods` для клиента).
 
 ### Пробковая доска станции и админ-панель деревни (0.3.0, 31.10.2026)
+- **Раунд 7 (31.10.2026, этот прогон).** Горизонтальная полоса мира между строкой футера и нижней кромкой рамы: планка футера была 16 px и кончалась на y=336, дырка `frame_full_640x360` идёт до y=342 включительно. `innerHole` — exclusive-прямоугольник спрайта (большая 18,18,604,325 → низ 343; узкая 11,11,458,248 → низ 259; 9-slice — border 10/8). Планка футера тянется до низа дырки; перед шапкой рисуется заливка `WOOD_DARK_H` на весь `innerHole` (бока/верх на 9-slice). Высота пробки и сетка листков не менялись (243 / 160). Текст по-прежнему на линии `FOOTER_H` (16 px). Коммит `65c14fc`. `./gradlew build -PwithoutJade=true` SUCCESS. `runGameTestServer` **95/95**.
+- **QA раунд 7.** Xvfb 1920×1080, RU, `corkqa` + `board-op`. Кадры — `/opt/cursor/artifacts/cork-board-r7/`. PIL (PNG в редакторе не открывались). Полоса от старого низа планки (y+16) до exclusive-низа дырки: world=0, wood=16912 / 38052 / 7328 (GUI 2/3/4). Бока и верх дырки (3 GUI px): world=0. Снаружи рамы мир виден (GUI 2 сверху — небо). Крем в боксе текста: 884 / 1989 / 3536.
+  - GUI 2: plank `(178,410,604,23)`, hole `(178,108,604,325)`. ✅ `50_board_scale2_footer.png`
+  - GUI 3: plank `(18,320,604,23)`, hole `(18,18,604,325)`. ✅ `51_board_scale3_footer.png`
+  - GUI 4: plank `(11,242,458,17)`, hole `(11,11,458,248)`. ✅ `52_board_scale4_footer.png`
+  - **Не проверено в клиенте:** наведение/клик руками (GLFW); EN; админ-экран глазами; очень узкое окно глазами (есть GameTest 384×216); GUI scale 1.
 - Поверх ветки Стойки (PR #72, не слита): ПКМ открывает пробковую доску. Листки всегда 136×108; колонки 4 / 3 / 2 от ширины пробки (шаг 148), без ужатия шрифта и без отдельного компактного 3×2. Прокрутка рядами. Принятия на станции нет. Клик по листку сразу открывает этот заказ в планшете; без планшета — только подсказка. Заказ в пути остаётся листком до завершения.
 - Админ-панель: права 2 или креатив в одиночке; Shift+ПКМ и кнопка «Админ». Переименование (24, уникальность), репутация, заказы, политика доски. Команды `/couriers admin village <имя|here> …`. Настройки в optional-полях `StationAtlas` (`board_policy`, `completed`).
 - Версию и протокол не поднимали. `./gradlew build -PwithoutJade=true` SUCCESS. `runGameTestServer -PwithoutJade=true` **91/91** (+ `corkBoardColumnsFollowScaledWidth`).

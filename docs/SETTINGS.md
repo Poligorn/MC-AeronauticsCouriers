@@ -1,6 +1,6 @@
 # Настройки Aeronautics Couriers
 
-Единый список настроек 0.2.1-beta. Имена ключей — как в файле или в коде (английские). Значения по умолчанию и диапазоны — из `CouriersServerConfig` и `CouriersClientConfig`.
+Единый список настроек 0.3.0. Имена ключей — как в файле или в коде (английские). Значения по умолчанию и диапазоны — из `CouriersServerConfig` и `CouriersClientConfig`.
 
 Три группы:
 
@@ -60,6 +60,13 @@
 | `stations` | `reputation_tier_thresholds` | 10, 25, 50 | положительные целые |
 | `stations` | `reputation_tier_bonus_percent` | 10, 20, 30 | неотрицательные целые, тот же порядок, что пороги |
 | `stations` | `village_rare_roll_chance` | 0.35 | 0…1, 0 = выкл |
+| `stations` | `village_size_weight_s` / `_m` / `_l` / `_xl` | 45 / 30 / 17 / 8 | 0…10 000, относительные веса размера NPC-заказа. Недоступные по тиру репутации или политике станции отбрасываются, остальные нормируются. На верхнем тире S остаётся самым частым |
+| `stations` | `village_s_stacks_max` | 4 | 1…64, но не больше слотов S. Заказы S остаются лёгкими |
+| `stations` | `village_value_reward_factor` | 0.35 | 0…100. К NPC-награде добавляется оценка груза (шпоры, после `value_multiplier`) × этот коэффициент. Обычный груз ещё ограничен `village_value_reward_cap` |
+| `stations` | `village_value_reward_cap` | 500 | 0…1 000 000 шпор, 0 = без потолка. Потолок только для обычного груза; `valuable`-строки не режутся. Порог «дорого» остаётся 1000 |
+| `stations` | `village_valuable_multiplier` | 5.0 | 1…100. Множитель оценки для строк `village_cargo` с `valuable=true` без своего `value_multiplier` |
+| `stations` | `village_valuable_inject_chance` | 0.22 | 0…1. После набора обычного груза — шанс добавить один стак ценной строки отправителя (только M+) |
+| `stations` | `village_size_bonus_s` / `_m` / `_l` / `_xl` | 0 / 40 / 220 / 240 | 0…100 000 шпор, надбавка к NPC-награде за размер контейнера до джиттера 0.8–1.2. Порог «дорого» (`VillageBoardPolicy.EXPENSIVE_REWARD` = 1000) не меняется |
 | `migration` | `xp_cadet` / `xp_second` / `xp_first` / `xp_captain` | 0 / 300 / 1500 / 5000 | 0…2³¹−1. Стартовый XP при переносе старой лицензии kubejs, XP не понижается |
 | `debug` | `allow_self_accept` | false | разрешить принять свой заказ |
 | `access` | `require_tablet` | true | доска (J, кнопка инвентаря, команда, станция, предмет) требует планшет |

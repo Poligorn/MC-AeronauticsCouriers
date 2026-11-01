@@ -24,6 +24,10 @@ public final class PixelGlyphs {
     public static final String[] PIN = {"..###..", ".#####.", ".##.##.", ".#####.", "..###..", "...#...", "...#..."};
     public static final String[] CHECK = {"......#", ".....#.", "#...#..", ".#.#...", "..#...."};
     public static final String[] CROSS = {"#...#", ".#.#.", "..#..", ".#.#.", "#...#"};
+    /** 7×7 diamond for rare (pink) and expensive (gold) chips — same sprite, colour only. */
+    public static final String[] DIAMOND = {"...#...", "..###..", ".#####.", "#######", ".#####.", "..###..", "...#..."};
+    /** 5×5 diamond in a rare cargo slot corner. */
+    public static final String[] DIAMOND_SM = {"..#..", ".###.", "#####", ".###.", "..#.."};
     public static final String[] UP = {"...#...", "..###..", ".#####.", "...#...", "...#..."};
     public static final String[] CHEST = {"#########", "#.......#", "#########", "#...#...#", "#...#...#", "#########"};
 

@@ -3,7 +3,7 @@
   "textures": {
     "particle": "aerocouriers:block/cargo_container_l_side",
     "side": "aerocouriers:block/cargo_container_l_side",
-    "door": "aerocouriers:block/cargo_container_l_door",
+    "side_w": "aerocouriers:block/cargo_container_l_side_waybill",
     "top": "aerocouriers:block/cargo_container_l_top",
     "bottom": "aerocouriers:block/cargo_container_l_bottom"
   },
@@ -27,7 +27,7 @@
             16,
             16
           ],
-          "texture": "#door"
+          "texture": "#side"
         },
         "south": {
           "uv": [
@@ -45,7 +45,7 @@
             16,
             16
           ],
-          "texture": "#side"
+          "texture": "#side_w"
         },
         "west": {
           "uv": [

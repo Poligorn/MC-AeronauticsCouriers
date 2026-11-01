@@ -9,6 +9,7 @@ import dev.poligorn.aerocouriers.client.board.BoardActionConfirmOverlay;
 import dev.poligorn.aerocouriers.client.board.BoardConfirmOverlay;
 import dev.poligorn.aerocouriers.client.board.BoardAcceptUi;
 import dev.poligorn.aerocouriers.client.board.BoardCardRenderer;
+import dev.poligorn.aerocouriers.client.board.BoardContractKind;
 import dev.poligorn.aerocouriers.net.TutorialIntentPayload;
 import dev.poligorn.aerocouriers.client.board.BoardDetailsOverlay;
 import dev.poligorn.aerocouriers.client.board.BoardFocus;
@@ -154,6 +155,9 @@ public final class CourierBoardScreen extends Screen {
     private final BoardOverlayHost overlayHost = new OverlayHost();
     private @Nullable BoardDetailsOverlay detailsOverlay;
     private @Nullable BoardConfirmOverlay confirmOverlay;
+    /** Dev/QA pointer in layout space; {@link Integer#MIN_VALUE} means use the real mouse. */
+    private int qaLocalX = Integer.MIN_VALUE;
+    private int qaLocalY = Integer.MIN_VALUE;
 
     public CourierBoardScreen(@Nullable BoardSnapshotPayload snapshot) {
         super(Component.translatable("ui.aerocouriers.board.title"));
@@ -642,6 +646,98 @@ public final class CourierBoardScreen extends Screen {
         return detailsOverlay != null || confirmOverlay != null;
     }
 
+    public void qaClearPointer() {
+        qaLocalX = Integer.MIN_VALUE;
+        qaLocalY = Integer.MIN_VALUE;
+    }
+
+    public void qaSetContractKind(BoardContractKind kind) {
+        qaClearPointer();
+        detailsOverlay = null;
+        confirmOverlay = null;
+        tab = Tab.BOARD;
+        syncMainTabSelection();
+        ClientBoard.boardFilters().setContractKind(kind);
+        onFiltersChanged();
+    }
+
+    public boolean qaSelect(java.util.function.Predicate<BoardSnapshotPayload.BoardEntry> match) {
+        qaClearPointer();
+        detailsOverlay = null;
+        confirmOverlay = null;
+        tab = Tab.BOARD;
+        syncMainTabSelection();
+        for (BoardSnapshotPayload.BoardEntry entry : listEntries()) {
+            if (match.test(entry)) {
+                selected = entry.id();
+                focusedEntry = entry;
+                focusScrollToSelected();
+                refreshBoardContent();
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public boolean qaOpenDetails(java.util.function.Predicate<BoardSnapshotPayload.BoardEntry> match) {
+        if (!qaSelect(match)) {
+            return false;
+        }
+        openDetails(selected);
+        return detailsOverlay != null;
+    }
+
+    public boolean qaHoverFlag(boolean rare) {
+        qaClearPointer();
+        detailsOverlay = null;
+        confirmOverlay = null;
+        tab = Tab.BOARD;
+        syncMainTabSelection();
+        List<BoardSnapshotPayload.BoardEntry> all = listEntries();
+        int visible = visibleRows();
+        int x0 = cardLeft();
+        int x1 = cardRight();
+        for (int i = 0; i < visible && scroll + i < all.size(); i++) {
+            BoardSnapshotPayload.BoardEntry entry = all.get(scroll + i);
+            if (rare ? !BoardCardRenderer.showRare(entry) : !BoardCardRenderer.showExpensive(entry)) {
+                continue;
+            }
+            BoardCardRenderer.Style style = cardStyle(entry, true);
+            int[] box = BoardCardRenderer.flagChipBox(font, entry, x0, x1, cardY(i), style, rare);
+            if (box == null) {
+                continue;
+            }
+            qaLocalX = box[0] + box[2] / 2;
+            qaLocalY = box[1] + box[3] / 2;
+            return true;
+        }
+        return false;
+    }
+
+    public boolean qaHoverRareItem() {
+        if (detailsOverlay == null) {
+            return false;
+        }
+        int[] local = detailsOverlay.rareSlotCenterLocal();
+        if (local == null) {
+            return false;
+        }
+        qaLocalX = detailsOverlay.screenX(local[0]);
+        qaLocalY = detailsOverlay.screenY(local[1]);
+        return true;
+    }
+
+    private BoardCardRenderer.Style cardStyle(BoardSnapshotPayload.BoardEntry entry, boolean hovered) {
+        boolean boardTab = tab == Tab.BOARD;
+        return new BoardCardRenderer.Style(
+                boardTab,
+                entry.id().equals(selected),
+                hovered,
+                cardLocked(entry),
+                collateralDue(entry),
+                boardTab && entry.collateral() > 0 && collateralDue(entry) <= 0);
+    }
+
     private void closeTopOverlay() {
         if (confirmOverlay != null) {
             confirmOverlay = null;
@@ -761,8 +857,8 @@ public final class CourierBoardScreen extends Screen {
         RenderSystem.disableDepthTest();
         RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
         refreshFit();
-        int mx = fit.localXi(mouseX);
-        int my = fit.localYi(mouseY);
+        int mx = qaLocalX != Integer.MIN_VALUE ? qaLocalX : fit.localXi(mouseX);
+        int my = qaLocalY != Integer.MIN_VALUE ? qaLocalY : fit.localYi(mouseY);
         tabletChrome.tick();
         graphics.pose().pushPose();
         fit.apply(graphics);
@@ -816,7 +912,9 @@ public final class CourierBoardScreen extends Screen {
             captureOverlayHover();
         }
         graphics.pose().popPose();
-        renderTopLayerTooltips(graphics, mouseX, mouseY);
+        int tipX = qaLocalX != Integer.MIN_VALUE ? fit.windowXi(qaLocalX) : mouseX;
+        int tipY = qaLocalY != Integer.MIN_VALUE ? fit.windowYi(qaLocalY) : mouseY;
+        renderTopLayerTooltips(graphics, tipX, tipY);
     }
 
     private void renderTutorialChrome(GuiGraphics graphics, int mx, int my, boolean overlay) {
@@ -1606,7 +1704,13 @@ public final class CourierBoardScreen extends Screen {
         if (hoverItem != null && !hoverItem.isEmpty()) {
             graphics.pose().pushPose();
             graphics.pose().translate(0.0F, 0.0F, 500.0F);
-            graphics.renderTooltip(font, hoverItem, mouseX, mouseY);
+            if (hoverTipLines != null && !hoverTipLines.isEmpty()) {
+                List<Component> lines = new ArrayList<>(Screen.getTooltipFromItem(minecraft, hoverItem));
+                lines.addAll(hoverTipLines);
+                graphics.renderTooltip(font, lines, hoverItem.getTooltipImage(), hoverItem, mouseX, mouseY);
+            } else {
+                graphics.renderTooltip(font, hoverItem, mouseX, mouseY);
+            }
             graphics.pose().popPose();
             return;
         }
@@ -1658,10 +1762,37 @@ public final class CourierBoardScreen extends Screen {
         if (isOverRowAction(mouseX, mouseY)) {
             return;
         }
-        BoardSnapshotPayload.BoardEntry entry = hitCard(mouseX, mouseY);
-        if (entry != null && cardLocked(entry)) {
-            hoverTip = Component.translatable("ui.aerocouriers.card.locked_tooltip",
-                    BoardCardRenderer.roman(entry.requiredRank()));
+        List<BoardSnapshotPayload.BoardEntry> all = listEntries();
+        int visible = visibleRows();
+        int x0 = cardLeft();
+        int x1 = cardRight();
+        if (mouseX < x0 || mouseX > x1) {
+            return;
+        }
+        for (int i = 0; i < visible && scroll + i < all.size(); i++) {
+            int y = cardY(i);
+            if (mouseY < y || mouseY >= y + BoardCardRenderer.CARD_H) {
+                continue;
+            }
+            BoardSnapshotPayload.BoardEntry entry = all.get(scroll + i);
+            boolean boardTab = tab == Tab.BOARD;
+            BoardCardRenderer.Style style = new BoardCardRenderer.Style(
+                    boardTab,
+                    entry.id().equals(selected),
+                    true,
+                    cardLocked(entry),
+                    collateralDue(entry),
+                    boardTab && entry.collateral() > 0 && collateralDue(entry) <= 0);
+            Component chipTip = BoardCardRenderer.hitFlagChip(font, entry, x0, x1, y, style, mouseX, mouseY);
+            if (chipTip != null) {
+                hoverTip = chipTip;
+                return;
+            }
+            if (cardLocked(entry)) {
+                hoverTip = Component.translatable("ui.aerocouriers.card.locked_tooltip",
+                        BoardCardRenderer.roman(entry.requiredRank()));
+            }
+            return;
         }
     }
     @Override

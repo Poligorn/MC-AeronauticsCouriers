@@ -5,7 +5,6 @@ import dev.poligorn.aerocouriers.client.board.BoardAcceptUi;
 import dev.poligorn.aerocouriers.client.board.BoardCardRenderer;
 import dev.poligorn.aerocouriers.license.LicenseRank;
 import dev.poligorn.aerocouriers.net.BoardSnapshotPayload;
-import dev.poligorn.aerocouriers.village.VillageBoardPolicy;
 import java.util.Locale;
 import net.minecraft.resources.ResourceLocation;
 
@@ -27,7 +26,7 @@ public record CorkNoteStyle(
         boolean locked = !inProgress && BoardAcceptUi.rowRankLocked(entry, player);
         CargoSize size = CargoSize.valueOf(entry.size().toUpperCase(Locale.ROOT));
         return new CorkNoteStyle(
-                entry.reward() >= VillageBoardPolicy.EXPENSIVE_REWARD,
+                entry.expensive(),
                 entry.villageRare(),
                 size == CargoSize.L || size == CargoSize.XL,
                 !inProgress && BoardCardRenderer.deadlineWarn(entry),

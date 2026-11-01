@@ -66,7 +66,8 @@ public final class CorkBoardGui {
 
     public static void boardWindow(GuiGraphics g, CorkBoardLayout layout) {
         fullBright();
-        // Wood stays inside the frame. The 8 px / 3 px transparent margin is the world.
+        // Wood covers the inner hole; the world stays in the transparent frame margin.
+        blit(g, CorkSprites.WOOD_DARK_H, layout.innerHole);
         blit(g, CorkSprites.WOOD_DARK_H, layout.headerPlank);
         blit(g, CorkSprites.WOOD_MID_H, layout.filterBar);
         blit(g, CorkSprites.WOOD_DARK_H, layout.footerPlank);
@@ -76,10 +77,11 @@ public final class CorkBoardGui {
 
     public static void adminWindow(GuiGraphics g, CorkBoardLayout layout) {
         fullBright();
+        blit(g, CorkSprites.WOOD_DARK_H, layout.innerHole);
         blit(g, CorkSprites.WOOD_DARK_H, layout.headerPlank);
-        int bgX = layout.winX + (layout.narrow ? 11 : 18);
+        int bgX = layout.innerHole.x();
         int bgY = layout.winY + (layout.narrow ? 51 : 58);
-        int bgW = layout.narrow ? layout.winW - 22 : 604;
+        int bgW = layout.innerHole.w();
         blit(g, CorkSprites.ADMIN_BG, bgX, bgY, bgW, Math.max(8, layout.footerPlank.y() - bgY));
         blit(g, CorkSprites.WOOD_DARK_H, layout.footerPlank);
         blitFrame(g, layout);

@@ -130,9 +130,11 @@ public final class CorkQaClient {
             CorkBoardLayout layout = board.layout();
             CorkBoardLayout.Rect text = board.lastFooterText();
             CorkBoardLayout.Rect plank = layout.footerPlank;
+            CorkBoardLayout.Rect hole = layout.innerHole;
             String line = "plank=" + plank.x() + "," + plank.y() + "," + plank.w() + "," + plank.h()
                     + "\ntext=" + text.x() + "," + text.y() + "," + text.w() + "," + text.h()
                     + "\nwin=" + layout.winX + "," + layout.winY + "," + layout.winW + "," + layout.winH
+                    + "\nhole=" + hole.x() + "," + hole.y() + "," + hole.w() + "," + hole.h()
                     + "\ninset=" + layout.frameInsetBottom()
                     + "\nscale=" + scale
                     + "\n";

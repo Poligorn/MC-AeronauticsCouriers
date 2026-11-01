@@ -133,7 +133,27 @@ public final class BoardDetailsOverlay extends TabletOverlay {
             TabletDraw.text(graphics, font, status, chipX + 3, 3, color);
             routeRight = chipX - 8;
         }
-        drawRoute(graphics, font, e, 10, 4, routeRight - 10, TabletPalette.TXT);
+        int flagsW = headerFlagsWidth(e);
+        if (flagsW > 0) {
+            routeRight -= flagsW + 8;
+        }
+        int routeEnd = drawRoute(graphics, font, e, 10, 4, Math.max(20, routeRight - 10), TabletPalette.TXT);
+        int hx = routeEnd + 10;
+        if (e.villageRare()) {
+            BoardCardRenderer.drawFlagChip(graphics, hx, 0, PixelGlyphs.DIAMOND, TabletPalette.RARE_BG,
+                    TabletPalette.RARE_BORDER, TabletPalette.RARE_TEXT);
+            if (TabletDraw.inside(mx, my, hx, 2, BoardCardRenderer.FLAG_CHIP, 11)) {
+                hoverLines = List.of(Component.translatable("ui.aerocouriers.row.rare_cargo"));
+            }
+            hx += BoardCardRenderer.FLAG_CHIP + 3;
+        }
+        if (e.expensive()) {
+            BoardCardRenderer.drawFlagChip(graphics, hx, 0, PixelGlyphs.DIAMOND, TabletPalette.EXP_BG,
+                    TabletPalette.EXP_BORDER, TabletPalette.EXP_TEXT);
+            if (TabletDraw.inside(mx, my, hx, 2, BoardCardRenderer.FLAG_CHIP, 11)) {
+                hoverLines = List.of(Component.translatable("ui.aerocouriers.card.expensive"));
+            }
+        }
     }
 
     /** Bold «Откуда → Куда» with house/face glyphs, clipped to {@code maxW}. */
@@ -201,8 +221,10 @@ public final class BoardDetailsOverlay extends TabletOverlay {
             if (k >= slots) {
                 break;
             }
-            TabletDraw.box(graphics, sx, sy, sx + SLOT - 1, sy + SLOT - 1, TabletPalette.SLOT_BG,
-                    TabletPalette.SLOT_BORDER);
+            boolean rareSlot = e.villageRare() && k == e.rareItemIndex();
+            TabletDraw.box(graphics, sx, sy, sx + SLOT - 1, sy + SLOT - 1,
+                    rareSlot ? TabletPalette.RARE_SLOT_BG : TabletPalette.SLOT_BG,
+                    rareSlot ? TabletPalette.RARE_BORDER : TabletPalette.SLOT_BORDER);
             TabletDraw.hline(graphics, sx + 1, sx + SLOT - 2, sy + 1, TabletPalette.SLOT_SHADOW);
             TabletDraw.vline(graphics, sx + 1, sy + 1, sy + SLOT - 2, TabletPalette.SLOT_SHADOW);
             if (!suppressCargoItems && k < stacks.size() && !stacks.get(k).isEmpty()) {
@@ -210,8 +232,15 @@ public final class BoardDetailsOverlay extends TabletOverlay {
                 graphics.renderItem(stack, sx + 1, sy + 1);
                 graphics.renderItemDecorations(font, stack, sx + 1, sy + 1, "");
                 drawStackCount(graphics, font, stack, sx, sy);
+                if (rareSlot) {
+                    PixelGlyphs.draw(graphics, sx + 2, sy + 2, PixelGlyphs.DIAMOND_SM, TabletPalette.RARE_TEXT);
+                }
                 if (TabletDraw.inside(mx, my, sx, sy, SLOT, SLOT)) {
                     hoveredStack = stack;
+                    if (rareSlot) {
+                        hoverLines = List.of(Component.translatable("ui.aerocouriers.details.rare_item_tooltip")
+                                .withStyle(style -> style.withColor(TabletPalette.RARE_TEXT & 0xFFFFFF)));
+                    }
                     graphics.fill(sx + 1, sy + 1, sx + SLOT - 1, sy + SLOT - 1, 0x40FFFFFF);
                 }
             }
@@ -233,9 +262,21 @@ public final class BoardDetailsOverlay extends TabletOverlay {
         if (fw > 0) {
             graphics.fill(px0 + 7, wy + 13, px0 + 7 + fw, wy + 18, TabletPalette.SEC);
         }
-        if (wy + 22 + 9 <= py0 + PREVIEW_H) {
+        int plateTop = e.villageRare() ? py0 + PREVIEW_H - 27 : Integer.MAX_VALUE;
+        if (wy + 22 + 9 <= py0 + PREVIEW_H && wy + 22 + 9 <= plateTop) {
             TabletDraw.text(graphics, font, Component.translatable("ui.aerocouriers.details.weight_hint").getString(),
                     px0 + 6, wy + 22, TabletPalette.LOCKC);
+        }
+        if (e.villageRare()) {
+            int ly = py0 + PREVIEW_H - 27;
+            TabletDraw.box(graphics, px0 + 5, ly, px0 + PREVIEW_W - 6, ly + 22, TabletPalette.RARE_PLATE,
+                    TabletPalette.RARE_BORDER);
+            PixelGlyphs.draw(graphics, px0 + 9, ly + 4, PixelGlyphs.DIAMOND_SM, TabletPalette.RARE_TEXT);
+            TabletDraw.text(graphics, font, Component.translatable("ui.aerocouriers.details.rare_item").getString(),
+                    px0 + 17, ly + 3, TabletPalette.RARE_TEXT);
+            String rareName = rareItemCaption(e);
+            TabletDraw.text(graphics, font, TabletDraw.trunc(font, rareName, PREVIEW_W - 24),
+                    px0 + 9, ly + 12, TabletPalette.RARE_MUTED);
         }
     }
 
@@ -319,17 +360,31 @@ public final class BoardDetailsOverlay extends TabletOverlay {
         renderCustomer(graphics, font, e, ry, mx, my);
         ry += 13;
 
-        label(graphics, font, "ui.aerocouriers.details.type", ry);
-        String type = Component.translatable(e.courierService() ? "ui.aerocouriers.details.type.tutorial"
+        String typeKind = Component.translatable(e.courierService() ? "ui.aerocouriers.details.type.tutorial"
                 : e.villageCustomer()
                 ? "ui.aerocouriers.details.type.village" : "ui.aerocouriers.details.type.player").getString();
-        if (e.originRevealed()) {
-            type = Component.translatable(e.originStation()
-                    ? "ui.aerocouriers.details.kind.station" : "ui.aerocouriers.details.kind.point").getString()
-                    + " · " + type;
+        if (e.villageRare()) {
+            graphics.fill(LABEL_X - 4, ry - 2, RIGHT_EDGE + 1, ry + 9, TabletPalette.RARE_PLATE);
+            graphics.fill(LABEL_X - 4, ry - 2, LABEL_X - 2, ry + 9, TabletPalette.RARE_STRIPE);
+            TabletDraw.text(graphics, font, Component.translatable("ui.aerocouriers.details.type").getString(),
+                    LABEL_X, ry, TabletPalette.RARE_MUTED);
+            String rare = "◆ " + Component.translatable("ui.aerocouriers.row.rare_cargo").getString();
+            TabletDraw.bold(graphics, font, rare, VALUE_X, ry, TabletPalette.RARE_TEXT);
+            String rest = "· " + typeKind;
+            TabletDraw.text(graphics, font, TabletDraw.trunc(font, rest,
+                    Math.max(8, RIGHT_EDGE - VALUE_X - TabletDraw.boldWidth(font, rare) - 5)),
+                    VALUE_X + TabletDraw.boldWidth(font, rare) + 5, ry, TabletPalette.RARE_MUTED);
+        } else {
+            label(graphics, font, "ui.aerocouriers.details.type", ry);
+            String type = typeKind;
+            if (e.originRevealed()) {
+                type = Component.translatable(e.originStation()
+                        ? "ui.aerocouriers.details.kind.station" : "ui.aerocouriers.details.kind.point").getString()
+                        + " · " + type;
+            }
+            TabletDraw.text(graphics, font, TabletDraw.trunc(font, type, RIGHT_EDGE - VALUE_X), VALUE_X, ry,
+                    TabletPalette.TXT);
         }
-        TabletDraw.text(graphics, font, TabletDraw.trunc(font, type, RIGHT_EDGE - VALUE_X), VALUE_X, ry,
-                TabletPalette.TXT);
         ry += 13;
 
         label(graphics, font, "ui.aerocouriers.details.created", ry);
@@ -558,6 +613,58 @@ public final class BoardDetailsOverlay extends TabletOverlay {
             return true;
         }
         return true;
+    }
+
+    private static int headerFlagsWidth(BoardSnapshotPayload.BoardEntry e) {
+        int w = 0;
+        if (e.villageRare()) {
+            w += BoardCardRenderer.FLAG_CHIP + 3;
+        }
+        if (e.expensive()) {
+            w += BoardCardRenderer.FLAG_CHIP + 3;
+        }
+        return w;
+    }
+
+    /** Local centre of the rare cargo slot, or {@code null}. */
+    public int @Nullable [] rareSlotCenterLocal() {
+        Optional<BoardSnapshotPayload.BoardEntry> found = host.entry(orderId);
+        if (found.isEmpty()) {
+            return null;
+        }
+        BoardSnapshotPayload.BoardEntry e = found.get();
+        int index = e.rareItemIndex();
+        if (!e.villageRare() || index < 0) {
+            return null;
+        }
+        int sx = PREVIEW_X + 9 + (index % COLS) * SLOT + SLOT / 2;
+        int sy = PREVIEW_Y + 42 + (index / COLS) * SLOT + SLOT / 2;
+        return new int[] {sx, sy};
+    }
+
+    private static String rareItemCaption(BoardSnapshotPayload.BoardEntry e) {
+        int index = e.rareItemIndex();
+        if (index >= 0 && index < e.cargoStacks().size()) {
+            ItemStack stack = e.cargoStacks().get(index);
+            if (!stack.isEmpty()) {
+                String name = stack.getHoverName().getString();
+                net.minecraft.world.item.enchantment.ItemEnchantments stored =
+                        stack.get(net.minecraft.core.component.DataComponents.STORED_ENCHANTMENTS);
+                if (stored != null && !stored.isEmpty()) {
+                    var first = stored.keySet().stream().findFirst();
+                    if (first.isPresent()) {
+                        var holder = first.get();
+                        name = name + " · " + net.minecraft.world.item.enchantment.Enchantment
+                                .getFullname(holder, stored.getLevel(holder)).getString();
+                    }
+                }
+                return name;
+            }
+        }
+        if (index >= 0 && index < e.manifest().size()) {
+            return e.manifest().get(index).name();
+        }
+        return Component.translatable("ui.aerocouriers.row.rare_cargo").getString();
     }
 
     private static CargoSize parseSize(String raw) {

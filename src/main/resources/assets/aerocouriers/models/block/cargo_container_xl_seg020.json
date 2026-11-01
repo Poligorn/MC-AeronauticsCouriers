@@ -1,0 +1,82 @@
+{
+  "parent": "minecraft:block/block",
+  "textures": {
+    "particle": "aerocouriers:block/cargo_container_xl_side",
+    "side": "aerocouriers:block/cargo_container_xl_side",
+    "top": "aerocouriers:block/cargo_container_xl_top",
+    "bottom": "aerocouriers:block/cargo_container_xl_bottom"
+  },
+  "elements": [
+    {
+      "from": [
+        0,
+        0,
+        0
+      ],
+      "to": [
+        16,
+        16,
+        16
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            8,
+            0,
+            16,
+            5.3333
+          ],
+          "texture": "#side",
+          "cullface": "north"
+        },
+        "south": {
+          "uv": [
+            0,
+            0,
+            8,
+            5.3333
+          ],
+          "texture": "#side"
+        },
+        "east": {
+          "uv": [
+            8,
+            0,
+            16,
+            5.3333
+          ],
+          "texture": "#side"
+        },
+        "west": {
+          "uv": [
+            0,
+            0,
+            8,
+            5.3333
+          ],
+          "texture": "#side",
+          "cullface": "west"
+        },
+        "up": {
+          "uv": [
+            0,
+            0,
+            8,
+            8
+          ],
+          "texture": "#top",
+          "cullface": "up"
+        },
+        "down": {
+          "uv": [
+            0,
+            8,
+            8,
+            16
+          ],
+          "texture": "#side"
+        }
+      }
+    }
+  ]
+}

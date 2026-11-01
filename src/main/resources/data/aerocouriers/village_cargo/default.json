@@ -1,12 +1,26 @@
 {
   "produces": [
-    {"id": "minecraft:wheat", "min": 8, "max": 24},
-    {"id": "minecraft:bread", "min": 4, "max": 16},
-    {"id": "minecraft:oak_log", "min": 8, "max": 16}
+    {"id": "minecraft:wheat", "min": 16, "max": 64, "stacks_min": 1, "stacks_max": 8, "weight": 10},
+    {"id": "minecraft:bread", "min": 8, "max": 32, "stacks_min": 1, "stacks_max": 4, "weight": 6},
+    {"id": "minecraft:oak_log", "min": 16, "max": 64, "stacks_min": 1, "stacks_max": 10, "weight": 10},
+    {"id": "minecraft:cobblestone", "min": 32, "max": 64, "stacks_min": 2, "stacks_max": 12, "weight": 8},
+    {"id": "minecraft:white_wool", "min": 16, "max": 64, "stacks_min": 1, "stacks_max": 8, "weight": 6},
+    {"id": "minecraft:bricks", "min": 16, "max": 64, "stacks_min": 1, "stacks_max": 8, "weight": 6},
+    {"id": "minecraft:coal", "min": 16, "max": 64, "stacks_min": 1, "stacks_max": 6, "weight": 6},
+    {"id": "create:andesite_alloy", "min": 16, "max": 64, "stacks_min": 1, "stacks_max": 6, "weight": 5, "min_size": "m"},
+    {"id": "minecraft:book", "min": 4, "max": 16, "stacks_min": 1, "stacks_max": 2, "weight": 3, "valuable": true, "value_multiplier": 6, "min_size": "m"},
+    {"id": "minecraft:gold_ingot", "min": 16, "max": 32, "stacks_min": 1, "stacks_max": 3, "weight": 3, "valuable": true, "value_multiplier": 8, "min_size": "m"},
+    {"id": "create:brass_ingot", "min": 16, "max": 32, "stacks_min": 1, "stacks_max": 3, "weight": 2, "valuable": true, "value_multiplier": 8, "min_size": "l"},
+    {"id": "create:precision_mechanism", "min": 1, "max": 8, "stacks_min": 1, "stacks_max": 2, "weight": 2, "valuable": true, "value_multiplier": 12, "min_size": "l"}
   ],
   "consumes": [
     {"id": "minecraft:coal", "min": 8, "max": 24},
     {"id": "minecraft:iron_ingot", "min": 4, "max": 12},
-    {"id": "minecraft:wheat", "min": 8, "max": 24}
+    {"id": "minecraft:wheat", "min": 8, "max": 24},
+    {"id": "minecraft:oak_log", "min": 8, "max": 16},
+    {"id": "minecraft:cobblestone", "min": 16, "max": 32},
+    {"id": "create:andesite_alloy", "min": 8, "max": 24},
+    {"id": "minecraft:gold_ingot", "min": 4, "max": 16},
+    {"id": "create:brass_ingot", "min": 4, "max": 16}
   ]
 }

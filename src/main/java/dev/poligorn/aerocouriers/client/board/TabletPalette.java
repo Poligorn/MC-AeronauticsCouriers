@@ -49,6 +49,18 @@ public final class TabletPalette {
     /** Board dimming behind overlays (≈150/255 black, as in the mockup). */
     public static final int SCRIM = 0x96000000;
 
+    /** Rare / expensive chips — cork badge colours on the dark tablet card (mockup 01v2). */
+    public static final int RARE_BORDER = 0xFFEC62AA;
+    public static final int RARE_BG = 0xFF421632;
+    public static final int RARE_TEXT = dev.poligorn.aerocouriers.client.station.CorkPalette.BADGE_RARE;
+    public static final int RARE_STRIPE = RARE_BORDER;
+    public static final int RARE_PLATE = 0xFF3A1830;
+    public static final int RARE_MUTED = 0xFFD696BE;
+    public static final int RARE_SLOT_BG = 0xFF2A0E24;
+    public static final int EXP_BORDER = GOLD;
+    public static final int EXP_BG = 0xFF3E2808;
+    public static final int EXP_TEXT = dev.poligorn.aerocouriers.client.station.CorkPalette.BADGE_EXP;
+
     private TabletPalette() {
     }
 

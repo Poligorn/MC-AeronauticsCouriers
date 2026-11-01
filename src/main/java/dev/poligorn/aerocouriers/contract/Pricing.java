@@ -110,9 +110,36 @@ public final class Pricing {
 
     /** {@code 16 + (D/60) × (1 + W/400) + W × per_weight} × 0.8–1.2 (GDD §6.3, {@code [contracts.pricing]}). */
     public static long npcReward(double distance, double weight, RandomSource random) {
+        return npcReward(distance, weight, 0L, CargoSize.S, random);
+    }
+
+    /**
+     * Village NPC reward: base formula plus {@code valueSpurs × village_value_reward_factor} and the size bonus,
+     * then ×0.8–1.2. {@code EXPENSIVE_REWARD} stays 1000 in the active currency.
+     */
+    public static long npcReward(double distance, double weight, long valueSpurs, CargoSize size, RandomSource random) {
+        return npcReward(distance, weight, valueSpurs, 0L, size, random);
+    }
+
+    /**
+     * {@code valuableSpurs} is the table-scaled value of {@code valuable} rows (uncapped). The rest of
+     * {@code valueSpurs} is ordinary cargo and is capped by {@code village_value_reward_cap}.
+     */
+    public static long npcReward(double distance, double weight, long valueSpurs, long valuableSpurs,
+                                 CargoSize size, RandomSource random) {
         double base = 16.0 + (distance / 60.0) * (1.0 + weight / 400.0) + weight * rewardPerWeight();
-        double factor = 0.8 + random.nextDouble() * 0.4;
-        return MoneyScale.fromSpurs(Math.max(1, Math.round(base * factor)));
+        double factor = CouriersServerConfig.villageValueRewardFactor();
+        long valuable = Math.max(0L, valuableSpurs);
+        long bulk = Math.max(0L, Math.max(0L, valueSpurs) - valuable);
+        double bulkTerm = bulk * factor;
+        double cap = CouriersServerConfig.villageValueRewardCap();
+        if (cap > 0.0) {
+            bulkTerm = Math.min(bulkTerm, cap);
+        }
+        base += bulkTerm + valuable * factor;
+        base += CouriersServerConfig.villageSizeRewardBonus(size == null ? CargoSize.S : size);
+        double jitter = 0.8 + random.nextDouble() * 0.4;
+        return MoneyScale.fromSpurs(Math.max(1, Math.round(base * jitter)));
     }
 
     public static long npcCollateral(List<ItemStack> manifest, double weight) {
@@ -124,11 +151,20 @@ public final class Pricing {
      * {@code ≈2×} weight when value is zero; {@code 0} in peace.
      */
     public static long npcCollateral(CollateralProfile profile, List<ItemStack> manifest, double weight) {
+        return npcCollateral(profile, manifest, weight, 0L);
+    }
+
+    /**
+     * Same as {@link #npcCollateral(CollateralProfile, List, double)} but uses a pre-scaled cargo value (table
+     * {@code value_multiplier} / {@code valuable}) when {@code valueSpurs} is positive.
+     */
+    public static long npcCollateral(CollateralProfile profile, List<ItemStack> manifest, double weight,
+                                     long valueSpurs) {
         double share = profile.npcRatio();
         if (share <= 0.0) {
             return 0L;
         }
-        long value = ItemValues.of(manifest);
+        long value = valueSpurs > 0L ? MoneyScale.fromSpurs(valueSpurs) : ItemValues.of(manifest);
         if (value > 0) {
             return Math.max(1, Math.round(value * share * ItemValues.collateralFactor()));
         }

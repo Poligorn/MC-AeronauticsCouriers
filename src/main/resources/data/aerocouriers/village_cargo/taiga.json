@@ -1,12 +1,20 @@
 {
   "produces": [
-    {"id": "minecraft:spruce_log", "min": 12, "max": 24},
-    {"id": "minecraft:sweet_berries", "min": 8, "max": 16},
-    {"id": "minecraft:coal", "min": 8, "max": 16}
+    {"id": "minecraft:spruce_log", "min": 24, "max": 64, "stacks_min": 1, "stacks_max": 12, "weight": 12},
+    {"id": "minecraft:sweet_berries", "min": 16, "max": 64, "stacks_min": 1, "stacks_max": 4, "weight": 5},
+    {"id": "minecraft:coal", "min": 16, "max": 64, "stacks_min": 1, "stacks_max": 6, "weight": 6},
+    {"id": "minecraft:cobblestone", "min": 32, "max": 64, "stacks_min": 2, "stacks_max": 10, "weight": 7},
+    {"id": "minecraft:iron_ingot", "min": 8, "max": 32, "stacks_min": 1, "stacks_max": 4, "weight": 5},
+    {"id": "create:andesite_alloy", "min": 16, "max": 64, "stacks_min": 1, "stacks_max": 6, "weight": 5, "min_size": "m"},
+    {"id": "create:iron_sheet", "min": 8, "max": 32, "stacks_min": 1, "stacks_max": 4, "weight": 3, "min_size": "m"},
+    {"id": "minecraft:gold_ingot", "min": 16, "max": 28, "stacks_min": 1, "stacks_max": 2, "weight": 3, "valuable": true, "value_multiplier": 8, "min_size": "m"},
+    {"id": "create:electron_tube", "min": 2, "max": 12, "stacks_min": 1, "stacks_max": 2, "weight": 2, "valuable": true, "value_multiplier": 10, "min_size": "l"}
   ],
   "consumes": [
     {"id": "minecraft:wheat", "min": 8, "max": 24},
     {"id": "minecraft:iron_ingot", "min": 4, "max": 12},
-    {"id": "minecraft:bread", "min": 4, "max": 12}
+    {"id": "minecraft:bread", "min": 4, "max": 12},
+    {"id": "minecraft:white_wool", "min": 4, "max": 16},
+    {"id": "create:brass_ingot", "min": 4, "max": 12}
   ]
 }

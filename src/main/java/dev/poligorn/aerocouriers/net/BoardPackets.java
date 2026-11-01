@@ -26,6 +26,8 @@ import dev.poligorn.aerocouriers.contract.RankRules;
 import dev.poligorn.aerocouriers.registry.ModComponents;
 import dev.poligorn.aerocouriers.village.StationAtlas;
 import dev.poligorn.aerocouriers.village.StationReputation;
+import dev.poligorn.aerocouriers.village.VillageBoardPolicy;
+import dev.poligorn.aerocouriers.village.VillageCargo;
 import dev.poligorn.aerocouriers.village.VillageRefreshTiming;
 import com.mojang.authlib.GameProfile;
 import java.util.Comparator;
@@ -505,6 +507,9 @@ public final class BoardPackets {
         int customerBonus = villageCustomer ? StationReputation.bonusPercent(customerStationReputation) : 0;
         boolean originRevealed = contract.revealsPickupTo(viewer);
         boolean crossDimension = !contract.origin().dimension().equals(contract.destination().dimension());
+        boolean villageRare = escrow.holding(contract.id()).villageRare();
+        boolean expensive = contract.type().isNpc() && contract.reward() >= VillageBoardPolicy.EXPENSIVE_REWARD;
+        int rareItemIndex = villageRare ? VillageCargo.rareStackIndex(cargoItems) : -1;
         return new BoardSnapshotPayload.BoardEntry(
                 contract.id(),
                 contract.shortId(),
@@ -530,7 +535,9 @@ public final class BoardPackets {
                 contract.destination().pos(),
                 cargoItems,
                 customerStationReputation,
-                escrow.holding(contract.id()).villageRare(),
+                villageRare,
+                expensive,
+                rareItemIndex,
                 customerTier,
                 customerNext,
                 customerBonus,

@@ -234,15 +234,30 @@ public final class VillageAdminGameTests {
     public static void corkBoardFooterFitsGui4Frame(GameTestHelper helper) {
         CorkBoardLayout gui4 = CorkBoardLayout.of(480, 270);
         helper.assertTrue(gui4.narrow, "GUI 4 uses the 480×270 frame");
-        helper.assertTrue(gui4.footerFitsInFrame(), "footer plank and text sit above the frame rim");
+        helper.assertTrue(gui4.footerFitsInFrame(), "footer plank fills the compact inner hole");
+        helper.assertValueEqual(gui4.cork.h(), 160, "compact cork height unchanged");
+        helper.assertValueEqual(gui4.innerHole.y() + gui4.innerHole.h(), 259,
+                "compact hole exclusive bottom is the last transparent row + 1");
         helper.assertTrue(gui4.footerPlank.y() >= gui4.cork.y() + gui4.cork.h(),
                 "cork height leaves room for the footer");
         helper.assertTrue(gui4.footerCountY + CorkBoardLayout.TEXT
-                        <= gui4.winY + gui4.winH - gui4.frameInsetBottom(),
+                        <= gui4.innerHole.y() + gui4.innerHole.h(),
                 "footer text cell is above the inner bottom");
         helper.assertTrue(gui4.footerPlank.h() >= CorkBoardLayout.TEXT,
                 "footer plank fits the 8 px line");
         helper.assertTrue(gui4.footerHintY == gui4.footerCountY, "count and hint share one line");
+
+        CorkBoardLayout large = CorkBoardLayout.of(640, 360);
+        helper.assertTrue(large.footerFitsInFrame(), "large footer plank fills the inner hole");
+        helper.assertValueEqual(large.cork.h(), 243, "large cork height unchanged");
+        helper.assertValueEqual(large.cork.y(), 77, "large cork top unchanged");
+        helper.assertValueEqual(large.innerHole.y() + large.innerHole.h(), 343,
+                "large hole exclusive bottom is the last transparent row + 1");
+        helper.assertValueEqual(large.footerCountY, 324, "large footer text stays on the 16 px line");
+
+        CorkBoardLayout tiny = CorkBoardLayout.of(384, 216);
+        helper.assertTrue(tiny.footerFitsInFrame(), "9-slice footer reaches the inner hole");
+        helper.assertValueEqual(tiny.noteH, CorkBoardLayout.NOTE_H, "tiny notes stay 136×108");
         helper.succeed();
     }
 
@@ -326,6 +341,8 @@ public final class VillageAdminGameTests {
                 List.of(),
                 27,
                 false,
+                reward >= VillageBoardPolicy.EXPENSIVE_REWARD,
+                -1,
                 0,
                 -1,
                 30,
