@@ -87,6 +87,7 @@ public final class StationContractSource implements ContractSource {
         if (created < cap && CouriersServerConfig.ALLOW_CROSS_DIMENSION_ORDERS.get()) {
             created += generateCrossDimension(server, manager, cap - created, server.overworld().getRandom());
         }
+        created += ensureSmallOnBoard(server, created);
         if (created > 0) {
             AeronauticsCouriers.LOGGER.info("[station] Published {} NPC contracts", created);
         }
@@ -128,6 +129,7 @@ public final class StationContractSource implements ContractSource {
         sortPairsForTrainee(pairs);
         Collections.shuffle(pairs, new java.util.Random(random.nextLong()));
         int created = 0;
+        boolean hasSmall = false;
         for (StationAtlas.Station[] pair : pairs) {
             if (created >= room) {
                 break;
@@ -135,8 +137,16 @@ public final class StationContractSource implements ContractSource {
             if (!level.isLoaded(pair[0].pos())) {
                 continue;
             }
-            if (publish(level, pair[0], pair[1], random).isPresent()) {
+            Optional<CargoSize> force = Optional.empty();
+            if (!hasSmall && created == room - 1 && pair[0].policy().allowsSize(CargoSize.S)) {
+                force = Optional.of(CargoSize.S);
+            }
+            Optional<Contract> published = publish(level, pair[0], pair[1], random, force);
+            if (published.isPresent()) {
                 created++;
+                if (published.get().size() == CargoSize.S) {
+                    hasSmall = true;
+                }
             }
         }
         return created;
@@ -179,6 +189,7 @@ public final class StationContractSource implements ContractSource {
         }
         Collections.shuffle(pairs, new java.util.Random(random.nextLong()));
         int created = 0;
+        boolean hasSmall = false;
         for (StationAtlas.Station[] pair : pairs) {
             if (created >= room) {
                 break;
@@ -187,8 +198,16 @@ public final class StationContractSource implements ContractSource {
             if (originLevel == null || !originLevel.isLoaded(pair[0].pos())) {
                 continue;
             }
-            if (publish(originLevel, pair[0], pair[1], random).isPresent()) {
+            Optional<CargoSize> force = Optional.empty();
+            if (!hasSmall && created == room - 1 && pair[0].policy().allowsSize(CargoSize.S)) {
+                force = Optional.of(CargoSize.S);
+            }
+            Optional<Contract> published = publish(originLevel, pair[0], pair[1], random, force);
+            if (published.isPresent()) {
                 created++;
+                if (published.get().size() == CargoSize.S) {
+                    hasSmall = true;
+                }
             }
         }
         return created;
@@ -228,6 +247,7 @@ public final class StationContractSource implements ContractSource {
         List<StationAtlas.Station> candidates = new ArrayList<>(others);
         Collections.shuffle(candidates, new java.util.Random(level.getRandom().nextLong()));
         int created = 0;
+        boolean hasSmall = false;
         for (StationAtlas.Station to : candidates) {
             if (created >= room) {
                 break;
@@ -245,11 +265,19 @@ public final class StationContractSource implements ContractSource {
             if (!level.isLoaded(from.pos())) {
                 continue;
             }
-            if (publish(level, from, to, level.getRandom()).isPresent()) {
+            Optional<CargoSize> force = Optional.empty();
+            if (!hasSmall && created == room - 1 && from.policy().allowsSize(CargoSize.S)) {
+                force = Optional.of(CargoSize.S);
+            }
+            Optional<Contract> published = publish(level, from, to, level.getRandom(), force);
+            if (published.isPresent()) {
                 created++;
+                if (published.get().size() == CargoSize.S) {
+                    hasSmall = true;
+                }
             }
         }
-        return created;
+        return created + ensureSmallOnBoard(server, created);
     }
 
     public static boolean hasOpenPair(ContractManager manager, StationAtlas.Station from, StationAtlas.Station to) {
@@ -264,6 +292,11 @@ public final class StationContractSource implements ContractSource {
      */
     public static Optional<Contract> publish(ServerLevel level, StationAtlas.Station from, StationAtlas.Station to,
                                             RandomSource random) {
+        return publish(level, from, to, random, Optional.empty());
+    }
+
+    public static Optional<Contract> publish(ServerLevel level, StationAtlas.Station from, StationAtlas.Station to,
+                                            RandomSource random, Optional<CargoSize> forceSize) {
         StationAtlas atlas = StationAtlas.get(level.getServer());
         int originReputation = atlas.reputation(from.id());
         ServerLevel destinationLevel = level.getServer().getLevel(to.dimension());
@@ -275,13 +308,15 @@ public final class StationContractSource implements ContractSource {
                 biomeId(level, from.pos()),
                 destinationBiome,
                 originReputation,
+                policy,
+                forceSize,
                 level.registryAccess().lookupOrThrow(Registries.ENCHANTMENT),
                 random);
         List<ItemStack> manifest = rolled.stacks();
-        boolean villageRare = rolled.rare();
-        if (villageRare && !policy.allowRare()) {
+        if (manifest.isEmpty()) {
             return Optional.empty();
         }
+        boolean villageRare = rolled.rare();
         double weight = Weights.of(manifest);
         Optional<CargoSize> size = CargoSize.smallestFor(manifest.size(), weight);
         if (size.isEmpty() || !policy.allowsSize(size.get())) {
@@ -290,12 +325,13 @@ public final class StationContractSource implements ContractSource {
         double distance = ContractDistances.pricingBlocks(
                 new Destination(from.dimension(), from.pos(), ZONE_RADIUS),
                 new Destination(to.dimension(), to.pos(), ZONE_RADIUS));
-        long reward = Pricing.npcReward(distance, weight, random);
+        long reward = Pricing.npcReward(distance, weight, rolled.valueSpurs(), rolled.valuableSpurs(), size.get(),
+                random);
         if (!policy.allowExpensive() && reward >= VillageBoardPolicy.EXPENSIVE_REWARD) {
             return Optional.empty();
         }
         CollateralProfile profile = CollateralProfile.active();
-        long collateral = Pricing.npcCollateral(profile, manifest, weight);
+        long collateral = Pricing.npcCollateral(profile, manifest, weight, rolled.valueSpurs());
         Destination origin = new Destination(from.dimension(), from.pos(), ZONE_RADIUS);
         Destination destination = new Destination(to.dimension(), to.pos(), ZONE_RADIUS);
         Pricing.NpcMoney money = profile.noCollateral()
@@ -303,6 +339,58 @@ public final class StationContractSource implements ContractSource {
                 : Pricing.balanceNpcMoney(reward, collateral, size.get(), origin, destination);
         return ContractManager.get(level.getServer()).publishVillage(level, from, to, manifest, size.get(), weight,
                 money.reward(), money.collateral(), DEFAULT_DEADLINE_MINUTES, villageRare);
+    }
+
+    /** After a refresh that published anything, keep at least one S on the board when policy allows it. */
+    static int ensureSmallOnBoard(MinecraftServer server, int createdThisPass) {
+        if (createdThisPass <= 0) {
+            return 0;
+        }
+        ContractManager manager = ContractManager.get(server);
+        boolean hasSmall = manager.open()
+                .anyMatch(c -> c.type() == ContractType.VILLAGE && c.size() == CargoSize.S);
+        if (hasSmall) {
+            return 0;
+        }
+        return publishOneForced(server, CargoSize.S);
+    }
+
+    private static int publishOneForced(MinecraftServer server, CargoSize size) {
+        ContractManager manager = ContractManager.get(server);
+        long already = manager.all()
+                .filter(c -> c.type() == ContractType.VILLAGE && c.state() == ContractState.OPEN)
+                .count();
+        if (already >= CouriersServerConfig.VILLAGE_BOARD_MAX.get()) {
+            return 0;
+        }
+        RandomSource random = server.overworld().getRandom();
+        List<StationAtlas.Station> stations = new ArrayList<>(StationAtlas.get(server).all());
+        Collections.shuffle(stations, new java.util.Random(random.nextLong()));
+        for (StationAtlas.Station from : stations) {
+            if (!from.policy().allowsSize(size)) {
+                continue;
+            }
+            ServerLevel level = server.getLevel(from.dimension());
+            if (level == null || !level.isLoaded(from.pos())) {
+                continue;
+            }
+            for (StationAtlas.Station to : stations) {
+                if (from.id().equals(to.id()) || hasOpenPair(manager, from, to)) {
+                    continue;
+                }
+                if (from.dimension().equals(to.dimension())
+                        && from.pos().distSqr(to.pos()) > MAX_PAIR_DISTANCE * MAX_PAIR_DISTANCE) {
+                    continue;
+                }
+                if (!from.dimension().equals(to.dimension()) && !CouriersServerConfig.ALLOW_CROSS_DIMENSION_ORDERS.get()) {
+                    continue;
+                }
+                if (publish(level, from, to, random, Optional.of(size)).isPresent()) {
+                    return 1;
+                }
+            }
+        }
+        return 0;
     }
 
     public static ResourceLocation biomeId(ServerLevel level, BlockPos pos) {

@@ -50,6 +50,19 @@ drop_ratio = 0.5
 register_radius = 32
 village_dedup_radius = 96
 generate_in_villages = true
+village_size_weight_s = 45
+village_size_weight_m = 30
+village_size_weight_l = 17
+village_size_weight_xl = 8
+village_s_stacks_max = 4
+village_value_reward_factor = 0.35
+village_value_reward_cap = 500.0
+village_valuable_multiplier = 5.0
+village_valuable_inject_chance = 0.22
+village_size_bonus_s = 0.0
+village_size_bonus_m = 40.0
+village_size_bonus_l = 220.0
+village_size_bonus_xl = 240.0
 [migration]
 # стартовый XP при миграции kubejs:pilot_license_<rank> (CLARIFICATIONS: «таблица в конфиге»)
 [debug]
@@ -87,7 +100,7 @@ breadcrumb_step = 96      # 32..512, шаг точек запасного пут
 |---|---|
 | `data/aerocouriers/item_weights.json` | Вес предметов (блок 1.0 · слиток/самоцвет 0.11 · предмет 0.05 · инструмент/броня 0.5 · ведро 1.0). При наличии FFItemWeight — брать вес из него |
 | `data/aerocouriers/item_values.json` | Оценка стоимости |
-| `data/aerocouriers/village_cargo/<biome>.json` | Что производят/потребляют деревни |
+| `data/aerocouriers/village_cargo/<biome>.json` | Что производят/потребляют деревни. Старые поля `id`/`min`/`max` достаточны. Опционально: `stacks_min`/`stacks_max`, `weight` (вес выбора), `valuable`, `value_multiplier`, `min_size` (S/M/L/XL) |
 | `data/aerocouriers/station_names/*.json` | Словарь названий почтовых станций |
 | `data/aerocouriers/physics_block_properties/*.json` | Масса контейнеров (формат Sable: `selector`, `priority`, `properties`, `overrides` с ключами `"fill=N"`) ✅ |
 | `data/aerocouriers/curios/slots/license.json` + `data/aerocouriers/curios/entities/player.json` | Слот лицензии ✅ |
