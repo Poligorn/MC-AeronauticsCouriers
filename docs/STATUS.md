@@ -2,18 +2,24 @@
 
 > Живой документ. Обновлять при каждом завершённом шаге итерации или изменении решения (см. `.cursor/rules/90-maintaining-docs.mdc`).
 
-**Обновлено:** 01.11.2026 · **Версия:** 0.3.0. Протокол сети `PROTOCOL_VERSION` `"4"` (`BoardEntry.expensive`, `rareItemIndex`). Версию не поднимали.
+**Обновлено:** 01.11.2026 · **Версия:** 0.3.1. Протокол сети `PROTOCOL_VERSION` `"4"` (`BoardEntry.expensive`, `rareItemIndex`).
 
 ## Сделано
 
-### Unreleased — рамка планшета, стажировка 1500, станция в каждой новой деревне (01.11.2026)
-Три утверждённые правки в одном PR. Версию мода и протокол не поднимали. UI кроме спрайта рамки не менялся.
+### Релиз 0.3.1 (01.11.2026)
+- `mod_version`: `0.3.0` → `0.3.1`. Протокол сети не менялся (`PROTOCOL_VERSION` `"4"`).
+- Состав относительно 0.3.0: новая рисованная рамка планшета 84×84; `trainee_max_distance` 1500 и сортировка коротких пар после shuffle; ровно одна почтовая станция у центра каждой новой деревни ([PR #80](https://github.com/Poligorn/MC-AeronauticsCouriers/pull/80)).
+- Ветка `release/0.3.1` от `main` после #80. Java в этом PR не менялась.
+- Проверка релиза: `./gradlew build -PwithoutJade=true` и `runGameTestServer -PwithoutJade=true` — в этом прогоне (числа ниже после прогона). Jar `aerocouriers-0.3.1.jar`.
+
+### Рамка планшета, стажировка 1500, станция в каждой новой деревне (01.11.2026)
+Три утверждённые правки в одном PR (#80), вошли в релиз 0.3.1. Протокол не поднимали. UI кроме спрайта рамки не менялся.
 - **Рамка планшета.** `tablet_frame.png` заменён байт-в-байт на рисованную 84×84 RGBA (рамка 14 px, прозрачный центр). SHA-256 `6a0856ee6b83bd42ed6dd18da9b43d615a130cc3ed871b1fd009fec7052ece0e`. `tablet_frame.png.mcmeta` и Java не трогались.
 - **Стажировка.** Дефолт `progression.trainee_max_distance` 800 → **1500** (потолок ранга I). 0 = без лимита. В `StationContractSource` сначала `shuffle`, потом стабильная сортировка коротких пар (корзины 200 блоков) — прежний порядок затирал предпочтение коротких. Тест `npcTraineeRejectsLongRoute` теперь ставит станцию на 1600; добавлен `npcGeneratorPrefersShortTraineePairs`.
 - **Деревни.** Станция больше не бросается в пул домов (вес 4 не гарантировал её и крал слоты 3×3). `VillageTownCenterStationProcessor` на `village/*/town_centers` ставит стойку 1×1×2 у колокола в clip текущего чанка. Обёртка пула не трогает static `StructurePoolElement.EMPTY`; сажает только клип с колоколом (тайга 22×18 иначе ставила стойку на край и дом её затирал). Пол и dirt path считаются опорой. «Не больше одной» и `generate_in_villages` на месте. Уже сгенерированные деревни не переписываются.
 - **Проверки (01.11.2026).** `./gradlew build -PwithoutJade=true` SUCCESS. `runGameTestServer -PwithoutJade=true` **107/107** (Create 6.0.10, Aeronautics 1.3.0 bundled, Simulated в бандле, Sable 2.0.6, Veil 4.5.2, без Numismatics и без Jade). `generatedVillagesKeepAtMostOnePostStation`: plains=1, desert=1, savanna=1, snowy=1, taiga=1. Плюс `townCenterPlanterPlacesOneStationBesideBell` и `npcGeneratorPrefersShortTraineePairs`.
 - **QA рамки (Xvfb 1920×1080, RU, GUI 3, `tabletsqa`).** Кадры — `/opt/cursor/artifacts/tablet-frame/`. PIL, PNG в редакторе не открывались. OpenAL не стартует. Список и подробности редкого: латунь рамки `#FFD25D` / `#B87E3C` / `#693826` / `#FFE97C` на кадрах есть (десятки тысяч пикс.), пурпур missing-texture **0**. ✅ `11_list_scale3.png` · ✅ `21_details_rare.png`
-- Документы: `SETTINGS.md`, GDD §6.0/§6.5, CLARIFICATIONS 01.11.2026, CHANGELOG Unreleased, правила 50/57/65.
+- Документы: `SETTINGS.md`, GDD §6.0/§6.5, CLARIFICATIONS 01.11.2026, CHANGELOG 0.3.1, правила 50/57/65.
 
 ### Релиз 0.3.0 (31.10.2026)
 - `mod_version`: `0.2.1-beta` → `0.3.0`. Протокол сети `"3"` → `"4"` (`BoardEntry.expensive`, `rareItemIndex`). Клиент и сервер должны быть одной сборки.
