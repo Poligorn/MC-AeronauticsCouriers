@@ -13,6 +13,7 @@ import java.util.Map;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.tags.BlockTags;
 import net.minecraft.world.level.EmptyBlockGetter;
 import net.minecraft.world.level.LevelReader;
 import net.minecraft.world.level.ServerLevelAccessor;
@@ -65,11 +66,12 @@ public final class VillageTownCenterStationProcessor extends StructureProcessor 
             return processed;
         }
         BoundingBox box = settings.getBoundingBox();
-        BlockPos stand = findStand(level, processed, box);
+        BlockPos stand = findStand(level, original, processed, box);
         if (stand == null) {
             return processed;
         }
-        if (VillageStationDedup.isDuplicateAtPlacement(level, stand)) {
+        if (VillageStationDedup.isClaimed(stand)
+                || VillageStationDedup.isDuplicateAtPlacement(level, stand)) {
             return processed;
         }
         Direction facing = facingTowardBell(processed, stand);
@@ -107,10 +109,27 @@ public final class VillageTownCenterStationProcessor extends StructureProcessor 
 
     static @Nullable BlockPos findStand(LevelReader level, List<StructureTemplate.StructureBlockInfo> processed,
             @Nullable BoundingBox box) {
+        return findStand(level, processed, processed, box);
+    }
+
+    static @Nullable BlockPos findStand(LevelReader level,
+            List<StructureTemplate.StructureBlockInfo> original,
+            List<StructureTemplate.StructureBlockInfo> processed,
+            @Nullable BoundingBox box) {
         Map<BlockPos, BlockState> planned = new HashMap<>();
+        boolean bellOutsideClip = false;
+        for (StructureTemplate.StructureBlockInfo info : original) {
+            if (info != null && info.state() != null && info.state().is(Blocks.BELL)
+                    && box != null && info.pos() != null && !box.isInside(info.pos())) {
+                bellOutsideClip = true;
+            }
+        }
         for (StructureTemplate.StructureBlockInfo info : processed) {
             if (info == null || info.pos() == null || info.state() == null) {
                 continue;
+            }
+            if (info.state().is(Blocks.BELL) && box != null && !box.isInside(info.pos())) {
+                bellOutsideClip = true;
             }
             if (box != null && !box.isInside(info.pos())) {
                 continue;
@@ -123,11 +142,31 @@ public final class VillageTownCenterStationProcessor extends StructureProcessor 
                 bells.add(entry.getKey());
             }
         }
+        // A 22-wide taiga meeting point spans chunks. Only the clip that contains the bell
+        // may plant; other slices would stand on a street jigsaw and get overwritten.
+        if (bells.isEmpty() && bellOutsideClip) {
+            return null;
+        }
         List<BlockPos> candidates = new ArrayList<>();
         for (BlockPos bell : bells) {
             for (Direction dir : Direction.Plane.HORIZONTAL) {
-                BlockPos stand = bell.relative(dir);
-                if (isValidStand(level, planned, box, stand)) {
+                // Bells hang 2–4 above the meeting pad; a neighbour at bell height is usually air.
+                BlockPos column = bell.relative(dir);
+                for (int drop = 0; drop <= 8; drop++) {
+                    BlockPos stand = column.below(drop);
+                    if (isValidStand(level, planned, box, stand)) {
+                        candidates.add(stand);
+                    }
+                }
+            }
+        }
+        if (candidates.isEmpty()) {
+            for (Map.Entry<BlockPos, BlockState> entry : planned.entrySet()) {
+                if (!isStableGround(entry.getValue()) || isJigsaw(entry.getValue())) {
+                    continue;
+                }
+                BlockPos stand = entry.getKey().above();
+                if (isValidStand(level, planned, box, stand) && !nextToJigsaw(planned, stand.below())) {
                     candidates.add(stand);
                 }
             }
@@ -144,11 +183,26 @@ public final class VillageTownCenterStationProcessor extends StructureProcessor 
             }
         }
         if (candidates.isEmpty()) {
+            AeronauticsCouriers.LOGGER.debug("[station] Town-center planter found no stand in {}", box);
             return null;
         }
         BlockPos origin = bells.isEmpty() ? candidates.getFirst() : bells.getFirst();
         candidates.sort(Comparator.comparingDouble(p -> p.distSqr(origin)));
         return candidates.getFirst();
+    }
+
+    private static boolean isJigsaw(BlockState state) {
+        return state.is(Blocks.JIGSAW);
+    }
+
+    private static boolean nextToJigsaw(Map<BlockPos, BlockState> planned, BlockPos pos) {
+        for (Direction dir : Direction.Plane.HORIZONTAL) {
+            BlockState neighbor = planned.get(pos.relative(dir));
+            if (neighbor != null && neighbor.is(Blocks.JIGSAW)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static Direction facingTowardBell(List<StructureTemplate.StructureBlockInfo> processed, BlockPos stand) {
@@ -175,7 +229,13 @@ public final class VillageTownCenterStationProcessor extends StructureProcessor 
     private static boolean isValidStand(LevelReader level, Map<BlockPos, BlockState> planned,
             @Nullable BoundingBox box, BlockPos stand) {
         BlockPos above = stand.above();
-        if (box != null && (!box.isInside(stand) || !box.isInside(above))) {
+        if (box != null && !box.isInside(stand)) {
+            return false;
+        }
+        // Same-column upper half stays in the generating chunk; a 3-tall town center clip
+        // must not reject the 1x1x2 stand that sits on its floor.
+        if (box != null && !box.isInside(above)
+                && (stand.getX() != above.getX() || stand.getZ() != above.getZ())) {
             return false;
         }
         BlockState lower = finalState(level, planned, stand);
@@ -198,7 +258,15 @@ public final class VillageTownCenterStationProcessor extends StructureProcessor 
         if (state.isAir() || !state.getFluidState().isEmpty()) {
             return false;
         }
-        return state.isFaceSturdy(EmptyBlockGetter.INSTANCE, BlockPos.ZERO, Direction.UP);
+        if (state.isFaceSturdy(EmptyBlockGetter.INSTANCE, BlockPos.ZERO, Direction.UP)) {
+            return true;
+        }
+        // Dirt path / farmland / snow / mud are village floors but not a full sturdy cube.
+        return state.is(Blocks.DIRT_PATH)
+                || state.is(Blocks.FARMLAND)
+                || state.is(BlockTags.DIRT)
+                || state.is(BlockTags.SAND)
+                || (state.isSolid() && !state.canBeReplaced());
     }
 
     @Override

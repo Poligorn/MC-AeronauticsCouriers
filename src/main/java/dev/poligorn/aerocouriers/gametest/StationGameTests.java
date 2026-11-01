@@ -432,9 +432,9 @@ public final class StationGameTests {
         BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
         for (var piece : start.getPieces()) {
             var pieceBox = piece.getBoundingBox();
-            for (int x = pieceBox.minX(); x <= pieceBox.maxX(); x++) {
-                for (int y = pieceBox.minY(); y <= pieceBox.maxY(); y++) {
-                    for (int z = pieceBox.minZ(); z <= pieceBox.maxZ(); z++) {
+            for (int x = pieceBox.minX() - 2; x <= pieceBox.maxX() + 2; x++) {
+                for (int y = pieceBox.minY() - 1; y <= pieceBox.maxY() + 2; y++) {
+                    for (int z = pieceBox.minZ() - 2; z <= pieceBox.maxZ() + 2; z++) {
                         BlockState state = level.getBlockState(cursor.set(x, y, z));
                         if (state.is(ModBlocks.POST_STATION.get()) && PostStationBlock.isController(state)) {
                             stations.add(cursor.immutable());

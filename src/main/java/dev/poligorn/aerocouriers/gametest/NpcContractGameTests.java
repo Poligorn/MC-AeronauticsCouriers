@@ -16,6 +16,7 @@ import dev.poligorn.aerocouriers.registry.ModBlocks;
 import dev.poligorn.aerocouriers.village.PostStationBlockEntity;
 import dev.poligorn.aerocouriers.village.StationAtlas;
 import dev.poligorn.aerocouriers.village.StationContractSource;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 import net.minecraft.core.BlockPos;
@@ -190,7 +191,7 @@ public final class NpcContractGameTests {
                 .thenSucceed();
     }
 
-    @GameTest(template = CouriersGameTests.EMPTY, batch = "aerocouriers.npc.generate", timeoutTicks = 200)
+    @GameTest(template = CouriersGameTests.EMPTY, batch = "aerocouriers.npc.generate.short", timeoutTicks = 200)
     public static void npcGeneratorPrefersShortTraineePairs(GameTestHelper helper) {
         Fixture f = new Fixture(helper);
         BlockPos far = new BlockPos(2000, 1, 1);
@@ -203,6 +204,20 @@ public final class NpcContractGameTests {
                     StationAtlas.Station near = f.station(B);
                     StationAtlas.Station distant = f.station(far);
                     try {
+                        StationAtlas atlas = StationAtlas.get(f.server());
+                        for (StationAtlas.Station leftover : List.copyOf(atlas.all())) {
+                            if (!leftover.id().equals(from.id())
+                                    && !leftover.id().equals(near.id())
+                                    && !leftover.id().equals(distant.id())) {
+                                atlas.remove(leftover.id());
+                            }
+                        }
+                        for (Contract leftover : List.copyOf(f.manager.all().toList())) {
+                            if (leftover.type() == ContractType.VILLAGE
+                                    && leftover.state() == ContractState.OPEN) {
+                                f.manager.adminCancelWithRefund(f.server(), leftover.id());
+                            }
+                        }
                         CouriersServerConfig.VILLAGE_BOARD_MAX.set(2);
                         int created = StationContractSource.INSTANCE.generate(f.server());
                         helper.assertTrue(created >= 1, "generated at least one NPC order, got " + created);
@@ -224,6 +239,7 @@ public final class NpcContractGameTests {
                     } finally {
                         CouriersServerConfig.VILLAGE_BOARD_MAX.set(previousMax);
                         StationAtlas.get(f.server()).remove(near.id());
+                        StationAtlas.get(f.server()).remove(distant.id());
                         f.cleanup();
                         helper.setBlock(far, Blocks.AIR);
                     }

@@ -5,6 +5,7 @@ import dev.poligorn.aerocouriers.AeronauticsCouriers;
 import dev.poligorn.aerocouriers.config.CouriersServerConfig;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.core.Holder;
@@ -109,16 +110,31 @@ public final class VillageStructures {
         Class<?> type = element.getClass();
         while (type != null && type != Object.class) {
             for (Field field : type.getDeclaredFields()) {
+                // StructurePoolElement.EMPTY is a static Holder<StructureProcessorList>; writing it
+                // throws and used to abort the whole town_centers wrap.
+                if (Modifier.isStatic(field.getModifiers())) {
+                    continue;
+                }
                 field.setAccessible(true);
-                Object value = field.get(element);
+                Object value;
+                try {
+                    value = field.get(element);
+                } catch (IllegalAccessException e) {
+                    continue;
+                }
                 if (value instanceof Holder<?> holder && holder.value() instanceof StructureProcessorList list) {
                     if (list.list().stream().anyMatch(p -> p instanceof VillageTownCenterStationProcessor)) {
                         continue;
                     }
                     List<StructureProcessor> combined = new ArrayList<>(list.list());
                     combined.add(VillageTownCenterStationProcessor.INSTANCE);
-                    field.set(element, Holder.direct(new StructureProcessorList(combined)));
-                    changed = true;
+                    try {
+                        field.set(element, Holder.direct(new StructureProcessorList(combined)));
+                        changed = true;
+                    } catch (IllegalAccessException e) {
+                        AeronauticsCouriers.LOGGER.warn(
+                                "[station] Could not wrap processors on {}", type.getSimpleName());
+                    }
                     continue;
                 }
                 if (value instanceof List<?> children && !children.isEmpty()
