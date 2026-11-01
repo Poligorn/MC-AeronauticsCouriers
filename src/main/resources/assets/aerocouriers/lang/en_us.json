@@ -15,7 +15,7 @@
   "block.aerocouriers.decor_cargo_container_m": "Decorative Container (M)",
   "block.aerocouriers.decor_cargo_container_l": "Decorative Container (L)",
   "block.aerocouriers.decor_cargo_container_xl": "Decorative Container (XL)",
-  "block.aerocouriers.decor_cargo_container.tooltip": "for decoration only: cannot hold cargo",
+  "block.aerocouriers.decor_cargo_container.tooltip": "For decoration only: cannot hold cargo",
   "ui.aerocouriers.station_name.title": "Station name",
   "ui.aerocouriers.station_name.prompt": "What should this station be called?",
   "ui.aerocouriers.station_name.free": "Name is free",

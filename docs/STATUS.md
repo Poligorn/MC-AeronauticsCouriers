@@ -13,8 +13,12 @@
 - Декор-контейнеры S/M/L/XL: без BE и `CargoBlock`, модели E2 без накладной, постановка целиком, в выживании как LOCKED.
 - `mod_version` 0.3.1 → 0.3.2. Протокол `"4"` → `"5"`.
 - **Проверки (01.11.2026).** `./gradlew build -PwithoutJade=true` и `runGameTestServer -PwithoutJade=true` **117/117** (база 107 + 4 `DecorCargoGameTests` + 6 `StationNameGameTests`). Create 6.0.10, Aeronautics 1.3.0 bundled, Sable 2.0.6, Veil 4.5.2, Ponder 1.0.82, Flywheel 1.0.6, без Numismatics и без Jade. Lang en/ru **1125/1125**.
-- **QA (Xvfb 1920×1080, RU, GUI 3, `tabqa`).** Кадры — `/opt/cursor/artifacts/`. PIL, PNG в редакторе не открывались. Пурпур missing-texture **0**. Окно имени: свободно `ADMIN_OK` 14k / занято `ADMIN_ERROR` 9k / пусто hint без ok/err. Декор в мире: XL бордо 43k, L охра 36k, S синий есть. Творческая вкладка: цвета S/M/L/XL на иконках, тёмный тултип XL.
-- **Не проверено в клиенте:** постановка станции живым игроком и пакет S2C (окно открывали file-hook'ом); Enter/клик «Сохранить» до сервера; EN глазами; GUI 2/4; OCR текста (tesseract нет); живое ломание декора в креативе.
+- **QA раунд 2 / отзыв PR #82 (Xvfb 1920×1080, RU, GUI 3, `tabqa`).** Кадры — `/opt/cursor/artifacts/`.
+  - Пустой тултип XL: ключ lang был; `getTooltipLines` отдаёт заголовок + серую строку. `GuiGraphics.renderTooltip` после flush экрана рисует заливку и текст на z=400 (тот же баг, что у доски). QA рисует линии на z=410; синее имя мода NeoForge добавляет в render-event, не в `getTooltipLines` — QA дописывает его само. ✅ `01_creative_tab.png`
+  - Станции не было (7 предметов): `hasPermissions` = `canUseGameMasterBlocks` (креатив + permission ≥ 2); мир с выделенного сервера без читов. QA выдаёт permission 4 и пересобирает вкладки. Порядок: накладная, планшет, лицензия, станция, декор S/M/L/XL. ✅ `01_creative_tab.png` (8 предметов, slot XL=7)
+  - Вкладка NeoForge на странице 2/2; `setCurrentPage` + `selectTab`, иконка накладной выбрана. ✅ `01_tab_row.png`
+  - Диалог имени: панель 288×110 (кнопки сразу под подсказкой, ~1 строка). Было 168 как у Rename деревни. ✅ `02_name_free.png` (золотая рамка 864×330 px = 288×110 GUI)
+- **Не проверено в клиенте:** постановка станции живым игроком и пакет S2C (окно открывали file-hook'ом); Enter/клик «Сохранить» до сервера; живой hover тултипа без QA-hook (ванильный `renderTooltip` внутри `Screen.render` должен работать); EN глазами; GUI 2/4; OCR текста (tesseract нет); живое ломание декора в креативе.
 
 ### Релиз 0.3.1 (01.11.2026)
 - `mod_version`: `0.3.0` → `0.3.1`. Протокол сети не менялся (`PROTOCOL_VERSION` `"4"`).

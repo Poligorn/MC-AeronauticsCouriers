@@ -15,7 +15,7 @@
   "block.aerocouriers.decor_cargo_container_m": "Декоративный контейнер (M)",
   "block.aerocouriers.decor_cargo_container_l": "Декоративный контейнер (L)",
   "block.aerocouriers.decor_cargo_container_xl": "Декоративный контейнер (XL)",
-  "block.aerocouriers.decor_cargo_container.tooltip": "только для украшения: не вмещает груз",
+  "block.aerocouriers.decor_cargo_container.tooltip": "Только для украшения: не вмещает груз",
   "ui.aerocouriers.station_name.title": "Название станции",
   "ui.aerocouriers.station_name.prompt": "Как назвать станцию?",
   "ui.aerocouriers.station_name.free": "Имя свободно",

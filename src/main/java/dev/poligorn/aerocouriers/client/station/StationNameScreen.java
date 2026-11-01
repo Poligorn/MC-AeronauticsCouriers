@@ -17,7 +17,8 @@ import org.jetbrains.annotations.Nullable;
  */
 public final class StationNameScreen extends Screen {
     private static final int W = 288;
-    private static final int H = 168;
+    /** Compact like mockup 02: buttons sit one line under the hint. */
+    private static final int H = 110;
 
     private final OpenStationNamePayload payload;
     private int x;
@@ -112,12 +113,12 @@ public final class StationNameScreen extends Screen {
             status = Component.translatable("ui.aerocouriers.station_name.free");
             statusColor = CorkPalette.ADMIN_OK;
         }
-        CorkBoardGui.text(graphics, font, status, x + 12, y + 58, statusColor);
+        CorkBoardGui.text(graphics, font, status, x + 12, y + 54, statusColor);
         CorkBoardGui.text(graphics, font, Component.translatable("ui.aerocouriers.station_name.hint"),
-                x + 12, y + 72, CorkPalette.ADMIN_HINT);
+                x + 12, y + 66, CorkPalette.ADMIN_HINT);
 
         int bw = (W - 36) / 2;
-        int by = y + H - 26;
+        int by = y + H - 24;
         CorkBoardGui.button(graphics, font, x + 12, by, bw, 16,
                 Component.translatable("ui.aerocouriers.station_name.cancel"),
                 overCancel(mouseX, mouseY), true, CorkBoardGui.ButtonStyle.NORMAL);
@@ -173,13 +174,13 @@ public final class StationNameScreen extends Screen {
 
     private boolean overCancel(double mouseX, double mouseY) {
         int bw = (W - 36) / 2;
-        int by = y + H - 26;
+        int by = y + H - 24;
         return mouseX >= x + 12 && mouseX < x + 12 + bw && mouseY >= by && mouseY < by + 16;
     }
 
     private boolean overOk(double mouseX, double mouseY) {
         int bw = (W - 36) / 2;
-        int by = y + H - 26;
+        int by = y + H - 24;
         return mouseX >= x + W - 12 - bw && mouseX < x + W - 12 && mouseY >= by && mouseY < by + 16;
     }
 }
