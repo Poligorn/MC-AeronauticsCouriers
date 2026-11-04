@@ -1,6 +1,7 @@
 package dev.poligorn.aerocouriers.client.station;
 
 import com.mojang.blaze3d.systems.RenderSystem;
+import dev.poligorn.aerocouriers.client.MoneyText;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
@@ -47,19 +48,37 @@ public final class CorkBoardGui {
 
     /** layout.json y is the 8 px glyph-cell top; vanilla {@code drawString} uses the same origin. */
     public static void text(GuiGraphics g, Font font, String s, int x, int y, int color) {
+        if (MoneyText.iconUnits() && MoneyText.containsUnit(s)) {
+            MoneyText.draw(g, font, s, x, y, color, MoneyText.Face.DEFAULT);
+            return;
+        }
         g.drawString(font, s, x, y, color, false);
     }
 
     public static void text(GuiGraphics g, Font font, Component s, int x, int y, int color) {
+        String plain = s.getString();
+        if (MoneyText.iconUnits() && MoneyText.containsUnit(plain)) {
+            MoneyText.draw(g, font, plain, x, y, color, MoneyText.Face.DEFAULT);
+            return;
+        }
         g.drawString(font, s, x, y, color, false);
     }
 
     public static void bold(GuiGraphics g, Font font, String s, int x, int y, int color) {
+        if (MoneyText.iconUnits() && MoneyText.containsUnit(s)) {
+            MoneyText.draw(g, font, s, x, y, color, MoneyText.Face.BOLD);
+            return;
+        }
         g.drawString(font, s, x, y, color, false);
         g.drawString(font, s, x + 1, y, color, false);
     }
 
     public static void bold(GuiGraphics g, Font font, Component s, int x, int y, int color) {
+        String plain = s.getString();
+        if (MoneyText.iconUnits() && MoneyText.containsUnit(plain)) {
+            MoneyText.draw(g, font, plain, x, y, color, MoneyText.Face.BOLD);
+            return;
+        }
         g.drawString(font, s, x, y, color, false);
         g.drawString(font, s, x + 1, y, color, false);
     }

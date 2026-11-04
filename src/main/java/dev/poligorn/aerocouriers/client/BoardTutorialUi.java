@@ -214,15 +214,22 @@ final class BoardTutorialUi {
         void draw(GuiGraphics graphics, Font font, int x, int y, int width);
 
         static Line text(Font font, Component text, int width, int color, int gap) {
-            List<FormattedCharSequence> split = font.split(text, width);
+            String plain = text.getString();
+            boolean icons = MoneyText.iconUnits() && MoneyText.containsUnit(plain);
+            List<FormattedCharSequence> split = icons ? List.of() : font.split(text, width);
+            int rows = icons ? MoneyText.lineCount(font, text, width) : split.size();
             return new Line() {
                 @Override
                 public int height() {
-                    return split.size() * LINE + gap;
+                    return rows * LINE + gap;
                 }
 
                 @Override
                 public void draw(GuiGraphics graphics, Font f, int x, int y, int w) {
+                    if (icons) {
+                        MoneyText.drawWrapped(graphics, f, text, x, y, width, color, LINE);
+                        return;
+                    }
                     int yy = y;
                     for (FormattedCharSequence seq : split) {
                         graphics.drawString(f, seq, x, yy, color, false);

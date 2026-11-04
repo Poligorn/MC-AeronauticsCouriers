@@ -224,12 +224,18 @@ public final class ClientToasts {
             title = title.copy().append(" ×" + e.count);
         }
         graphics.drawString(font, title, x + 30, y + 4, accent, false);
-        List<FormattedCharSequence> lines = font.split(e.text, WIDTH - 34);
-        if (!lines.isEmpty()) {
-            FormattedCharSequence line = lines.getFirst();
-            graphics.drawString(font, line, x + 30, y + 15, 0xFFE6E8EA, false);
-            if (lines.size() > 1) {
-                graphics.drawString(font, "…", x + WIDTH - 8, y + 15, 0xFFE6E8EA, false);
+        int bodyW = WIDTH - 34;
+        String plain = e.plain;
+        if (MoneyText.iconUnits() && MoneyText.containsUnit(plain)) {
+            String shown = MoneyText.trunc(font, plain, bodyW);
+            MoneyText.draw(graphics, font, shown, x + 30, y + 15, 0xFFE6E8EA, MoneyText.Face.DEFAULT);
+        } else {
+            List<FormattedCharSequence> lines = font.split(e.text, bodyW);
+            if (!lines.isEmpty()) {
+                graphics.drawString(font, lines.getFirst(), x + 30, y + 15, 0xFFE6E8EA, false);
+                if (lines.size() > 1) {
+                    graphics.drawString(font, "…", x + WIDTH - 8, y + 15, 0xFFE6E8EA, false);
+                }
             }
         }
         int barW = Math.round((WIDTH - 3) * timeLeft);
