@@ -464,7 +464,7 @@ public final class WaybillCreateScreen extends Screen {
         WaybillCreateGui.text(g, font, customerLine, x0, layout.headerSubY + yOff, WaybillPalette.INK2);
         long pay = chargeNow();
         String bal = MoneyFormat.text(preview.balance());
-        int balW = MoneyText.width(font, bal) + 1;
+        int balW = MoneyText.width(font, bal) + MoneyText.boldExtra(bal);
         int bx = x1 - balW;
         WaybillCreateGui.spur(g, bx - 11, layout.headerY + yOff);
         WaybillCreateGui.bold(g, font, bal, bx, layout.headerY + yOff, WaybillPalette.GOLD);

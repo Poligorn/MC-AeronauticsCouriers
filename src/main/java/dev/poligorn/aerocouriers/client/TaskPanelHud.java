@@ -187,6 +187,12 @@ public final class TaskPanelHud {
     }
 
     private static void drawClipped(GuiGraphics graphics, Font font, Component text, int x, int y, int width, int color) {
+        String plain = text.getString();
+        if (MoneyText.iconUnits() && MoneyText.containsUnit(plain)) {
+            MoneyText.draw(graphics, font, MoneyText.trunc(font, plain, Math.max(10, width)), x, y, color,
+                    MoneyText.Face.DEFAULT);
+            return;
+        }
         List<FormattedCharSequence> lines = font.split(text, Math.max(10, width));
         if (lines.isEmpty()) {
             return;

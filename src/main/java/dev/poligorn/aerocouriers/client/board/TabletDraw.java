@@ -31,7 +31,7 @@ public final class TabletDraw {
     }
 
     public static int boldWidth(Font font, String s) {
-        return MoneyText.width(font, s) + 1;
+        return MoneyText.width(font, s) + MoneyText.boldExtra(s);
     }
 
     /** Right-aligned text ending at {@code right}; returns its left x. */

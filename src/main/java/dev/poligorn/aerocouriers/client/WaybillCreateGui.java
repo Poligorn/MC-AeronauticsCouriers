@@ -82,7 +82,7 @@ public final class WaybillCreateGui {
     }
 
     public static int textRight(GuiGraphics g, Font font, String s, int right, int y, int color, boolean bold) {
-        int w = MoneyText.width(font, s) + (bold ? 1 : 0);
+        int w = MoneyText.width(font, s) + (bold ? MoneyText.boldExtra(s) : 0);
         int x = right - w;
         if (bold) {
             bold(g, font, s, x, y, color);
@@ -296,7 +296,7 @@ public final class WaybillCreateGui {
         hline(g, x + 1, x + w - 2, y + 1, hi);
         int iconW = icon == null ? 0 : PixelGlyphs.width(icon) + 4;
         String shown = MoneyText.trunc(font, label, Math.max(8, w - 8 - iconW));
-        int lw = MoneyText.width(font, shown) + (bold ? 1 : 0);
+        int lw = MoneyText.width(font, shown) + (bold ? MoneyText.boldExtra(shown) : 0);
         int textX = x + (w - lw - iconW) / 2;
         int textY = y + (h - 8) / 2;
         if (icon != null) {
@@ -359,7 +359,6 @@ public final class WaybillCreateGui {
 
     public static void spur(GuiGraphics g, int x, int y) {
         if (!SpurCoinGraphics.useNumismaticsItems()) {
-            SpurCoinGraphics.drawGenericCoin(g, x, y, 8);
             return;
         }
         if (GuiOverride.blit(g, GuiOverride.WAYBILL_SPUR, x, y, 8, 7)) {

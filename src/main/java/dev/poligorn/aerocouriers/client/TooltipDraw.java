@@ -88,7 +88,9 @@ public final class TooltipDraw {
         for (Component line : text) {
             String s = line.getString();
             lines.add(s);
-            textW = Math.max(textW, font.width(s));
+            textW = Math.max(textW, MoneyText.iconUnits() && MoneyText.containsUnit(s)
+                    ? MoneyText.width(font, s)
+                    : font.width(s));
         }
         int w = textW + PAD_X * 2;
         int h = PAD_Y * 2 + lines.size() * LINE - 1;
@@ -116,7 +118,11 @@ public final class TooltipDraw {
         RenderSystem.disableDepthTest();
         int ty = y + PAD_Y;
         for (String line : lines) {
-            graphics.drawString(font, line, x + PAD_X, ty, TabletPalette.TXT, false);
+            if (MoneyText.iconUnits() && MoneyText.containsUnit(line)) {
+                MoneyText.draw(graphics, font, line, x + PAD_X, ty, TabletPalette.TXT, MoneyText.Face.DEFAULT);
+            } else {
+                graphics.drawString(font, line, x + PAD_X, ty, TabletPalette.TXT, false);
+            }
             ty += LINE;
         }
         graphics.flush();

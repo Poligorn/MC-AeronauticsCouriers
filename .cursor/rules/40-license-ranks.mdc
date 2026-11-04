@@ -30,7 +30,7 @@ XP (§4.1): `XP = (10 + D/200 + W/50) × M_срок × M_повтор`; `M_ср�
 ## Погоны (перенос из pilotwings, MIT, тот же автор)
 - `client/EpauletteRenderer` (`ICurioRenderer`), регистрация `CuriosRendererRegistry.register(item, supplier)` в `FMLClientSetupEvent`.
 - Две пластины 4×4 px (3 px для slim) над плечами, привязка к `rightArm`/`leftArm`, видны сверху и снизу; два прохода: `entityCutoutNoCull(epaulette_<rank>)` и `RenderType.eyes(epaulette_<rank>_glow)` с подъёмом 0.001. Пластина сидит на `y = -(2.25+0.25)/16` — на 0.25 px выше оверлея рукава (`CubeDeformation.extend(0.25)`), иначе z-fighting со вторым слоем скина. Скрытую руку (`visible`/`skipDraw`) не рисуем.
-- Текстура — по компоненту `license_rank`: `textures/entity/epaulette_<rank>.png` + `_glow`. Соответствие старых: cadet→rank1, second→rank2, first→rank3, captain→rank4, admin→admin; **rank5 — заглушка** (копия rank4), нужна новая текстура.
+- Текстура — по компоненту `license_rank`: `textures/entity/epaulette_<rank>.png` + `_glow`. Соответствие старых: cadet→rank1, second→rank2, first→rank3, captain→rank4, admin→admin. **rank5 (Ас):** три золотые шеврона со сдвигом к краю + синяя точка 3×4 (`#5B6EE1` / RGB 91,110,225) на базе и glow.
 
 ## Миграция с KubeJS
 - При входе игрока `kubejs:pilot_license_<cadet|second|first|captain|admin>` в слоте Curios `license` заменяется на `aerocouriers:pilot_license` с владельцем = игрок и рангом; стартовый XP по рангу из конфига (`migration_xp`), если текущий XP меньше.

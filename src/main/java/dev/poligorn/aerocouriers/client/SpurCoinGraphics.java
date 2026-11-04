@@ -37,7 +37,7 @@ public final class SpurCoinGraphics {
     }
 
     /** Vanilla emerald item, scaled to {@code size} pixels. No custom currency texture. */
-    private static void drawEmerald(GuiGraphics graphics, int x, int y, int size) {
+    public static void drawEmerald(GuiGraphics graphics, int x, int y, int size) {
         float scale = size / 16.0F;
         graphics.pose().pushPose();
         graphics.pose().translate(x, y, 0.0F);

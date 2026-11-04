@@ -1,6 +1,7 @@
 package dev.poligorn.aerocouriers.client.station;
 
 import com.mojang.blaze3d.systems.RenderSystem;
+import dev.poligorn.aerocouriers.client.MoneyText;
 import dev.poligorn.aerocouriers.client.board.BoardCardRenderer;
 import dev.poligorn.aerocouriers.economy.MoneyFormat;
 import dev.poligorn.aerocouriers.net.BoardSnapshotPayload;
@@ -86,7 +87,10 @@ public final class CorkNoteTooltip {
     public static int[] size(Font font, List<Component> lines) {
         int textW = 0;
         for (Component line : lines) {
-            textW = Math.max(textW, font.width(line.getString()));
+            String plain = line.getString();
+            textW = Math.max(textW, MoneyText.iconUnits() && MoneyText.containsUnit(plain)
+                    ? MoneyText.width(font, plain)
+                    : font.width(plain));
         }
         return new int[] {Math.max(24, textW + PAD_X * 2), Math.max(LINE + PAD_Y * 2, lines.size() * LINE + PAD_Y * 2)};
     }
@@ -155,7 +159,12 @@ public final class CorkNoteTooltip {
         int last = lines.size() - 1;
         for (int i = 0; i < lines.size(); i++) {
             int color = i == last ? CorkPalette.HEADER_MUTED : CorkPalette.HEADER_TEXT;
-            graphics.drawString(font, lines.get(i).getString(), x + PAD_X, ty, color, false);
+            String plain = lines.get(i).getString();
+            if (MoneyText.iconUnits() && MoneyText.containsUnit(plain)) {
+                MoneyText.draw(graphics, font, plain, x + PAD_X, ty, color, MoneyText.Face.DEFAULT);
+            } else {
+                graphics.drawString(font, plain, x + PAD_X, ty, color, false);
+            }
             ty += LINE;
         }
         graphics.flush();

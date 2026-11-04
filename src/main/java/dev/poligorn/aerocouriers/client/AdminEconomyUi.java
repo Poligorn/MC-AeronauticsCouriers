@@ -331,7 +331,12 @@ final class AdminEconomyUi {
 
     private static void line(GuiGraphics g, Font font, Component text, int x, int y, int color, int top, int bottom) {
         if (y >= top && y + 9 <= bottom) {
-            g.drawString(font, text, x, y, color, false);
+            String plain = text.getString();
+            if (MoneyText.iconUnits() && MoneyText.containsUnit(plain)) {
+                MoneyText.draw(g, font, plain, x, y, color, MoneyText.Face.DEFAULT);
+            } else {
+                g.drawString(font, text, x, y, color, false);
+            }
         }
     }
 

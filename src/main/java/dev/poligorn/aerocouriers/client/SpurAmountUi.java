@@ -24,7 +24,10 @@ public final class SpurAmountUi {
     }
 
     public static int width(Font font, long amount, boolean lockPrefix) {
-        int w = ICON + ICON_TEXT_GAP + MoneyText.width(font, dev.poligorn.aerocouriers.economy.MoneyFormat.text(amount));
+        int w = MoneyText.width(font, dev.poligorn.aerocouriers.economy.MoneyFormat.text(amount));
+        if (!MoneyText.iconUnits()) {
+            w += ICON + ICON_TEXT_GAP;
+        }
         if (lockPrefix) {
             w += ICON + ICON_TEXT_GAP;
         }
@@ -45,18 +48,21 @@ public final class SpurAmountUi {
             graphics.blitSprite(AerocouriersGuiSprites.ICON_LOCK, cx, y, ICON, ICON);
             cx += ICON + ICON_TEXT_GAP;
         }
-        SpurCoinGraphics.drawGenericCoin(graphics, cx, y, ICON);
-        int textX = cx + ICON + ICON_TEXT_GAP;
-        int textY = y + Math.max(0, ICON - 8);
+        if (!MoneyText.iconUnits()) {
+            SpurCoinGraphics.drawGenericCoin(graphics, cx, y, ICON);
+            cx += ICON + ICON_TEXT_GAP;
+        }
+        int textY = y + Math.max(0, (lockPrefix || !MoneyText.iconUnits() ? ICON : TAB_FONT_H) - 8);
         String value = dev.poligorn.aerocouriers.economy.MoneyFormat.text(amount);
-        MoneyText.draw(graphics, font, value, textX, textY, textColor, MoneyText.Face.DEFAULT);
-        int w = textX + MoneyText.width(font, value) - x;
+        MoneyText.draw(graphics, font, value, cx, textY, textColor, MoneyText.Face.DEFAULT);
+        int w = cx + MoneyText.width(font, value) - x;
         return new Bounds(x, y, w, Math.max(ICON, 9));
     }
 
     /**
-     * Header balance: the coin and the amount share the vertical centre of the tab row,
-     * the same centre as the tab labels. Width includes currency-word tracking.
+     * Header balance: amount and currency share the vertical centre of the tab row,
+     * the same centre as the tab labels. Width includes the emerald icon or spur-word tracking.
+     * Without Numismatics the emerald sits after the number; with Numismatics the coin stays on the left.
      */
     public static Bounds drawCenteredInRow(
             GuiGraphics graphics,
@@ -67,21 +73,26 @@ public final class SpurAmountUi {
             int rowH,
             int textColor
     ) {
-        int iconY = rowY + Math.max(0, (rowH - ICON) / 2);
         int textY = rowY + Math.max(0, (rowH - TAB_FONT_H) / 2);
-        SpurCoinGraphics.drawGenericCoin(graphics, x, iconY, ICON);
-        int textX = x + ICON + ICON_TEXT_GAP;
         String value = dev.poligorn.aerocouriers.economy.MoneyFormat.text(amount);
+        int textX = x;
+        int iconY = rowY + Math.max(0, (rowH - ICON) / 2);
+        if (!MoneyText.iconUnits()) {
+            SpurCoinGraphics.drawGenericCoin(graphics, x, iconY, ICON);
+            textX = x + ICON + ICON_TEXT_GAP;
+        }
         MoneyText.draw(graphics, font, value, textX, textY, textColor, MoneyText.Face.DEFAULT);
         int w = textX + MoneyText.width(font, value) - x;
-        int top = Math.min(iconY, textY);
-        int bottom = Math.max(iconY + ICON, textY + TAB_FONT_H);
+        int top = MoneyText.iconUnits() ? textY : Math.min(iconY, textY);
+        int bottom = MoneyText.iconUnits()
+                ? textY + TAB_FONT_H
+                : Math.max(iconY + ICON, textY + TAB_FONT_H);
         return new Bounds(x, top, w, bottom - top);
     }
 
     /**
-     * Label and amount on one text line. The coin is 8px and shares the label baseline;
-     * a 16px row icon sat below the label and covered the next stat.
+     * Label and amount on one text line. Without Numismatics the emerald is 8px after the number.
+     * With Numismatics the coin is 8px before the amount, sharing the label baseline.
      */
     public static Bounds drawLabeled(
             GuiGraphics graphics,
@@ -97,12 +108,17 @@ public final class SpurAmountUi {
         graphics.drawString(font, label, x, y, labelColor, false);
         int labelW = font.width(label);
         int amountX = x + labelW;
-        int iconY = y + Math.max(0, (TAB_FONT_H - INLINE_ICON) / 2);
         String raw = dev.poligorn.aerocouriers.economy.MoneyFormat.text(amount);
-        int textMax = Math.max(4, maxWidth - labelW - INLINE_ICON - INLINE_GAP);
+        boolean icons = MoneyText.iconUnits();
+        int reserved = icons ? 0 : INLINE_ICON + INLINE_GAP;
+        int textMax = Math.max(4, maxWidth - labelW - reserved);
         String shown = MoneyText.width(font, raw) > textMax ? MoneyText.trunc(font, raw, textMax) : raw;
-        SpurCoinGraphics.drawGenericCoin(graphics, amountX, iconY, INLINE_ICON);
-        int textX = amountX + INLINE_ICON + INLINE_GAP;
+        int textX = amountX;
+        int iconY = y + Math.max(0, (TAB_FONT_H - INLINE_ICON) / 2);
+        if (!icons) {
+            SpurCoinGraphics.drawGenericCoin(graphics, amountX, iconY, INLINE_ICON);
+            textX = amountX + INLINE_ICON + INLINE_GAP;
+        }
         MoneyText.draw(graphics, font, shown, textX, y, amountColor, MoneyText.Face.DEFAULT);
         int width = textX + MoneyText.width(font, shown) - x;
         int height = Math.max(TAB_FONT_H, iconY + INLINE_ICON - y);
