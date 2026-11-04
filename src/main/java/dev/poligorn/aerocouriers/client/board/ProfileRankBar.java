@@ -51,8 +51,7 @@ public final class ProfileRankBar {
             int span,
             float rankUpFlash
     ) {
-        Component xpText = Component.translatable(
-                "ui.aerocouriers.profile.xp_fraction", xpInRank, span);
+        Component xpText = xpFractionText(xpInRank, span);
         int textW = font.width(xpText);
         int lineH = Math.max(BAR_HEIGHT, font.lineHeight);
         int available = maxWidth - textW - TEXT_GAP;
@@ -68,6 +67,20 @@ public final class ProfileRankBar {
         int textY = y + BAR_HEIGHT + 2;
         graphics.drawString(font, xpText, x, textY, TabletGui.TEXT, false);
         return new Layout(x, y, maxWidth, BAR_HEIGHT, x, textY, textY + font.lineHeight - y);
+    }
+
+    /** Height of {@link #draw} for this width — text beside the bar, or wrapped under it. */
+    public static int blockHeight(Font font, int maxWidth, int xpInRank, int span) {
+        int textW = font.width(xpFractionText(xpInRank, span));
+        int available = maxWidth - textW - TEXT_GAP;
+        if (available >= MIN_BAR_WIDTH) {
+            return Math.max(BAR_HEIGHT, font.lineHeight);
+        }
+        return BAR_HEIGHT + 2 + font.lineHeight;
+    }
+
+    private static Component xpFractionText(int xpInRank, int span) {
+        return Component.translatable("ui.aerocouriers.profile.xp_fraction", xpInRank, span);
     }
 
     private static void drawBar(GuiGraphics graphics, int x, int y, int w, float fraction, float rankUpFlash) {
