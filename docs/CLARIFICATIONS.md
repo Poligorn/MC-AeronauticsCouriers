@@ -30,7 +30,7 @@
 ## Погоны (рендер лицензии)
 - Погоны — перенос из клиентского мода автора SkyPact Pilot Wings (`pilotwings`, исходники в `pilotwings_src.zip`, MIT, автор тот же).
 - Сейчас он вешает `ICurioRenderer` на пять предметов KubeJS `kubejs:pilot_license_cadet/second/first/captain/admin`, ранг берётся из ID; две плоские пластины над плечами + glow-слой (`RenderType.eyes`).
-- В новом моде: один предмет `aerocouriers:pilot_license`, ранг — Data Component `aerocouriers:license_rank` на предмете (сервер обновляет при повышении), рендер выбирает текстуру по компоненту. Текстуры: cadet → I, second → II, first → III, captain → IV, новая для V (Ас, пока заглушка), admin — отдельная (выдаёт оператор).
+- В новом моде: один предмет `aerocouriers:pilot_license`, ранг — Data Component `aerocouriers:license_rank` на предмете (сервер обновляет при повышении), рендер выбирает текстуру по компоненту. Текстуры: cadet → I, second → II, first → III, captain → IV, V Ас — три золотые шеврона со сдвигом к краю + синяя точка 3×4 (`#5B6EE1` / RGB 91,110,225) на базе и glow (04.11.2026), admin — отдельная (выдаёт оператор).
 - Миграция: старая `kubejs:pilot_license_*` в слоте Curios при входе заменяется новой лицензией с владельцем и стартовым XP по рангу (таблица в конфиге).
 - **30.10.2026, моргание на части скинов.** Пластина сидела в плоскости оверлея рукава (`y = -2.25/16` = верх `CubeDeformation.extend(0.25)`). На скинах с непрозрачным вторым слоем (jacket/sleeve) это z-fighting. Пластина сдвинута на 0.25 px выше оверлея (`y = -2.50/16`); glow по-прежнему +0.001; формат текстур не менялся. Скрытую часть руки (`ModelPart.visible` / `skipDraw`) не рисуем. Ширина slim/wide (3/4 px) не менялась.
 
