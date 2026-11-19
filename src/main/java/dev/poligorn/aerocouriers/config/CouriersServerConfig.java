@@ -50,6 +50,7 @@ public final class CouriersServerConfig {
     public static final ModConfigSpec.IntValue STATION_REGISTER_RADIUS;
     public static final ModConfigSpec.IntValue STATION_VILLAGE_DEDUP_RADIUS;
     public static final ModConfigSpec.BooleanValue STATIONS_IN_VILLAGES;
+    public static final ModConfigSpec.BooleanValue STATIONS_SHARED_DISCOVERY;
     public static final ModConfigSpec.ConfigValue<List<? extends Integer>> REPUTATION_TIER_THRESHOLDS;
     public static final ModConfigSpec.ConfigValue<List<? extends Integer>> REPUTATION_TIER_BONUS_PERCENT;
     public static final ModConfigSpec.DoubleValue VILLAGE_RARE_ROLL_CHANCE;
@@ -223,6 +224,11 @@ public final class CouriersServerConfig {
                         "Guarantee one post station in every newly generated village (town-center stand).",
                         "Already generated villages are left as they are.")
                 .define("generate_in_villages", true);
+        STATIONS_SHARED_DISCOVERY = b.comment(
+                        "Treat every player as having discovered every post station for the board: all NPC orders,",
+                        "the station list in the tablet / waybill picker and /couriers station list.",
+                        "Discovery itself (atlas, reputation, the discovery message) still works as usual.")
+                .define("shared_discovery", false);
         REPUTATION_TIER_THRESHOLDS = b.comment("Reputation at each tier (GDD §6.4); pairs with reputation_tier_bonus_percent")
                 .defineList("reputation_tier_thresholds", List.of(10, 25, 50), () -> 0,
                         o -> o instanceof Integer i && i > 0);

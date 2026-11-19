@@ -108,7 +108,7 @@ public final class BoardPackets {
         Escrow escrow = Escrow.get(server);
         long now = ContractManager.now(server);
         UUID self = player.getUUID();
-        boolean allStations = player.hasPermissions(OP);
+        boolean allStations = seesAllStations(player);
 
         List<BoardSnapshotPayload.BoardEntry> open = manager.open()
                 .filter(c -> visibleOnBoard(c, self, atlas, allStations))
@@ -302,7 +302,7 @@ public final class BoardPackets {
         List<ItemStack> cargo = PayloadLimits.cap(allCargo, BoardSnapshotPayload.CARGO_STACK_LIMIT);
         double weight = Weights.of(allCargo);
         StationAtlas atlas = StationAtlas.get(player.server);
-        boolean allStations = player.hasPermissions(OP);
+        boolean allStations = seesAllStations(player);
         List<BoardSnapshotPayload.StationHint> stations = atlas.all().stream()
                 .filter(s -> allStations || s.discoveredBy(player.getUUID()))
                 .sorted(Comparator.comparing(StationAtlas.Station::name))
@@ -457,20 +457,39 @@ public final class BoardPackets {
         open(player, 0, false, Optional.empty());
     }
 
-    /** NPC orders only appear between stations this player has discovered (GDD §6.1). */
-    private static boolean visibleOnBoard(Contract contract, UUID viewer, StationAtlas atlas, boolean allStations) {
+    /** Operators, or everyone with {@code stations.shared_discovery}, see every station and NPC order. */
+    public static boolean seesAllStations(ServerPlayer player) {
+        return player.hasPermissions(OP) || StationAtlas.sharedDiscovery();
+    }
+
+    /**
+     * NPC orders only appear between stations this player has discovered (GDD §6.1), unless
+     * {@code allStations} (operator or {@code stations.shared_discovery}).
+     */
+    public static boolean visibleOnBoard(Contract contract, UUID viewer, StationAtlas atlas, boolean allStations) {
         if (contract.type().isTutorial()) {
             return contract.recipient().equals(viewer);
         }
         if (!contract.type().isNpc() || allStations) {
             return true;
         }
-        return atlas.byPos(contract.origin().dimension(), contract.origin().pos())
+        return routeStation(atlas, contract.issuer(), contract.origin())
                 .map(s -> s.discoveredBy(viewer))
                 .orElse(false)
-                && atlas.byPos(contract.destination().dimension(), contract.destination().pos())
+                && routeStation(atlas, contract.recipient(), contract.destination())
                 .map(s -> s.discoveredBy(viewer))
                 .orElse(false);
+    }
+
+    /**
+     * Village contracts carry the origin station id as {@code issuer} and the destination station id as
+     * {@code recipient}. Match by id, so a station whose atlas position changed after publishing (its block
+     * entity re-registered elsewhere) still counts, and two atlas entries at the same coordinates cannot be
+     * confused. Falls back to coordinates only when the id is gone (station re-placed with a new id).
+     */
+    private static Optional<StationAtlas.Station> routeStation(StationAtlas atlas, UUID stationId, Destination point) {
+        Optional<StationAtlas.Station> byId = atlas.byId(stationId);
+        return byId.isPresent() ? byId : atlas.byPos(point.dimension(), point.pos());
     }
 
     public static BoardSnapshotPayload.BoardEntry boardEntry(ServerPlayer viewer, Contract contract) {

@@ -57,6 +57,7 @@
 | `stations` | `register_radius` | 32 | 4…256 |
 | `stations` | `village_dedup_radius` | 96 | 16…256 |
 | `stations` | `generate_in_villages` | true | true / false, только для новых деревень |
+| `stations` | `shared_discovery` | false | true = доска считает, что каждый игрок открыл все станции: видны все NPC-заказы и все станции (планшет, выбор станции в накладной, `/couriers station list`). Само открытие станций, атлас и репутация работают как раньше. Меняется и в админ-панели планшета |
 | `stations` | `reputation_tier_thresholds` | 10, 25, 50 | положительные целые |
 | `stations` | `reputation_tier_bonus_percent` | 10, 20, 30 | неотрицательные целые, тот же порядок, что пороги |
 | `stations` | `village_rare_roll_chance` | 0.35 | 0…1, 0 = выкл |

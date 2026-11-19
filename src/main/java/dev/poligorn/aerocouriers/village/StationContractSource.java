@@ -30,6 +30,11 @@ import net.neoforged.neoforge.event.tick.ServerTickEvent;
 /**
  * NPC contracts between any two post stations in the atlas (GDD §6.2). Village-generated and admin-placed
  * stations are the same source — Ikaria has almost no villages, so admin stations must work.
+ *
+ * <p>Publishing never touches blocks: the manifest goes to escrow and the container spawns only when a courier
+ * accepts and comes close (§9.1). Biomes of unloaded stations come from the generator's biome source
+ * ({@code LevelReader#getNoiseBiome} does not load chunks), so stations whose chunk is not loaded still get
+ * orders. Earlier versions skipped such pairs silently, which left remote stations with an empty board.
  */
 public final class StationContractSource implements ContractSource {
     public static final StationContractSource INSTANCE = new StationContractSource();
@@ -134,9 +139,6 @@ public final class StationContractSource implements ContractSource {
             if (created >= room) {
                 break;
             }
-            if (!level.isLoaded(pair[0].pos())) {
-                continue;
-            }
             Optional<CargoSize> force = Optional.empty();
             if (!hasSmall && created == room - 1 && pair[0].policy().allowsSize(CargoSize.S)) {
                 force = Optional.of(CargoSize.S);
@@ -195,7 +197,7 @@ public final class StationContractSource implements ContractSource {
                 break;
             }
             ServerLevel originLevel = server.getLevel(pair[0].dimension());
-            if (originLevel == null || !originLevel.isLoaded(pair[0].pos())) {
+            if (originLevel == null) {
                 continue;
             }
             Optional<CargoSize> force = Optional.empty();
@@ -283,9 +285,6 @@ public final class StationContractSource implements ContractSource {
                 continue;
             }
             if (hasOpenPair(manager, from, to)) {
-                continue;
-            }
-            if (!level.isLoaded(from.pos())) {
                 continue;
             }
             Optional<CargoSize> force = Optional.empty();
@@ -394,7 +393,7 @@ public final class StationContractSource implements ContractSource {
                 continue;
             }
             ServerLevel level = server.getLevel(from.dimension());
-            if (level == null || !level.isLoaded(from.pos())) {
+            if (level == null) {
                 continue;
             }
             for (StationAtlas.Station to : stations) {

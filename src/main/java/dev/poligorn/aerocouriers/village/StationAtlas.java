@@ -106,6 +106,14 @@ public final class StationAtlas extends SavedData {
         return Optional.ofNullable(stations.get(id));
     }
 
+    /**
+     * {@code stations.shared_discovery}: the board treats every player as having discovered every station.
+     * Only visibility uses this; {@link #discover} and reputation are unaffected.
+     */
+    public static boolean sharedDiscovery() {
+        return CouriersServerConfig.SPEC.isLoaded() && CouriersServerConfig.STATIONS_SHARED_DISCOVERY.get();
+    }
+
     public Optional<Station> byPos(ResourceKey<Level> dimension, BlockPos pos) {
         return stations.values().stream()
                 .filter(s -> s.dimension().equals(dimension) && s.pos().equals(pos))

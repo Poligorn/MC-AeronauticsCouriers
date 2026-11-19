@@ -48,10 +48,13 @@ final class StationCommands {
                                         .executes(StationCommands::rename))));
     }
 
-    /** Players see the stations they discovered; operators and the console see all of them. */
+    /**
+     * Players see the stations they discovered (all of them with {@code stations.shared_discovery});
+     * operators and the console see all of them.
+     */
     private static int list(CommandSourceStack source) {
         ServerPlayer player = source.getPlayer();
-        boolean all = player == null || source.hasPermission(OP);
+        boolean all = player == null || source.hasPermission(OP) || StationAtlas.sharedDiscovery();
         List<StationAtlas.Station> shown = StationAtlas.get(source.getServer()).all().stream()
                 .filter(s -> all || s.discoveredBy(player.getUUID()))
                 .toList();
