@@ -25,6 +25,7 @@ public final class CouriersConfigEditor {
         add(out, "progression.trainee_free_contracts", CouriersServerConfig.TRAINEE_FREE_CONTRACTS);
         add(out, "progression.trainee_max_distance", CouriersServerConfig.TRAINEE_MAX_DISTANCE);
         add(out, "stations.register_radius", CouriersServerConfig.STATION_REGISTER_RADIUS);
+        add(out, "stations.shared_discovery", CouriersServerConfig.STATIONS_SHARED_DISCOVERY);
         add(out, "piracy.enabled", CouriersServerConfig.PIRACY_ENABLED);
         add(out, "debug.allow_self_accept", CouriersServerConfig.ALLOW_SELF_ACCEPT);
         add(out, "access.require_tablet", CouriersServerConfig.REQUIRE_TABLET);
@@ -48,6 +49,8 @@ public final class CouriersConfigEditor {
                 case "debug.allow_self_accept" -> CouriersServerConfig.ALLOW_SELF_ACCEPT.set(Boolean.parseBoolean(raw));
                 case "piracy.enabled" -> CouriersServerConfig.PIRACY_ENABLED.set(Boolean.parseBoolean(raw));
                 case "access.require_tablet" -> CouriersServerConfig.REQUIRE_TABLET.set(Boolean.parseBoolean(raw));
+                case "stations.shared_discovery" ->
+                        CouriersServerConfig.STATIONS_SHARED_DISCOVERY.set(Boolean.parseBoolean(raw));
                 case "contracts.village_generation_interval_min" ->
                         CouriersServerConfig.VILLAGE_GENERATION_INTERVAL_MIN.set(Integer.parseInt(raw));
                 case "contracts.village_board_max" -> CouriersServerConfig.VILLAGE_BOARD_MAX.set(Integer.parseInt(raw));
@@ -101,6 +104,7 @@ public final class CouriersConfigEditor {
             case "progression.trainee_free_contracts" -> Optional.of(CouriersServerConfig.TRAINEE_FREE_CONTRACTS);
             case "progression.trainee_max_distance" -> Optional.of(CouriersServerConfig.TRAINEE_MAX_DISTANCE);
             case "stations.register_radius" -> Optional.of(CouriersServerConfig.STATION_REGISTER_RADIUS);
+            case "stations.shared_discovery" -> Optional.of(CouriersServerConfig.STATIONS_SHARED_DISCOVERY);
             case "piracy.enabled" -> Optional.of(CouriersServerConfig.PIRACY_ENABLED);
             case "debug.allow_self_accept" -> Optional.of(CouriersServerConfig.ALLOW_SELF_ACCEPT);
             case "access.require_tablet" -> Optional.of(CouriersServerConfig.REQUIRE_TABLET);
